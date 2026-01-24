@@ -1,0 +1,38 @@
+require("dotenv").config();
+const fetch = require("node-fetch");
+const { Client } = require("pg");
+
+(async () => {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !KEY) {
+    console.error("Missing supabase env");
+    process.exit(1);
+  }
+  const email = process.argv[2] || "admin_novo@fab.mil.br";
+  const password = process.argv[3] || "12345678";
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${KEY}`,
+        apikey: KEY,
+      },
+      body: JSON.stringify({ email, password, email_confirm: true }),
+    });
+    const data = await res.text();
+    console.log("status", res.status);
+    console.log("body", data);
+  } catch (e) {
+    console.error(e);
+  }
+
+  const c = new Client({ connectionString: process.env.DATABASE_URL });
+  await c.connect();
+  const rows = await c.query(
+    "select id, created_at, error_text, new_payload from public.sync_auth_user_errors order by created_at desc limit 10",
+  );
+  console.log("errors rows:", rows.rows);
+  await c.end();
+})();

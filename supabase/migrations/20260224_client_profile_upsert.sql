@@ -47,9 +47,9 @@ DROP POLICY IF EXISTS profiles_insert_owner ON public.profiles;
 CREATE POLICY profiles_insert_owner
   ON public.profiles
   FOR INSERT
-  WITH CHECK (auth.uid() = id AND (role IS NULL OR role = 'user'));
+  WITH CHECK (auth.uid() = id AND (role IS NULL OR role = 'user'::user_role));
 
 -- Defensive: enforce default role at schema level (if not present)
-ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'user'::text;
+ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'user'::user_role;
 
 -- Note: This migration is intended to be applied before enabling client-side upsert to avoid overwrites.
