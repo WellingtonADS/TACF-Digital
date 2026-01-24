@@ -1,12 +1,21 @@
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env?.VITE_SUPABASE_URL) ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL;
+const supabaseKey =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    "Missing Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local",
+    "Missing Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or SUPABASE_URL/SUPABASE_ANON_KEY) in environment",
   );
 }
 

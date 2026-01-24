@@ -1,8 +1,15 @@
+import * as api from "@/services/api";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
-import * as api from "../../../services/api";
 import CalendarGrid from "../CalendarGrid";
+// Mock sonner toast to avoid non-configurable property issues and to assert calls
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
 
 // Mock fetchSessionsByMonth to return a single session on the 15th
 const session = {
@@ -60,13 +67,17 @@ describe("CalendarGrid optimistic booking", () => {
     await userEvent.click(confirmar);
 
     // Immediately after click, optimistic count should show 1/1
-    const bookedText = await screen.findByText(/1\/1/);
+    const bookedText = await screen.findByText((content) =>
+      /1\/1/.test(content.replace(/\s+/g, "")),
+    );
     expect(bookedText).toBeInTheDocument();
 
     // Wait for the mocked RPC to finish and for the UI to revert
     await waitFor(async () => {
       // After error, it should fetch sessions and revert to 0/1
-      const reverted = await screen.findByText(/0\/1/);
+      const reverted = await screen.findByText((content) =>
+        /0\/1/.test(content.replace(/\s+/g, "")),
+      );
       expect(reverted).toBeInTheDocument();
     });
 
@@ -98,7 +109,9 @@ describe("CalendarGrid optimistic booking", () => {
     await userEvent.click(confirmar);
 
     // Check optimistic 1/1
-    const optimistic = await screen.findByText(/1\/1/);
+    const optimistic = await screen.findByText((content) =>
+      /1\/1/.test(content.replace(/\s+/g, "")),
+    );
     expect(optimistic).toBeInTheDocument();
 
     // Wait for confirmation and modal to close (selectedDate becomes null)
@@ -119,8 +132,8 @@ describe("CalendarGrid optimistic booking", () => {
     } as any);
 
     const confirmMock = vi.spyOn(api, "confirmBooking");
-    const toastModule = await import("sonner");
-    const toastSpy = vi.spyOn(toastModule, "toast");
+    const { toast } = await import("sonner");
+    const toastSpy = toast;
 
     render(<CalendarGrid />);
 
