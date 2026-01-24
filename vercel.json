@@ -1,0 +1,12 @@
+{
+  "buildCommand": "yarn build",
+  "devCommand": "yarn dev",
+  "installCommand": "yarn install --frozen-lockfile",
+  "framework": "vite",
+
+  "env": {
+    "VITE_APP_NAME": "TACF HACO",
+    "VITE_APP_VERSION": "0.0.1"
+  },
+  "regions": ["sfo1"]
+}
