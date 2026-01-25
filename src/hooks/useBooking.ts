@@ -12,7 +12,7 @@ export function useBooking() {
       const res = await confirmBookingService(sessionId);
       if (res.success) {
         onSuccess?.();
-        return { success: true };
+        return { success: true, data: res };
       }
       setError(res.error ?? "Unknown error");
       return { success: false, error: res.error ?? "Unknown error" };

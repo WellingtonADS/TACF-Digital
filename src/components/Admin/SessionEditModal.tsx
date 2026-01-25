@@ -5,6 +5,7 @@ import type {
   Booking,
   BookingWithDetails,
   Profile,
+  SessionStatus,
 } from "@/types/database.types";
 import { generateSessionPDF } from "@/utils/pdfGenerator";
 import { format } from "date-fns";
@@ -27,7 +28,7 @@ export default function SessionEditModal({
   const [period, setPeriod] = useState<Period>("morning");
   const [maxCapacity, setMaxCapacity] = useState<number>(8);
   const [applicatorsText, setApplicatorsText] = useState<string>("");
-  const [status, setStatus] = useState<"open" | "closed">("open");
+  const [status, setStatus] = useState<SessionStatus>("open");
   const [loading, setLoading] = useState(false);
 
   const [bookings, setBookings] = useState<(Booking & { user?: Profile })[]>(
@@ -49,7 +50,7 @@ export default function SessionEditModal({
         if (res) {
           setMaxCapacity(res.max_capacity);
           setApplicatorsText((res.applicators ?? []).join(", "));
-          setStatus(res.status);
+          setStatus(res.status as SessionStatus);
           setBookings(res.bookings ?? []);
         }
       } catch {
@@ -68,7 +69,7 @@ export default function SessionEditModal({
         if (res) {
           setMaxCapacity(res.max_capacity);
           setApplicatorsText((res.applicators ?? []).join(", "));
-          setStatus(res.status);
+          setStatus(res.status as SessionStatus);
           setBookings(res.bookings ?? []);
         } else {
           // defaults
@@ -160,7 +161,7 @@ export default function SessionEditModal({
         <label className="text-sm">Status</label>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value as "open" | "closed")}
+          onChange={(e) => setStatus(e.target.value as SessionStatus)}
           className="border rounded p-2"
         >
           <option value="open">Aberto</option>
@@ -187,15 +188,24 @@ export default function SessionEditModal({
                     updated_at: "",
                   } as Profile),
               }));
-              generateSessionPDF({
+              // Construct minimal SessionWithBookings compatible object
+              const sessionForPdf = {
+                id: "",
                 date: format(date, "yyyy-LL-dd"),
                 period,
+                max_capacity: maxCapacity,
                 applicators: applicatorsText
                   .split(",")
                   .map((s) => s.trim())
                   .filter(Boolean),
+                status,
+                coordinator_id: null,
+                created_at: "",
+                updated_at: "",
                 bookings: safeBookings as BookingWithDetails[],
-              });
+              } as any;
+
+              generateSessionPDF(sessionForPdf);
             }}
             disabled={bookings.length === 0}
             title={bookings.length === 0 ? "Nenhum inscrito" : "Imprimir lista"}

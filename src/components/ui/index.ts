@@ -1,5 +1,5 @@
 export { Badge } from "./Badge";
-export { Button } from "./Button";
+export { default as Button } from "./Button";
 export { Card } from "./Card";
 export { Icon } from "./Icon";
 export { default as Input } from "./Input";

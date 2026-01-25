@@ -1,220 +1,117 @@
-import Card from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/services/supabase";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Lock, LogIn, Mail, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 
 const Login: React.FC = () => {
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotDone, setForgotDone] = useState(false);
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsg(null);
-    setLoading(true);
-    const res = await signIn(email, password);
-    if (res.error) setMsg(res.error.message || "Erro ao entrar");
-    setLoading(false);
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsg(null);
-    setLoading(true);
-    const res = await signUp(email, password);
-    if (res.error) setMsg(res.error.message || "Erro ao cadastrar");
-    else setMsg("Cadastro iniciado. Complete seu perfil quando solicitado.");
-    setLoading(false);
-  };
-
-  const handleForgot = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    setForgotLoading(true);
-    setForgotDone(false);
-    try {
-      // try multiple possible signatures to be resilient across supabase client versions
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const authAny: any = supabase.auth as any;
-      if (typeof authAny.resetPasswordForEmail === "function") {
-        try {
-          await authAny.resetPasswordForEmail(forgotEmail);
-        } catch {
-          await authAny.resetPasswordForEmail({ email: forgotEmail });
-        }
-      } else if (
-        typeof authAny.resetPasswordForEmail === "undefined" &&
-        typeof authAny.api !== "undefined"
-      ) {
-        // older clients may provide API helpers — best-effort, ignore errors
-        try {
-          await authAny.api.resetPasswordForEmail(forgotEmail);
-        } catch {
-          // noop
-        }
-      }
-      setForgotDone(true);
-    } catch {
-      setForgotDone(true);
-    } finally {
-      setForgotLoading(false);
-    }
-  };
+  const [loading] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <Card className="p-6 sm:p-8 rounded-xl shadow-md">
-          <header className="text-center mb-6">
-            <div className="text-3xl font-semibold text-sky-900">
-              TACF‑Digital
-            </div>
-            <div className="text-sm text-slate-500 mt-1">
-              HACO — Sistema de Gerenciamento
-            </div>
-            <p className="text-sm text-slate-600 mt-3">Bem‑vindo ao SGCF</p>
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-100">
+      <div className="hidden md:flex md:w-1/2 bg-[#1B365D] flex-col items-center justify-center p-12 text-white">
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Badge_of_the_Brazilian_Air_Force.svg"
+          className="w-32 mb-8 drop-shadow-xl"
+          alt="Logo FAB"
+        />
+        <h1 className="text-4xl font-bold uppercase tracking-widest">
+          TACF‑Digital
+        </h1>
+        <p className="mt-4 text-lg opacity-80 text-center max-w-sm">
+          Sistema de Gerenciamento de Condicionamento Físico do HACO
+        </p>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-slate-200">
+          <header className="text-center mb-10">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Badge_of_the_Brazilian_Air_Force.svg"
+              className="w-16 mx-auto mb-4 md:hidden"
+              alt="Logo FAB"
+            />
+            <h2 className="text-2xl font-bold text-slate-800">
+              Acesso ao Sistema
+            </h2>
+            <p className="text-slate-500 text-sm">Bem‑vindo ao SGCF do HACO</p>
           </header>
 
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-slate-700 mb-1"
-              >
-                E-mail
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              signIn(email, password);
+            }}
+            className="space-y-6"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700 block">
+                E-mail Institucional
               </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu.email@militar"
-                className="block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome.sobrenome@fab.mil.br"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1B365D] outline-none transition-all"
+                />
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700 mb-1"
-              >
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700 block">
                 Senha
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1B365D] outline-none transition-all"
+                />
+              </div>
             </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <Dialog.Root>
-                <Dialog.Trigger asChild>
-                  <button
-                    type="button"
-                    className="text-sky-600 hover:underline"
-                  >
-                    Esqueci minha senha
-                  </button>
-                </Dialog.Trigger>
-
-                <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-                  <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg w-[90%] max-w-md p-6">
-                    <Dialog.Title className="text-lg font-medium text-slate-900">
-                      Recuperar senha
-                    </Dialog.Title>
-                    <Dialog.Description className="text-sm text-slate-600 mt-1">
-                      Informe seu e-mail institucional para receber instruções.
-                    </Dialog.Description>
-
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleForgot();
-                      }}
-                      className="mt-4 space-y-3"
-                    >
-                      <div>
-                        <label className="block text-sm text-slate-700 mb-1">
-                          E-mail
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={forgotEmail}
-                          onChange={(e) => setForgotEmail(e.target.value)}
-                          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                        />
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <Dialog.Close asChild>
-                          <button
-                            type="button"
-                            className="px-3 py-2 text-sm rounded-md"
-                          >
-                            Fechar
-                          </button>
-                        </Dialog.Close>
-                        <button
-                          type="submit"
-                          disabled={forgotLoading}
-                          className="px-4 py-2 bg-sky-600 text-white rounded-md text-sm hover:bg-sky-700 disabled:opacity-60"
-                        >
-                          {forgotLoading ? "Enviando..." : "Enviar"}
-                        </button>
-                      </div>
-
-                      {forgotDone && (
-                        <p className="text-sm text-green-600">
-                          Instruções enviadas se o e-mail existir.
-                        </p>
-                      )}
-                    </form>
-                  </Dialog.Content>
-                </Dialog.Portal>
-              </Dialog.Root>
-
-              <div />
-            </div>
-
-            {msg && <div className="text-sm text-red-600">{msg}</div>}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-sky-600 text-white rounded-md text-sm font-medium hover:bg-sky-700 disabled:opacity-60"
+              className="w-full py-4 bg-[#1B365D] text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#152a4a] active:scale-[0.98] transition-all disabled:opacity-70"
             >
-              {loading ? "Entrando..." : "Acessar sistema"}
+              {loading ? (
+                "Entrando..."
+              ) : (
+                <>
+                  <LogIn size={20} /> Acessar Sistema
+                </>
+              )}
             </button>
 
-            <div className="pt-3 text-center text-sm text-slate-600">
-              Ainda não tem conta?{" "}
-              <button
-                type="button"
-                onClick={handleSignUp}
-                className="text-sky-600 font-medium hover:underline"
-              >
-                Criar cadastro
-              </button>
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500 py-2">
+              <span className="h-px w-full bg-slate-200"></span>
+              <span>OU</span>
+              <span className="h-px w-full bg-slate-200"></span>
             </div>
-          </form>
-        </Card>
 
-        <div className="mt-4 text-xs text-slate-500 text-center">
-          <span>HACO — Hospital da Força Aérea</span>
+            <button
+              type="button"
+              onClick={() => signUp(email, password)}
+              className="w-full py-3 border-2 border-slate-200 text-slate-700 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+            >
+              <UserPlus size={20} /> Criar nova conta
+            </button>
+          </form>
+
+          <footer className="mt-10 text-center text-xs text-slate-400">
+            <p>HACO — Hospital da Força Aérea</p>
+            <p>Seção de Preparo Físico • © 2026</p>
+          </footer>
         </div>
       </div>
     </div>

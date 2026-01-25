@@ -30,7 +30,7 @@ export async function approveSwap(requestId: string, adminId: string) {
   const { data, error } = await supabase.rpc("approve_swap", {
     p_request_id: requestId,
     p_admin_id: adminId,
-  });
+  } as any);
   if (error) return { success: false, error };
   const row = (Array.isArray(data) ? data[0] : data) as
     | ApproveSwapResult
@@ -48,7 +48,7 @@ export async function fetchSessionsByMonth(year: number, month: number) {
   const { data, error } = await supabase.rpc("get_sessions_availability", {
     p_start: start,
     p_end: end,
-  });
+  } as any);
 
   if (error) return { data: null, error };
 
@@ -93,7 +93,7 @@ export async function fetchFutureSessions() {
   const { data, error } = await supabase.rpc("get_sessions_availability", {
     p_start: today,
     p_end: "9999-12-31",
-  });
+  } as any);
   if (error) return { data: null, error };
   const mapped = ((data as Array<Record<string, unknown>>) ?? []).map((r) => ({
     id: String(r.session_id ?? ""),
@@ -122,7 +122,7 @@ export async function requestSwap(
 
   try {
     // insert swap request
-    const { error } = await supabase.from("swap_requests").insert({
+    const { error } = await (supabase as any).from("swap_requests").insert({
       booking_id: bookingId,
       requested_by: userId,
       new_session_id: newSessionId,
@@ -136,7 +136,7 @@ export async function requestSwap(
       };
 
     // optionally update booking status to pending_swap
-    const { error: updErr } = await supabase
+    const { error: updErr } = await (supabase as any)
       .from("bookings")
       .update({ status: "pending_swap" })
       .eq("id", bookingId);

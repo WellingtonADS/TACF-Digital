@@ -1,6 +1,7 @@
 import React from "react";
+import { cn } from "@/utils/cn"; // Nossa utilidade para merge de classes
 
-type Variant = "primary" | "ghost" | "success" | "alert" | "error";
+type Variant = "primary" | "secondary" | "ghost" | "success" | "alert" | "error" | "outline";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -9,21 +10,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   block?: boolean;
 }
 
-const variantClasses: Record<Variant, string> = {
-  primary: "bg-primary text-white hover:bg-primary/95",
-  ghost: "bg-transparent border border-primary text-primary hover:bg-primary/5",
-  success: "bg-success text-white hover:bg-success/95",
-  alert: "bg-alert text-white hover:bg-alert/95",
-  error: "bg-error text-white hover:bg-error/95",
-};
-
-const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2 text-base",
-  lg: "px-5 py-3 text-lg",
-};
-
-export const Button: React.FC<ButtonProps> = ({
+const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   size = "md",
   isLoading = false,
@@ -33,34 +20,47 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...rest
 }) => {
-  const classes = [
-    "inline-flex items-center justify-center gap-2",
-    sizeClasses[size],
-    variantClasses[variant],
-    "rounded",
-    "font-medium",
-    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50",
-    block ? "w-full" : "",
-    disabled || isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  // Mapeamento de variantes usando seus Design Tokens
+  const variantStyles: Record<Variant, string> = {
+    primary: "bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20",
+    secondary: "bg-secondary text-white hover:bg-secondary/90 shadow-md shadow-secondary/20",
+    success: "bg-success text-white hover:bg-success/90",
+    alert: "bg-alert text-white hover:bg-alert/90",
+    error: "bg-error text-white hover:bg-error/90",
+    ghost: "bg-transparent text-primary hover:bg-primary/5",
+    outline: "bg-transparent border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300",
+  };
+
+  const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
+    sm: "h-9 px-3 text-xs",
+    md: "h-11 px-6 text-sm",
+    lg: "h-14 px-8 text-base",
+  };
 
   return (
     <button
-      className={classes}
+      className={cn(
+        // Base: Flexbox, Alinhamento, Fonte e Transição
+        "inline-flex items-center justify-center gap-2 rounded-xl font-bold transition-all active:scale-[0.98]",
+        // Estilos de Tamanho e Variante
+        sizeStyles[size],
+        variantStyles[variant],
+        // Estados de Bloqueio/Carregamento
+        block && "w-full",
+        (disabled || isLoading) && "opacity-60 cursor-not-allowed active:scale-100",
+        className
+      )}
       disabled={disabled || isLoading}
-      aria-disabled={disabled || isLoading}
       {...rest}
     >
-      {isLoading && (
-        <span
-          className="animate-spin inline-block h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full"
-          aria-hidden="true"
-        />
+      {isLoading ? (
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span className="opacity-80">Processando...</span>
+        </div>
+      ) : (
+        <>{children}</>
       )}
-      <span>{children}</span>
     </button>
   );
 };
