@@ -1,7 +1,7 @@
 import React, { Suspense } from "react";
-import { BrowserRouter, Route, Routes, Link } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Páginas
 import Login from "./pages/Login";
@@ -16,6 +16,7 @@ const AdminUsers = React.lazy(() => import("./pages/AdminUsers"));
 
 // Componentes de Rota
 import AdminRoute from "./components/Admin/AdminRoute";
+import Shell from "./components/Layout/Shell";
 
 function App() {
   const { user, profile, loading } = useAuth();
@@ -38,47 +39,52 @@ function App() {
   // 3. Fluxo Autenticado: Aqui entra o Layout do Sistema (Navbar + Container)
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-canvas">
-        {/* Navbar Institucional */}
-        <header className="bg-primary text-white shadow-md">
-          <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="font-bold tracking-wider">TACF DIGITAL</span>
-              <nav className="flex gap-6 ml-8">
-                <Link to="/" className="text-sm font-medium hover:text-blue-200 transition-colors">
-                  Dashboard
-                </Link>
-                {profile?.role === "admin" && adminEnabled && (
-                  <Link to="/admin" className="text-sm font-medium hover:text-red-300 text-red-200">
-                    Painel Admin
-                  </Link>
-                )}
-              </nav>
-            </div>
-            <div className="text-xs opacity-70">
-              {profile.rank} {profile.full_name}
-            </div>
-          </div>
-        </header>
+      <Shell profile={profile} adminEnabled={adminEnabled}>
+        <Suspense
+          fallback={<div className="p-8 text-center">Carregando módulo...</div>}
+        >
+          <Routes>
+            <Route path="/" element={<UserDashboard />} />
 
-        {/* Área de Conteúdo */}
-        <main className="container mx-auto p-6">
-          <Suspense fallback={<div className="p-8 text-center">Carregando módulo...</div>}>
-            <Routes>
-              <Route path="/" element={<UserDashboard />} />
-              
-              {adminEnabled && (
-                <Route path="/admin">
-                  <Route index element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                  <Route path="sessions" element={<AdminRoute><AdminSessions /></AdminRoute>} />
-                  <Route path="swaps" element={<AdminRoute><AdminSwapRequests /></AdminRoute>} />
-                  <Route path="users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-                </Route>
-              )}
-            </Routes>
-          </Suspense>
-        </main>
-      </div>
+            {adminEnabled && (
+              <Route path="/admin">
+                <Route
+                  index
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="sessions"
+                  element={
+                    <AdminRoute>
+                      <AdminSessions />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="swaps"
+                  element={
+                    <AdminRoute>
+                      <AdminSwapRequests />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="users"
+                  element={
+                    <AdminRoute>
+                      <AdminUsers />
+                    </AdminRoute>
+                  }
+                />
+              </Route>
+            )}
+          </Routes>
+        </Suspense>
+      </Shell>
     </BrowserRouter>
   );
 }

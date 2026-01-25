@@ -1,6 +1,5 @@
 import SessionEditModal from "@/components/Admin/SessionEditModal";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
-import MainLayout from "@/components/Layout/MainLayout";
 import { useState } from "react";
 
 export default function AdminSessions() {
@@ -8,7 +7,7 @@ export default function AdminSessions() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <MainLayout>
+    <div className="space-y-4">
       <div className="mb-4">
         <h1 className="text-2xl font-semibold">Gerenciar Sessões</h1>
         <p className="text-sm text-slate-500">
@@ -34,6 +33,6 @@ export default function AdminSessions() {
           setEditingDate(null);
         }}
       />
-    </MainLayout>
+    </div>
   );
 }

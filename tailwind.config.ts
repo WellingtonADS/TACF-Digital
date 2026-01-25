@@ -1,6 +1,8 @@
 import type { Config } from "tailwindcss";
-// @ts-ignore - plugin de animações é padrão para Radix
+// @ts-expect-error - plugin de animações é padrão para Radix
 import animate from "tailwindcss-animate";
+// forms plugin para padronizar inputs
+import forms from "@tailwindcss/forms";
 
 export default {
   // Garantindo que ele varra todas as subpastas da sua árvore
@@ -11,6 +13,14 @@ export default {
     "./src/pages/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: "1rem",
+        sm: "1.5rem",
+        lg: "2rem",
+      },
+    },
     extend: {
       colors: {
         primary: { DEFAULT: "#1B365D" },
@@ -40,5 +50,5 @@ export default {
       },
     },
   },
-  plugins: [animate],
+  plugins: [animate, forms],
 } satisfies Config;
