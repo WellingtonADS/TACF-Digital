@@ -54,6 +54,7 @@ export default function AdminUsers() {
           <h2 className="text-xl font-semibold">Gestão de Usuários</h2>
           <div className="w-64">
             <Input
+              label="Buscar"
               placeholder="Buscar por SARAM ou Nome"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

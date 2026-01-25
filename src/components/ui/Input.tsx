@@ -1,35 +1,66 @@
-import React from "react";
+import { cn } from "@/utils/cn";
+import * as Label from "@radix-ui/react-label";
+import * as React from "react";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string | null;
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
   icon?: React.ReactNode;
+  error?: string; // Adicionado para exibir mensagens de validação
 }
 
-export default function Input({
-  label,
-  error,
-  icon,
-  className = "",
-  ...rest
-}: InputProps) {
-  return (
-    <div className={`flex flex-col gap-1 ${className}`}>
-      {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
-      )}
-      <div className="relative">
-        {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            {icon}
-          </div>
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, icon, error, className, id, ...props }, ref) => {
+    return (
+      <div className="w-full space-y-1.5">
+        <Label.Root
+          className="text-xs font-bold text-primary uppercase tracking-wider leading-none cursor-default ml-1"
+          htmlFor={id}
+        >
+          {label}
+        </Label.Root>
+        
+        <div className="relative flex items-center group">
+          {icon && (
+            <div className={cn(
+              "absolute left-3 transition-colors",
+              error ? "text-error" : "text-slate-400 group-focus-within:text-secondary"
+            )}>
+              {icon}
+            </div>
+          )}
+          
+          <input
+            id={id}
+            ref={ref}
+            className={cn(
+              // Base e Typography
+              "flex h-12 w-full rounded-xl border px-3 py-2 text-sm transition-all outline-none",
+              // Cores usando seus Tokens
+              "bg-canvas border-slate-200 text-primary placeholder:text-slate-400",
+              // Estados de Foco (Usando seu token Secondary)
+              "focus:ring-2 focus:ring-secondary/20 focus:border-secondary shadow-sm",
+              // Estado de Erro
+              error && "border-error focus:border-error focus:ring-error/20 bg-error/5",
+              // Ajuste de Padding se houver ícone
+              icon && "pl-10",
+              // Cursor e Opacidade para Disabled
+              "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100",
+              className
+            )}
+            {...props}
+          />
+        </div>
+
+        {/* Mensagem de Erro Dinâmica */}
+        {error && (
+          <span className="text-[10px] font-bold text-error uppercase tracking-tight ml-1 animate-in fade-in slide-in-from-top-1">
+            {error}
+          </span>
         )}
-        <input
-          className={`w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${icon ? "pl-10" : ""}`}
-          {...rest}
-        />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </div>
-  );
-}
+    );
+  },
+);
+
+Input.displayName = "Input";
+export default Input;

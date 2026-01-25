@@ -4,29 +4,61 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Basic reset aligned with TACF-Digital Design System */
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  /* Garante que o app ocupe a tela toda sem scroll fantasma */
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family:
+      Inter,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      "Noto Sans",
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol";
+    background-color: #f4f7f9; /* canvas */
+    color: #1b365d; /* primary */
+    /* Força o render nítido das fontes */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Reset básico para campos de formulário */
+  input,
+  button,
+  select,
+  textarea {
+    font-family: inherit;
+    outline: none;
+    transition: all 0.15s ease;
+  }
 }
 
-html,
-body,
-#root {
-  height: 100%;
+/* Camada para evitar conflitos de animação do Radix */
+@layer components {
+  .SelectContent {
+    z-index: 50;
+    min-width: 8rem;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    border: 1px solid #f1f5f9;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  }
 }
-
-body {
-  margin: 0;
-  background-color: #f4f7f9; /* canvas token */
-  color: #0f172a; /* slate-900 fallback */
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial;
-}
-
-/* Utility: small helper classes can be added in components when needed */

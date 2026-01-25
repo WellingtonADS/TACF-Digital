@@ -1,126 +1,74 @@
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl =
-  (typeof import.meta !== "undefined" &&
-    (import.meta as unknown as { env?: Record<string, string> }).env
-      ?.VITE_SUPABASE_URL) ||
-  (typeof process !== "undefined" && process.env?.VITE_SUPABASE_URL) ||
-  (typeof process !== "undefined" && process.env?.SUPABASE_URL) ||
-  undefined;
-const supabaseKey =
-  (typeof import.meta !== "undefined" &&
-    (import.meta as unknown as { env?: Record<string, string> }).env
-      ?.VITE_SUPABASE_ANON_KEY) ||
-  (typeof process !== "undefined" && process.env?.VITE_SUPABASE_ANON_KEY) ||
-  (typeof process !== "undefined" && process.env?.SUPABASE_ANON_KEY) ||
-  (typeof process !== "undefined" && process.env?.SUPABASE_ANON) ||
-  undefined;
+// No Vite, usamos import.meta.env de forma direta e limpa
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    "Missing Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or SUPABASE_URL/SUPABASE_ANON_KEY) in environment",
-  );
+  throw new Error("Credenciais do Supabase não encontradas no .env");
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 /**
- * Wrapper: Calls the `book_session` RPC with typed params and returns the RPC row.
- * Returns { success: boolean; booking_id?: string | null; error?: string | null }
+ * Tipagem para o retorno do RPC de agendamento
  */
+interface BookingResponse {
+  success: boolean;
+  booking_id: string | null;
+  error: string | null;
+}
+
 /**
- * Confirmar agendamento: chama o RPC `confirmar_agendamento` no banco.
- * A validação de vagas/quotas deve ser tratada EXCLUSIVAMENTE no backend.
+ * Confirmar agendamento via RPC (Backend-First)
+ * Esta função garante que a lógica de vagas (8-21) seja processada no Postgres
  */
 export async function confirmarAgendamentoRPC(
   userId: string,
   sessionId: string,
-) {
+): Promise<BookingResponse> {
+  // RPC calls have loose typings; cast params/result to any to avoid TS issues
   const { data, error } = await supabase.rpc("confirmar_agendamento", {
     p_user_id: userId,
     p_session_id: sessionId,
-  });
+  } as any);
 
-  if (error)
+  if (error) {
     return {
       success: false,
       booking_id: null,
-      error: (error as { message?: string })?.message ?? "Unknown error",
+      error: error.message,
     };
+  }
 
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | { success?: boolean; booking_id?: string | null; error?: string | null }
-    | undefined;
+  const result = Array.isArray(data) ? (data[0] as any) : (data as any);
+
   return {
-    success: row?.success === true,
-    booking_id: row?.booking_id ?? null,
-    error: row?.error ?? null,
+    success: !!result?.success,
+    booking_id: result?.booking_id ?? null,
+    error: result?.error ?? null,
   };
 }
 
-// Backwards-compatible alias to avoid breaking imports elsewhere.
-export const bookSessionRPC = async (userId: string, sessionId: string) => {
-  // prefer explicit RPC name
-
-  console.warn(
-    "bookSessionRPC is deprecated — use confirmarAgendamentoRPC (calls confirmar_agendamento RPC)",
-  );
-  return confirmarAgendamentoRPC(userId, sessionId);
-};
-
 /**
- * Auth helpers
+ * Helpers de Autenticação
  */
-export async function signUp(email: string, password: string) {
-  const result = await supabase.auth.signUp({ email, password });
-  return result;
-}
+export const signIn = (email: string, password: string) =>
+  supabase.auth.signInWithPassword({ email, password });
 
-export async function signIn(email: string, password: string) {
-  const result = await supabase.auth.signInWithPassword({ email, password });
-  return result;
-}
-
-export async function getSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) return { session: null, error };
-  return { session: data.session ?? null, error: null };
-}
-
-export async function awaitSession(
-  timeoutMs = 10000,
-  intervalMs = 1000,
-): Promise<import("@supabase/supabase-js").Session | null> {
-  const start = Date.now();
-  // Poll until session available or timeout
-
-  while (true) {
-    const { session } = await getSession();
-    if (session) return session;
-    if (Date.now() - start > timeoutMs) return null;
-    // wait
-
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-}
+export const signUp = (email: string, password: string) =>
+  supabase.auth.signUp({ email, password });
 
 /**
- * Upsert profile safely from client.
- * Ensures client cannot set sensitive fields like `role`.
+ * Upsert Profile com Proteção de Segurança
+ * Impede que o cliente tente sobrescrever o próprio 'role' (militar -> admin)
  */
 export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>,
 ) {
-  // Create a shallow copy and remove sensitive fields the client must not set.
-  // @ts-expect-error - index signature for partial may not match Record typing
-  const payload = { ...profile } as Record<string, unknown>;
-  delete payload.role;
-  // Ensure id is present when provided; server-side triggers may also create.
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert(payload)
-    .select()
-    .maybeSingle();
-  return { data, error };
+  // Segurança: Nunca permitir que o campo 'role' seja enviado pelo cliente
+  const { role, ...safePayload } = profile as any;
+
+  return supabase.from("profiles").upsert(safePayload).select().maybeSingle();
 }
