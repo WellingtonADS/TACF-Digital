@@ -65,9 +65,9 @@
   }
 
   /* Evita outlines globais do navegador (mantém foco acessível via box-shadow nas classes Tailwind) */
-  :focus {
-    outline: none;
-  }
+  /* Evita remover outlines de foco essenciais.
+     Utilize utilitários `focus-visible` do Tailwind para estilos de foco.
+  */
 }
 
 /* Camada para evitar conflitos de animação do Radix */

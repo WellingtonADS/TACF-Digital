@@ -1,9 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   supabase,
   signIn as svcSignIn,
   signUp as svcSignUp,
+  upsertProfile as svcUpsertProfile,
 } from "@/services/supabase";
-import type { Profile } from "@/types/database.types";
+import type { Profile, ProfileInsert } from "@/types/database.types";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type AuthResponse = { error?: { message?: string } | null };
@@ -115,22 +117,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setLoading(true);
     try {
-      const payload = { ...p, id: user.id };
-      const { data, error } = await supabase
-        .from("profiles")
-        .upsert(payload as any)
-        .select()
-        .single();
+      const payload: Partial<ProfileInsert> = {
+        ...(p as Partial<ProfileInsert>),
+        id: user.id,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await svcUpsertProfile(payload as any);
+      const { data, error } = res;
 
       if (error) throw error;
 
       const updatedProfile = data as Profile;
       setProfile(updatedProfile);
       return { data: updatedProfile, error: null };
-    } catch (error: any) {
+    } catch (err) {
+      const errorObj = err as { message?: string };
       return {
         data: undefined,
-        error: { message: error.message || "Erro ao atualizar perfil" },
+        error: { message: errorObj.message || "Erro ao atualizar perfil" },
       };
     } finally {
       setLoading(false);

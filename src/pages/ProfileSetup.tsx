@@ -24,7 +24,7 @@ import {
   Save,
   User,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 const RANKS = [
   "Coronel",
@@ -45,12 +45,14 @@ const RANKS = [
 const ProfileSetup: React.FC = () => {
   const { profile, upsertProfile, user } = useAuth();
 
-  // Estados do Formulário
-  const [saram, setSaram] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [rank, setRank] = useState("");
+  // Estados do Formulário (inicializados a partir do profile quando disponível)
+  const [saram, setSaram] = useState(() => profile?.saram ?? "");
+  const [fullName, setFullName] = useState(() => profile?.full_name ?? "");
+  const [rank, setRank] = useState(() => profile?.rank ?? "");
   // O semestre agora é detectado automaticamente pela data do sistema
-  const [semester, setSemester] = useState<"1" | "2">(getCurrentSemester());
+  const [semester, setSemester] = useState<"1" | "2">(
+    () => profile?.semester ?? getCurrentSemester(),
+  );
 
   // Estados de UI
   const [loading, setLoading] = useState(false);
@@ -60,15 +62,8 @@ const ProfileSetup: React.FC = () => {
     msg: string;
   } | null>(null);
 
-  // Sincroniza dados se o perfil já existir parcialmente
-  useEffect(() => {
-    if (profile) {
-      setSaram(profile.saram ?? "");
-      setFullName(profile.full_name ?? "");
-      setRank(profile.rank ?? "");
-      setSemester(profile.semester ?? getCurrentSemester());
-    }
-  }, [profile]);
+  // Observação: inicialização do estado é feita via lazy initializer em useState
+  // para evitar chamadas síncronas de setState dentro de efeitos.
 
   const validate = () => {
     const newErrors: Record<string, string> = {};

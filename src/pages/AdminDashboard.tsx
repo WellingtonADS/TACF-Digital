@@ -1,5 +1,4 @@
 import StatsCard from "@/components/Admin/StatsCard";
-import MainLayout from "@/components/Layout/MainLayout";
 import Button from "@/components/ui/Button";
 import { fetchDashboardStats } from "@/services/admin";
 import { useEffect, useState } from "react";
@@ -27,10 +26,10 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  if (loading) return <MainLayout>Loading dashboard...</MainLayout>;
+  if (loading) return <div>Loading dashboard...</div>;
 
   return (
-    <MainLayout>
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard title="Usuários" value={stats?.totalUsers ?? 0} />
         <StatsCard title="Agendamentos" value={stats?.totalScheduled ?? 0} />
@@ -51,6 +50,6 @@ export default function AdminDashboard() {
           </a>
         </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }
