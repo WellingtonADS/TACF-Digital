@@ -16,11 +16,13 @@ export default function AdminSessions() {
         </p>
       </div>
 
-      <CalendarGrid
-        isAdmin
-        onDayClick={(date) => setEditingDate(date)}
-        refreshKey={refreshKey}
-      />
+      <div className="bg-white rounded shadow-sm p-4">
+        <CalendarGrid
+          isAdmin
+          onDayClick={(date) => setEditingDate(date)}
+          refreshKey={refreshKey}
+        />
+      </div>
 
       <SessionEditModal
         isOpen={!!editingDate}

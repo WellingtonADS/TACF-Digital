@@ -2,6 +2,7 @@ import MainLayout from "@/components/Layout/MainLayout";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { approveSwap, fetchPendingSwaps, rejectSwap } from "@/services/admin";
+import toastUi from "@/utils/toast";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -29,26 +30,26 @@ export default function AdminSwapRequests() {
   async function handleApprove(id: string) {
     try {
       const res = await approveSwap(id);
-      if (res.error) toast.error(res.error);
+      if (res.error) toastUi.genericError(res.error);
       else {
-        toast.success("Aprovação realizada");
+        toastUi.approvalSuccess();
         await load();
       }
     } catch {
-      toast.error("Erro ao aprovar");
+      toastUi.genericError("Erro ao aprovar");
     }
   }
 
   async function handleReject(id: string) {
     try {
       const res = await rejectSwap(id);
-      if (res.error) toast.error(res.error);
+      if (res.error) toastUi.genericError(res.error);
       else {
         toast.success("Rejeição realizada");
         await load();
       }
     } catch {
-      toast.error("Erro ao rejeitar");
+      toastUi.genericError("Erro ao rejeitar");
     }
   }
 

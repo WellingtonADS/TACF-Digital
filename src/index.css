@@ -1,8 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Basic reset aligned with project "Clean/Militar" identity */
+/* Basic reset aligned with TACF-Digital Design System */
 :root {
   color-scheme: light;
 }
@@ -15,10 +17,10 @@ body,
 
 body {
   margin: 0;
-  /* using explicit colors to avoid theme() resolution in build step */
-  background-color: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 */
+  background-color: #f4f7f9; /* canvas token */
+  color: #0f172a; /* slate-900 fallback */
   font-family:
+    Inter,
     system-ui,
     -apple-system,
     "Segoe UI",
@@ -27,4 +29,4 @@ body {
     Arial;
 }
 
-/* Keep additional small helpers if needed later */
+/* Utility: small helper classes can be added in components when needed */

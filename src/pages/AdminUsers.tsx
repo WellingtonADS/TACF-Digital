@@ -52,7 +52,7 @@ export default function AdminUsers() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Gestão de Usuários</h2>
-          <div className="w-80">
+          <div className="w-64">
             <Input
               placeholder="Buscar por SARAM ou Nome"
               value={query}
@@ -61,7 +61,7 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        <div className="bg-white rounded shadow p-4">
+        <div className="bg-white rounded shadow-sm p-4">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -91,7 +91,7 @@ export default function AdminUsers() {
                 )}
 
                 {filtered.map((p) => (
-                  <tr key={p.id} className="border-t">
+                  <tr key={p.id} className="border-t bg-white even:bg-slate-50">
                     <td className="p-2">{p.saram}</td>
                     <td className="p-2">{p.rank}</td>
                     <td className="p-2">{p.full_name}</td>

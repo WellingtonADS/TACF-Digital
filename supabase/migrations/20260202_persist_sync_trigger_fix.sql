@@ -67,9 +67,11 @@ BEGIN
 END;
 $$;
 
--- 3) Garantir owner/perm (ajuste se necessário no ambiente alvo)
--- Nota: 'postgres' é usualmente owner em ambientes administrados; ajuste conforme necessário.
-ALTER FUNCTION public.sync_auth_user_to_profile() OWNER TO postgres;
+-- Definir owner para o usuário que executa a migration (mais portátil)
+DO $$
+BEGIN
+  EXECUTE format('ALTER FUNCTION public.sync_auth_user_to_profile() OWNER TO %I', current_user);
+END$$;
 
 COMMIT;
 

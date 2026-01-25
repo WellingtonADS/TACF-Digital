@@ -49,11 +49,11 @@ export async function seed(): Promise<SeedResult> {
     for (const acc of accounts) {
       // Remove existing user if present
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const list = (await (admin as any).auth.admin.listUsers()) as any;
         const existing = list?.users?.find((u: any) => u.email === acc.email);
         if (existing) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           await (admin as any).auth.admin.deleteUser(existing.id);
         }
       } catch (e) {
@@ -61,15 +61,25 @@ export async function seed(): Promise<SeedResult> {
       }
 
       // Create user via admin API
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await (admin as any).auth.admin.createUser({
         email: acc.email,
         password: acc.password,
         email_confirm: true,
       });
 
-      const user = res.user;
-      if (!user) throw new Error("Failed to create test user " + acc.email);
+      // supabase admin API may return user in different shapes depending on client version
+      // try common locations: res.user, res.data.user, res.data
+       
+      const anyRes: any = res;
+      // resolve possible shapes
+      const user = anyRes.user ?? anyRes.data?.user ?? anyRes.data ?? null;
+      if (!user) {
+        // include full response for easier debugging
+        throw new Error(
+          `Failed to create test user ${acc.email} — response: ${JSON.stringify(anyRes)}`,
+        );
+      }
 
       // Upsert profile row
       const profilePayload = {
@@ -80,6 +90,15 @@ export async function seed(): Promise<SeedResult> {
         role: acc.role,
         semester: "1",
       };
+      // debug if id is missing to help diagnosis of response shape issues
+       
+      if (!user.id)
+        console.warn(
+          `seed:createUser: missing id for ${acc.email} — user shape: ${JSON.stringify(user)}`,
+        );
+      // also log the full response if available for debugging
+       
+      console.warn(`seed:createUser: full response: ${JSON.stringify(anyRes)}`);
       await admin.from("profiles").upsert(profilePayload);
 
       createdUsers.push({
@@ -114,7 +133,7 @@ export async function seed(): Promise<SeedResult> {
 
   let sessions: { id: string; date: string; period: string }[] = [];
   if (admin) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const { data: sessData } = await (admin as any)
       .from("sessions")
       .upsert(sessionsPayload, { onConflict: ["date", "period"] })
@@ -151,7 +170,7 @@ export async function teardown() {
     const parsed: SeedResult = JSON.parse(raw);
     for (const u of parsed.users) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         await (admin as any).auth.admin.deleteUser(u.id);
       } catch (e) {
         // ignore

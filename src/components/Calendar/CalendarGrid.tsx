@@ -4,6 +4,7 @@ import { useBooking } from "@/hooks/useBooking";
 import { fetchSessionsByMonth } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import { isDateInAllowedWindow } from "@/utils/seasonal";
+import toastUi from "@/utils/toast";
 import {
   addMonths,
   eachDayOfInterval,
@@ -23,13 +24,15 @@ export default function CalendarGrid({
   isAdmin,
   onDayClick,
   refreshKey,
+  initialDate,
 }: {
   onBookingSuccess?: () => void;
   isAdmin?: boolean;
   onDayClick?: (date: Date) => void;
   refreshKey?: number;
+  initialDate?: Date;
 }) {
-  const [current, setCurrent] = useState<Date>(new Date());
+  const [current, setCurrent] = useState<Date>(initialDate ?? new Date());
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -145,6 +148,7 @@ export default function CalendarGrid({
               const booked =
                 (s.booking_count ?? s.bookings?.length ?? 0) +
                 (pendingReservations[s.id] ? 1 : 0);
+              const isFull = booked >= (s.max_capacity ?? 0);
               return (
                 <div key={s.id} className="flex items-center justify-between">
                   <div>{s.period === "morning" ? "Manhã" : "Tarde"}</div>
@@ -155,15 +159,13 @@ export default function CalendarGrid({
 
                     <Button
                       variant="primary"
-                      disabled={confirmingSessionId !== null}
+                      disabled={confirmingSessionId !== null || isFull}
                       isLoading={confirmingSessionId === s.id}
                       onClick={async () => {
                         // season validation: prevent booking outside allowed windows
                         const sessionDate = new Date(`${s.date}T00:00:00`);
                         if (!isDateInAllowedWindow(sessionDate)) {
-                          toast.error(
-                            "Data fora da janela sazonal (Fev–Mai, Set–Nov)",
-                          );
+                          toastUi.seasonalInvalid();
                           return;
                         }
 
@@ -182,7 +184,17 @@ export default function CalendarGrid({
                         setConfirmingSessionId(null);
 
                         if (result.success) {
-                          toast.success("Agendamento Confirmado!");
+                          // backend generates the order number; if available, pass it to the toast
+                          const orderNumber =
+                            (result.data &&
+                              (
+                                result.data as unknown as Record<
+                                  string,
+                                  unknown
+                                >
+                              )["order_number"]) ||
+                            undefined;
+                          toastUi.bookingConfirmed(orderNumber);
                           // fetch the full booking for receipt generation
                           const { data: bookingData } = await (
                             await import("@/services/api")
@@ -220,11 +232,13 @@ export default function CalendarGrid({
                           });
 
                           if (result.error?.includes("session full")) {
-                            toast.error("Vaga encerrada: sessão lotada");
+                            toastUi.sessionFull();
                             // refresh counts
                             await fetchSessions();
                           } else {
-                            toast.error(result.error ?? "Erro ao agendar");
+                            toastUi.genericError(
+                              result.error ?? "Erro ao agendar",
+                            );
                           }
                         }
                       }}

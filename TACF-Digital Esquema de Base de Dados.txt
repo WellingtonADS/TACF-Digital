@@ -1,0 +1,122 @@
+detalhar os campos específicos de algum desses relatórios ou prefere avançar para a configuração do ambiente de desenvolvimento no VS Code com base no copilot-instructions.md?
+
+
+-- ==========================================
+-- TACF-Digital: Esquema de Base de Dados
+-- Estaque: PostgreSQL (Supabase)
+-- ==========================================
+
+-- 1. ENUMS E TIPOS CUSTOMIZADOS
+CREATE TYPE user_role AS ENUM ('militar', 'coordenador');
+CREATE TYPE shift_period AS ENUM ('Manhã', 'Tarde');
+CREATE TYPE request_status AS ENUM ('Pendente', 'Aprovado', 'Rejeitado');
+
+-- 2. TABELA DE PERFIS (Vinculada ao auth.users)
+CREATE TABLE public.profiles (
+    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    rank TEXT NOT NULL, -- Posto/Graduação
+    gender CHAR(1) CHECK (gender IN ('M', 'F')),
+    role user_role DEFAULT 'militar',
+    organization TEXT DEFAULT 'HACO',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. TABELA DE TURNOS
+CREATE TABLE public.shifts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    date DATE NOT NULL,
+    period shift_period NOT NULL,
+    max_capacity INT DEFAULT 21 CHECK (max_capacity <= 21),
+    min_capacity INT DEFAULT 8,
+    applicators TEXT[] DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(date, period)
+);
+
+-- 4. TABELA DE AGENDAMENTOS
+CREATE TABLE public.schedules (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    profile_id UUID REFERENCES public.profiles(id) NOT NULL,
+    shift_id UUID REFERENCES public.shifts(id) NOT NULL,
+    order_number TEXT UNIQUE, -- Gerado via Trigger
+    semester INT NOT NULL CHECK (semester IN (1, 2)),
+    year INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(profile_id, semester, year) -- Impede duplicidade semestral
+);
+
+-- 5. TABELA DE SOLICITAÇÕES DE TROCA
+CREATE TABLE public.change_requests (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    militar_id UUID REFERENCES public.profiles(id) NOT NULL,
+    old_schedule_id UUID REFERENCES public.schedules(id) ON DELETE SET NULL,
+    new_shift_id UUID REFERENCES public.shifts(id) NOT NULL,
+    reason TEXT,
+    coordinator_comment TEXT,
+    status request_status DEFAULT 'Pendente',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. FUNÇÃO: GERAÇÃO AUTOMÁTICA DE NÚMERO DE ORDEM (YYYY-S-XXXX)
+CREATE OR REPLACE FUNCTION fn_generate_order_number()
+RETURNS TRIGGER AS $$
+DECLARE
+    seq_val INT;
+    final_order TEXT;
+BEGIN
+    -- Obter sequência baseada no ano e semestre
+    SELECT COUNT(*) + 1 INTO seq_val 
+    FROM public.schedules 
+    WHERE year = NEW.year AND semester = NEW.semester;
+
+    -- Formatar: 20261-0001
+    final_order := NEW.year::TEXT || NEW.semester::TEXT || '-' || LPAD(seq_val::TEXT, 4, '0');
+    NEW.order_number := final_order;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_schedules_order_number
+BEFORE INSERT ON public.schedules
+FOR EACH ROW EXECUTE FUNCTION fn_generate_order_number();
+
+-- 7. FUNÇÃO: VALIDAÇÃO DE CAPACIDADE (QUÓRUM)
+CREATE OR REPLACE FUNCTION fn_check_shift_capacity()
+RETURNS TRIGGER AS $$
+DECLARE
+    current_count INT;
+    max_cap INT;
+BEGIN
+    SELECT COUNT(*) INTO current_count FROM public.schedules WHERE shift_id = NEW.shift_id;
+    SELECT max_capacity INTO max_cap FROM public.shifts WHERE id = NEW.shift_id;
+
+    IF current_count >= max_cap THEN
+        RAISE EXCEPTION 'Capacidade máxima do turno atingida (%).', max_cap;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_capacity
+BEFORE INSERT ON public.schedules
+FOR EACH ROW EXECUTE FUNCTION fn_check_shift_capacity();
+
+-- 8. SEGURANÇA: ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+
+-- Política: Militar vê apenas o próprio perfil/agendamento
+CREATE POLICY "Users can see only their own data" ON public.schedules
+    FOR SELECT USING (auth.uid() = profile_id);
+
+-- Política: Coordenador vê tudo
+CREATE POLICY "Coordinators have full access" ON public.schedules
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'coordenador'
+        )
+    );

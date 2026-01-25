@@ -1,0 +1,37 @@
+Agendamento de Militar:
+
+    A[Militar acessa calendário] --> B{Tem agendamento ativo?}
+    B -->|Sim| C[Mostra agendamento atual]
+    B -->|Não| D[Seleciona data]
+    D --> E{Turno tem vaga?}
+    E -->|Não| F[Exibe mensagem: Lotado]
+    E -->|Sim| G[Confirma agendamento]
+    G --> H{Sucesso?}
+    H -->|Sim| I[Gera comprovante e envia por e-mal com as informação do agendamento, local e etc]
+    H -->|Não| J[Erro: Outra pessoa ocupou]
+    C --> K[Opção: Solicitar troca]
+
+Aprovação de Troca (Coordenador)
+
+
+    A[Coordenador acessa painel] --> B[Lista de solicitações pendentes]
+    B --> C{Há solicitações?}
+    C -->|Não| D[Dashboard vazio]
+    C -->|Sim| E[Visualiza detalhes]
+    E --> F{Aprovar ou Rejeitar?}
+    F -->|Aprovar| G[Cancela agendamento antigo]
+    G --> H[Cria novo agendamento]
+    H --> I[Notifica militar por e-mal com as informação do agendamento, local e etc]
+    F -->|Rejeitar| J[Adiciona motivo Notifica militar por e-mal]
+    J --> I
+
+Folha de Requisitos (Business Requirements Document)
+Baseado no documento oficial do Hospital da Aeronáutica de Canoas (HACO).
+
+ID	Requisito	Descrição Técnica	Criticidade
+REQ-01	Turnos e Capacidade	O sistema não usa horários fixos, apenas turnos (Manhã/Tarde). Capacidade dinâmica entre 8 e 21 pessoas por turno.	Alta
+REQ-02	Sazonalidade	O sistema opera em campanhas (Fev-Mai e Set-Nov). Fora desses períodos, deve estar fechado ou em modo leitura.	Média
+REQ-03	Segurança de Dados	Um militar não pode ver quem mais está agendado no mesmo dia (Privacidade/LGPD). Apenas o Admin vê a lista nominal.	Crítica
+REQ-04	Fluxo de Troca	O militar não pode alterar a data sozinho após confirmada. Deve solicitar troca para aprovação do Coordenador (Auditabilidade).	Alta
+REQ-05	Gestão de Sessão	O Coordenador deve inserir nomes dos Aplicadores (Sgt X, Ten Y) no dia para constar na impressão.	Média
+REQ-06	Acesso PWA	O sistema deve funcionar em dispositivos móveis (Android/iOS) e web.	Alta

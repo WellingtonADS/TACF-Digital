@@ -1,0 +1,25 @@
+Usando DATABASE_URL (POSIX / Linux / macOS):
+Usando psql com PGPASSWORD (POSIX):
+PowerShell (Windows):
+PowerShell com PGPASSWORD:
+Alternativa sem alterar owner (conceder execução ao role):
+Notas rápidas:
+
+O comando ALTER FUNCTION ... OWNER TO requer superuser ou permissão para SET ROLE "supabase_admin". Se a conta usada não tiver essa permissão, use a alternativa GRANT EXECUTE.
+Substitua <db_user>, <db_pass>, <host>, <port>, <db_name> pelos valores do seu ambiente.
+
+
+
+admin_novo@fab.mil.br
+
+12345678
+
+
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+DATABASE_URL=
+
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=

@@ -1,6 +1,7 @@
 import DigitalPass from "@/components/Booking/DigitalPass";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
 import MainLayout from "@/components/Layout/MainLayout";
+import { Body, Card, H1 } from "@/components/ui";
 import { getUserBooking } from "@/services/api";
 import { useEffect, useState } from "react";
 
@@ -39,13 +40,17 @@ export default function UserDashboard() {
   return (
     <MainLayout>
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Painel do Militar</h2>
+        <H1>Painel do Militar</H1>
         {loading ? (
-          <div>Carregando...</div>
+          <Card>
+            <Body>Carregando...</Body>
+          </Card>
         ) : booking ? (
           <DigitalPass booking={booking} />
         ) : (
-          <CalendarGrid onBookingSuccess={checkBooking} />
+          <Card>
+            <CalendarGrid onBookingSuccess={checkBooking} />
+          </Card>
         )}
       </div>
     </MainLayout>

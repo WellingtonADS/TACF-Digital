@@ -2,13 +2,13 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AdminRoute from "./components/Admin/AdminRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminSessions from "./pages/AdminSessions";
-import AdminSwapRequests from "./pages/AdminSwapRequests";
-import AdminUsers from "./pages/AdminUsers";
 import Login from "./pages/Login";
 import ProfileSetup from "./pages/ProfileSetup";
 import UserDashboard from "./pages/UserDashboard";
+const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
+const AdminSessions = React.lazy(() => import("./pages/AdminSessions"));
+const AdminSwapRequests = React.lazy(() => import("./pages/AdminSwapRequests"));
+const AdminUsers = React.lazy(() => import("./pages/AdminUsers"));
 
 function App() {
   return (
@@ -23,6 +23,7 @@ function App() {
 
 function AuthArea() {
   const { user, profile, loading } = useAuth();
+  const adminEnabled = import.meta.env.VITE_ENABLE_ADMIN === "true";
 
   if (loading) return <div>Loading...</div>;
 
@@ -37,7 +38,7 @@ function AuthArea() {
         <a href="/" className="text-sm font-medium">
           Dashboard
         </a>
-        {profile?.role === "admin" && (
+        {profile?.role === "admin" && adminEnabled && (
           <a href="/admin" className="text-sm font-medium text-red-600">
             Admin
           </a>
@@ -46,44 +47,52 @@ function AuthArea() {
 
       <Routes>
         <Route path="/" element={<UserDashboard />} />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/sessions"
-          element={
-            <AdminRoute>
-              <React.Suspense fallback={<div>Carregando...</div>}>
-                <AdminSessions />
-              </React.Suspense>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/swaps"
-          element={
-            <AdminRoute>
-              <React.Suspense fallback={<div>Carregando...</div>}>
-                <AdminSwapRequests />
-              </React.Suspense>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <AdminRoute>
-              <React.Suspense fallback={<div>Carregando...</div>}>
-                <AdminUsers />
-              </React.Suspense>
-            </AdminRoute>
-          }
-        />
+        {adminEnabled && (
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <React.Suspense fallback={<div>Carregando...</div>}>
+                  <AdminDashboard />
+                </React.Suspense>
+              </AdminRoute>
+            }
+          />
+        )}
+        {adminEnabled && (
+          <>
+            <Route
+              path="/admin/sessions"
+              element={
+                <AdminRoute>
+                  <React.Suspense fallback={<div>Carregando...</div>}>
+                    <AdminSessions />
+                  </React.Suspense>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/swaps"
+              element={
+                <AdminRoute>
+                  <React.Suspense fallback={<div>Carregando...</div>}>
+                    <AdminSwapRequests />
+                  </React.Suspense>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <React.Suspense fallback={<div>Carregando...</div>}>
+                    <AdminUsers />
+                  </React.Suspense>
+                </AdminRoute>
+              }
+            />
+          </>
+        )}
       </Routes>
     </BrowserRouter>
   );

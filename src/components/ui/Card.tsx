@@ -1,16 +1,23 @@
 import React from "react";
 
-export interface CardProps {
-  children: React.ReactNode;
-  className?: string;
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  shadow?: boolean;
 }
 
-export default function Card({ children, className = "" }: CardProps) {
+export const Card: React.FC<CardProps> = ({
+  children,
+  className = "",
+  shadow = true,
+  ...rest
+}) => {
   return (
     <div
-      className={`bg-white shadow-sm border border-slate-200 rounded-lg p-6 ${className}`}
+      className={`bg-white rounded-md p-4 ${shadow ? "shadow-sm" : ""} ${className}`}
+      {...rest}
     >
       {children}
     </div>
   );
-}
+};
+
+export default Card;
