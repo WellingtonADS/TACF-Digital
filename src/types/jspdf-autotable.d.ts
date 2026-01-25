@@ -1,10 +1,10 @@
 declare module "jspdf" {
-  const jsPDF: any;
+  const jsPDF: unknown;
   export default jsPDF;
 }
 
 declare module "jspdf-autotable" {
   // side-effect augmenting jsPDF prototype
-  const plugin: any;
+  const plugin: unknown;
   export default plugin;
 }

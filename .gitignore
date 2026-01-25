@@ -20,3 +20,28 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+node_modules
+
+### TACF project additions
+# Local env files
+.env.local
+.env.*.local
+# Temporary folders created by scripts
+.tmp/
+# Test results and temporary test artifacts
+test-results/
+coverage/
+.nyc_output/
+# Playwright / E2E debug screenshots
+e2e/debug-*.png
+# Local PDFs generated during development
+Comprovante_*.pdf
+# Editor/IDE
+.idea/
+# OS
+.DS_Store
+Thumbs.db
+# Build outputs
+dist/
+build/
+.cache/

@@ -1,39 +1,68 @@
 import React from "react";
 
-export type ButtonVariant = "primary" | "outline" | "danger";
+type Variant = "primary" | "ghost" | "success" | "alert" | "error";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
+  variant?: Variant;
+  size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   block?: boolean;
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-blue-900 text-white hover:bg-blue-800",
-  outline:
-    "bg-transparent border border-slate-300 text-slate-800 hover:bg-slate-50",
-  danger: "bg-red-600 text-white hover:bg-red-500",
+const variantClasses: Record<Variant, string> = {
+  primary: "bg-primary text-white hover:bg-primary/95",
+  ghost: "bg-transparent border border-primary text-primary hover:bg-primary/5",
+  success: "bg-success text-white hover:bg-success/95",
+  alert: "bg-alert text-white hover:bg-alert/95",
+  error: "bg-error text-white hover:bg-error/95",
 };
 
-export default function Button({
+const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
+  sm: "px-3 py-1.5 text-sm",
+  md: "px-4 py-2 text-base",
+  lg: "px-5 py-3 text-lg",
+};
+
+export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
+  size = "md",
   isLoading = false,
   block = false,
-  children,
   className = "",
-  disabled,
+  disabled = false,
+  children,
   ...rest
-}: ButtonProps) {
-  const base =
-    "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium";
-  const classes = `${base} ${variantClasses[variant]} ${block ? "w-full" : ""} ${className}`;
+}) => {
+  const classes = [
+    "inline-flex items-center justify-center gap-2",
+    sizeClasses[size],
+    variantClasses[variant],
+    "rounded",
+    "font-medium",
+    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50",
+    block ? "w-full" : "",
+    disabled || isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <button className={classes} disabled={disabled || isLoading} {...rest}>
+    <button
+      className={classes}
+      disabled={disabled || isLoading}
+      aria-disabled={disabled || isLoading}
+      {...rest}
+    >
       {isLoading && (
-        <span className="animate-spin inline-block h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full" />
+        <span
+          className="animate-spin inline-block h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full"
+          aria-hidden="true"
+        />
       )}
       <span>{children}</span>
     </button>
   );
-}
+};
+
+export default Button;

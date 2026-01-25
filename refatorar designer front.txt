@@ -1,0 +1,191 @@
+Compreendido. Validada a alteração da nomenclatura oficial do sistema para **TACF-Digital**. Este nome é mais direto, facilita a identificação institucional e reforça o propósito de modernização do processo de avaliação física do HACO.
+
+Abaixo, apresento a consolidação do **Design System** e a estruturação da **Prototipagem** para o **TACF-Digital**, integrando a nova identidade visual às regras de engenharia discutidas.
+
+---
+
+### 1. Design System: Identidade e Componentes
+
+O design será fundamentado no minimalismo funcional, priorizando a leitura rápida e a execução de tarefas com o menor número de cliques possível.
+
+#### A. Paleta de Cores (Tokens de Estilo)
+
+| Categoria | Aplicação | Hex Code | Descrição Visual |
+| --- | --- | --- | --- |
+| **Primária** | Identidade/Header | `#1B365D` | Azul Marinho Aeronáutica (Autoridade). |
+| **Secundária** | Ações/Links | `#0078D4` | Azul Digital (Destaque e Interação). |
+| **Sucesso** | Confirmação | `#2D5A27` | Verde Oliva (Militar/Apto). |
+| **Alerta** | Pendências | `#E67E22` | Laranja Suave (Atenção/Troca). |
+| **Erro** | Bloqueios | `#C0392B` | Vermelho Crítico (Lotado/Inapto). |
+| **Fundo** | Canvas | `#F4F7F9` | Cinza Extra-claro (Redução de fadiga visual). |
+
+#### B. Tipografia e Escala
+
+* **Fonte Principal:** `Inter` ou `Roboto` (Sans-serif).
+* **H1 (Títulos):** 24px, Bold, Cor `#1B365D`.
+* **H2 (Subtítulos):** 18px, Semi-bold, Cor `#333333`.
+* **Body:** 16px, Regular, Cor `#4A4A4A`.
+* **Label/Caption:** 12px, Medium, Cor `#7A7A7A`.
+
+#### C. Elementos de UI (User Interface)
+
+* **Botões:**
+* **Principal:** Preenchimento total, cantos levemente arredondados (4px), efeito hover sutil.
+* **Ghost (Contorno):** Para ações de "Solicitar Troca", evitando competição visual com o agendamento.
+
+
+* **Ícones:** Utilização da biblioteca `Lucide-React` (ícones vazados de 2px), garantindo leveza estética.
+
+---
+
+### 2. Prototipagem de Layouts (Wireframes de Alta Fidelidade)
+
+A interface será construída seguindo o padrão **Mobile-First**, garantindo que o PWA funcione perfeitamente em smartphones.
+
+#### Tela 1: Autenticação e Perfil
+
+* **Interface:** Centralizada, fundo limpo.
+* **Campos:** E-mail e Senha.
+* **Onboarding:** Se for o primeiro acesso, um "Stepped Form" coleta Nome, Posto e Gênero antes de liberar o calendário.
+
+#### Tela 2: Dashboard do Militar (Agendamento)
+
+* **Visão Geral:** Card superior com o status atual ("Não Agendado", "Agendado" ou "Em Troca").
+* **Calendário:** Grid de datas. Ao selecionar um dia, o sistema expande os slots:
+* **Manhã:** [8/21 vagas] -> Botão "Confirmar".
+* **Tarde:** [Lotado] -> Botão Desabilitado.
+
+
+* **Pós-Agendamento:** Exibição do **Número de Ordem** em destaque e QR Code para validação no local.
+
+#### Tela 3: Painel do Coordenador (Gestão)
+
+* **Analytics:** Barra de progresso indicando quantos dos 380 militares já realizaram o processo.
+* **Gestão de Turnos:** Tabela com filtros por data. Coluna com nomes dos **Aplicadores** editável em tempo real.
+* **Aprovação:** Central de notificações para pedidos de troca de data.
+
+---
+
+### 3. Tom de Voz e Comunicação do Sistema
+
+A linguagem deve ser técnica, assertiva e impessoal, respeitando a hierarquia e o ambiente militar do HACO.
+
+| Situação | Mensagem do Sistema (Toast/E-mail) |
+| --- | --- |
+| **Confirmação** | "Agendamento confirmado. Número de Ordem gerado: 20261-0015. Instruções enviadas para seu e-mail." |
+| **Troca Pendente** | "Sua solicitação de alteração foi encaminhada ao Coordenador. Aguarde a validação para novo agendamento." |
+| **Erro de Vaga** | "Operação não permitida: o limite máximo de 21 militares para este turno foi atingido." |
+| **Sazonalidade** | "O período de agendamento para o 1º semestre encerra-se em 31 de Maio. Sistema em modo leitura." |
+
+---
+
+### 4. Estratégia de Frontend (Implementação com Vite 5)
+
+Como Engenheiro de Software, aplicarei as seguintes diretrizes no código:
+
+1. **Manual Chunks:** Divisão do código (Code Splitting) para que o Painel do Coordenador não seja carregado para o Militar, otimizando o bundle inicial.
+2. **Strict Mode:** TypeScript em modo estrito para evitar erros de tipagem nos dados do agendamento.
+3. **Tailwind CSS:** Utilização de utilitários para garantir que o Design System seja aplicado com fidelidade e sem excesso de arquivos CSS.
+
+### Próximo Passo do Planejamento
+
+Com o **TACF-Digital** visualmente definido e os requisitos consolidados, a próxima etapa lógica é a definição da persistência.
+
+**Gostaria que eu apresentasse o Esquema de Banco de Dados (ERD) no Supabase, incluindo as Triggers para geração automática do Número de Ordem e validação de quórum (8-21)?**
+
+
+---
+
+
+Com a transição de um ecossistema manual (Google Workspace) para uma plataforma dedicada, o **Design System** e a **Prototipagem** devem refletir autoridade, organização e eficiência. Como Engenheiro de Software Sênior, validei que a estética deve ser funcional: o militar precisa realizar o agendamento em poucos segundos, sem fricção.
+
+Abaixo, apresento a especificação técnica do Design System e a estrutura de prototipagem para o **Nexus-TACF**.
+
+---
+
+### 1. Design System: Fundamentos Visuais
+
+O conceito visual é **"Institucional Moderno"**. Utilizaremos uma estética "Clean" que remete à precisão da Aeronáutica.
+
+#### A. Paleta de Cores (Tokens)
+
+| Categoria | Cor | Hex Code | Uso |
+| --- | --- | --- | --- |
+| **Primária** | Azul Aeronáutica | `#003366` | Header, botões principais, destaques. |
+| **Secundária** | Azul Céu | `#00A8E8` | Links, estados ativos, botões secundários. |
+| **Neutro Dark** | Grafite | `#2D2D2D` | Textos principais e títulos. |
+| **Neutro Light** | Gelo | `#F8F9FA` | Planos de fundo e containers. |
+| **Sucesso** | Verde Militar | `#2E7D32` | Agendamento confirmado, quórum atingido. |
+| **Alerta** | Âmbar | `#FFA000` | Solicitações pendentes, turnos quase lotados. |
+| **Erro** | Carmim | `#C62828` | Turno lotado, erro de sistema, exclusões. |
+
+#### B. Tipografia
+
+* **Fonte Principal:** `Inter` (Sans-serif). Escolhida pela alta legibilidade em telas pequenas e peso moderno.
+* **Escala:**
+* H1: 24px (Bold) - Títulos de página.
+* H2: 18px (Semi-bold) - Títulos de seção/cards.
+* Body: 16px (Regular) - Textos de leitura.
+* Caption: 12px (Medium) - Metadados e avisos (ex: "8 de 21 vagas").
+
+
+
+#### C. Ícones e Botões
+
+* **Ícones:** Biblioteca `Lucide-React`. Estilo linear (outline), 2px de espessura. Minimalista e sem preenchimento para não pesar a interface.
+* **Botões:**
+* **Primary:** Background `#003366`, Texto `#FFFFFF`, Border-radius `6px`.
+* **Ghost/Outline:** Sem fundo, borda `#003366`, para ações secundárias (ex: "Solicitar Troca").
+
+
+
+---
+
+### 2. Prototipagem de Layouts (Wireframes Estruturais)
+
+A interface será construída em **Cards**, facilitando a visualização no mobile (PWA).
+
+#### Tela A: Login e Onboarding
+
+1. **Header:** Logo HACO + Nexus-TACF.
+2. **Form:** Campo de e-mail e senha.
+3. **Onboarding (Primeiro Acesso):** Modal centralizado solicitando Nome Completo e Posto/Graduação (Select).
+
+#### Tela B: Dashboard do Militar (Visualização de Estado)
+
+1. **Card de Status:** * Se não agendado: Botão "Agendar TACF" em destaque.
+* Se agendado: Exibe "Data", "Turno" e o **Número de Ordem** em fonte grande, com botão "Solicitar Troca".
+
+
+2. **Calendário Minimalista:** Exibição de datas. Ao clicar, abre os slots "Manhã" ou "Tarde" com contador de vagas dinâmico.
+
+#### Tela C: Painel do Coordenador (Gestão Estratégica)
+
+1. **Métricas:** 3 Cards (Total Agendados | % de Adesão | Pendentes de Troca).
+2. **Tabela de Turnos:** Lista de dias com a contagem de militares.
+3. **Ação em Lote:** Botão lateral para "Imprimir Listas do Dia".
+
+---
+
+### 3. Tom de Voz e Mensagens de Resposta
+
+O sistema deve se comunicar de forma respeitosa, objetiva e profissional, alinhada ao ambiente militar.
+
+> **Princípio:** Sem gírias, sem ambiguidade, foco na instrução.
+
+| Situação | Mensagem de Resposta (Feedback) |
+| --- | --- |
+| **Sucesso no Agendamento** | "Agendamento realizado com sucesso. Seu Número de Ordem é 2026-1-0042. Um e-mail de confirmação foi enviado." |
+| **Turno Lotado** | "Este turno atingiu a capacidade máxima de 21 militares. Por favor, selecione outra data." |
+| **Solicitação de Troca** | "Sua solicitação de mudança de turno foi enviada para análise do Coordenador. Você será notificado por e-mail." |
+| **Aprovação (Coordenador)** | "Alteração autorizada. O militar foi realocado e o agendamento anterior foi cancelado." |
+| **Erro de Validação** | "Acesso negado. Período de agendamento disponível apenas entre Fevereiro e Maio." |
+
+---
+
+### 4. Especificações Técnicas de UX
+
+1. **Feedback Instantâneo:** Uso de *Skeletons* e *Spinners* durante o carregamento no Vercel para evitar sensação de travamento.
+2. **Prevenção de Erro:** O botão de confirmação só habilita se todos os campos (Data/Turno) estiverem selecionados.
+3. **Acessibilidade:** Contraste de cores validado pela norma WCAG para garantir leitura sob luz solar (uso em pátio).
+

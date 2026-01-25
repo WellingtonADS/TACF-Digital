@@ -1,6 +1,11 @@
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { getSessionWithBookings, upsertSession } from "@/services/admin";
+import type {
+  Booking,
+  BookingWithDetails,
+  Profile,
+} from "@/types/database.types";
 import { generateSessionPDF } from "@/utils/pdfGenerator";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
@@ -25,7 +30,9 @@ export default function SessionEditModal({
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [loading, setLoading] = useState(false);
 
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<(Booking & { user?: Profile })[]>(
+    [],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -96,9 +103,9 @@ export default function SessionEditModal({
         applicators,
         status,
       });
-
-      if ((res as any).error) {
-        toast.error((res as any).error);
+      const r = res as { error?: string | null };
+      if (r.error) {
+        toast.error(r.error);
       } else {
         toast.success("Sessão salva");
         onSaved?.();
@@ -163,7 +170,23 @@ export default function SessionEditModal({
         <div className="flex gap-2 justify-end">
           <Button
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              // map bookings to BookingWithDetails-like shape for PDF generator
+              const safeBookings = bookings.map((b) => ({
+                ...b,
+                user:
+                  b.user ??
+                  ({
+                    id: "",
+                    saram: "—",
+                    full_name: "—",
+                    rank: "—",
+                    role: "user",
+                    semester: "1",
+                    created_at: "",
+                    updated_at: "",
+                  } as Profile),
+              }));
               generateSessionPDF({
                 date: format(date, "yyyy-LL-dd"),
                 period,
@@ -171,9 +194,9 @@ export default function SessionEditModal({
                   .split(",")
                   .map((s) => s.trim())
                   .filter(Boolean),
-                bookings,
-              } as any)
-            }
+                bookings: safeBookings as BookingWithDetails[],
+              });
+            }}
             disabled={bookings.length === 0}
             title={bookings.length === 0 ? "Nenhum inscrito" : "Imprimir lista"}
           >

@@ -2,8 +2,6 @@
 -- This rollback attempts to restore a safe stub for the trigger function
 -- and will DROP enums only if they have no dependent objects.
 
-BEGIN;
-
 -- 1) Replace function by a minimal safe stub (no inserts) to rollback behavior
 DO $$
 BEGIN
@@ -12,13 +10,13 @@ BEGIN
      RETURNS trigger
      LANGUAGE plpgsql
      SECURITY DEFINER
-    AS $$
+    AS $fn$
     BEGIN
       -- rollback stub: do not modify public.profiles
       RETURN NEW;
     END;
-    $$;
-    ALTER FUNCTION public.sync_auth_user_to_profile() OWNER TO postgres;
+    $fn$;
+    EXECUTE format('ALTER FUNCTION public.sync_auth_user_to_profile() OWNER TO %I', current_user);
   END IF;
 END$$;
 
@@ -44,6 +42,5 @@ BEGIN
       DROP TYPE IF EXISTS public.user_role;
     END IF;
   END IF;
-END$$;
 
-COMMIT;
+END$$;

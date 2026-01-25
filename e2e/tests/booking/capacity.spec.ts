@@ -53,7 +53,7 @@ test("concurrent bookings enforce session capacity", async () => {
   for (let i = 0; i < USERS_COUNT; i++) {
     const email = `e2e-c-${Date.now()}-${i}@example.test`;
     const password = "password";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const res = await (admin as any).auth.admin.createUser({
       email,
       password,
@@ -124,7 +124,7 @@ test("concurrent bookings enforce session capacity", async () => {
   await admin.from("sessions").delete().eq("id", session.id);
   for (const u of users) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       await (admin as any).auth.admin.deleteUser(u.id);
     } catch (e) {
       // ignore

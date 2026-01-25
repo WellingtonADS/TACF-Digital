@@ -1,5 +1,6 @@
 import StatsCard from "@/components/Admin/StatsCard";
 import MainLayout from "@/components/Layout/MainLayout";
+import Button from "@/components/ui/Button";
 import { fetchDashboardStats } from "@/services/admin";
 import { useEffect, useState } from "react";
 
@@ -39,14 +40,14 @@ export default function AdminDashboard() {
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-2">Ações rápidas</h2>
         <div className="flex gap-2">
-          <a className="btn" href="/admin/sessions">
-            Gerenciar sessões
+          <a href="/admin/sessions">
+            <Button variant="ghost">Gerenciar sessões</Button>
           </a>
-          <a className="btn" href="/admin/swaps">
-            Aprovar trocas
+          <a href="/admin/swaps">
+            <Button variant="ghost">Aprovar trocas</Button>
           </a>
-          <a className="btn" href="/admin/users">
-            Usuários
+          <a href="/admin/users">
+            <Button variant="ghost">Usuários</Button>
           </a>
         </div>
       </div>

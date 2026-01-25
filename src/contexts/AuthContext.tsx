@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (userId) {
         // create minimal profile as client (server policies should prevent sensitive fields)
         // ignore result — fetchProfile will populate context
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+         
         svcUpsertProfile({ id: userId });
         await fetchProfile(userId);
       }

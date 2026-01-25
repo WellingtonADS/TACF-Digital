@@ -1,10 +1,11 @@
-import jsPDF from "jspdf";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generateReceipt } from "../generateReceipt";
 
 // Mock qrcode module to avoid redefining properties across test runs
 vi.mock("qrcode", () => ({
-  toDataURL: vi.fn().mockResolvedValue("data:image/png;base64,iVBORw0KG"),
+  default: {
+    toDataURL: vi.fn().mockResolvedValue("data:image/png;base64,iVBORw0KG"),
+  },
 }));
 
 // Mock jsPDF so tests don't rely on real implementation
@@ -21,9 +22,7 @@ vi.mock("jspdf", () => {
 });
 
 describe("generateReceipt", () => {
-  beforeEach(() => {
-    vi.spyOn(jsPDF.prototype as any, "save").mockImplementation(() => {});
-  });
+  // jsPDF is mocked above; no prototype spy required for current jspdf version
 
   it("generates a PDF without throwing", async () => {
     const booking = {

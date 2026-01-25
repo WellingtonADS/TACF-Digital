@@ -2,6 +2,7 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { fetchFutureSessions, requestSwap } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
+import toastUi from "@/utils/toast";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -55,11 +56,11 @@ export default function SwapRequestModal({
     setSubmitting(false);
 
     if (res.success) {
-      toast.success("Solicitação enviada com sucesso");
+      toastUi.swapPending();
       onSuccess?.();
       onClose();
     } else {
-      toast.error(res.error ?? "Erro ao enviar solicitação");
+      toastUi.genericError(res.error ?? "Erro ao enviar solicitação");
     }
   }
 

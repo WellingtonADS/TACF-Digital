@@ -3,15 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
   (typeof import.meta !== "undefined" &&
-    (import.meta as any).env?.VITE_SUPABASE_URL) ||
-  process.env.VITE_SUPABASE_URL ||
-  process.env.SUPABASE_URL;
+    (import.meta as unknown as { env?: Record<string, string> }).env
+      ?.VITE_SUPABASE_URL) ||
+  (typeof process !== "undefined" && process.env?.VITE_SUPABASE_URL) ||
+  (typeof process !== "undefined" && process.env?.SUPABASE_URL) ||
+  undefined;
 const supabaseKey =
   (typeof import.meta !== "undefined" &&
-    (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_ANON;
+    (import.meta as unknown as { env?: Record<string, string> }).env
+      ?.VITE_SUPABASE_ANON_KEY) ||
+  (typeof process !== "undefined" && process.env?.VITE_SUPABASE_ANON_KEY) ||
+  (typeof process !== "undefined" && process.env?.SUPABASE_ANON_KEY) ||
+  (typeof process !== "undefined" && process.env?.SUPABASE_ANON) ||
+  undefined;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
@@ -33,8 +37,7 @@ export async function confirmarAgendamentoRPC(
   userId: string,
   sessionId: string,
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc("confirmar_agendamento", {
+  const { data, error } = await supabase.rpc("confirmar_agendamento", {
     p_user_id: userId,
     p_session_id: sessionId,
   });
@@ -59,7 +62,7 @@ export async function confirmarAgendamentoRPC(
 // Backwards-compatible alias to avoid breaking imports elsewhere.
 export const bookSessionRPC = async (userId: string, sessionId: string) => {
   // prefer explicit RPC name
-  // eslint-disable-next-line no-console
+
   console.warn(
     "bookSessionRPC is deprecated — use confirmarAgendamentoRPC (calls confirmar_agendamento RPC)",
   );
@@ -91,13 +94,13 @@ export async function awaitSession(
 ): Promise<import("@supabase/supabase-js").Session | null> {
   const start = Date.now();
   // Poll until session available or timeout
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const { session } = await getSession();
     if (session) return session;
     if (Date.now() - start > timeoutMs) return null;
     // wait
-    // eslint-disable-next-line no-await-in-loop
+
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 }
@@ -110,7 +113,7 @@ export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>,
 ) {
   // Create a shallow copy and remove sensitive fields the client must not set.
-  // @ts-ignore - index signature for partial
+  // @ts-expect-error - index signature for partial may not match Record typing
   const payload = { ...profile } as Record<string, unknown>;
   delete payload.role;
   // Ensure id is present when provided; server-side triggers may also create.

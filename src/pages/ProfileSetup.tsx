@@ -48,53 +48,55 @@ const ProfileSetup: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-12">
-      <Card>
-        <h2 className="text-2xl mb-4">Complete seu perfil</h2>
-        <form onSubmit={handleSave} className="space-y-3">
-          <Input
-            label="SARAM"
-            placeholder="SARAM"
-            value={saram}
-            inputMode="numeric"
-            onChange={(e) => setSaram(e.target.value.replace(/\D/g, ""))}
-          />
-          <Input
-            label="Nome completo"
-            placeholder="Nome completo"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
-          <Input
-            label="Posto/Grad"
-            placeholder="Posto/Grad"
-            value={rank}
-            onChange={(e) => setRank(e.target.value)}
-          />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <Card className="p-6 sm:p-8 rounded-xl shadow-md">
+          <h2 className="text-2xl mb-4">Complete seu perfil</h2>
+          <form onSubmit={handleSave} className="space-y-3">
+            <Input
+              label="SARAM"
+              placeholder="SARAM"
+              value={saram}
+              inputMode="numeric"
+              onChange={(e) => setSaram(e.target.value.replace(/\D/g, ""))}
+            />
+            <Input
+              label="Nome completo"
+              placeholder="Nome completo"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+            <Input
+              label="Posto/Grad"
+              placeholder="Posto/Grad"
+              value={rank}
+              onChange={(e) => setRank(e.target.value)}
+            />
 
-          <div>
-            <label className="text-sm font-medium text-slate-700">
-              Semestre
-            </label>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={semester}
-              onChange={(e) => setSemester(e.target.value as "1" | "2")}
-            >
-              <option value="1">1</option>
-              <option value="2">2</option>
-            </select>
-          </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">
+                Semestre
+              </label>
+              <select
+                className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={semester}
+                onChange={(e) => setSemester(e.target.value as "1" | "2")}
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+              </select>
+            </div>
 
-          {msg && <div className="text-green-600">{msg}</div>}
+            {msg && <div className="text-green-600">{msg}</div>}
 
-          <div className="flex gap-2">
-            <Button type="submit" isLoading={loading}>
-              Salvar
-            </Button>
-          </div>
-        </form>
-      </Card>
+            <div className="flex gap-2">
+              <Button type="submit" isLoading={loading} block>
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 };
