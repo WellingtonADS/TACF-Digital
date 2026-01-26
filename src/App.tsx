@@ -35,8 +35,12 @@ function App() {
 
   // 2. Fluxo de Onboarding: Tela Cheia para capturar dados obrigatórios
   // Administradores não são forçados a completar o onboarding (podem gerenciar o sistema)
-  if (!profile || (!profile.saram && profile.role !== "admin"))
+  if (!profile || (!profile.saram && profile.role !== "admin")) {
+    if (profile?.role === "admin") {
+      return <Navigate to="/admin" replace />;
+    }
     return <ProfileSetup />;
+  }
 
   // 3. Fluxo Autenticado: Aqui entra o Layout do Sistema (Navbar + Container)
   return (
