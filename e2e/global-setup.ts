@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { seed } from "./fixtures/db";
 
 export default async () => {
