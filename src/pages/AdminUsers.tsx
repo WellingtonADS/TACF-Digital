@@ -2,9 +2,13 @@ import AdminRoute from "@/components/Admin/AdminRoute";
 import UserEditModal from "@/components/Admin/UserEditModal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { H1, Body } from "@/components/ui/Typography";
+import { Badge } from "@/components/ui"; 
 import { fetchProfiles } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
 import { useEffect, useMemo, useState } from "react";
+import { Search, Edit2 } from "lucide-react"; // REMOVIDO: UserCog
 
 export default function AdminUsers() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -20,7 +24,7 @@ export default function AdminUsers() {
         const res = await fetchProfiles();
         setProfiles((res ?? []) as Profile[]);
       } catch {
-        // ignore for now
+        // Silent error
       } finally {
         setLoading(false);
       }
@@ -45,61 +49,92 @@ export default function AdminUsers() {
 
   function onSaved(updated: Profile) {
     setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setIsOpen(false);
   }
 
   return (
     <AdminRoute>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Gestão de Usuários</h2>
-          <div className="w-64">
+      <div className="space-y-6 animate-in fade-in duration-500">
+        
+        {/* Header e Busca */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <H1>Gestão de Usuários</H1>
+            <Body className="text-slate-500 text-sm">
+              Gerencie o efetivo, edite dados e ajuste semestres de referência.
+            </Body>
+          </div>
+          <div className="w-full md:w-72">
             <Input
-              label="Buscar"
-              placeholder="Buscar por SARAM ou Nome"
+              placeholder="Buscar por SARAM ou Nome..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              icon={<Search size={16} />}
+              className="bg-white"
             />
           </div>
         </div>
 
-        <div className="bg-white rounded shadow-sm p-4">
+        {/* Tabela em Card */}
+        <Card className="border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-600">
-                  <th className="p-2">SARAM</th>
-                  <th className="p-2">Posto/Grad</th>
-                  <th className="p-2">Nome Completo</th>
-                  <th className="p-2">Semestre</th>
-                  <th className="p-2">Ações</th>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4 font-semibold text-slate-700">Militar</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">SARAM</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">Posto/Grad</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">Semestre</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="p-4 text-center text-slate-500">
-                      Carregando...
+                    <td colSpan={5} className="p-8 text-center text-slate-500 animate-pulse">
+                      Carregando base de dados...
                     </td>
                   </tr>
                 )}
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-4 text-center text-slate-500">
-                      Nenhum usuário encontrado
+                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                      Nenhum usuário encontrado com os filtros atuais.
                     </td>
                   </tr>
                 )}
 
                 {filtered.map((p) => (
-                  <tr key={p.id} className="border-t bg-white even:bg-slate-50">
-                    <td className="p-2">{p.saram}</td>
-                    <td className="p-2">{p.rank}</td>
-                    <td className="p-2">{p.full_name}</td>
-                    <td className="p-2">{p.semester}</td>
-                    <td className="p-2">
-                      <Button variant="outline" onClick={() => openEdit(p)}>
-                        ✏️ Editar
+                  <tr key={p.id} className="group hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-4 font-medium text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                          {p.full_name.charAt(0)}
+                        </div>
+                        {p.full_name}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 font-mono">{p.saram}</td>
+                    <td className="py-3 px-4 text-slate-600">
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-xs font-medium">
+                        {p.rank}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge variant={p.semester === "1" ? "default" : "alert"}>
+                        {p.semester}º Semestre
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => openEdit(p)}
+                        className="h-8 w-8 p-0 rounded-full hover:bg-white hover:shadow-sm hover:text-primary"
+                        title="Editar Usuário"
+                      >
+                        <Edit2 size={16} />
                       </Button>
                     </td>
                   </tr>
@@ -107,16 +142,17 @@ export default function AdminUsers() {
               </tbody>
             </table>
           </div>
-        </div>
+          
+          <div className="bg-slate-50 p-3 border-t border-slate-200 text-xs text-slate-500 text-center">
+            Mostrando {filtered.length} registro(s)
+          </div>
+        </Card>
 
         <UserEditModal
           isOpen={isOpen}
           profile={selected}
           onClose={() => setIsOpen(false)}
-          onSaved={(u) => {
-            onSaved(u);
-            setIsOpen(false);
-          }}
+          onSaved={onSaved}
         />
       </div>
     </AdminRoute>

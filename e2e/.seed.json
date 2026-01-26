@@ -16,5 +16,16 @@
       "role": "user"
     }
   ],
-  "sessions": []
+  "sessions": [
+    {
+      "id": "60f1b1d5-d9a3-4582-bfde-2cc0fd920b85",
+      "date": "2026-02-02",
+      "period": "morning"
+    },
+    {
+      "id": "675ceb1f-0183-4c1b-879d-5409c526e730",
+      "date": "2026-02-03",
+      "period": "afternoon"
+    }
+  ]
 }

@@ -28,13 +28,16 @@ test("admin route loads when feature flag enabled", async ({
   }
 
   // If profile setup is shown after sign-in, complete it so we can access admin routes
-  if (await page.locator('text=Completar Perfil').count()) {
+  if (await page.locator("text=Completar Perfil").count()) {
     // Fill profile form with valid data
-    await page.fill('input[placeholder="DIGITE SEU NOME COMPLETO"]', 'E2E Admin Test');
-    await page.fill('input[placeholder="0000000"]', '1234567');
+    await page.fill(
+      'input[placeholder="DIGITE SEU NOME COMPLETO"]',
+      "E2E Admin Test",
+    );
+    await page.fill('input[placeholder="0000000"]', "1234567");
     // Open rank select and choose 'Soldado'
-    await page.click('text=Selecione...');
-    await page.click('text=Soldado');
+    await page.click("text=Selecione...");
+    await page.click("text=Soldado");
 
     // Confirm profile
     await page.click('button:has-text("Confirmar Dados")');
