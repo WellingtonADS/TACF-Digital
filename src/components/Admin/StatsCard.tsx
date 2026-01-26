@@ -1,33 +1,29 @@
-export interface StatsCardProps {
+import { Card } from "@/components/ui/Card";
+import type { LucideIcon } from "lucide-react"; // Adicionado 'type'
+
+interface StatsCardProps {
   title: string;
-  value: string | number;
-  color?: "blue" | "green" | "yellow";
-  sub?: string;
+  value: number | string;
+  icon?: LucideIcon;
+  description?: string;
+  trend?: "up" | "down" | "neutral";
 }
 
-export default function StatsCard({
-  title,
-  value,
-  color = "blue",
-  sub,
-}: StatsCardProps) {
-  const bg =
-    color === "blue"
-      ? "bg-blue-50"
-      : color === "green"
-        ? "bg-emerald-50"
-        : "bg-yellow-50";
-  const txt =
-    color === "blue"
-      ? "text-blue-700"
-      : color === "green"
-        ? "text-emerald-700"
-        : "text-yellow-700";
+export default function StatsCard({ title, value, icon: Icon, description }: StatsCardProps) {
   return (
-    <div className={`${bg} p-4 rounded-lg border`}>
-      <div className="text-sm font-medium text-slate-600">{title}</div>
-      <div className={`text-2xl font-bold ${txt}`}>{value}</div>
-      {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
-    </div>
+    <Card className="p-6 flex items-start justify-between hover:shadow-lg transition-shadow border border-slate-100">
+      <div>
+        <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{title}</p>
+        <h3 className="text-3xl font-bold text-slate-900 mt-2">{value}</h3>
+        {description && (
+          <p className="text-xs text-slate-400 mt-1">{description}</p>
+        )}
+      </div>
+      {Icon && (
+        <div className="p-3 bg-primary/5 rounded-xl text-primary">
+          <Icon size={24} />
+        </div>
+      )}
+    </Card>
   );
 }

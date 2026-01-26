@@ -1,8 +1,8 @@
+import type { LucideIcon, LucideProps } from "lucide-react";
 import React from "react";
 
-interface IconProps extends React.HTMLAttributes<HTMLElement> {
-  as: React.ElementType;
-  size?: number | string;
+interface IconProps extends Omit<LucideProps, "ref"> {
+  as: LucideIcon | React.ElementType;
 }
 
 export const Icon: React.FC<IconProps> = ({
@@ -11,14 +11,9 @@ export const Icon: React.FC<IconProps> = ({
   className = "",
   ...rest
 }) => {
-  const C = IconComponent as React.ElementType;
-  return (
-    <C
-      size={size}
-      className={className}
-      {...(rest as Record<string, unknown>)}
-    />
-  );
+  const Comp = IconComponent as React.ElementType;
+
+  return <Comp size={size} className={className} {...rest} />;
 };
 
 export default Icon;

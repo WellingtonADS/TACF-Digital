@@ -1,142 +1,133 @@
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
-import { useAuth } from "@/contexts/AuthContext";
-import { Lock, LogIn, Mail, UserPlus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext"; // Mantendo a importação original
+import { Loader2, Plane } from "lucide-react"; // Ícones visuais
 import React, { useState } from "react";
 
 const Login: React.FC = () => {
-  const { signIn, signUp } = useAuth();
+  // 1. Lógica de Backend (Preservada)
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading] = useState(false);
-  // debug removed
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await signIn(email, password);
+      // O redirecionamento é feito automaticamente pelo AuthContext/Router
+    } catch (err) {
+      console.error(err);
+      setError("Falha na autenticação. Verifique suas credenciais.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-5">
-      {/* Left - Split image with heavy overlay (desktop only) */}
-      <div className="hidden lg:block relative min-h-screen lg:col-span-3">
+    // SCAFFOLD: Grid Mestre
+    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 bg-white font-inter">
+      {/* --- LADO ESQUERDO: Imagem Imersiva (8 colunas) --- */}
+      <div className="hidden lg:block lg:col-span-8 relative overflow-hidden">
+        {/* Camada de Imagem */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 hover:scale-105"
           style={{
+            // Usando uma imagem de alta qualidade de "corridas/militar" similar ao mockup
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1562774051-3e1f8d7e1a8e?auto=format&fit=crop&w=1600&q=80')",
+              "url('https://images.unsplash.com/photo-1543992437-0808e9a2656a?q=80&w=2574&auto=format&fit=crop')",
           }}
         />
-        <div
-          className="absolute inset-0"
-          style={{ backgroundColor: "rgba(27,54,93,0.9)" }}
-        />
-
-        <div className="relative z-10 h-full w-full flex items-center justify-center px-12">
-          <div className="max-w-lg text-white">
-            <h1 className="text-4xl lg:text-5xl font-extrabold">
-              TACF-Digital
-            </h1>
-            <p className="mt-4 text-lg opacity-90">
-              Sistema de Gerenciamento de Condicionamento Físico do HACO
-            </p>
-          </div>
-        </div>
+        {/* Camada de Overlay (Filtro Azulado para legibilidade e marca) */}
+        <div className="absolute inset-0 bg-primary/40 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
       </div>
 
-      {/* Right - Form area */}
-      <div className="flex items-center justify-center bg-slate-50 min-h-screen p-6 sm:p-10 lg:col-span-2">
-        <div className="w-full max-w-md mx-auto font-sans text-slate-900">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
-            {/* Minimal header */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-12 w-12 rounded-lg bg-[#1B365D] flex items-center justify-center text-white font-bold text-lg ring-1 ring-slate-100">
-                TD
-              </div>
-              <div>
-                <h1 className="sr-only">Login</h1>
-                <h2 className="text-2xl font-extrabold">Welcome back</h2>
-                <p className="text-sm text-slate-700">
-                  Acesso ao Sistema — SGCF HACO
-                </p>
-              </div>
+      {/* --- LADO DIREITO: Formulário Clean (4 colunas) --- */}
+      <div className="col-span-1 lg:col-span-4 flex flex-col justify-center items-center p-6 sm:p-12 relative">
+        {/* Conteúdo Centralizado */}
+        <div className="w-full max-w-sm space-y-8">
+          {/* 1. Header com Logo */}
+          <div className="flex items-center gap-3 mb-10">
+            <div className="bg-primary text-white p-2 rounded-lg">
+              {/* Ícone de Jato virado para cima/direita */}
+              <Plane
+                className="w-6 h-6 transform -rotate-45"
+                fill="currentColor"
+              />
             </div>
+            <h1 className="text-2xl font-bold text-primary tracking-tight">
+              TACF-Digital
+            </h1>
+          </div>
 
-            {/* Form on white canvas (no card) */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                signIn(email, password);
-              }}
-              className="space-y-6"
-              aria-label="Login form"
-              noValidate
-            >
-              <Input
-                label="E-mail institucional"
+          {/* 2. Feedback de Erro (se houver) */}
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg animate-pulse">
+              {error}
+            </div>
+          )}
+
+          {/* 3. Formulário Estilizado (Igual ao Layout.png) */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Input E-mail */}
+            <div className="space-y-1">
+              <input
                 id="email"
                 type="email"
-                placeholder="Email"
+                required
+                placeholder="E-mail institucional"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                icon={<Mail size={16} />}
-                className="text-base"
+                className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
+            </div>
 
-              <Input
-                label="Senha"
+            {/* Input Senha */}
+            <div className="space-y-1">
+              <input
                 id="password"
                 type="password"
-                placeholder="Password"
+                required
+                placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                icon={<Lock size={16} />}
-                className="text-base"
+                className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
-
-              <div className="flex justify-end">
-                <a
-                  href="#"
-                  aria-label="Recuperar senha"
-                  className="text-sm text-[#1B365D] hover:underline"
-                >
-                  Forgot Password?
-                </a>
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                block
-                isLoading={loading}
-              >
-                <span className="flex items-center gap-2">
-                  <LogIn size={16} />
-                  Entrar
-                  <span className="sr-only">Sign in</span>
-                </span>
-              </Button>
-
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-500 py-2">
-                <span className="h-px flex-1 bg-slate-200/40" />
-                <span className="px-3">OU</span>
-                <span className="h-px flex-1 bg-slate-200/40" />
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                block
-                onClick={() => signUp(email, password)}
-              >
-                <span className="flex items-center gap-2">
-                  <UserPlus size={16} />
-                  Criar conta
-                </span>
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center text-xs text-slate-500">
-              <p className="mb-1">Conexão segura • Autenticação disponível</p>
-              <p>HACO — Hospital da Força Aérea • © 2026</p>
             </div>
-          </div>
+
+            {/* Botão Principal */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 bg-secondary hover:bg-secondary/90 text-white font-bold rounded-full shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "ENTRAR"
+              )}
+            </button>
+
+            {/* Link Esqueceu a Senha */}
+            <div className="flex justify-end pt-2">
+              <a
+                href="#"
+                className="text-sm font-medium text-gray-500 hover:text-primary underline decoration-transparent hover:decoration-primary transition-all"
+              >
+                Esqueceu a senha?
+              </a>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer Discreto */}
+        <div className="absolute bottom-6 text-center">
+          <p className="text-xs text-gray-300 font-medium">
+            © 2026 HACO — Força Aérea Brasileira
+          </p>
         </div>
       </div>
     </div>

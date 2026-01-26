@@ -6,68 +6,33 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    /* Mapeando as cores para variáveis CSS se necessário, 
+       mas confiaremos no config do Tailwind */
   }
 
-  /* Garante que o app ocupe a tela toda sem scroll fantasma */
   html,
   body,
   #root {
     height: 100%;
-    margin: 20;
-    padding: 200;
+    margin: 0; /* Corrigido de 20 para 0 */
+    padding: 0; /* Corrigido de 200 para 0 */
     overflow-x: hidden;
   }
 
-  /* Box sizing consistente para evitar que bordas/extensões "vazem" do container */
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
   body {
-    font-family:
-      Inter,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      Roboto,
-      "Helvetica Neue",
-      Arial,
-      "Noto Sans",
-      "Apple Color Emoji",
-      "Segoe UI Emoji",
-      "Segoe UI Symbol";
-    background-color: #f4f7f9; /* canvas */
-    color: #1b365d; /* primary */
-    /* Força o render nítido das fontes */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-canvas text-primary font-inter antialiased;
   }
+}
 
-  /* Reset básico para campos de formulário */
-  input,
-  button,
-  select,
-  textarea {
-    font-family: inherit;
-    outline: none;
-    transition: all 0.15s ease;
+/* Utilitários de Scrollbar (Opcional, mas melhora o visual) */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-
-  /* Normaliza separadores e evita linhas visuais muito fortes */
-  hr {
-    border: none;
-    height: 1px;
-    background: rgba(15, 23, 42, 0.06);
-    margin: 0.5rem 0;
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-
-  /* Evita outlines globais do navegador (mantém foco acessível via box-shadow nas classes Tailwind) */
-  /* Evita remover outlines de foco essenciais.
-     Utilize utilitários `focus-visible` do Tailwind para estilos de foco.
-  */
 }
 
 /* Camada para evitar conflitos de animação do Radix */

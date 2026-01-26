@@ -1,226 +1,236 @@
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
-import { getSessionWithBookings, upsertSession } from "@/services/admin";
-import type {
-  Booking,
-  BookingWithDetails,
-  Profile,
-  SessionStatus,
-  SessionWithBookings,
-} from "@/types/database.types";
-import { generateSessionPDF } from "@/utils/pdfGenerator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import {
+  createSession,
+  deleteSession,
+  fetchSessionsByMonth,
+} from "@/services/api";
+import type { SessionWithBookings } from "@/types/database.types";
+import toastUi from "@/utils/toast";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Clock, Plus, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type Period = "morning" | "afternoon";
+interface SessionEditModalProps {
+  isOpen: boolean;
+  date: Date;
+  onClose: () => void;
+  onSaved?: () => void; // Tornado opcional para evitar erro de 'undefined'
+}
 
 export default function SessionEditModal({
   isOpen,
   date,
   onClose,
   onSaved,
-}: {
-  isOpen: boolean;
-  date: Date;
-  onClose: () => void;
-  onSaved?: () => void;
-}) {
-  const [period, setPeriod] = useState<Period>("morning");
-  const [maxCapacity, setMaxCapacity] = useState<number>(8);
-  const [applicatorsText, setApplicatorsText] = useState<string>("");
-  const [status, setStatus] = useState<SessionStatus>("open");
+}: SessionEditModalProps) {
+  const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [bookings, setBookings] = useState<(Booking & { user?: Profile })[]>(
-    [],
-  );
+  // Form States para Nova Sessão
+  const [newPeriod, setNewPeriod] = useState<"morning" | "afternoon" | "">("");
+  const [newCapacity, setNewCapacity] = useState("30");
+  const [creating, setCreating] = useState(false);
 
+  // Carrega as sessões do dia selecionado
   useEffect(() => {
     if (!isOpen) return;
-    // reset
-    setPeriod("morning");
-    setMaxCapacity(8);
-    setApplicatorsText("");
-    setStatus("open");
-    setBookings([]);
-    (async () => {
-      try {
-        const dateStr = format(date, "yyyy-LL-dd");
-        const res = await getSessionWithBookings(dateStr, "morning");
-        if (res) {
-          setMaxCapacity(res.max_capacity);
-          setApplicatorsText((res.applicators ?? []).join(", "));
-          setStatus(res.status as SessionStatus);
-          setBookings(res.bookings ?? []);
-        }
-      } catch {
-        // ignore
+
+    const loadSessions = async () => {
+      setLoading(true);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const res = await fetchSessionsByMonth(year, month);
+
+      if (res.data) {
+        const dateKey = format(date, "yyyy-MM-dd");
+        const daysSessions = res.data.filter((s) => s.date === dateKey);
+        setSessions(daysSessions);
       }
-    })();
+      setLoading(false);
+    };
+
+    loadSessions();
   }, [isOpen, date]);
 
-  useEffect(() => {
-    // when switching period, load that session if exists
-    if (!isOpen) return;
-    (async () => {
-      try {
-        const dateStr = format(date, "yyyy-LL-dd");
-        const res = await getSessionWithBookings(dateStr, period);
-        if (res) {
-          setMaxCapacity(res.max_capacity);
-          setApplicatorsText((res.applicators ?? []).join(", "));
-          setStatus(res.status as SessionStatus);
-          setBookings(res.bookings ?? []);
-        } else {
-          // defaults
-          setMaxCapacity(8);
-          setApplicatorsText("");
-          setStatus("open");
-          setBookings([]);
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, [period, isOpen, date]);
+  const handleCreate = async () => {
+    if (!newPeriod) return toast.error("Selecione um turno.");
+    if (!newCapacity || parseInt(newCapacity) <= 0)
+      return toast.error("Capacidade inválida.");
 
-  async function handleSave() {
-    if (maxCapacity < 8 || maxCapacity > 21) {
-      toast.error("Capacidade deve ser entre 8 e 21");
-      return;
-    }
-    setLoading(true);
+    setCreating(true);
     try {
-      const dateStr = format(date, "yyyy-LL-dd");
-      const applicators = applicatorsText
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const dateStr = format(date, "yyyy-MM-dd");
 
-      const res = await upsertSession({
+      const res = await createSession({
         date: dateStr,
-        period,
-        max_capacity: maxCapacity,
-        applicators,
-        status,
+        period: newPeriod,
+        max_capacity: parseInt(newCapacity),
+      } as {
+        date: string;
+        period: "morning" | "afternoon";
+        max_capacity: number;
       });
-      const r = res as { error?: string | null };
-      if (r.error) {
-        toast.error(r.error);
+
+      if (res.error) {
+        toastUi.genericError(res.error);
       } else {
-        toast.success("Sessão salva");
-        onSaved?.();
+        toast.success("Sessão criada com sucesso!");
+        onSaved?.(); // Chamada segura
+        setNewPeriod("");
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    if (
+      !confirm(
+        "Tem certeza? Isso cancelará todos os agendamentos desta sessão.",
+      )
+    )
+      return;
+
+    try {
+      const res = await deleteSession(sessionId);
+      if (res.error) {
+        toastUi.genericError(res.error);
+      } else {
+        toast.success("Sessão removida.");
+        onSaved?.(); // Chamada segura
       }
     } catch {
-      toast.error("Erro ao salvar");
-    } finally {
-      setLoading(false);
+      toastUi.genericError("Erro ao remover sessão");
     }
-  }
+  };
+
+  const formattedDate = format(date, "dd 'de' MMMM", { locale: ptBR });
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Sessão ${format(date, "dd/LL/yyyy")}`}
+      title={`Gerenciar: ${formattedDate}`}
+      maxWidth="md"
     >
-      <div className="flex gap-2 mb-4">
-        <button
-          className={`px-3 py-1 rounded ${period === "morning" ? "bg-slate-800 text-white" : "bg-slate-100"}`}
-          onClick={() => setPeriod("morning")}
-        >
-          Manhã
-        </button>
-        <button
-          className={`px-3 py-1 rounded ${period === "afternoon" ? "bg-slate-800 text-white" : "bg-slate-100"}`}
-          onClick={() => setPeriod("afternoon")}
-        >
-          Tarde
-        </button>
-      </div>
+      <div className="space-y-6 pt-2">
+        {/* Lista de Sessões Existentes */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Sessões Ativas
+          </h4>
 
-      <div className="grid gap-3">
-        <label className="text-sm">Capacidade</label>
-        <input
-          type="number"
-          min={8}
-          max={21}
-          value={maxCapacity}
-          onChange={(e) => setMaxCapacity(Number(e.target.value))}
-          className="border rounded p-2"
-        />
+          {loading ? (
+            <div className="text-center py-4 text-slate-400 text-sm">
+              Carregando...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center text-sm text-slate-500">
+              Nenhuma sessão aberta para este dia.
+            </div>
+          ) : (
+            sessions.map((session) => (
+              <div
+                key={session.id}
+                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-lg ${session.period === "morning" ? "bg-orange-50 text-orange-600" : "bg-indigo-50 text-indigo-600"}`}
+                  >
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-800">
+                      {session.period === "morning" ? "Manhã" : "Tarde"}
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-1">
+                      <Users size={12} /> {session.max_capacity} Vagas Totais
+                    </div>
+                  </div>
+                </div>
 
-        <label className="text-sm">Aplicadores (separados por vírgula)</label>
-        <input
-          value={applicatorsText}
-          onChange={(e) => setApplicatorsText(e.target.value)}
-          className="border rounded p-2"
-          placeholder="Sgt Silva, Ten Souza"
-        />
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-medium bg-slate-100 px-2 py-1 rounded">
+                    {session.bookings?.length || 0} inscritos
+                  </div>
+                  <button
+                    onClick={() => handleDelete(session.id)}
+                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Excluir Sessão"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
 
-        <label className="text-sm">Status</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as SessionStatus)}
-          className="border rounded p-2"
-        >
-          <option value="open">Aberto</option>
-          <option value="closed">Fechado</option>
-        </select>
+        <div className="h-px bg-slate-100 my-4" />
 
-        <div className="flex gap-2 justify-end">
+        {/* Formulário de Nova Sessão */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Plus size={16} className="text-primary" /> Nova Sessão
+          </h4>
+
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                Turno
+              </label>
+              <Select
+                value={newPeriod}
+                onValueChange={(v) =>
+                  setNewPeriod(v as "morning" | "afternoon" | "")
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">Manhã (08h-12h)</SelectItem>
+                  <SelectItem value="afternoon">Tarde (13h-17h)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                Capacidade
+              </label>
+              {/* CORREÇÃO: onChange em vez de onValueChange */}
+              <Input
+                type="number"
+                value={newCapacity}
+                onChange={(e) => setNewCapacity(e.target.value)}
+                className="bg-white"
+                min={1}
+                label="" // label vazio pois já temos um label visual acima
+              />
+            </div>
+          </div>
+
           <Button
-            variant="outline"
-            onClick={() => {
-              // map bookings to BookingWithDetails-like shape for PDF generator
-              const safeBookings = bookings.map((b) => ({
-                ...b,
-                user:
-                  b.user ??
-                  ({
-                    id: "",
-                    saram: "—",
-                    full_name: "—",
-                    rank: "—",
-                    role: "user",
-                    semester: "1",
-                    created_at: "",
-                    updated_at: "",
-                  } as Profile),
-              }));
-              // Construct minimal SessionWithBookings compatible object
-              const sessionForPdf: SessionWithBookings & {
-                bookings: BookingWithDetails[];
-              } = {
-                id: "",
-                date: format(date, "yyyy-LL-dd"),
-                period,
-                max_capacity: maxCapacity,
-                applicators: applicatorsText
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-                status,
-                coordinator_id: null,
-                created_at: "",
-                updated_at: "",
-                bookings: safeBookings as BookingWithDetails[],
-              };
-
-              generateSessionPDF(sessionForPdf);
-            }}
-            disabled={bookings.length === 0}
-            title={bookings.length === 0 ? "Nenhum inscrito" : "Imprimir lista"}
+            onClick={handleCreate}
+            isLoading={creating}
+            block
+            variant="primary"
+            disabled={!newPeriod || !newCapacity}
           >
-            🖨️ Imprimir Lista
-          </Button>
-
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button variant="primary" isLoading={loading} onClick={handleSave}>
-            Salvar
+            Abrir Vagas
           </Button>
         </div>
       </div>

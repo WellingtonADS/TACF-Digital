@@ -14,10 +14,27 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { ptBR } from "date-fns/locale";
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "../ui/Modal";
 import CalendarDay from "./CalendarDay";
+
+// Substituir o uso de `any` por um tipo mais específico
+interface ConfirmResult {
+  success: boolean;
+  data?: {
+    success: boolean;
+    error: string | null;
+    booking_id?: string | null;
+    order_number?: string;
+  };
+  error?: string;
+}
 
 export default function CalendarGrid({
   onBookingSuccess,
@@ -34,43 +51,54 @@ export default function CalendarGrid({
 }) {
   const [current, setCurrent] = useState<Date>(initialDate ?? new Date());
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [confirmingSessionId, setConfirmingSessionId] = useState<string | null>(
     null,
   );
-  // track optimistic pending reservations (sessionId -> true)
-  const [pendingReservations, setPendingReservations] = useState<
-    Record<string, boolean>
-  >({});
+  const [loading, setLoading] = useState(false);
 
-  const fetchSessions = useCallback(async () => {
+  // Função auxiliar para recarregar dados (sem causar loop no effect)
+  const reloadSessions = async (date: Date) => {
     setLoading(true);
-    const year = current.getFullYear();
-    const month = current.getMonth() + 1;
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
     const res = await fetchSessionsByMonth(year, month);
     if (res.error) setSessions([]);
     else setSessions(res.data ?? []);
     setLoading(false);
-  }, [current]);
+  };
 
+  // Effect para carga inicial e mudanças de mês/refreshKey
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      if (!mounted) return;
-      await fetchSessions();
-    })();
+
+    const load = async () => {
+      if (mounted) setLoading(true);
+      const year = current.getFullYear();
+      const month = current.getMonth() + 1;
+      const res = await fetchSessionsByMonth(year, month);
+
+      if (mounted) {
+        if (res.error) setSessions([]);
+        else setSessions(res.data ?? []);
+        setLoading(false);
+      }
+    };
+
+    load();
+
     return () => {
       mounted = false;
     };
-  }, [fetchSessions, refreshKey]);
+  }, [current, refreshKey]);
 
   const { confirm } = useBooking();
 
   const days = useMemo(() => {
-    const start = startOfMonth(current);
-    const end = endOfMonth(current);
-    return eachDayOfInterval({ start, end });
+    return eachDayOfInterval({
+      start: startOfMonth(current),
+      end: endOfMonth(current),
+    });
   }, [current]);
 
   function sessionsForDay(d: Date) {
@@ -79,189 +107,151 @@ export default function CalendarGrid({
   }
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-2">
+    <Card className="border-0 shadow-none sm:shadow-xl sm:border sm:border-slate-100">
+      {/* Header do Calendário */}
+      <div className="flex items-center justify-between mb-8 px-2">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-xl text-primary hidden sm:block">
+            <CalendarIcon size={24} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 capitalize">
+              {format(current, "MMMM", { locale: ptBR })}
+            </h2>
+            <p className="text-slate-500 font-medium">
+              {format(current, "yyyy")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => setCurrent(subMonths(current, 1))}
+            className="h-9 w-9 p-0"
           >
-            Anterior
+            <ChevronLeft size={20} />
           </Button>
+          <div className="w-px h-5 bg-slate-200" />
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => setCurrent(addMonths(current, 1))}
+            className="h-9 w-9 p-0"
           >
-            Próximo
+            <ChevronRight size={20} />
           </Button>
         </div>
-        <div className="text-lg font-semibold">
-          {format(current, "MMMM yyyy")}
-        </div>
       </div>
 
-      {loading && (
-        <div className="mb-2 text-sm text-slate-500">Carregando...</div>
-      )}
+      {/* Grid de Dias */}
+      <div className="grid grid-cols-7 gap-2 sm:gap-4 mb-4">
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+          <div
+            key={d}
+            className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider"
+          >
+            {d}
+          </div>
+        ))}
 
-      <div className="grid grid-cols-7 gap-2 text-center text-sm text-slate-600 mb-2">
-        <div>Dom</div>
-        <div>Seg</div>
-        <div>Ter</div>
-        <div>Qua</div>
-        <div>Qui</div>
-        <div>Sex</div>
-        <div>Sáb</div>
-      </div>
-
-      <div className="grid grid-cols-7 gap-2">
         {days.map((d) => (
           <div
             key={d.toISOString()}
-            className={`${isSameMonth(d, current) ? "" : "opacity-40"}`}
+            className={
+              !isSameMonth(d, current) ? "opacity-30 pointer-events-none" : ""
+            }
           >
             <CalendarDay
               date={d}
               sessions={sessionsForDay(d)}
               isAdmin={isAdmin}
-              onSelect={(date) => {
-                if (isAdmin && onDayClick) onDayClick(date);
-                else setSelectedDate(date);
-              }}
+              onSelect={(date) =>
+                isAdmin && onDayClick ? onDayClick(date) : setSelectedDate(date)
+              }
             />
           </div>
         ))}
       </div>
 
+      {loading && sessions.length === 0 && (
+        <div className="text-center py-10 text-slate-400 animate-pulse">
+          Carregando disponibilidade...
+        </div>
+      )}
+
+      {/* Modal de Confirmação */}
       <Modal
         isOpen={!!selectedDate}
         onClose={() => setSelectedDate(null)}
         title={
           selectedDate
-            ? `Agendamento para ${format(selectedDate, "dd/LL/yyyy")}`
+            ? `Agendamento: ${format(selectedDate, "dd/MM/yyyy")}`
             : ""
         }
       >
-        {selectedDate && (
-          <div className="flex flex-col gap-3">
-            {sessionsForDay(selectedDate).map((s) => {
-              const booked =
-                (s.booking_count ?? s.bookings?.length ?? 0) +
-                (pendingReservations[s.id] ? 1 : 0);
-              const isFull = booked >= (s.max_capacity ?? 0);
-              return (
-                <div key={s.id} className="flex items-center justify-between">
-                  <div>{s.period === "morning" ? "Manhã" : "Tarde"}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm text-[#1B365D]">
-                      {booked}/{s.max_capacity}
-                    </div>
+        {selectedDate &&
+          sessionsForDay(selectedDate).map((s) => {
+            const booked = s.booking_count ?? s.bookings?.length ?? 0;
+            const isFull = booked >= (s.max_capacity ?? 0);
 
-                    <Button
-                      variant="primary"
-                      disabled={confirmingSessionId !== null || isFull}
-                      isLoading={confirmingSessionId === s.id}
-                      onClick={async () => {
-                        // season validation: prevent booking outside allowed windows
-                        const sessionDate = new Date(`${s.date}T00:00:00`);
-                        if (!isDateInAllowedWindow(sessionDate)) {
-                          toastUi.seasonalInvalid();
-                          return;
-                        }
-
-                        // optimistic UI: mark pending and increment displayed count
-                        setPendingReservations((prev) => ({
-                          ...prev,
-                          [s.id]: true,
-                        }));
-                        setConfirmingSessionId(s.id);
-
-                        const result = await confirm(s.id, async () => {
-                          await fetchSessions();
-                          setSelectedDate(null);
-                        });
-
-                        setConfirmingSessionId(null);
-
-                        if (result.success) {
-                          // backend generates the order number; if available, pass it to the toast
-                          type ConfirmResult = {
-                            order_number?: string;
-                          } & Record<string, unknown>;
-                          const resultData = result.data as
-                            | ConfirmResult
-                            | undefined;
-                          const orderNumber = resultData?.order_number;
-                          toastUi.bookingConfirmed(orderNumber);
-                          // fetch the full booking for receipt generation
-                          const { data: bookingData } = await (
-                            await import("@/services/api")
-                          ).getUserBooking();
-                          if (bookingData) {
-                            try {
-                              const { generateReceipt } =
-                                await import("@/utils/receipt/generateReceipt");
-
-                              const b = bookingData as {
-                                id?: string;
-                                profiles?: {
-                                  saram?: string;
-                                  full_name?: string;
-                                  rank?: string;
-                                };
-                                sessions?: { date?: string; period?: string };
-                              };
-
-                              await generateReceipt({
-                                booking_id: b.id ?? "",
-                                saram: b.profiles?.saram ?? "",
-                                full_name: b.profiles?.full_name ?? "",
-                                rank: b.profiles?.rank ?? "",
-                                date: b.sessions?.date ?? "",
-                                period:
-                                  b.sessions?.period === "morning"
-                                    ? "Manhã"
-                                    : "Tarde",
-                              });
-                              toast.success("Comprovante gerado para download");
-                            } catch (err) {
-                              console.error("Receipt generation failed", err);
-                              toast.error("Erro ao gerar comprovante");
-                            }
-                          }
-
-                          onBookingSuccess?.();
-                        } else {
-                          // revert optimistic change on error
-                          setPendingReservations((prev) => {
-                            const copy = { ...prev };
-                            delete copy[s.id];
-                            return copy;
-                          });
-
-                          if (result.error?.includes("session full")) {
-                            toastUi.sessionFull();
-                            // refresh counts
-                            await fetchSessions();
-                          } else {
-                            toastUi.genericError(
-                              result.error ?? "Erro ao agendar",
-                            );
-                          }
-                        }
-                      }}
-                    >
-                      Confirmar
-                    </Button>
-                  </div>
+            return (
+              <div
+                key={s.id}
+                className="p-4 mb-3 rounded-xl border bg-slate-50 flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-800">
+                    {s.period === "morning" ? "Manhã" : "Tarde"}
+                  </h4>
+                  <span className="text-xs text-slate-500">
+                    Vagas: {booked}/{s.max_capacity}
+                  </span>
                 </div>
-              );
-            })}
-            {sessionsForDay(selectedDate).length === 0 && (
-              <div>Não há sessões neste dia.</div>
-            )}
-          </div>
-        )}
+                <Button
+                  variant="primary"
+                  disabled={confirmingSessionId !== null || isFull}
+                  isLoading={confirmingSessionId === s.id}
+                  onClick={async () => {
+                    const sDate = new Date(`${s.date}T00:00:00`);
+                    if (!isDateInAllowedWindow(sDate))
+                      return toastUi.seasonalInvalid();
+
+                    setConfirmingSessionId(s.id);
+                    const result: ConfirmResult = await confirm(
+                      s.id,
+                      async () => {
+                        await reloadSessions(current); // Refresh manual sem depender do effect
+                        setSelectedDate(null);
+                      },
+                    );
+                    setConfirmingSessionId(null);
+
+                    if (result.success) {
+                      // Removido o uso de `any` e ajustado para usar o tipo `ConfirmResult`
+                      const orderNumber =
+                        result.data?.order_number || result.data?.booking_id;
+
+                      if (orderNumber) {
+                        toastUi.bookingConfirmed(orderNumber);
+                      } else {
+                        toastUi.genericError(
+                          "Erro: Número do pedido não encontrado.",
+                        );
+                      }
+
+                      onBookingSuccess?.();
+                    } else {
+                      toastUi.genericError(result.error ?? "Erro ao agendar");
+                    }
+                  }}
+                >
+                  {isFull ? "Lotado" : "Confirmar"}
+                </Button>
+              </div>
+            );
+          })}
       </Modal>
     </Card>
   );

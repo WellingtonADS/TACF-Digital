@@ -18,9 +18,16 @@ export default function Shell({
   adminEnabled: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-canvas flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-inter">
       <TopNav profile={profile} adminEnabled={adminEnabled} />
       <Content>{children}</Content>
+
+      {/* Footer Simples (Opcional, mas completa o Shell) */}
+      <footer className="py-6 text-center border-t border-slate-100 mt-auto">
+        <p className="text-xs text-slate-400">
+          © 2026 Hospital da Força Aérea • Divisão de Tecnologia
+        </p>
+      </footer>
     </div>
   );
 }
