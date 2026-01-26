@@ -109,6 +109,7 @@ const Login: React.FC = () => {
                 <span className="flex items-center gap-2">
                   <LogIn size={16} />
                   Entrar
+                  <span className="sr-only">Sign in</span>
                 </span>
               </Button>
 
