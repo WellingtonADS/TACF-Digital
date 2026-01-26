@@ -17,7 +17,7 @@ export default defineConfig({
     : "list",
   use: {
     actionTimeout: 0,
-    baseURL: process.env.PW_BASE_URL ?? "http://localhost:5173",
+    baseURL: process.env.PW_BASE_URL ?? "http://localhost:5174",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
