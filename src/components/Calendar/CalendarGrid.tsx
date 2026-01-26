@@ -185,10 +185,13 @@ export default function CalendarGrid({
 
                         if (result.success) {
                           // backend generates the order number; if available, pass it to the toast
-                          const orderNumber = (result.data &&
-                            (result.data as any)["order_number"]) as
-                            | string
+                          type ConfirmResult = {
+                            order_number?: string;
+                          } & Record<string, unknown>;
+                          const resultData = result.data as
+                            | ConfirmResult
                             | undefined;
+                          const orderNumber = resultData?.order_number;
                           toastUi.bookingConfirmed(orderNumber);
                           // fetch the full booking for receipt generation
                           const { data: bookingData } = await (
@@ -198,18 +201,25 @@ export default function CalendarGrid({
                             try {
                               const { generateReceipt } =
                                 await import("@/utils/receipt/generateReceipt");
+
+                              const b = bookingData as {
+                                id?: string;
+                                profiles?: {
+                                  saram?: string;
+                                  full_name?: string;
+                                  rank?: string;
+                                };
+                                sessions?: { date?: string; period?: string };
+                              };
+
                               await generateReceipt({
-                                booking_id: (bookingData as any).id,
-                                saram:
-                                  (bookingData as any).profiles?.saram ?? "",
-                                full_name:
-                                  (bookingData as any).profiles?.full_name ??
-                                  "",
-                                rank: (bookingData as any).profiles?.rank ?? "",
-                                date: (bookingData as any).sessions?.date ?? "",
+                                booking_id: b.id ?? "",
+                                saram: b.profiles?.saram ?? "",
+                                full_name: b.profiles?.full_name ?? "",
+                                rank: b.profiles?.rank ?? "",
+                                date: b.sessions?.date ?? "",
                                 period:
-                                  (bookingData as any).sessions?.period ===
-                                  "morning"
+                                  b.sessions?.period === "morning"
                                     ? "Manhã"
                                     : "Tarde",
                               });

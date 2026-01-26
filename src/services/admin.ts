@@ -1,8 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   Booking,
-  BookingUpdate,
   Profile,
-  ProfileUpdate,
   Session,
   SessionInsert,
   SwapRequestUpdate,
@@ -65,9 +64,7 @@ export async function getSessionWithBookings(date: string, period: string) {
 
   type BookingWithUser = Booking & { user?: Profile };
 
-  // Use any for query builder to avoid inferring overly strict column typings
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: bookings } = await (supabase as any)
+  const { data: bookings } = await supabase
     .from("bookings")
     .select("*, user:profiles(*)")
     .eq("session_id", (session as Session).id)
@@ -92,7 +89,6 @@ export async function upsertSession(sessionData: {
   const row = { date, period, max_capacity, applicators, status };
 
   // Use upsert assuming a unique constraint on (date, period)
-  // Use any to avoid strict Postgrest typings for upsert
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("sessions")
@@ -126,9 +122,7 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     created_at: string;
   };
 
-  // Use any query builder to avoid strict column typing that causes issues
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rows, error } = await (supabase as any)
+  const { data: rows, error } = await supabase
     .from("swap_requests")
     .select("id, reason, booking_id, new_session_id, created_at")
     .eq("status", "pending");
@@ -140,9 +134,7 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
   const swapRows = rows as SwapRequestRow[];
 
   for (const r of swapRows) {
-    // Use any to avoid column name typing problems
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bookingRes = await (supabase as any)
+    const bookingRes = await supabase
       .from("bookings")
       .select("id, user_id, session_id")
       .eq("id", r.booking_id)
@@ -153,36 +145,33 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
       session_id: string;
     } | null;
 
-    // Use any for profile queries too to avoid strict column typing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const profileRes = await (supabase as any)
+    const profileRes = await supabase
       .from("profiles")
       .select("full_name, rank")
-      .eq("id", booking?.user_id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq("id", booking?.user_id as any)
       .maybeSingle();
     const profile = profileRes.data as {
       full_name?: string;
       rank?: string;
     } | null;
 
-    // Use any for session queries to avoid strict typing on column names
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fromSessionRes = await (supabase as any)
+    const fromSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      .eq("id", booking?.session_id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq("id", booking?.session_id as any)
       .maybeSingle();
     const fromSession = fromSessionRes.data as {
       date?: string;
       period?: "morning" | "afternoon";
     } | null;
 
-    // Use any for session queries to avoid strict typing on column names
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toSessionRes = await (supabase as any)
+    const toSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      .eq("id", r.new_session_id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq("id", r.new_session_id as any)
       .maybeSingle();
     const toSession = toSessionRes.data as {
       date?: string;
@@ -210,9 +199,7 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
 // Fetch all profiles (optional search handled client-side)
 
 export async function fetchProfiles(): Promise<Profile[] | null> {
-  // Use any here so column typing doesn't block the simple select
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .order("full_name", { ascending: true });
@@ -239,14 +226,14 @@ export async function updateProfile(
   };
   error?: string;
 }> {
-  // Use any for profile updates to avoid strict column typing issues
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const { data, error } = await (supabase as any)
     .from("profiles")
-    .update(updates as ProfileUpdate)
-    .eq("id", id)
+    .update(updates as any)
+    .eq("id", id as any)
     .select()
     .maybeSingle();
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   if (error) return { error: error.message };
   return { data: data as Profile };
 }
@@ -276,24 +263,24 @@ export async function rejectSwap(requestId: string) {
     processed_by: admin_id,
   };
 
-  // Use any for swap_requests update
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const { data, error } = await (supabase as any)
     .from("swap_requests")
-    .update(updates as SwapRequestUpdate)
-    .eq("id", requestId)
+    .update(updates as any)
+    .eq("id", requestId as any)
     .select();
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   if (error) return { error: error.message };
 
   // reset booking status to confirmed if it had been set to pending_swap
   const bookingId = data?.[0]?.booking_id;
   if (bookingId) {
-    // Use any for bookings update
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const { error: e2 } = await (supabase as any)
       .from("bookings")
-      .update({ status: "confirmed" } as BookingUpdate)
-      .eq("id", bookingId);
+      .update({ status: "confirmed" } as any)
+      .eq("id", bookingId as any);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     if (e2) return { error: e2.message };
   }
 

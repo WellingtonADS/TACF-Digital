@@ -13,22 +13,26 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5">
         <Label.Root
-          className="text-xs font-bold text-primary uppercase tracking-wider leading-none cursor-default ml-1"
+          className="text-sm font-semibold text-slate-700 leading-none cursor-default ml-1"
           htmlFor={id}
         >
           {label}
         </Label.Root>
-        
+
         <div className="relative flex items-center group">
           {icon && (
-            <div className={cn(
-              "absolute left-3 transition-colors",
-              error ? "text-error" : "text-slate-400 group-focus-within:text-secondary"
-            )}>
+            <div
+              className={cn(
+                "absolute left-3 transition-colors",
+                error
+                  ? "text-error"
+                  : "text-slate-400 group-focus-within:text-secondary",
+              )}
+            >
               {icon}
             </div>
           )}
-          
+
           <input
             id={id}
             ref={ref}
@@ -36,16 +40,17 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               // Base e Typography
               "flex h-12 w-full rounded-xl border px-3 py-2 text-sm transition-all outline-none",
               // Cores usando seus Tokens
-              "bg-canvas border-slate-200 text-primary placeholder:text-slate-400",
+              "bg-white border-slate-100 text-slate-800 placeholder:text-slate-400",
               // Estados de Foco (Usando seu token Secondary)
               "focus:ring-2 focus:ring-secondary/20 focus:border-secondary shadow-sm",
               // Estado de Erro
-              error && "border-error focus:border-error focus:ring-error/20 bg-error/5",
+              error &&
+                "border-error focus:border-error focus:ring-error/20 bg-error/5",
               // Ajuste de Padding se houver ícone
               icon && "pl-10",
               // Cursor e Opacidade para Disabled
               "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100",
-              className
+              className,
             )}
             {...props}
           />

@@ -6,6 +6,7 @@ import type {
   BookingWithDetails,
   Profile,
   SessionStatus,
+  SessionWithBookings,
 } from "@/types/database.types";
 import { generateSessionPDF } from "@/utils/pdfGenerator";
 import { format } from "date-fns";
@@ -189,7 +190,9 @@ export default function SessionEditModal({
                   } as Profile),
               }));
               // Construct minimal SessionWithBookings compatible object
-              const sessionForPdf = {
+              const sessionForPdf: SessionWithBookings & {
+                bookings: BookingWithDetails[];
+              } = {
                 id: "",
                 date: format(date, "yyyy-LL-dd"),
                 period,
@@ -203,7 +206,7 @@ export default function SessionEditModal({
                 created_at: "",
                 updated_at: "",
                 bookings: safeBookings as BookingWithDetails[],
-              } as any;
+              };
 
               generateSessionPDF(sessionForPdf);
             }}
