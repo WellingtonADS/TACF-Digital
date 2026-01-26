@@ -82,7 +82,7 @@ const Login: React.FC = () => {
                 label="Senha"
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock size={16} />}
