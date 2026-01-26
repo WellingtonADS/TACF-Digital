@@ -89,7 +89,6 @@ export async function upsertSession(sessionData: {
   const row = { date, period, max_capacity, applicators, status };
 
   // Use upsert assuming a unique constraint on (date, period)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("sessions")
     .upsert(row as SessionInsert, { onConflict: ["date", "period"] })
@@ -148,7 +147,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const profileRes = await supabase
       .from("profiles")
       .select("full_name, rank")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", booking?.user_id as any)
       .maybeSingle();
     const profile = profileRes.data as {
@@ -159,7 +157,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const fromSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", booking?.session_id as any)
       .maybeSingle();
     const fromSession = fromSessionRes.data as {
@@ -170,7 +167,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const toSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", r.new_session_id as any)
       .maybeSingle();
     const toSession = toSessionRes.data as {
