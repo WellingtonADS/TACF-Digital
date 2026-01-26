@@ -49,6 +49,7 @@ const Login: React.FC = () => {
                 TD
               </div>
               <div>
+                <h1 className="sr-only">Login</h1>
                 <h2 className="text-2xl font-extrabold">Welcome back</h2>
                 <p className="text-sm text-slate-700">
                   Acesso ao Sistema — SGCF HACO
