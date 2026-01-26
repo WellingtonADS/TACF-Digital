@@ -1,11 +1,10 @@
 import AdminRoute from "@/components/Admin/AdminRoute";
 import UserEditModal from "@/components/Admin/UserEditModal";
-import { Badge } from "@/components/ui";
 import Button from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import { Body, H1 } from "@/components/ui/Typography";
-import { fetchProfiles } from "@/services/admin";
+import { fetchProfiles, updateProfile } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
 import { Edit2, Search } from "lucide-react"; // REMOVIDO: UserCog
 import { useEffect, useMemo, useState } from "react";
@@ -16,12 +15,13 @@ export default function AdminUsers() {
   const [selected, setSelected] = useState<Profile | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetchProfiles();
+        const res = await fetchProfiles(showInactive);
         setProfiles((res ?? []) as Profile[]);
       } catch {
         // Silent error
@@ -29,7 +29,7 @@ export default function AdminUsers() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [showInactive]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -65,7 +65,7 @@ export default function AdminUsers() {
               Gerencie o efetivo, edite dados e ajuste semestres de referência.
             </Body>
           </div>
-          <div className="w-full md:w-72">
+          <div className="w-full md:w-72 flex items-center gap-3">
             <Input
               placeholder="Buscar por SARAM, Nome ou Email..."
               value={query}
@@ -73,6 +73,14 @@ export default function AdminUsers() {
               icon={<Search size={16} />}
               className="bg-white"
             />
+            <label className="text-sm text-slate-600 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              Mostrar inativos
+            </label>
           </div>
         </div>
 
@@ -99,6 +107,9 @@ export default function AdminUsers() {
                   </th>
                   <th className="py-3 px-4 font-semibold text-slate-700">
                     Semestre
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Status
                   </th>
                   <th className="py-3 px-4 font-semibold text-slate-700 text-right">
                     Ações
@@ -165,20 +176,47 @@ export default function AdminUsers() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant={p.semester === "1" ? "default" : "alert"}>
-                        {p.semester}º Semestre
-                      </Badge>
+                      {p.active ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-green-100 text-xs font-medium text-green-700">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-yellow-50 text-xs font-medium text-yellow-700">
+                          Inativo
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(p)}
-                        className="h-8 w-8 p-0 rounded-full hover:bg-white hover:shadow-sm hover:text-primary"
-                        title="Editar Usuário"
-                      >
-                        <Edit2 size={16} />
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(p)}
+                          className="h-8 w-8 p-0 rounded-full hover:bg-white hover:shadow-sm hover:text-primary"
+                          title="Editar Usuário"
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            // quick toggle active
+                            const res = await updateProfile(p.id, {
+                              active: !p.active,
+                            });
+                            if (res.error) return;
+                            setProfiles((prev) =>
+                              prev.map((x) =>
+                                x.id === p.id ? { ...x, active: !x.active } : x,
+                              ),
+                            );
+                          }}
+                          className="h-8 px-3 py-1 rounded"
+                        >
+                          {p.active ? "Inativar" : "Ativar"}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

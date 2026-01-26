@@ -74,7 +74,7 @@ export default function CalendarDay({
       </div>
 
       {/* Botão de Ação */}
-      {hasSessions && (
+      {(hasSessions || isAdmin) && (
         <div className="mt-2">
           <Button
             variant={isAdmin ? "ghost" : "primary"}
@@ -83,7 +83,13 @@ export default function CalendarDay({
             onClick={() => onSelect?.(date)}
             disabled={!isAdmin && !anyAvailable}
           >
-            {isAdmin ? "Editar" : anyAvailable ? "Agendar" : "Lotado"}
+            {isAdmin
+              ? hasSessions
+                ? "Editar"
+                : "Abrir"
+              : anyAvailable
+                ? "Agendar"
+                : "Lotado"}
           </Button>
         </div>
       )}

@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateProfile } from "@/services/admin";
+import { deleteProfile, updateProfile } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
 import toastUi from "@/utils/toast";
 import { UserCog } from "lucide-react";
@@ -48,6 +48,7 @@ export default function UserEditModal({
   const { profile: currentProfile } = useAuth();
   const [formData, setFormData] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -58,6 +59,7 @@ export default function UserEditModal({
         semester: profile.semester,
         email: profile.email ?? "",
         role: profile.role,
+        active: profile.active ?? true,
       });
     }
   }, [profile, isOpen]);
@@ -241,25 +243,94 @@ export default function UserEditModal({
               * Alterar isso afetará as regras de agendamento para este usuário.
             </p>
           </div>
+
+          {/* Active Toggle (only admin may change and not self) */}
+          {currentProfile?.role === "admin" &&
+            profile?.id !== currentProfile?.id && (
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700 ml-1">
+                  Status do Perfil
+                </label>
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...(p ?? {}), active: true }))
+                    }
+                    className={`px-3 py-1 rounded ${formData.active ? "bg-green-100 text-green-800" : "bg-white border"}`}
+                  >
+                    Ativar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...(p ?? {}), active: false }))
+                    }
+                    className={`px-3 py-1 rounded ${formData.active === false ? "bg-yellow-50 text-yellow-800" : "bg-white border"}`}
+                  >
+                    Inativar
+                  </button>
+                </div>
+              </div>
+            )}
         </div>
 
         {/* Footer Actions */}
         <div className="flex gap-3 pt-4 border-t border-slate-50 mt-4">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={onClose}
-            className="w-1/3"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            isLoading={loading}
-            className="w-2/3 shadow-lg shadow-primary/20"
-          >
-            Salvar Alterações
-          </Button>
+          <div className="flex items-center gap-2 w-full">
+            {currentProfile?.role === "admin" &&
+              profile?.id !== currentProfile?.id && (
+                <div className="flex-1">
+                  <Button
+                    variant="error"
+                    type="button"
+                    onClick={async () => {
+                      if (!profile) return;
+                      if (
+                        !confirm("Tem certeza que deseja excluir este perfil?")
+                      )
+                        return;
+                      setDeleting(true);
+                      const res = await deleteProfile(profile.id);
+                      setDeleting(false);
+                      if (res?.error) {
+                        toastUi.genericError(res.error);
+                        return;
+                      }
+                      toast.success("Perfil excluído");
+                      onClose();
+                      onSaved({
+                        ...(profile as Profile),
+                        active: false,
+                      } as Profile);
+                    }}
+                  >
+                    {deleting ? "Excluindo..." : "Excluir"}
+                  </Button>
+                </div>
+              )}
+
+            <div className="flex-1">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={onClose}
+                className="w-full"
+              >
+                Cancelar
+              </Button>
+            </div>
+
+            <div className="flex-1">
+              <Button
+                type="submit"
+                isLoading={loading}
+                className="w-full shadow-lg shadow-primary/20"
+              >
+                Salvar Alterações
+              </Button>
+            </div>
+          </div>
         </div>
       </form>
     </Modal>
