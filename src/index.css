@@ -5,17 +5,12 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Mapeando as cores para variáveis CSS se necessário, 
-       mas confiaremos no config do Tailwind */
-  }
-
   html,
   body,
   #root {
     height: 100%;
-    margin: 0; /* Corrigido de 20 para 0 */
-    padding: 0; /* Corrigido de 200 para 0 */
+    margin: 0;
+    padding: 0;
     overflow-x: hidden;
   }
 
