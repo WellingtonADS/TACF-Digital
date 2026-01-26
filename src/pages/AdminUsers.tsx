@@ -1,14 +1,14 @@
 import AdminRoute from "@/components/Admin/AdminRoute";
 import UserEditModal from "@/components/Admin/UserEditModal";
+import { Badge } from "@/components/ui";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { H1, Body } from "@/components/ui/Typography";
-import { Badge } from "@/components/ui"; 
+import Input from "@/components/ui/Input";
+import { Body, H1 } from "@/components/ui/Typography";
 import { fetchProfiles } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
+import { Edit2, Search } from "lucide-react"; // REMOVIDO: UserCog
 import { useEffect, useMemo, useState } from "react";
-import { Search, Edit2 } from "lucide-react"; // REMOVIDO: UserCog
 
 export default function AdminUsers() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -36,8 +36,10 @@ export default function AdminUsers() {
     if (!q) return profiles;
     return profiles.filter((p) => {
       return (
-        p.saram.toLowerCase().includes(q) ||
-        p.full_name.toLowerCase().includes(q)
+        (p.saram ?? "").toLowerCase().includes(q) ||
+        (p.full_name ?? "").toLowerCase().includes(q) ||
+        (p.email ?? "").toLowerCase().includes(q) ||
+        (p.role ?? "").toLowerCase().includes(q)
       );
     });
   }, [profiles, query]);
@@ -55,7 +57,6 @@ export default function AdminUsers() {
   return (
     <AdminRoute>
       <div className="space-y-6 animate-in fade-in duration-500">
-        
         {/* Header e Busca */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -66,7 +67,7 @@ export default function AdminUsers() {
           </div>
           <div className="w-full md:w-72">
             <Input
-              placeholder="Buscar por SARAM ou Nome..."
+              placeholder="Buscar por SARAM, Nome ou Email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               icon={<Search size={16} />}
@@ -81,17 +82,36 @@ export default function AdminUsers() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Militar</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">SARAM</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Posto/Grad</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Semestre</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700 text-right">Ações</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Militar
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    SARAM
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Email
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Papel
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Posto/Grad
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">
+                    Semestre
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-slate-700 text-right">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-500 animate-pulse">
+                    <td
+                      colSpan={6}
+                      className="p-8 text-center text-slate-500 animate-pulse"
+                    >
                       Carregando base de dados...
                     </td>
                   </tr>
@@ -99,14 +119,17 @@ export default function AdminUsers() {
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
                       Nenhum usuário encontrado com os filtros atuais.
                     </td>
                   </tr>
                 )}
 
                 {filtered.map((p) => (
-                  <tr key={p.id} className="group hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={p.id}
+                    className="group hover:bg-slate-50 transition-colors"
+                  >
                     <td className="py-3 px-4 font-medium text-slate-900">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
@@ -115,7 +138,27 @@ export default function AdminUsers() {
                         {p.full_name}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">{p.saram}</td>
+                    <td className="py-3 px-4 text-slate-600 font-mono">
+                      {p.saram}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600">
+                      {p.email ?? "—"}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600">
+                      {p.role === "admin" ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-red-100 text-xs font-medium text-red-700">
+                          Administrador
+                        </span>
+                      ) : p.role === "coordinator" ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-xs font-medium">
+                          Coordenador
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-slate-50 text-xs font-medium">
+                          Usuário
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-slate-600">
                       <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-xs font-medium">
                         {p.rank}
@@ -127,9 +170,9 @@ export default function AdminUsers() {
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => openEdit(p)}
                         className="h-8 w-8 p-0 rounded-full hover:bg-white hover:shadow-sm hover:text-primary"
                         title="Editar Usuário"
@@ -142,7 +185,7 @@ export default function AdminUsers() {
               </tbody>
             </table>
           </div>
-          
+
           <div className="bg-slate-50 p-3 border-t border-slate-200 text-xs text-slate-500 text-center">
             Mostrando {filtered.length} registro(s)
           </div>

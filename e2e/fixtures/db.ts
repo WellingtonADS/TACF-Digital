@@ -49,39 +49,97 @@ export async function seed(): Promise<SeedResult> {
     for (const acc of accounts) {
       // Remove existing user if present
       try {
-         
         const list = (await (admin as any).auth.admin.listUsers()) as any;
         const existing = list?.users?.find((u: any) => u.email === acc.email);
         if (existing) {
-           
           await (admin as any).auth.admin.deleteUser(existing.id);
         }
       } catch (e) {
         // ignore if listUsers isn't available
       }
 
-      // Create user via admin API
-       
-      const res = await (admin as any).auth.admin.createUser({
-        email: acc.email,
-        password: acc.password,
-        email_confirm: true,
-      });
+      // Create/ensure user via admin API with retries and fallback lookup
+      const anyResAttempts: any[] = [];
+      let user: any = null;
 
-      // supabase admin API may return user in different shapes depending on client version
-      // try common locations: res.user, res.data.user, res.data
-       
-      const anyRes: any = res;
-      // resolve possible shapes
-      const user = anyRes.user ?? anyRes.data?.user ?? anyRes.data ?? null;
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      for (let attempt = 1; attempt <= 3 && !user; attempt++) {
+        try {
+          const res = await (admin as any).auth.admin.createUser({
+            email: acc.email,
+            password: acc.password,
+            email_confirm: true,
+          });
+          const anyRes: any = res;
+          anyResAttempts.push(anyRes);
+
+          user = anyRes.user ?? anyRes.data?.user ?? anyRes.data ?? null;
+
+          // If created successfully, break
+          if (user) break;
+
+          // If the email already exists, try to find and update the existing user
+          if (
+            anyRes?.error?.code === "email_exists" ||
+            anyRes?.error?.status === 422
+          ) {
+            console.warn(
+              `User ${acc.email} already exists (attempt ${attempt}); attempting to update password.`,
+            );
+            try {
+              const list = (await (admin as any).auth.admin.listUsers()) as any;
+              const existing = list?.users?.find(
+                (u: any) => u.email === acc.email,
+              );
+              if (existing) {
+                // Try updating the existing user; retry if it fails
+                const updated = await (admin as any).auth.admin.updateUser(
+                  existing.id,
+                  { password: acc.password, email_confirm: true },
+                );
+                const anyUpdated: any = updated;
+                user =
+                  anyUpdated.user ??
+                  anyUpdated.data?.user ??
+                  anyUpdated.data ??
+                  existing;
+                console.warn(`Updated existing user ${acc.email}`);
+                break;
+              }
+            } catch (e) {
+              console.warn(
+                `Attempt ${attempt} failed to update existing user ${acc.email}: ${e}`,
+              );
+            }
+          }
+        } catch (e) {
+          console.warn(
+            `Attempt ${attempt} failed creating user ${acc.email}: ${e}`,
+          );
+        }
+        // backoff before retry
+        await sleep(500 * attempt);
+      }
+
+      // Final fallback: try to look up the user via listUsers
       if (!user) {
-        // include full response for easier debugging
+        try {
+          const list = (await (admin as any).auth.admin.listUsers()) as any;
+          const existing = list?.users?.find((u: any) => u.email === acc.email);
+          if (existing) user = existing;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!user) {
         throw new Error(
-          `Failed to create test user ${acc.email} — response: ${JSON.stringify(anyRes)}`,
+          `Failed to ensure test user ${acc.email} — attempts: ${JSON.stringify(anyResAttempts)}`,
         );
       }
 
-      // Upsert profile row
+      // Upsert profile row (small delay to reduce race conditions)
       const profilePayload = {
         id: user.id,
         saram: acc.email.split("@")[0].toUpperCase(),
@@ -90,15 +148,16 @@ export async function seed(): Promise<SeedResult> {
         role: acc.role,
         semester: "1",
       };
-      // debug if id is missing to help diagnosis of response shape issues
-       
+
       if (!user.id)
         console.warn(
           `seed:createUser: missing id for ${acc.email} — user shape: ${JSON.stringify(user)}`,
         );
-      // also log the full response if available for debugging
-       
-      console.warn(`seed:createUser: full response: ${JSON.stringify(anyRes)}`);
+
+      // Ensure user is fully available before upserting profile
+      await sleep(500);
+
+      console.warn(`seed:createUser: full response: ${JSON.stringify(user)}`);
       await admin.from("profiles").upsert(profilePayload);
 
       createdUsers.push({
@@ -133,7 +192,6 @@ export async function seed(): Promise<SeedResult> {
 
   let sessions: { id: string; date: string; period: string }[] = [];
   if (admin) {
-     
     const { data: sessData } = await (admin as any)
       .from("sessions")
       .upsert(sessionsPayload, { onConflict: ["date", "period"] })
@@ -170,7 +228,6 @@ export async function teardown() {
     const parsed: SeedResult = JSON.parse(raw);
     for (const u of parsed.users) {
       try {
-         
         await (admin as any).auth.admin.deleteUser(u.id);
       } catch (e) {
         // ignore

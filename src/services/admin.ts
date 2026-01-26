@@ -210,16 +210,11 @@ export async function updateProfile(
     rank?: string;
     saram?: string;
     semester?: string;
+    email?: string | null;
+    role?: "user" | "admin" | "coordinator";
   },
 ): Promise<{
-  data?: {
-    id: string;
-    saram: string;
-    full_name: string;
-    rank: string;
-    role: string;
-    semester: string;
-  };
+  data?: Profile;
   error?: string;
 }> {
   /* eslint-disable @typescript-eslint/no-explicit-any */

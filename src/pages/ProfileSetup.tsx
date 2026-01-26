@@ -18,7 +18,6 @@ import { getCurrentSemester } from "@/utils/seasonal";
 import {
   Calendar,
   CheckCircle2,
-  Hash,
   Medal,
   Save,
   ShieldAlert,
@@ -46,7 +45,8 @@ const ProfileSetup: React.FC = () => {
   const { profile, upsertProfile, user } = useAuth();
 
   // Estados do Formulário
-  const [saram, setSaram] = useState(() => profile?.saram ?? "");
+  // Remove SARAM from client-side onboarding: it is generated server-side after booking.
+  const [phone, setPhone] = useState(() => profile?.phone_number ?? "");
   const [fullName, setFullName] = useState(() => profile?.full_name ?? "");
   const [rank, setRank] = useState(() => profile?.rank ?? "");
   const [semester, setSemester] = useState<"1" | "2">(
@@ -64,9 +64,10 @@ const ProfileSetup: React.FC = () => {
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!saram) newErrors.saram = "SARAM é obrigatório.";
-    else if (!/^[0-9]{7}$/.test(saram))
-      newErrors.saram = "Deve conter exatamente 7 dígitos numéricos.";
+    // Phone is required during onboarding (client provides contact number)
+    if (!phone) newErrors.phone = "Telefone é obrigatório.";
+    else if (!/^\d{8,15}$/.test(phone))
+      newErrors.phone = "Telefone inválido. Use somente dígitos (8–15).";
 
     if (!fullName) newErrors.fullName = "Nome completo é obrigatório.";
     else if (fullName.trim().length < 8)
@@ -86,7 +87,7 @@ const ProfileSetup: React.FC = () => {
     setStatus(null);
 
     const { error } = await upsertProfile({
-      saram,
+      phone_number: phone,
       full_name: fullName.toUpperCase(),
       rank,
       semester,
@@ -173,20 +174,20 @@ const ProfileSetup: React.FC = () => {
                   />
                 </div>
 
-                {/* SARAM */}
+                {/* Telefone (obrigatório no onboarding) */}
                 <div>
                   <Input
-                    label="SARAM (7 Dígitos)"
-                    id="saram"
-                    placeholder="0000000"
-                    value={saram}
+                    label="Telefone (apenas números)"
+                    id="phone"
+                    placeholder="Ex: 5511999998888"
+                    value={phone}
                     inputMode="numeric"
-                    maxLength={7}
+                    maxLength={15}
                     onChange={(e) =>
-                      setSaram(e.target.value.replace(/\D/g, ""))
+                      setPhone(e.target.value.replace(/\D/g, ""))
                     }
-                    icon={<Hash size={18} />}
-                    error={errors.saram}
+                    icon={<User size={18} />}
+                    error={errors.phone}
                   />
                 </div>
 
