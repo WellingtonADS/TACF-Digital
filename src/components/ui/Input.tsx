@@ -1,5 +1,4 @@
 import { cn } from "@/utils/cn";
-import * as Label from "@radix-ui/react-label";
 import * as React from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -12,12 +11,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, icon, error, className, id, ...props }, ref) => {
     return (
       <div className="w-full space-y-1.5">
-        <Label.Root
+        <label
           className="text-sm font-semibold text-slate-700 leading-none cursor-default ml-1"
           htmlFor={id}
         >
           {label}
-        </Label.Root>
+        </label>
 
         <div className="relative flex items-center group">
           {icon && (
