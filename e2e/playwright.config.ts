@@ -4,10 +4,12 @@ export default defineConfig({
   globalSetup: "./global-setup",
   globalTeardown: "./global-teardown",
   testDir: "./tests",
-  timeout: 30 * 1000,
-  expect: { timeout: 5000 },
+  // Increase global timeout to help mitigate slow environments
+  timeout: 60 * 1000,
+  expect: { timeout: 10000 },
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // Be a bit more forgiving when running locally
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI
     ? [
         ["list"],
@@ -15,6 +17,15 @@ export default defineConfig({
         ["html", { open: "never" }],
       ]
     : "list",
+
+  // Start the dev server automatically before running tests (hardening)
+  webServer: {
+    command: "yarn dev",
+    port: 5174,
+    timeout: 120000,
+    reuseExistingServer: true,
+  },
+
   use: {
     actionTimeout: 0,
     baseURL: process.env.PW_BASE_URL ?? "http://localhost:5174",

@@ -6,7 +6,7 @@
 
 // Ensure React is available globally for JSX runtime in tests
 import * as React from "react";
-// @ts-expect-error - expose React to the global scope for tests
+// @ts-ignore - expose React to the global scope for tests
 (globalThis as any).React = React;
 
 // Import jest-dom matchers

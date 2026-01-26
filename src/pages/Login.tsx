@@ -5,19 +5,41 @@ import { toast } from "sonner"; // Corrigida a importação para usar sonner
 
 const Login: React.FC = () => {
   // 1. Lógica de Backend (Preservada)
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // Adicione este estado para alternar entre Login e Cadastro
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Atualize seu estado de formData para incluir a confirmação de senha
+  // Estado unificado do formulário para login e cadastro
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    confirmPassword: "", // <--- Novo campo
+    confirmPassword: "",
   });
+
+  // Estado para indicar falha no auto-login (após signup)
+  const [autoLoginFailed, setAutoLoginFailed] = useState(false);
+  const [retryingAutoLogin, setRetryingAutoLogin] = useState(false);
+
+  async function retryAutoLogin() {
+    if (!formData.email || !formData.password) return;
+    setRetryingAutoLogin(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      if (error) throw error;
+      setAutoLoginFailed(false);
+      toast.success("Login automático realizado com sucesso.");
+    } catch (e: any) {
+      toast.error(
+        e?.message || "Falha ao tentar login automático. Tente novamente.",
+      );
+    } finally {
+      setRetryingAutoLogin(false);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,10 +62,38 @@ const Login: React.FC = () => {
 
         if (error) throw error;
 
-        toast.success("Conta criada! Verifique seu e-mail.");
-        setIsSignUp(false); // Volta para login
+        // Tentar login automático como conveniência
+        try {
+          const { error: signinErr } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+
+          if (signinErr) {
+            // Não remover a conta; apenas informar ao usuário e manter o e-mail no formulário
+            toast.error(
+              "Conta criada, mas falha no login automático. Faça login manualmente ou tente novamente.",
+            );
+            setIsSignUp(false);
+            setAutoLoginFailed(true);
+            return;
+          }
+
+          // Login automático OK, o AuthContext irá buscar profile e redirecionar
+          toast.success("Conta criada e autenticada. Redirecionando...");
+        } catch (e) {
+          // Falha de rede ou outro problema durante o auto-login
+          console.warn("Auto-login failed:", e);
+          toast.error(
+            "Conta criada, mas não foi possível efetuar login automático. Tente novamente.",
+          );
+          setIsSignUp(false);
+          setAutoLoginFailed(true);
+          return;
+        }
       } else {
         // --- SUA LÓGICA DE LOGIN EXISTENTE ---
+        // Use o estado unificado `formData` para login
         const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
@@ -104,8 +154,10 @@ const Login: React.FC = () => {
                 type="email"
                 required
                 placeholder="E-mail institucional"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
             </div>
@@ -117,8 +169,10 @@ const Login: React.FC = () => {
                 type="password"
                 required
                 placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
             </div>
@@ -179,6 +233,34 @@ const Login: React.FC = () => {
             >
               {isSignUp ? "Fazer Login" : "Cadastre-se aqui"}
             </button>
+
+            {/* Auto-login failed banner with retry action */}
+            {autoLoginFailed && (
+              <div className="mt-4 p-3 rounded-xl bg-yellow-50 border border-yellow-100 text-sm flex items-center justify-between">
+                <div className="text-sm">
+                  Conta criada, mas falha no login automático.
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={retryAutoLogin}
+                    disabled={retryingAutoLogin}
+                    className="btn btn-sm bg-primary text-white px-3 py-1 rounded"
+                    type="button"
+                  >
+                    {retryingAutoLogin
+                      ? "Tentando..."
+                      : "Tentar login novamente"}
+                  </button>
+                  <button
+                    onClick={() => setIsSignUp(false)}
+                    className="btn btn-sm border px-3 py-1 rounded"
+                    type="button"
+                  >
+                    Entrar manualmente
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

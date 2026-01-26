@@ -11,12 +11,13 @@ test("admin route loads when feature flag enabled", async ({
   // Visit home and sign in as seeded admin user
   await page.goto(url);
 
-  // Fill login form (placeholders: Email, Password)
+  // Fill login form using stable selectors (ids and type)
   const email = process.env.SEED_ADMIN_EMAIL ?? "e2e-admin@example.test";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "password";
-  await page.fill('input[placeholder="Email"]', email);
-  await page.fill('input[placeholder="Password"]', password);
-  await page.click('button:has-text("Sign in")');
+  await page.fill("#email", email);
+  await page.fill('input[type="password"]', password);
+  // Click the submit button (label in UI is 'ENTRAR')
+  await page.click('button[type="submit"]');
 
   // Wait for dashboard to settle and Admin link to appear, then navigate
   try {
@@ -34,7 +35,8 @@ test("admin route loads when feature flag enabled", async ({
       'input[placeholder="DIGITE SEU NOME COMPLETO"]',
       "E2E Admin Test",
     );
-    await page.fill('input[placeholder="0000000"]', "1234567");
+    // Fill phone instead of SARAM
+    await page.fill("#phone", "5511999998888");
     // Open rank select and choose 'Soldado'
     await page.click("text=Selecione...");
     await page.click("text=Soldado");

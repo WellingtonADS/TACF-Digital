@@ -2,13 +2,27 @@ import { Page } from "@playwright/test";
 
 export async function uiLogin(page: Page, email: string, password: string) {
   await page.goto("/login");
-  await page.fill('input[placeholder="Email"]', email);
+  // Use stable id selectors rather than placeholder text (avoids language changes)
+  try {
+    await page.waitForSelector("#email", { timeout: 30000 });
+  } catch (e) {
+    // Try a reload once if the page didn't render in time (helps when dev server is still hot-reloading)
+    console.warn("Login page did not render quickly, reloading...");
+    await page.reload();
+    await page.waitForSelector("#email", { timeout: 30000 });
+  }
+
+  await page.fill("#email", email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
   // Wait for auth bootstrap (profile fetch)
   // wait for either a Logout button (successful full login) or the ProfileSetup page prompt
   await Promise.race([
     page.waitForSelector("text=Logout", { timeout: 10000 }).catch(() => null),
+    page.waitForSelector("text=Sair", { timeout: 10000 }).catch(() => null),
+    page
+      .waitForSelector("text=Encerrar Sessão", { timeout: 10000 })
+      .catch(() => null),
     page
       .waitForSelector("text=Completar Perfil", { timeout: 10000 })
       .catch(() => null),
@@ -23,7 +37,8 @@ export async function uiLogin(page: Page, email: string, password: string) {
       'input[placeholder="DIGITE SEU NOME COMPLETO"]',
       "E2E User Test",
     );
-    await page.fill('input[placeholder="0000000"]', "1234567");
+    // Fill phone instead of SARAM
+    await page.fill("#phone", "5511999998888");
     await page.click("text=Selecione...");
     await page.click("text=Soldado");
     await page.click('button:has-text("Confirmar Dados")');

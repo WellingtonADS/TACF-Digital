@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
+import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
 import toastUi from "@/utils/toast";
@@ -44,6 +45,7 @@ export default function UserEditModal({
   onClose,
   onSaved,
 }: UserEditModalProps) {
+  const { profile: currentProfile } = useAuth();
   const [formData, setFormData] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
 
@@ -54,6 +56,8 @@ export default function UserEditModal({
         rank: profile.rank,
         saram: profile.saram,
         semester: profile.semester,
+        email: profile.email ?? "",
+        role: profile.role,
       });
     }
   }, [profile, isOpen]);
@@ -61,21 +65,31 @@ export default function UserEditModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
-    
+
     setLoading(true);
     try {
-      const res = await updateProfile(profile.id, formData);
+      // Map form data into the shape expected by the API, normalizing nulls
+      const updates = {
+        full_name: formData.full_name ?? undefined,
+        rank: formData.rank ?? undefined,
+        saram: formData.saram ?? undefined,
+        semester: formData.semester ?? undefined,
+        email: formData.email ? formData.email : null,
+        role: formData.role ?? undefined,
+      };
+
+      const res = await updateProfile(profile.id, updates);
 
       if (res.error) {
         toastUi.genericError(res.error);
       } else if (res.data) {
         toast.success("Perfil atualizado com sucesso!");
-        
+
         // CORREÇÃO: Mesclamos o profile original com os dados novos
         // e forçamos o tipo para satisfazer o TypeScript
-        const updatedProfile = { 
-          ...profile, 
-          ...res.data 
+        const updatedProfile = {
+          ...profile,
+          ...res.data,
         } as Profile;
 
         onSaved(updatedProfile);
@@ -90,16 +104,22 @@ export default function UserEditModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Editar Dados do Militar" maxWidth="md">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Editar Dados do Militar"
+      maxWidth="md"
+    >
       <form onSubmit={handleSubmit} className="space-y-5 pt-2">
-        
         {/* Header Visual */}
         <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 mb-4">
           <div className="p-2 bg-white rounded shadow-sm text-primary">
             <UserCog size={20} />
           </div>
           <div>
-            <p className="text-xs text-slate-400 uppercase font-bold">Editando</p>
+            <p className="text-xs text-slate-400 uppercase font-bold">
+              Editando
+            </p>
             <p className="font-semibold text-slate-800">{profile?.full_name}</p>
           </div>
         </div>
@@ -111,7 +131,10 @@ export default function UserEditModal({
               label="Nome Completo"
               value={formData.full_name ?? ""}
               onChange={(e) =>
-                setFormData((p) => ({ ...p, full_name: e.target.value.toUpperCase() }))
+                setFormData((p) => ({
+                  ...p,
+                  full_name: e.target.value.toUpperCase(),
+                }))
               }
             />
           </div>
@@ -127,9 +150,25 @@ export default function UserEditModal({
             />
           </div>
 
+          {/* Email */}
+          <div>
+            <Input
+              label="Email"
+              value={formData.email ?? ""}
+              onChange={(e) =>
+                setFormData((p) => ({
+                  ...p,
+                  email: e.target.value.trim().toLowerCase(),
+                }))
+              }
+            />
+          </div>
+
           {/* Posto/Graduação */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Posto/Graduação</label>
+            <label className="text-sm font-semibold text-slate-700 ml-1">
+              Posto/Graduação
+            </label>
             <Select
               value={formData.rank}
               onValueChange={(val) => setFormData((p) => ({ ...p, rank: val }))}
@@ -147,12 +186,41 @@ export default function UserEditModal({
             </Select>
           </div>
 
+          {/* Papel */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 ml-1">
+              Papel
+            </label>
+            <Select
+              value={formData.role}
+              onValueChange={(val) =>
+                setFormData((p) => ({ ...p, role: val as Profile["role"] }))
+              }
+            >
+              <SelectTrigger disabled={profile?.id === currentProfile?.id}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Usuário</SelectItem>
+                <SelectItem value="coordinator">Coordenador</SelectItem>
+                <SelectItem value="admin">Administrador</SelectItem>
+              </SelectContent>
+            </Select>
+            {profile?.id === currentProfile?.id && (
+              <p className="text-[10px] text-slate-400 ml-1">
+                Não é permitido alterar seu próprio papel aqui.
+              </p>
+            )}
+          </div>
+
           {/* Semestre */}
           <div className="md:col-span-2 space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Semestre de Referência</label>
+            <label className="text-sm font-semibold text-slate-700 ml-1">
+              Semestre de Referência
+            </label>
             <Select
               value={formData.semester}
-              onValueChange={(val) => 
+              onValueChange={(val) =>
                 // Casting seguro para garantir compatibilidade com o tipo '1' | '2'
                 setFormData((p) => ({ ...p, semester: val as "1" | "2" }))
               }
@@ -161,8 +229,12 @@ export default function UserEditModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">1º Semestre (Fevereiro - Maio)</SelectItem>
-                <SelectItem value="2">2º Semestre (Setembro - Novembro)</SelectItem>
+                <SelectItem value="1">
+                  1º Semestre (Fevereiro - Maio)
+                </SelectItem>
+                <SelectItem value="2">
+                  2º Semestre (Setembro - Novembro)
+                </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-[10px] text-slate-400 ml-1">
@@ -173,10 +245,19 @@ export default function UserEditModal({
 
         {/* Footer Actions */}
         <div className="flex gap-3 pt-4 border-t border-slate-50 mt-4">
-          <Button variant="outline" type="button" onClick={onClose} className="w-1/3">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onClose}
+            className="w-1/3"
+          >
             Cancelar
           </Button>
-          <Button type="submit" isLoading={loading} className="w-2/3 shadow-lg shadow-primary/20">
+          <Button
+            type="submit"
+            isLoading={loading}
+            className="w-2/3 shadow-lg shadow-primary/20"
+          >
             Salvar Alterações
           </Button>
         </div>
