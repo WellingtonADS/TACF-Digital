@@ -49,7 +49,10 @@ const UserDashboard: React.FC = () => {
       {booking ? (
         <ComprovanteTicket booking={booking} />
       ) : (
-        <CalendarGrid onBookingSuccess={() => window.location.reload()} />
+        <CalendarGrid
+          onBookingSuccess={() => window.location.reload()}
+          isAdmin={profile?.role === "admin" || profile?.role === "coordinator"}
+        />
       )}
     </div>
   );

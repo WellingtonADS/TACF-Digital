@@ -1,9 +1,7 @@
--- ============================================================================
--- RPC: book_session(user_id uuid, session_id uuid)
--- Ensures atomic booking with row locking to prevent race conditions
--- Returns: success boolean, booking_id uuid, error text
--- ============================================================================
+-- Migration: Ensure book_session denies bookings by admin/coordinator and inactive profiles
+BEGIN;
 
+-- Replace function with role & active checks
 CREATE OR REPLACE FUNCTION public.book_session(p_user_id uuid, p_session_id uuid)
 RETURNS TABLE(success boolean, booking_id uuid, error text) AS $$
 DECLARE
@@ -12,6 +10,8 @@ DECLARE
   v_booking_id uuid;
   v_semester semester_type;
   v_existing_semester_bookings integer;
+  v_role user_role;
+  v_active boolean;
 BEGIN
   -- Lock the session row to serialize concurrent checks
   SELECT max_capacity INTO v_max
@@ -31,9 +31,6 @@ BEGIN
   END IF;
 
   -- Determine user's role/active status and semester
-  DECLARE v_role user_role;
-  DECLARE v_active boolean;
-
   SELECT role, active, semester INTO v_role, v_active, v_semester FROM public.profiles WHERE id = p_user_id;
 
   IF v_active IS FALSE THEN
@@ -86,6 +83,4 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Security note:
--- Run: ALTER FUNCTION public.book_session(uuid, uuid) OWNER TO postgres; (or an admin role) in Supabase SQL Editor
--- This ensures the function can bypass RLS where appropriate but still respects logic. Review security accordingly.
+COMMIT;

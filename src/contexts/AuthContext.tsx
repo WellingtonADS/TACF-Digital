@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return { data: null, error: new Error("session_changed") };
       }
 
-      console.debug("fetchProfile success:", data?.id);
+      console.debug("fetchProfile success:", (data as Profile | null)?.id);
       setProfile(data as Profile);
       setProfileResolved(true);
       return { data, error: null };

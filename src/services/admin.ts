@@ -194,11 +194,17 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
 
 // Fetch all profiles (optional search handled client-side)
 
-export async function fetchProfiles(): Promise<Profile[] | null> {
-  const { data, error } = await supabase
+export async function fetchProfiles(
+  includeInactive = false,
+): Promise<Profile[] | null> {
+  const query = supabase
     .from("profiles")
     .select("*")
     .order("full_name", { ascending: true });
+
+  const q = includeInactive ? query : query.eq("active", true);
+
+  const { data, error } = await q;
   if (error) return null;
   return data as Profile[] | null;
 }
@@ -212,6 +218,7 @@ export async function updateProfile(
     semester?: string;
     email?: string | null;
     role?: "user" | "admin" | "coordinator";
+    active?: boolean;
   },
 ): Promise<{
   data?: Profile;
@@ -227,6 +234,15 @@ export async function updateProfile(
   /* eslint-enable @typescript-eslint/no-explicit-any */
   if (error) return { error: error.message };
   return { data: data as Profile };
+}
+
+export async function deleteProfile(id: string) {
+  const { error } = await (supabase as any)
+    .from("profiles")
+    .delete()
+    .eq("id", id);
+  if (error) return { error: error.message };
+  return { success: true };
 }
 export async function approveSwap(requestId: string) {
   // get current admin id from auth
