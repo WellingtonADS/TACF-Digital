@@ -83,7 +83,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const BOOT_STEP_TIMEOUT = 15000; // ms per step (getSession / fetchProfile)
 
-      const withTimeout = async <T,>(promise: Promise<T>, ms: number, name: string): Promise<T> => {
+      const withTimeout = async <T,>(
+        promise: Promise<T>,
+        ms: number,
+        name: string,
+      ): Promise<T> => {
         return new Promise<T>((resolve, reject) => {
           const t = setTimeout(() => reject(new Error(`timeout:${name}`)), ms);
           promise
@@ -100,7 +104,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         // Step 1: getSession with timeout
-        const sessionResp = await withTimeout(supabase.auth.getSession(), BOOT_STEP_TIMEOUT, "getSession");
+        const sessionResp = await withTimeout(
+          supabase.auth.getSession(),
+          BOOT_STEP_TIMEOUT,
+          "getSession",
+        );
         // supabase.auth.getSession() returns { data: { session } }
         const {
           data: { session },
@@ -112,7 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser({ id: session.user.id, email: session.user.email });
 
           // Step 2: fetchProfile with timeout
-          const res = await withTimeout(fetchProfile(session.user.id), BOOT_STEP_TIMEOUT, "fetchProfile");
+          const res = await withTimeout(
+            fetchProfile(session.user.id),
+            BOOT_STEP_TIMEOUT,
+            "fetchProfile",
+          );
 
           if ((res as any)?.error) {
             console.warn(
@@ -136,7 +148,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         const msg = (error as Error).message ?? String(error);
         if (msg.startsWith("timeout:")) {
-          console.warn("Auth bootstrap timed out at step:", msg.replace("timeout:", ""));
+          console.warn(
+            "Auth bootstrap timed out at step:",
+            msg.replace("timeout:", ""),
+          );
         } else {
           console.warn("Erro ao inicializar sessão de auth:", error);
         }
