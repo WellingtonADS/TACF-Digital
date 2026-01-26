@@ -35,7 +35,6 @@ export function generateCallList(
   doc.text(`Aplicadores: ${session.applicators.join(", ")}`, 40, 100);
 
   // Table headers
-  // @ts-ignore - jspdf-autotable augments jsPDF instance at runtime
   const docAny = doc as unknown as { autoTable: (opts: unknown) => void };
   docAny.autoTable({
     startY: 120,

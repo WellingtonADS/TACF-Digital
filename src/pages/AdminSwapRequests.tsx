@@ -1,4 +1,3 @@
-import MainLayout from "@/components/Layout/MainLayout";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { approveSwap, fetchPendingSwaps, rejectSwap } from "@/services/admin";
@@ -54,7 +53,7 @@ export default function AdminSwapRequests() {
   }
 
   return (
-    <MainLayout>
+    <div className="space-y-4">
       <h1 className="text-2xl font-semibold mb-4">
         Pedidos de Troca Pendentes
       </h1>
@@ -101,6 +100,6 @@ export default function AdminSwapRequests() {
 
         {!loading && requests.length === 0 && <div>Nenhum pedido pendente</div>}
       </div>
-    </MainLayout>
+    </div>
   );
 }

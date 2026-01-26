@@ -13,7 +13,6 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     if (!user?.id) return;
     let mounted = true;
-    setLoading(true);
     getActiveBooking(user.id)
       .then((b) => {
         if (!mounted) return;
@@ -32,7 +31,7 @@ const UserDashboard: React.FC = () => {
   if (loading) return <div>Carregando...</div>;
 
   return (
-    <div className="p-6">
+    <div>
       {booking ? (
         <ComprovanteTicket booking={booking} />
       ) : (

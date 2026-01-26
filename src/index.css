@@ -19,6 +19,13 @@
     overflow-x: hidden;
   }
 
+  /* Box sizing consistente para evitar que bordas/extensões "vazem" do container */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   body {
     font-family:
       Inter,
@@ -48,6 +55,19 @@
     outline: none;
     transition: all 0.15s ease;
   }
+
+  /* Normaliza separadores e evita linhas visuais muito fortes */
+  hr {
+    border: none;
+    height: 1px;
+    background: rgba(15, 23, 42, 0.06);
+    margin: 0.5rem 0;
+  }
+
+  /* Evita outlines globais do navegador (mantém foco acessível via box-shadow nas classes Tailwind) */
+  /* Evita remover outlines de foco essenciais.
+     Utilize utilitários `focus-visible` do Tailwind para estilos de foco.
+  */
 }
 
 /* Camada para evitar conflitos de animação do Radix */

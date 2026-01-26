@@ -17,8 +17,17 @@ export async function getAvailableSessions() {
   if (error) throw error;
 
   // Formatamos o retorno para facilitar o uso no componente
-  return (data || []).map((session: any) => ({
-    ...session,
-    booking_count: (session.bookings as any)?.[0]?.count ?? 0,
-  })) as SessionWithBookings[];
+  return (data || []).map((session: unknown) => {
+    const s = session as Record<string, unknown>;
+    const bookings = s.bookings as unknown;
+    let booking_count = 0;
+    if (Array.isArray(bookings) && bookings.length > 0) {
+      const first = bookings[0] as Record<string, unknown>;
+      booking_count = Number(first.count ?? 0);
+    }
+    return {
+      ...(s as unknown as SessionWithBookings),
+      booking_count,
+    } as SessionWithBookings;
+  });
 }
