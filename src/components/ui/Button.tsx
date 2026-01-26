@@ -1,7 +1,14 @@
-import React from "react";
 import { cn } from "@/utils/cn"; // Nossa utilidade para merge de classes
+import React from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "success" | "alert" | "error" | "outline";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "success"
+  | "alert"
+  | "error"
+  | "outline";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -22,13 +29,17 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   // Mapeamento de variantes usando seus Design Tokens
   const variantStyles: Record<Variant, string> = {
-    primary: "bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20",
-    secondary: "bg-secondary text-white hover:bg-secondary/90 shadow-md shadow-secondary/20",
+    primary:
+      "bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20",
+    secondary:
+      "bg-secondary text-white hover:bg-secondary/90 shadow-md shadow-secondary/20",
     success: "bg-success text-white hover:bg-success/90",
     alert: "bg-alert text-white hover:bg-alert/90",
     error: "bg-error text-white hover:bg-error/90",
-    ghost: "bg-transparent text-primary hover:bg-primary/5",
-    outline: "bg-transparent border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300",
+    ghost:
+      "bg-transparent text-primary border border-primary hover:bg-primary/5",
+    outline:
+      "bg-transparent border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300",
   };
 
   const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -47,8 +58,9 @@ const Button: React.FC<ButtonProps> = ({
         variantStyles[variant],
         // Estados de Bloqueio/Carregamento
         block && "w-full",
-        (disabled || isLoading) && "opacity-60 cursor-not-allowed active:scale-100",
-        className
+        (disabled || isLoading) &&
+          "opacity-60 cursor-not-allowed active:scale-100",
+        className,
       )}
       disabled={disabled || isLoading}
       {...rest}

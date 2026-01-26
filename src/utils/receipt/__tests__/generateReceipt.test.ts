@@ -11,13 +11,15 @@ vi.mock("qrcode", () => ({
 // Mock jsPDF so tests don't rely on real implementation
 vi.mock("jspdf", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      setFontSize: vi.fn(),
-      text: vi.fn(),
-      addImage: vi.fn(),
-      save: vi.fn(),
-      output: vi.fn().mockReturnValue(new Blob()),
-    })),
+    default: vi.fn().mockImplementation(function () {
+      return {
+        setFontSize: vi.fn(),
+        text: vi.fn(),
+        addImage: vi.fn(),
+        save: vi.fn(),
+        output: vi.fn().mockReturnValue(new Blob()),
+      };
+    }),
   };
 });
 
