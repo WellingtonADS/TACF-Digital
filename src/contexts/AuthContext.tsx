@@ -34,9 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   // Indicates whether we finished an initial attempt to fetch the profile (success or not)
-  const [profileResolved, setProfileResolved] = useState(false);
+  // When bootstrap is removed we default to resolved so the UI can render immediately
+  const [profileResolved, setProfileResolved] = useState(true);
 
   // Função centralizada para buscar perfil
   const fetchProfile = async (userId: string) => {
@@ -165,11 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setProfile(null);
         setProfileResolved(true);
       } finally {
-        setLoading(false);
+        // no-op — bootstrap removed; rely on onAuthStateChange listener below
       }
     };
 
-    bootstrap();
+    // Bootstrap removed: avoid blocking the UI on mount. Rely on onAuthStateChange to drive auth state.
+    setLoading(false);
 
     // 2. Ouvinte de mudanças de Auth (Login/Logout)
     const {
@@ -180,7 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (currentUser) {
         setUser({ id: currentUser.id, email: currentUser.email });
-        await fetchProfile(currentUser.id);
+        // attempt to fetch profile but do not block UI on failure
+        fetchProfile(currentUser.id).catch((err) => {
+          console.warn("fetchProfile failed on auth change:", err);
+          setProfile(null);
+          setProfileResolved(true);
+        });
       } else {
         setUser(null);
         setProfile(null);
