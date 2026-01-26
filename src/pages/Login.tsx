@@ -71,7 +71,7 @@ const Login: React.FC = () => {
                 label="E-mail institucional"
                 id="email"
                 type="email"
-                placeholder="nome.sobrenome@fab.mil.br"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail size={16} />}
