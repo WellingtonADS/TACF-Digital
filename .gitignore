@@ -24,8 +24,8 @@ node_modules
 
 ### TACF project additions
 # Local env files
-.env.local
-.env.*.local
+.env.
+.env.
 # Temporary folders created by scripts
 .tmp/
 # Test results and temporary test artifacts
