@@ -76,46 +76,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    // 1. Inicialização da sessão
+    // 1. Inicialização da sessão (com timeout por etapa para diagnóstico)
     const bootstrap = async () => {
       console.debug("Auth bootstrap start");
       setLoading(true);
 
-      // Safety timeout: if bootstrap hangs, force signOut after 8s to guarantee showing Login
-      let timeout = setTimeout(async () => {
-        console.warn("Auth bootstrap timeout, forcing signOut to show Login");
-        try {
-          try {
-            await supabase.auth.signOut();
-          } catch (e) {
-            console.warn("Falha ao tentar signOut forçado no timeout:", e);
-          }
-        } catch (err) {
-          console.warn("Erro ao executar signOut forçado no timeout:", err);
-        } finally {
-          // Ensure app shows Login state
-          setUser(null);
-          setProfile(null);
-          setProfileResolved(true);
-          setLoading(false);
-        }
-      }, 8000);
+      const BOOT_STEP_TIMEOUT = 15000; // ms per step (getSession / fetchProfile)
+
+      const withTimeout = async <T,>(promise: Promise<T>, ms: number, name: string): Promise<T> => {
+        return new Promise<T>((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error(`timeout:${name}`)), ms);
+          promise
+            .then((v) => {
+              clearTimeout(t);
+              resolve(v);
+            })
+            .catch((e) => {
+              clearTimeout(t);
+              reject(e);
+            });
+        });
+      };
 
       try {
+        // Step 1: getSession with timeout
+        const sessionResp = await withTimeout(supabase.auth.getSession(), BOOT_STEP_TIMEOUT, "getSession");
+        // supabase.auth.getSession() returns { data: { session } }
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = sessionResp as any;
 
         console.debug("Auth bootstrap session:", session?.user?.id ?? "none");
 
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email });
-          const res = await fetchProfile(session.user.id);
-          // If fetchProfile returned an error, force sign-out so Login can be shown
-          if (res?.error) {
+
+          // Step 2: fetchProfile with timeout
+          const res = await withTimeout(fetchProfile(session.user.id), BOOT_STEP_TIMEOUT, "fetchProfile");
+
+          if ((res as any)?.error) {
             console.warn(
               "Perfil falhou ao carregar durante bootstrap — deslogando para liberar tela de login",
-              res.error,
+              (res as any).error,
             );
             try {
               await supabase.auth.signOut();
@@ -132,12 +134,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setProfileResolved(true);
         }
       } catch (error) {
-        console.warn("Erro ao inicializar sessão de auth:", error);
+        const msg = (error as Error).message ?? String(error);
+        if (msg.startsWith("timeout:")) {
+          console.warn("Auth bootstrap timed out at step:", msg.replace("timeout:", ""));
+        } else {
+          console.warn("Erro ao inicializar sessão de auth:", error);
+        }
+        // Ensure we sign out and show login
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.warn("Falha ao tentar signOut forçado:", e);
+        }
         setUser(null);
         setProfile(null);
         setProfileResolved(true);
       } finally {
-        clearTimeout(timeout);
         setLoading(false);
       }
     };
