@@ -1,26 +1,58 @@
-import { useAuth } from "@/contexts/AuthContext"; // Mantendo a importação original
+import { supabase } from "@/services/supabase"; // Corrigida a importação do supabase
 import { Loader2, Plane } from "lucide-react"; // Ícones visuais
 import React, { useState } from "react";
+import { toast } from "sonner"; // Corrigida a importação para usar sonner
 
 const Login: React.FC = () => {
   // 1. Lógica de Backend (Preservada)
-  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+
+  // Adicione este estado para alternar entre Login e Cadastro
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  // Atualize seu estado de formData para incluir a confirmação de senha
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "", // <--- Novo campo
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
-      // O redirecionamento é feito automaticamente pelo AuthContext/Router
-    } catch (err) {
-      console.error(err);
-      setError("Falha na autenticação. Verifique suas credenciais.");
+      if (isSignUp) {
+        // --- LÓGICA NOVA DE CADASTRO ---
+        if (formData.password !== formData.confirmPassword) {
+          toast.error("As senhas não coincidem.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Cria o usuário no Supabase
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) throw error;
+
+        toast.success("Conta criada! Verifique seu e-mail.");
+        setIsSignUp(false); // Volta para login
+      } else {
+        // --- SUA LÓGICA DE LOGIN EXISTENTE ---
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Erro na autenticação.");
     } finally {
       setIsLoading(false);
     }
@@ -36,8 +68,7 @@ const Login: React.FC = () => {
           className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 hover:scale-105"
           style={{
             // Usando uma imagem de alta qualidade de "corridas/militar" similar ao mockup
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1543992437-0808e9a2656a?q=80&w=2574&auto=format&fit=crop')",
+            backgroundImage: "url('/baseareacanoas.jpg')",
           }}
         />
         {/* Camada de Overlay (Filtro Azulado para legibilidade e marca) */}
@@ -64,12 +95,6 @@ const Login: React.FC = () => {
           </div>
 
           {/* 2. Feedback de Erro (se houver) */}
-          {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg animate-pulse">
-              {error}
-            </div>
-          )}
-
           {/* 3. Formulário Estilizado (Igual ao Layout.png) */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Input E-mail */}
@@ -98,6 +123,26 @@ const Login: React.FC = () => {
               />
             </div>
 
+            {/* Só aparece se for cadastro */}
+            {isSignUp && (
+              <div className="space-y-1">
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  placeholder="Confirmar Senha"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+                />
+              </div>
+            )}
+
             {/* Botão Principal */}
             <button
               type="submit"
@@ -121,6 +166,20 @@ const Login: React.FC = () => {
               </a>
             </div>
           </form>
+
+          {/* Botão de Alternância entre Login e Cadastro */}
+          <div className="text-center pt-4">
+            <p className="text-sm text-slate-600">
+              {isSignUp ? "Já possui cadastro?" : "Ainda não tem acesso?"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-primary font-bold text-sm hover:underline mt-1 focus:outline-none"
+            >
+              {isSignUp ? "Fazer Login" : "Cadastre-se aqui"}
+            </button>
+          </div>
         </div>
 
         {/* Footer Discreto */}
