@@ -27,6 +27,23 @@ test("admin route loads when feature flag enabled", async ({
     await page.goto(`${url}/admin/swaps`);
   }
 
+  // If profile setup is shown after sign-in, complete it so we can access admin routes
+  if (await page.locator('text=Completar Perfil').count()) {
+    // Fill profile form with valid data
+    await page.fill('input[placeholder="DIGITE SEU NOME COMPLETO"]', 'E2E Admin Test');
+    await page.fill('input[placeholder="0000000"]', '1234567');
+    // Open rank select and choose 'Soldado'
+    await page.click('text=Selecione...');
+    await page.click('text=Soldado');
+
+    // Confirm profile
+    await page.click('button:has-text("Confirmar Dados")');
+
+    // Wait for redirect / dashboard to be available
+    await page.waitForSelector('a:has-text("Admin")', { timeout: 10000 });
+    await page.click('a:has-text("Admin")');
+  }
+
   // Expect admin page content (Pedidos de Troca Pendentes) to be visible
   const adminText = page.locator("text=Pedidos de Troca Pendentes");
   await expect(adminText).toHaveCount(1);
