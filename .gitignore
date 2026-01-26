@@ -32,8 +32,15 @@ node_modules
 test-results/
 coverage/
 .nyc_output/
-# Playwright / E2E debug screenshots
-e2e/debug-*.png
+# Playwright / E2E tests and artifacts
+/e2e/
+/e2e/debug-*.png
+# DB test scripts and migrations
+/supabase/tests.sql
+# Archived scripts and local test helpers
+/scripts/archived/
+/scripts/*test*
+/scripts/*-test*
 # Local PDFs generated during development
 Comprovante_*.pdf
 # Editor/IDE
