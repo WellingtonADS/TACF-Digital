@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 export type CallListRow = {
-  saram: string;
+  order_number: string;
   full_name: string;
   rank: string;
 };
@@ -38,8 +38,8 @@ export function generateCallList(
   const docAny = doc as unknown as { autoTable: (opts: unknown) => void };
   docAny.autoTable({
     startY: 120,
-    head: [["SARAM", "Posto/Graduação", "Nome Completo"]],
-    body: bookings.map((b) => [b.saram, b.rank, b.full_name]),
+    head: [["Nº Ordem", "Posto/Graduação", "Nome Completo"]],
+    body: bookings.map((b) => [b.order_number, b.rank, b.full_name]),
     styles: { fontSize: 10 },
   });
 
