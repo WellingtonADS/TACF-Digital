@@ -9,7 +9,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:e2e": "playwright test",
     "test:concurrency": "tsx scripts/run-concurrency-test.ts",
     "test:db": "tsx scripts/run-tests.ts",
     "db:apply": "tsx scripts/apply-db-scripts.ts"
@@ -37,7 +36,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
