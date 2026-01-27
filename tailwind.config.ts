@@ -1,37 +1,35 @@
 import type { Config } from "tailwindcss";
-// @ts-expect-error - plugin de animações é padrão para Radix
 import animate from "tailwindcss-animate";
 // forms plugin para padronizar inputs
 import forms from "@tailwindcss/forms";
 
 export default {
   // Garantindo que ele varra todas as subpastas da sua árvore
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "./src/components/**/*.{js,ts,jsx,tsx}",
-    "./src/pages/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     container: {
       center: true,
-      padding: {
-        DEFAULT: "1rem",
-        sm: "1.5rem",
-        lg: "2rem",
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
       },
     },
     extend: {
       colors: {
-        primary: { DEFAULT: "#1B365D" },
-        secondary: { DEFAULT: "#0078D4" },
-        success: { DEFAULT: "#2D5A27" },
-        alert: { DEFAULT: "#E67E22" },
-        error: { DEFAULT: "#C0392B" },
-        canvas: { DEFAULT: "#F4F7F9" },
+        primary: { DEFAULT: "#1B365D", foreground: "#FFFFFF" }, // Azul Aeronáutica
+        secondary: { DEFAULT: "#0078D4", foreground: "#FFFFFF" }, // Azul Digital
+        success: { DEFAULT: "#2D5A27", foreground: "#FFFFFF" }, // Verde
+        alert: { DEFAULT: "#E67E22", foreground: "#FFFFFF" }, // Laranja
+        error: { DEFAULT: "#C0392B", foreground: "#FFFFFF" }, // Vermelho
+        canvas: { DEFAULT: "#F4F7F9" }, // Fundo Gelo
       },
       fontFamily: {
-        inter: ["Inter", "system-ui", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
+      },
+      borderRadius: {
+        lg: "0.5rem", // 8px
+        md: "0.375rem", // 6px (Padrão dos inputs)
+        sm: "0.25rem", // 4px
       },
       // Adicionando animações para os componentes Radix (Select/Modal)
       keyframes: {

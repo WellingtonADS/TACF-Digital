@@ -9,6 +9,7 @@ export async function confirmBooking(sessionId: string): Promise<{
   success: boolean;
   error: string | null;
   booking_id?: string | null;
+  order_number?: string | null;
 }> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData?.user?.id;
@@ -23,12 +24,17 @@ export async function confirmBooking(sessionId: string): Promise<{
       success: false,
       error: res.error ?? "Unknown error",
       booking_id: res.booking_id ?? null,
+      order_number: res.order_number ?? null,
     };
-  return { success: true, error: null, booking_id: res.booking_id ?? null };
+  return {
+    success: true,
+    error: null,
+    booking_id: res.booking_id ?? null,
+    order_number: res.order_number ?? null,
+  };
 }
 
 export async function approveSwap(requestId: string, adminId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).rpc("approve_swap", {
     p_request_id: requestId,
     p_admin_id: adminId,
@@ -47,7 +53,7 @@ export async function fetchSessionsByMonth(year: number, month: number) {
   const end = format(endOfMonth(d), "yyyy-LL-dd");
 
   // Use server-side RPC that returns counts without PII
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const { data, error } = await (supabase as any).rpc(
     "get_sessions_availability",
     {
@@ -84,7 +90,7 @@ export async function getUserBooking() {
 
   const { data, error } = await supabase
     .from("bookings")
-    .select("*, sessions (*), profiles (id, saram, full_name, rank)")
+    .select("*, sessions (*), profiles (id, full_name, rank)")
     .eq("user_id", userId)
     .in("status", ["confirmed", "pending_swap"])
     .limit(1)
@@ -96,7 +102,7 @@ export async function getUserBooking() {
 export async function fetchFutureSessions() {
   const today = format(new Date(), "yyyy-LL-dd");
   // Use RPC to get counts for future sessions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const { data, error } = await (supabase as any).rpc(
     "get_sessions_availability",
     {
@@ -132,7 +138,7 @@ export async function requestSwap(
 
   try {
     // insert swap request
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const { error } = await (supabase as any).from("swap_requests").insert({
       booking_id: bookingId,
       requested_by: userId,
@@ -147,7 +153,7 @@ export async function requestSwap(
       };
 
     // optionally update booking status to pending_swap
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const { error: updErr } = await (supabase as any)
       .from("bookings")
       .update({ status: "pending_swap" } as any)
@@ -165,4 +171,37 @@ export async function requestSwap(
     const e = err as { message?: string };
     return { success: false, error: e?.message ?? String(err) };
   }
+}
+
+export async function createSession(sessionData: {
+  date: string;
+  period: string;
+  max_capacity: number;
+}) {
+  // Use 'as any' para contornar a verificação estrita de tipo "never"
+  // quando os tipos gerados do Supabase não batem exatamente com o objeto local
+  const { data, error } = await supabase
+    .from("sessions")
+    .insert([sessionData] as any)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating session:", error);
+    return { error: error.message };
+  }
+  return { data };
+}
+
+export async function deleteSession(sessionId: string) {
+  const { error } = await supabase
+    .from("sessions")
+    .delete()
+    .eq("id", sessionId);
+
+  if (error) {
+    console.error("Error deleting session:", error);
+    return { error: error.message };
+  }
+  return { success: true };
 }

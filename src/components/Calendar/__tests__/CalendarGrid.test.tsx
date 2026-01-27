@@ -155,6 +155,8 @@ describe("CalendarGrid optimistic booking", () => {
     } as any);
 
     const confirmMock = api.confirmBooking as any;
+    // ensure previous calls don't leak into this test
+    confirmMock.mockClear?.();
     const { toast } = await import("sonner");
     const toastSpy = toast;
 

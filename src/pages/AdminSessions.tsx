@@ -1,5 +1,7 @@
 import SessionEditModal from "@/components/Admin/SessionEditModal";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
+import { Body, H1 } from "@/components/ui/Typography";
+import { CalendarCheck } from "lucide-react";
 import { useState } from "react";
 
 export default function AdminSessions() {
@@ -7,15 +9,23 @@ export default function AdminSessions() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Gerenciar Sessões</h1>
-        <p className="text-sm text-slate-500">
-          Clique em um dia para adicionar/editar sessões.
-        </p>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <div className="p-3 bg-blue-50 text-primary rounded-xl hidden sm:block">
+          <CalendarCheck size={28} />
+        </div>
+        <div>
+          <H1>Gerenciar Sessões do TAF</H1>
+          <Body className="text-slate-500 text-sm mt-1">
+            Selecione um dia no calendário para abrir vagas, definir turnos ou
+            cancelar sessões.
+          </Body>
+        </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm p-4">
+      {/* Área do Calendário */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-1">
         <CalendarGrid
           isAdmin
           onDayClick={(date) => setEditingDate(date)}
@@ -28,7 +38,7 @@ export default function AdminSessions() {
         date={editingDate ?? new Date()}
         onClose={() => setEditingDate(null)}
         onSaved={() => {
-          // bump refresh to force CalendarGrid to refetch
+          // Força o calendário a recarregar os dados para mostrar as novas vagas
           setRefreshKey((k) => k + 1);
           setEditingDate(null);
         }}
