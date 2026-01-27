@@ -9,6 +9,7 @@ export async function confirmBooking(sessionId: string): Promise<{
   success: boolean;
   error: string | null;
   booking_id?: string | null;
+  order_number?: string | null;
 }> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData?.user?.id;
@@ -23,8 +24,14 @@ export async function confirmBooking(sessionId: string): Promise<{
       success: false,
       error: res.error ?? "Unknown error",
       booking_id: res.booking_id ?? null,
+      order_number: res.order_number ?? null,
     };
-  return { success: true, error: null, booking_id: res.booking_id ?? null };
+  return {
+    success: true,
+    error: null,
+    booking_id: res.booking_id ?? null,
+    order_number: res.order_number ?? null,
+  };
 }
 
 export async function approveSwap(requestId: string, adminId: string) {
@@ -83,7 +90,7 @@ export async function getUserBooking() {
 
   const { data, error } = await supabase
     .from("bookings")
-    .select("*, sessions (*), profiles (id, saram, full_name, rank)")
+    .select("*, sessions (*), profiles (id, full_name, rank)")
     .eq("user_id", userId)
     .in("status", ["confirmed", "pending_swap"])
     .limit(1)

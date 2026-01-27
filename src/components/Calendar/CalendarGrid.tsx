@@ -211,9 +211,15 @@ export default function CalendarGrid({
                 </div>
                 <Button
                   variant="primary"
-                  disabled={confirmingSessionId !== null || isFull}
+                  disabled={
+                    confirmingSessionId !== null || isFull || Boolean(isAdmin)
+                  }
                   isLoading={confirmingSessionId === s.id}
                   onClick={async () => {
+                    if (isAdmin)
+                      return toastUi.genericError(
+                        "Administradores/Coordenadores não podem agendar",
+                      );
                     const sDate = new Date(`${s.date}T00:00:00`);
                     if (!isDateInAllowedWindow(sDate))
                       return toastUi.seasonalInvalid();
@@ -247,7 +253,7 @@ export default function CalendarGrid({
                     }
                   }}
                 >
-                  {isFull ? "Lotado" : "Confirmar"}
+                  {isAdmin ? "Não permitido" : isFull ? "Lotado" : "Confirmar"}
                 </Button>
               </div>
             );
