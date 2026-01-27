@@ -1,12 +1,25 @@
-import Button from "@/components/ui/Button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/Card";
-import { H1, Body } from "@/components/ui/Typography";
 import { Badge } from "@/components/ui";
+import Button from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/Card";
+import { Body, H1 } from "@/components/ui/Typography";
 import { approveSwap, fetchPendingSwaps, rejectSwap } from "@/services/admin";
 import toastUi from "@/utils/toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Check, X, RefreshCw, User, Calendar, MessageSquare } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  Check,
+  MessageSquare,
+  RefreshCw,
+  User,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,7 +29,6 @@ interface SwapRequest {
   user_id: string;
   full_name: string;
   rank: string;
-  saram: string;
   current_session_date: string;
   current_session_period: string;
   target_session_date: string;
@@ -91,7 +103,6 @@ export default function AdminSwapRequests() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-3 bg-orange-50 text-orange-600 rounded-xl hidden sm:block">
@@ -109,7 +120,10 @@ export default function AdminSwapRequests() {
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+            <div
+              key={i}
+              className="h-64 bg-slate-100 rounded-2xl animate-pulse"
+            />
           ))}
         </div>
       )}
@@ -121,15 +135,19 @@ export default function AdminSwapRequests() {
             <Check size={32} />
           </div>
           <h3 className="text-lg font-bold text-slate-800">Tudo limpo!</h3>
-          <p className="text-slate-500">Nenhuma solicitação pendente no momento.</p>
+          <p className="text-slate-500">
+            Nenhuma solicitação pendente no momento.
+          </p>
         </div>
       )}
 
       {/* Grid de Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {requests.map((r) => (
-          <Card key={r.id} className="flex flex-col border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            
+          <Card
+            key={r.id}
+            className="flex flex-col border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+          >
             {/* Header do Card: Dados do Militar */}
             <CardHeader className="bg-slate-50/50 pb-4 border-b border-slate-100">
               <div className="flex justify-between items-start">
@@ -138,33 +156,48 @@ export default function AdminSwapRequests() {
                     {r.full_name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-900 text-sm">{r.full_name}</div>
+                    <div className="font-bold text-slate-900 text-sm">
+                      {r.full_name}
+                    </div>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                      <User size={10} /> {r.rank} • {r.saram}
+                      <User size={10} /> {r.rank}
                     </div>
                   </div>
                 </div>
-                <Badge variant="alert" className="text-[10px]">Pendente</Badge>
+                <Badge variant="alert" className="text-[10px]">
+                  Pendente
+                </Badge>
               </div>
             </CardHeader>
 
             {/* Corpo: Detalhes da Troca */}
             <CardContent className="flex-1 py-5 space-y-4">
-              
               {/* Comparativo de Datas */}
               <div className="flex items-center justify-between text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
                 <div className="text-center">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Atual</div>
-                  <div className="font-semibold text-slate-700">{formatDate(r.current_session_date)}</div>
-                  <div className="text-xs text-slate-500">{translatePeriod(r.current_session_period)}</div>
+                  <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">
+                    Atual
+                  </div>
+                  <div className="font-semibold text-slate-700">
+                    {formatDate(r.current_session_date)}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {translatePeriod(r.current_session_period)}
+                  </div>
                 </div>
 
                 <ArrowRight className="text-slate-300" size={20} />
 
                 <div className="text-center">
-                  <div className="text-[10px] text-primary uppercase font-bold mb-1">Novo</div>
-                  <div className="font-semibold text-primary">{formatDate(r.target_session_date)}</div>
-                  <div className="text-xs text-primary/80">{translatePeriod(r.target_session_period)}</div>
+                  <div className="text-[10px] text-primary uppercase font-bold mb-1">
+                    Novo
+                  </div>
+                  <div className="font-semibold text-primary">
+                    {formatDate(r.target_session_date)}
+                  </div>
+                  <div className="text-xs text-primary/80">
+                    {translatePeriod(r.target_session_period)}
+                  </div>
                 </div>
               </div>
 
@@ -185,16 +218,16 @@ export default function AdminSwapRequests() {
 
             {/* Ações */}
             <CardFooter className="grid grid-cols-2 gap-3 pt-0 pb-5 px-5 border-t-0">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200"
                 onClick={() => handleReject(r.id)}
                 disabled={processingId === r.id}
               >
                 <X size={16} className="mr-2" /> Rejeitar
               </Button>
-              <Button 
-                variant="success" 
+              <Button
+                variant="success"
                 className="shadow-md shadow-green-200"
                 onClick={() => handleApprove(r.id)}
                 isLoading={processingId === r.id}
@@ -203,7 +236,6 @@ export default function AdminSwapRequests() {
                 <Check size={16} className="mr-2" /> Aprovar
               </Button>
             </CardFooter>
-
           </Card>
         ))}
       </div>

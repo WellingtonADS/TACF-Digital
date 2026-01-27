@@ -34,9 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   // Indicates whether we finished an initial attempt to fetch the profile (success or not)
-  const [profileResolved, setProfileResolved] = useState(false);
+  // When bootstrap is removed we default to resolved so the UI can render immediately
+  const [profileResolved, setProfileResolved] = useState(true);
 
   // Função centralizada para buscar perfil
   const fetchProfile = async (userId: string) => {
@@ -63,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return { data: null, error: new Error("session_changed") };
       }
 
-      console.debug("fetchProfile success:", data?.id);
+      console.debug("fetchProfile success:", (data as Profile | null)?.id);
       setProfile(data as Profile);
       setProfileResolved(true);
       return { data, error: null };
@@ -76,46 +77,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    // 1. Inicialização da sessão
+    // 1. Inicialização da sessão (com timeout por etapa para diagnóstico)
     const bootstrap = async () => {
       console.debug("Auth bootstrap start");
       setLoading(true);
 
-      // Safety timeout: if bootstrap hangs, force signOut after 8s to guarantee showing Login
-      let timeout = setTimeout(async () => {
-        console.warn("Auth bootstrap timeout, forcing signOut to show Login");
-        try {
-          try {
-            await supabase.auth.signOut();
-          } catch (e) {
-            console.warn("Falha ao tentar signOut forçado no timeout:", e);
-          }
-        } catch (err) {
-          console.warn("Erro ao executar signOut forçado no timeout:", err);
-        } finally {
-          // Ensure app shows Login state
-          setUser(null);
-          setProfile(null);
-          setProfileResolved(true);
-          setLoading(false);
-        }
-      }, 8000);
+      const BOOT_STEP_TIMEOUT = 15000; // ms per step (getSession / fetchProfile)
+
+      const withTimeout = async <T,>(
+        promise: Promise<T>,
+        ms: number,
+        name: string,
+      ): Promise<T> => {
+        return new Promise<T>((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error(`timeout:${name}`)), ms);
+          promise
+            .then((v) => {
+              clearTimeout(t);
+              resolve(v);
+            })
+            .catch((e) => {
+              clearTimeout(t);
+              reject(e);
+            });
+        });
+      };
 
       try {
+        // Step 1: getSession with timeout
+        const sessionResp = await withTimeout(
+          supabase.auth.getSession(),
+          BOOT_STEP_TIMEOUT,
+          "getSession",
+        );
+        // supabase.auth.getSession() returns { data: { session } }
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = sessionResp as any;
 
         console.debug("Auth bootstrap session:", session?.user?.id ?? "none");
 
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email });
-          const res = await fetchProfile(session.user.id);
-          // If fetchProfile returned an error, force sign-out so Login can be shown
-          if (res?.error) {
+
+          // Step 2: fetchProfile with timeout
+          const res = await withTimeout(
+            fetchProfile(session.user.id),
+            BOOT_STEP_TIMEOUT,
+            "fetchProfile",
+          );
+
+          if ((res as any)?.error) {
             console.warn(
               "Perfil falhou ao carregar durante bootstrap — deslogando para liberar tela de login",
-              res.error,
+              (res as any).error,
             );
             try {
               await supabase.auth.signOut();
@@ -132,17 +147,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setProfileResolved(true);
         }
       } catch (error) {
-        console.warn("Erro ao inicializar sessão de auth:", error);
+        const msg = (error as Error).message ?? String(error);
+        if (msg.startsWith("timeout:")) {
+          console.warn(
+            "Auth bootstrap timed out at step:",
+            msg.replace("timeout:", ""),
+          );
+        } else {
+          console.warn("Erro ao inicializar sessão de auth:", error);
+        }
+        // Ensure we sign out and show login
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.warn("Falha ao tentar signOut forçado:", e);
+        }
         setUser(null);
         setProfile(null);
         setProfileResolved(true);
       } finally {
-        clearTimeout(timeout);
-        setLoading(false);
+        // no-op — bootstrap removed; rely on onAuthStateChange listener below
       }
     };
 
-    bootstrap();
+    // Bootstrap removed: avoid blocking the UI on mount. Rely on onAuthStateChange to drive auth state.
+    setLoading(false);
 
     // 2. Ouvinte de mudanças de Auth (Login/Logout)
     const {
@@ -153,7 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (currentUser) {
         setUser({ id: currentUser.id, email: currentUser.email });
-        await fetchProfile(currentUser.id);
+        // attempt to fetch profile but do not block UI on failure
+        fetchProfile(currentUser.id).catch((err) => {
+          console.warn("fetchProfile failed on auth change:", err);
+          setProfile(null);
+          setProfileResolved(true);
+        });
       } else {
         setUser(null);
         setProfile(null);
@@ -196,6 +230,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signUp = async (email: string, password: string) => {
     const res = await svcSignUp(email, password);
+    // Try to create a minimal profile for the newly created user when possible.
+    // Some Supabase instances do not auto sign-in on signUp, so we check for returned session/user first.
+    try {
+      const userId = (res as any)?.data?.user?.id ?? undefined;
+      // If we didn't get a user back, attempt to read current session user
+      if (!userId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUser = (sessionData as any)?.session?.user;
+        if (currentUser) {
+          // We are auto-signed in
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await svcUpsertProfile({ id: currentUser.id } as any).catch((e) => {
+            console.warn("upsertProfile after signup failed (auto-signin):", e);
+          });
+        }
+      } else {
+        // We have a user returned from signUp (sessionless case)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await svcUpsertProfile({ id: userId } as any).catch((e) => {
+          console.warn("upsertProfile after signup failed (returned user):", e);
+        });
+      }
+    } catch (e) {
+      console.warn("Post-signup profile upsert attempt failed:", e);
+    }
+
     // No signUp, o Supabase geralmente loga o usuário automaticamente se a confirmação de e-mail estiver off
     return res;
   };

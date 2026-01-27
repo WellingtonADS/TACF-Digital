@@ -23,6 +23,7 @@ export interface Database {
           rank: string;
           role: UserRole;
           semester: SemesterType;
+          active: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -35,6 +36,7 @@ export interface Database {
           rank: string;
           role?: UserRole;
           semester: SemesterType;
+          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -47,6 +49,7 @@ export interface Database {
           rank?: string;
           role?: UserRole;
           semester?: SemesterType;
+          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -93,6 +96,7 @@ export interface Database {
           session_id: string;
           status: BookingStatus;
           swap_reason: string | null;
+          order_number: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -102,6 +106,7 @@ export interface Database {
           session_id: string;
           status?: BookingStatus;
           swap_reason?: string | null;
+          order_number?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -111,6 +116,7 @@ export interface Database {
           session_id?: string;
           status?: BookingStatus;
           swap_reason?: string | null;
+          order_number?: string | null;
           created_at?: string;
           updated_at?: string;
         };

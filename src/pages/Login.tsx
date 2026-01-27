@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/services/supabase"; // Corrigida a importação do supabase
 import { Loader2, Plane } from "lucide-react"; // Ícones visuais
 import React, { useState } from "react";
@@ -41,6 +42,9 @@ const Login: React.FC = () => {
     }
   }
 
+  // Use auth context at component level
+  const { signUp } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -54,13 +58,8 @@ const Login: React.FC = () => {
           return;
         }
 
-        // Cria o usuário no Supabase
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (error) throw error;
+        const res = await signUp(formData.email, formData.password);
+        if (res?.error) throw res.error;
 
         // Tentar login automático como conveniência
         try {
