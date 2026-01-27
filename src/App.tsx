@@ -35,7 +35,11 @@ function App() {
 
   // 2. Fluxo de Onboarding: Tela Cheia para capturar dados obrigatórios
   // Administradores não são forçados a completar o onboarding (podem gerenciar o sistema)
-  if (!profile || (!profile.saram && profile.role !== "admin")) {
+  // If profile missing or user hasn't completed required onboarding fields (non-admins), show setup
+  if (
+    !profile ||
+    (profile.role !== "admin" && (!profile.full_name || !profile.rank))
+  ) {
     if (profile?.role === "admin") {
       return <Navigate to="/admin" replace />;
     }

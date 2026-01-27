@@ -244,6 +244,27 @@ export async function deleteProfile(id: string) {
   if (error) return { error: error.message };
   return { success: true };
 }
+
+export async function createProfile(profile: {
+  full_name: string;
+  rank: string;
+  saram: string;
+  semester: string;
+  email: string | null;
+  role: "user" | "admin" | "coordinator";
+  active: boolean;
+}): Promise<{ data?: Profile; error?: string }> {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const { data, error } = await (supabase as any)
+    .from("profiles")
+    .insert(profile as any)
+    .select()
+    .maybeSingle();
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  if (error) return { error: error.message };
+  return { data: data as Profile };
+}
 export async function approveSwap(requestId: string) {
   // get current admin id from auth
   const { data: userData } = await supabase.auth.getUser();

@@ -41,7 +41,7 @@ export default function ComprovanteTicket({ booking }: Props) {
   // Payload simples para o leitor
   const qrPayload = JSON.stringify({
     id: booking.id,
-    saram: user?.saram,
+    order_number: booking.order_number ?? null,
   });
 
   const handleDownload = async () => {
@@ -114,7 +114,8 @@ export default function ComprovanteTicket({ booking }: Props) {
                   {user?.rank}
                 </span>
                 <span className="flex items-center gap-1 opacity-80">
-                  <Hash size={12} /> {user?.saram}
+                  <Hash size={12} />{" "}
+                  {booking.order_number ?? booking.id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
             </div>
