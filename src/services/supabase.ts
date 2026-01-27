@@ -18,6 +18,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 interface BookingResponse {
   success: boolean;
   booking_id: string | null;
+  order_number?: string | null;
   error: string | null;
 }
 
@@ -30,7 +31,7 @@ export async function confirmarAgendamentoRPC(
   sessionId: string,
 ): Promise<BookingResponse> {
   // RPC calls have loose typings; cast params/result to any to avoid TS overload issues
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const { data, error } = await supabase.rpc("confirmar_agendamento", {
     p_user_id: userId,
     p_session_id: sessionId,
@@ -44,12 +45,12 @@ export async function confirmarAgendamentoRPC(
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = Array.isArray(data) ? (data[0] as any) : (data as any);
 
   return {
     success: !!result?.success,
     booking_id: result?.booking_id ?? null,
+    order_number: result?.order_number ?? null,
     error: result?.error ?? null,
   };
 }
@@ -70,11 +71,8 @@ export const signUp = (email: string, password: string) =>
 export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>,
 ) {
-  // Keep cast to any to satisfy supabase client typing for now
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const safePayload = profile as any;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (supabase as any)
     .from("profiles")
     .upsert(safePayload)

@@ -1,15 +1,9 @@
+import { cn } from "@/utils/cn";
 import React from "react";
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "success" | "alert" | "error";
+  variant?: "default" | "success" | "alert" | "error" | "neutral" | "outline";
 }
-
-const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
-  default: "bg-primary text-white",
-  success: "bg-success text-white",
-  alert: "bg-alert text-white",
-  error: "bg-error text-white",
-};
 
 export const Badge: React.FC<BadgeProps> = ({
   variant = "default",
@@ -17,9 +11,22 @@ export const Badge: React.FC<BadgeProps> = ({
   children,
   ...rest
 }) => {
+  const variantClasses = {
+    default: "bg-primary/10 text-primary border border-primary/20",
+    success: "bg-green-50 text-green-700 border border-green-200",
+    alert: "bg-orange-50 text-orange-700 border border-orange-200",
+    error: "bg-red-50 text-red-700 border border-red-200",
+    neutral: "bg-slate-100 text-slate-600 border border-slate-200",
+    outline: "bg-transparent border border-slate-300 text-slate-600",
+  };
+
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full ${variantClasses[variant]} ${className}`}
+      className={cn(
+        "inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md transition-colors",
+        variantClasses[variant],
+        className,
+      )}
       {...rest}
     >
       {children}

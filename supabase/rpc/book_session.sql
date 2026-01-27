@@ -30,8 +30,23 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Determine user's semester and ensure no existing confirmed booking in same semester
-  SELECT semester INTO v_semester FROM public.profiles WHERE id = p_user_id;
+  -- Determine user's role/active status and semester
+  DECLARE v_role user_role;
+  DECLARE v_active boolean;
+
+  SELECT role, active, semester INTO v_role, v_active, v_semester FROM public.profiles WHERE id = p_user_id;
+
+  IF v_active IS FALSE THEN
+    RETURN QUERY SELECT false::boolean, NULL::uuid, 'profile inactive'::text;
+    RETURN;
+  END IF;
+
+  -- Admins and coordinators are not allowed to book
+  IF v_role IN ('admin', 'coordinator') THEN
+    RETURN QUERY SELECT false::boolean, NULL::uuid, 'role not allowed to book'::text;
+    RETURN;
+  END IF;
+
   IF v_semester IS NULL THEN
     RETURN QUERY SELECT false::boolean, NULL::uuid, 'user semester unknown'::text;
     RETURN;

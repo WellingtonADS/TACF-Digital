@@ -11,13 +11,15 @@ vi.mock("qrcode", () => ({
 // Mock jsPDF so tests don't rely on real implementation
 vi.mock("jspdf", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      setFontSize: vi.fn(),
-      text: vi.fn(),
-      addImage: vi.fn(),
-      save: vi.fn(),
-      output: vi.fn().mockReturnValue(new Blob()),
-    })),
+    default: vi.fn().mockImplementation(function () {
+      return {
+        setFontSize: vi.fn(),
+        text: vi.fn(),
+        addImage: vi.fn(),
+        save: vi.fn(),
+        output: vi.fn().mockReturnValue(new Blob()),
+      };
+    }),
   };
 });
 
@@ -27,7 +29,7 @@ describe("generateReceipt", () => {
   it("generates a PDF without throwing", async () => {
     const booking = {
       booking_id: "b1",
-      saram: "12345",
+      order_number: "2026-1-0001",
       full_name: "Fulano",
       rank: "Sgt",
       date: "2026-02-15",

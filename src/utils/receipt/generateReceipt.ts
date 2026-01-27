@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 
 export type ReceiptBooking = {
   booking_id: string;
-  saram: string;
+  order_number: string;
   full_name: string;
   rank: string;
   date: string; // ISO
@@ -17,13 +17,13 @@ export async function generateReceipt(
 ): Promise<Blob | undefined> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-  const title = `Comprovante_${booking.saram}_${formatDateForFilename(booking.date)}.pdf`;
+  const title = `Comprovante_${booking.order_number}_${formatDateForFilename(booking.date)}.pdf`;
 
   doc.setFontSize(14);
   doc.text("Comprovante de Agendamento - TACF HACO", 40, 50);
 
   doc.setFontSize(10);
-  doc.text(`SARAM: ${booking.saram}`, 40, 75);
+  doc.text(`Número de Ordem: ${booking.order_number}`, 40, 75);
   doc.text(`Nome: ${booking.full_name}`, 40, 90);
   doc.text(`Posto/Grad: ${booking.rank}`, 40, 105);
 
@@ -32,7 +32,7 @@ export async function generateReceipt(
 
   // generate QR code data URL
   const codeData = JSON.stringify({
-    saram: booking.saram,
+    order_number: booking.order_number,
     booking_id: booking.booking_id,
   });
   try {

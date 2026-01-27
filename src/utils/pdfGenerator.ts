@@ -42,7 +42,7 @@ export async function generateSessionPDF(
   const safeBookings = (session.bookings ?? []) as BookingWithDetails[];
   const rows = safeBookings
     .map((b) => ({
-      saram: b.user?.saram ?? "—",
+      order_number: b.order_number ?? "—",
       rank: b.user?.rank ?? "—",
       full_name: b.user?.full_name ?? "—",
     }))
@@ -65,14 +65,9 @@ export async function generateSessionPDF(
   docAny.autoTable({
     startY: headerY + 60,
     head: [
-      [
-        "Nº Ordem (SARAM)",
-        "Posto/Grad",
-        "Nome Completo",
-        "Assinatura / Resultado",
-      ],
+      ["Nº Ordem", "Posto/Grad", "Nome Completo", "Assinatura / Resultado"],
     ],
-    body: rows.map((r) => [r.saram, r.rank, r.full_name, ""]),
+    body: rows.map((r) => [r.order_number, r.rank, r.full_name, ""]),
     styles: { font: "helvetica", fontSize: 10, cellPadding: 6 },
     headStyles: { fillColor: [36, 60, 81], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 245, 245] },
