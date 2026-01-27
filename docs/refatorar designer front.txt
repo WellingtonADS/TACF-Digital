@@ -1,8 +1,4 @@
-Compreendido. Validada a alteração da nomenclatura oficial do sistema para **TACF-Digital**. Este nome é mais direto, facilita a identificação institucional e reforça o propósito de modernização do processo de avaliação física do HACO.
 
-Abaixo, apresento a consolidação do **Design System** e a estruturação da **Prototipagem** para o **TACF-Digital**, integrando a nova identidade visual às regras de engenharia discutidas.
-
----
 
 ### 1. Design System: Identidade e Componentes
 
@@ -40,7 +36,6 @@ O design será fundamentado no minimalismo funcional, priorizando a leitura ráp
 
 ### 2. Prototipagem de Layouts (Wireframes de Alta Fidelidade)
 
-A interface será construída seguindo o padrão **Mobile-First**, garantindo que o PWA funcione perfeitamente em smartphones.
 
 #### Tela 1: Autenticação e Perfil
 
@@ -91,15 +86,11 @@ Como Engenheiro de Software, aplicarei as seguintes diretrizes no código:
 
 Com o **TACF-Digital** visualmente definido e os requisitos consolidados, a próxima etapa lógica é a definição da persistência.
 
-**Gostaria que eu apresentasse o Esquema de Banco de Dados (ERD) no Supabase, incluindo as Triggers para geração automática do Número de Ordem e validação de quórum (8-21)?**
+
 
 
 ---
 
-
-Com a transição de um ecossistema manual (Google Workspace) para uma plataforma dedicada, o **Design System** e a **Prototipagem** devem refletir autoridade, organização e eficiência. Como Engenheiro de Software Sênior, validei que a estética deve ser funcional: o militar precisa realizar o agendamento em poucos segundos, sem fricção.
-
-Abaixo, apresento a especificação técnica do Design System e a estrutura de prototipagem para o **Nexus-TACF**.
 
 ---
 
@@ -143,11 +134,11 @@ O conceito visual é **"Institucional Moderno"**. Utilizaremos uma estética "Cl
 
 ### 2. Prototipagem de Layouts (Wireframes Estruturais)
 
-A interface será construída em **Cards**, facilitando a visualização no mobile (PWA).
+A interface será construída em **Cards**,
 
 #### Tela A: Login e Onboarding
 
-1. **Header:** Logo HACO + Nexus-TACF.
+1. **Header:** Logo HACO + TACF.
 2. **Form:** Campo de e-mail e senha.
 3. **Onboarding (Primeiro Acesso):** Modal centralizado solicitando Nome Completo e Posto/Graduação (Select).
 
