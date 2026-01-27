@@ -8,13 +8,14 @@ import QRCode from "react-qr-code";
 
 export interface BookingForUI {
   id: string;
+  order_number?: string | null;
   sessions: {
     id: string;
     date: string;
     period: "morning" | "afternoon";
     max_capacity: number;
   };
-  profiles: { id: string; saram: string; full_name: string; rank: string };
+  profiles: { id: string; full_name: string; rank: string };
   status?: "confirmed" | "pending_swap" | "pending" | string;
 }
 
@@ -33,7 +34,10 @@ export default function DigitalPass({
   const period = session?.period;
   const bookingId = booking.id;
 
-  const code = JSON.stringify({ saram: profile?.saram ?? "", bookingId });
+  const code = JSON.stringify({
+    order_number: booking.order_number ?? null,
+    bookingId,
+  });
 
   const formattedDate = dateStr
     ? format(parseISO(dateStr), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
@@ -51,7 +55,7 @@ export default function DigitalPass({
             Agendamento Confirmado
           </h3>
           <p className="text-sm text-slate-500 mb-6 font-medium">
-            {profile?.full_name} — {profile?.saram}
+            {profile?.full_name} — {booking.order_number ?? "—"}
           </p>
 
           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6">

@@ -72,7 +72,7 @@ CREATE POLICY bookings_delete_admin_only
   USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
 
 -- ============================================================================
--- sessions: Anyone can SELECT sessions (they are schedule metadata); admin can UPDATE
+-- sessions: Anyone can SELECT sessions (they are schedule metadata); admin can INSERT/UPDATE/DELETE
 -- ============================================================================
 DROP POLICY IF EXISTS sessions_select_public ON public.sessions;
 CREATE POLICY sessions_select_public
@@ -80,12 +80,44 @@ CREATE POLICY sessions_select_public
   FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS sessions_insert_admin_only ON public.sessions;
+CREATE POLICY sessions_insert_admin_only
+  ON public.sessions
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
 DROP POLICY IF EXISTS sessions_update_admin_only ON public.sessions;
 CREATE POLICY sessions_update_admin_only
   ON public.sessions
   FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+DROP POLICY IF EXISTS sessions_delete_admin_only ON public.sessions;
+CREATE POLICY sessions_delete_admin_only
+  ON public.sessions
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
 
 -- ============================================================================
 -- swap_requests: users can insert their own requests; admin can select and process
