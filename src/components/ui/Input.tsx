@@ -1,32 +1,37 @@
 import { cn } from "@/utils/cn";
-import * as Label from "@radix-ui/react-label";
 import * as React from "react";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
   icon?: React.ReactNode;
-  error?: string; // Adicionado para exibir mensagens de validação
+  error?: string;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, icon, error, className, id, ...props }, ref) => {
+    // Gerar ID aleatório para acessibilidade do label
+    const generatedId = React.useId();
+    const inputId = id || generatedId;
+
     return (
       <div className="w-full space-y-1.5">
-        <Label.Root
-          className="text-sm font-semibold text-slate-700 leading-none cursor-default ml-1"
-          htmlFor={id}
-        >
-          {label}
-        </Label.Root>
+        {label && (
+          <label
+            className="text-sm font-semibold text-slate-700 ml-1 block"
+            htmlFor={inputId}
+          >
+            {label}
+          </label>
+        )}
 
         <div className="relative flex items-center group">
           {icon && (
             <div
               className={cn(
-                "absolute left-3 transition-colors",
+                "absolute left-4 transition-colors z-10 pointer-events-none",
                 error
                   ? "text-error"
-                  : "text-slate-400 group-focus-within:text-secondary",
+                  : "text-slate-400 group-focus-within:text-primary",
               )}
             >
               {icon}
@@ -34,31 +39,32 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
 
           <input
-            id={id}
+            id={inputId}
             ref={ref}
             className={cn(
-              // Base e Typography
-              "flex h-12 w-full rounded-xl border px-3 py-2 text-sm transition-all outline-none",
-              // Cores usando seus Tokens
-              "bg-white border-slate-100 text-slate-800 placeholder:text-slate-400",
-              // Estados de Foco (Usando seu token Secondary)
-              "focus:ring-2 focus:ring-secondary/20 focus:border-secondary shadow-sm",
-              // Estado de Erro
+              // Base Layout
+              "flex h-12 w-full rounded-xl px-4 py-3 text-sm transition-all outline-none",
+              // Estilo Visual (Filled Style - Igual Login)
+              "bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400",
+              // Hover
+              "hover:bg-slate-100 hover:border-slate-300",
+              // Focus
+              "focus:bg-white focus:border-secondary focus:ring-4 focus:ring-secondary/10",
+              // Error State
               error &&
-                "border-error focus:border-error focus:ring-error/20 bg-error/5",
-              // Ajuste de Padding se houver ícone
-              icon && "pl-10",
-              // Cursor e Opacidade para Disabled
-              "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100",
+                "border-error focus:border-error focus:ring-error/10 bg-error/5",
+              // Padding extra para ícone
+              icon && "pl-11",
+              // Disabled
+              "disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-slate-100",
               className,
             )}
             {...props}
           />
         </div>
 
-        {/* Mensagem de Erro Dinâmica */}
         {error && (
-          <span className="text-[10px] font-bold text-error uppercase tracking-tight ml-1 animate-in fade-in slide-in-from-top-1">
+          <span className="text-[11px] font-bold text-error uppercase tracking-wide ml-1 animate-in slide-in-from-top-1 fade-in">
             {error}
           </span>
         )}

@@ -1,5 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
-import React, { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import React from "react";
+import { Navigate } from "react-router-dom";
 
 export default function AdminRoute({
   children,
@@ -8,19 +10,18 @@ export default function AdminRoute({
 }) {
   const { profile, loading } = useAuth();
 
-  useEffect(() => {
-    if (!loading) {
-      if (!profile) {
-        // not logged in - redirect to home/dashboard
-        window.location.href = "/";
-      } else if (profile.role !== "admin") {
-        // redirect ordinary users to dashboard
-        window.location.href = "/";
-      }
-    }
-  }, [loading, profile]);
+  if (loading) {
+    return (
+      <div className="h-96 w-full flex items-center justify-center text-primary/50">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
-  if (loading) return <div>Loading...</div>;
-  if (!profile || profile.role !== "admin") return null;
+  // Se não estiver logado ou não for admin, redireciona para Home
+  if (!profile || profile.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+
   return <>{children}</>;
 }

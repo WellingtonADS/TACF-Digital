@@ -89,7 +89,6 @@ export async function upsertSession(sessionData: {
   const row = { date, period, max_capacity, applicators, status };
 
   // Use upsert assuming a unique constraint on (date, period)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("sessions")
     .upsert(row as SessionInsert, { onConflict: ["date", "period"] })
@@ -148,7 +147,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const profileRes = await supabase
       .from("profiles")
       .select("full_name, rank")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", booking?.user_id as any)
       .maybeSingle();
     const profile = profileRes.data as {
@@ -159,7 +157,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const fromSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", booking?.session_id as any)
       .maybeSingle();
     const fromSession = fromSessionRes.data as {
@@ -170,7 +167,6 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     const toSessionRes = await supabase
       .from("sessions")
       .select("date, period")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .eq("id", r.new_session_id as any)
       .maybeSingle();
     const toSession = toSessionRes.data as {
@@ -198,11 +194,17 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
 
 // Fetch all profiles (optional search handled client-side)
 
-export async function fetchProfiles(): Promise<Profile[] | null> {
-  const { data, error } = await supabase
+export async function fetchProfiles(
+  includeInactive = false,
+): Promise<Profile[] | null> {
+  const query = supabase
     .from("profiles")
     .select("*")
     .order("full_name", { ascending: true });
+
+  const q = includeInactive ? query : query.eq("active", true);
+
+  const { data, error } = await q;
   if (error) return null;
   return data as Profile[] | null;
 }
@@ -214,16 +216,12 @@ export async function updateProfile(
     rank?: string;
     saram?: string;
     semester?: string;
+    email?: string | null;
+    role?: "user" | "admin" | "coordinator";
+    active?: boolean;
   },
 ): Promise<{
-  data?: {
-    id: string;
-    saram: string;
-    full_name: string;
-    rank: string;
-    role: string;
-    semester: string;
-  };
+  data?: Profile;
   error?: string;
 }> {
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -234,6 +232,36 @@ export async function updateProfile(
     .select()
     .maybeSingle();
   /* eslint-enable @typescript-eslint/no-explicit-any */
+  if (error) return { error: error.message };
+  return { data: data as Profile };
+}
+
+export async function deleteProfile(id: string) {
+  const { error } = await (supabase as any)
+    .from("profiles")
+    .delete()
+    .eq("id", id);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function createProfile(profile: {
+  full_name: string;
+  rank: string;
+  saram: string;
+  semester: string;
+  email: string | null;
+  role: "user" | "admin" | "coordinator";
+  active: boolean;
+}): Promise<{ data?: Profile; error?: string }> {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const { data, error } = await (supabase as any)
+    .from("profiles")
+    .insert(profile as any)
+    .select()
+    .maybeSingle();
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
   if (error) return { error: error.message };
   return { data: data as Profile };
 }
