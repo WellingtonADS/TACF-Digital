@@ -36,9 +36,9 @@ export default function AdminUsers() {
     if (!q) return profiles;
     return profiles.filter((p) => {
       return (
-        (p.saram ?? "").toLowerCase().includes(q) ||
         (p.full_name ?? "").toLowerCase().includes(q) ||
         (p.email ?? "").toLowerCase().includes(q) ||
+        (p.rank ?? "").toLowerCase().includes(q) ||
         (p.role ?? "").toLowerCase().includes(q)
       );
     });
@@ -54,6 +54,11 @@ export default function AdminUsers() {
     setIsOpen(false);
   }
 
+  const handleCreateUser = () => {
+    setSelected(null); // Nenhum usuário selecionado para criar um novo
+    setIsOpen(true);
+  };
+
   return (
     <AdminRoute>
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -67,7 +72,7 @@ export default function AdminUsers() {
           </div>
           <div className="w-full md:w-72 flex items-center gap-3">
             <Input
-              placeholder="Buscar por SARAM, Nome ou Email..."
+              placeholder="Buscar por Nome, Posto ou Email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               icon={<Search size={16} />}
@@ -92,9 +97,6 @@ export default function AdminUsers() {
                 <tr>
                   <th className="py-3 px-4 font-semibold text-slate-700">
                     Militar
-                  </th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">
-                    SARAM
                   </th>
                   <th className="py-3 px-4 font-semibold text-slate-700">
                     Email
@@ -148,9 +150,6 @@ export default function AdminUsers() {
                         </div>
                         {p.full_name}
                       </div>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">
-                      {p.saram}
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       {p.email ?? "—"}
@@ -228,6 +227,11 @@ export default function AdminUsers() {
             Mostrando {filtered.length} registro(s)
           </div>
         </Card>
+
+        <div className="flex justify-between items-center mb-4">
+          <H1>Gerenciar Usuários</H1>
+          <Button onClick={handleCreateUser}>Criar Usuário</Button>
+        </div>
 
         <UserEditModal
           isOpen={isOpen}

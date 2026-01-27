@@ -230,6 +230,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signUp = async (email: string, password: string) => {
     const res = await svcSignUp(email, password);
+    // Try to create a minimal profile for the newly created user when possible.
+    // Some Supabase instances do not auto sign-in on signUp, so we check for returned session/user first.
+    try {
+      const userId = (res as any)?.data?.user?.id ?? undefined;
+      // If we didn't get a user back, attempt to read current session user
+      if (!userId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUser = (sessionData as any)?.session?.user;
+        if (currentUser) {
+          // We are auto-signed in
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await svcUpsertProfile({ id: currentUser.id } as any).catch((e) => {
+            console.warn("upsertProfile after signup failed (auto-signin):", e);
+          });
+        }
+      } else {
+        // We have a user returned from signUp (sessionless case)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await svcUpsertProfile({ id: userId } as any).catch((e) => {
+          console.warn("upsertProfile after signup failed (returned user):", e);
+        });
+      }
+    } catch (e) {
+      console.warn("Post-signup profile upsert attempt failed:", e);
+    }
+
     // No signUp, o Supabase geralmente loga o usuário automaticamente se a confirmação de e-mail estiver off
     return res;
   };

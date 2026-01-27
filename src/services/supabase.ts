@@ -18,6 +18,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 interface BookingResponse {
   success: boolean;
   booking_id: string | null;
+  order_number?: string | null;
   error: string | null;
 }
 
@@ -44,12 +45,12 @@ export async function confirmarAgendamentoRPC(
     };
   }
 
-
   const result = Array.isArray(data) ? (data[0] as any) : (data as any);
 
   return {
     success: !!result?.success,
     booking_id: result?.booking_id ?? null,
+    order_number: result?.order_number ?? null,
     error: result?.error ?? null,
   };
 }
@@ -70,9 +71,7 @@ export const signUp = (email: string, password: string) =>
 export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>,
 ) {
-
   const safePayload = profile as any;
-
 
   return (supabase as any)
     .from("profiles")
