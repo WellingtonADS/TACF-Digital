@@ -31,7 +31,7 @@ interface ConfirmResult {
     success: boolean;
     error: string | null;
     booking_id?: string | null;
-    order_number?: string;
+    order_number?: string | null;
   };
   error?: string;
 }
