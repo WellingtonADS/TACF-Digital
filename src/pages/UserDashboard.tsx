@@ -1,3 +1,5 @@
+// src/pages/UserDashboard.tsx
+
 import ComprovanteTicket from "@/components/Booking/ComprovanteTicket";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
 import { Body, H1 } from "@/components/ui/Typography";
