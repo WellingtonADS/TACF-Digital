@@ -1,3 +1,5 @@
+// src/pages/ProfileSetup.tsx
+
 import Button from "@/components/ui/Button";
 import {
   Card,
