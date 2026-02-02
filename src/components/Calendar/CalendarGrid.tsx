@@ -2,7 +2,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { useBooking } from "@/hooks/useBooking";
 import { fetchSessionsByMonth } from "@/services/api";
-import type { SessionWithBookings } from "@/types/database.types";
+import type { Session, SessionWithBookings } from "@/types/database.types";
 import { isDateInAllowedWindow } from "@/utils/seasonal";
 import toastUi from "@/utils/toast";
 import {
@@ -40,12 +40,14 @@ export default function CalendarGrid({
   onBookingSuccess,
   isAdmin,
   onDayClick,
+  onSessionSelect,
   refreshKey,
   initialDate,
 }: {
   onBookingSuccess?: () => void;
   isAdmin?: boolean;
   onDayClick?: (date: Date) => void;
+  onSessionSelect?: (session: Session) => void;
   refreshKey?: number;
   initialDate?: Date;
 }) {
@@ -220,22 +222,29 @@ export default function CalendarGrid({
                       return toastUi.genericError(
                         "Administradores/Coordenadores não podem agendar",
                       );
+
                     const sDate = new Date(`${s.date}T00:00:00`);
                     if (!isDateInAllowedWindow(sDate))
                       return toastUi.seasonalInvalid();
 
+                    // If parent provided a handler, delegate selection to it (open modal)
+                    if (onSessionSelect) {
+                      onSessionSelect(s);
+                      return;
+                    }
+
+                    // Fallback: original inline confirm flow
                     setConfirmingSessionId(s.id);
                     const result: ConfirmResult = await confirm(
                       s.id,
                       async () => {
-                        await reloadSessions(current); // Refresh manual sem depender do effect
+                        await reloadSessions(current); // Refresh manual sem evitar o effect
                         setSelectedDate(null);
                       },
                     );
                     setConfirmingSessionId(null);
 
                     if (result.success) {
-                      // Removido o uso de `any` e ajustado para usar o tipo `ConfirmResult`
                       const orderNumber =
                         result.data?.order_number || result.data?.booking_id;
 

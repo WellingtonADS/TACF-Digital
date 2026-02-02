@@ -5,8 +5,8 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Páginas
 import Login from "./pages/Login";
-import ProfileSetup from "./pages/ProfileSetup";
 import UserDashboard from "./pages/UserDashboard";
+import UserProfile from "./pages/UserProfile";
 
 // Lazy Loads
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
@@ -33,18 +33,8 @@ function App() {
   // 1. Fluxo de Autenticação: Tela Cheia, sem container limitador
   if (!user) return <Login />;
 
-  // 2. Fluxo de Onboarding: Tela Cheia para capturar dados obrigatórios
-  // Administradores não são forçados a completar o onboarding (podem gerenciar o sistema)
-  // If profile missing or user hasn't completed required onboarding fields (non-admins), show setup
-  if (
-    !profile ||
-    (profile.role !== "admin" && (!profile.full_name || !profile.rank))
-  ) {
-    if (profile?.role === "admin") {
-      return <Navigate to="/admin" replace />;
-    }
-    return <ProfileSetup />;
-  }
+  // 2. Fluxo de Onboarding: Agora não bloqueamos o acesso ao sistema —
+  // o Dashboard exibirá um alerta quando o perfil estiver incompleto e o usuário poderá editar em /profile.
 
   // 3. Fluxo Autenticado: Aqui entra o Layout do Sistema (Navbar + Container)
   return (
@@ -54,16 +44,9 @@ function App() {
           fallback={<div className="p-8 text-center">Carregando módulo...</div>}
         >
           <Routes>
-            <Route
-              path="/"
-              element={
-                profile?.role === "admin" && adminEnabled ? (
-                  <Navigate to="/admin" replace />
-                ) : (
-                  <UserDashboard />
-                )
-              }
-            />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/profile" element={<UserProfile />} />
 
             {adminEnabled && (
               <Route path="/admin">
