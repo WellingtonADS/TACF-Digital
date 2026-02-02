@@ -42,10 +42,16 @@ export default function TopNav({
             {/* DESKTOP NAV */}
             <nav className="hidden md:flex items-center ml-8 gap-1">
               <Link
-                to="/"
+                to="/dashboard"
                 className="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/profile"
+                className="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                Meu Perfil
               </Link>
               {profile?.role === "admin" && adminEnabled && (
                 <Link
@@ -110,11 +116,18 @@ export default function TopNav({
 
             <div className="flex flex-col gap-1">
               <Link
-                to="/"
+                to="/dashboard"
                 onClick={() => setOpen(false)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-white/10"
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/profile"
+                onClick={() => setOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-white/10"
+              >
+                Meu Perfil
               </Link>
               {profile?.role === "admin" && adminEnabled && (
                 <Link
