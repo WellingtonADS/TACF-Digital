@@ -41,6 +41,7 @@ export interface Booking {
   user_id: string;
   session_id: string;
   status: "confirmed" | "cancelled" | "pending_swap";
+  order_number?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,12 +58,21 @@ export interface SwapRequest {
   new_session_id: string;
   reason: string | null;
   status: "pending" | "approved" | "rejected";
+  processed_by?: string | null;
+  processed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 // Tipos auxiliares para Inserts/Updates (usados no admin.ts e supabase.ts)
+export type ProfileInsert = Partial<Profile>;
 export type SessionInsert = Partial<Session>;
+export type BookingInsert = Partial<Booking>;
+export type SwapRequestInsert = Partial<SwapRequest>;
+
+export type ProfileUpdate = Partial<Profile>;
+export type SessionUpdate = Partial<Session>;
+export type BookingUpdate = Partial<Booking>;
 export type SwapRequestUpdate = Partial<SwapRequest>;
 
 export interface Database {

@@ -14,7 +14,7 @@ export default function TopNav({
   profile,
   adminEnabled,
 }: {
-  profile: Profile;
+  profile?: Profile | null;
   adminEnabled: boolean;
 }) {
   const [open, setOpen] = useState(false);

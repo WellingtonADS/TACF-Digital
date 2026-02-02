@@ -15,7 +15,7 @@ export default function Shell({
   adminEnabled,
 }: {
   children: React.ReactNode;
-  profile: Profile;
+  profile?: Profile | null;
   adminEnabled: boolean;
 }) {
   return (
