@@ -1,10 +1,8 @@
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { useBooking } from "@/hooks/useBooking";
+
 import { fetchSessionsByMonth } from "@/services/api";
-import type { Session, SessionWithBookings } from "@/types/database.types";
-import { isDateInAllowedWindow } from "@/utils/seasonal";
-import toastUi from "@/utils/toast";
+import type { SessionWithBookings } from "@/types/database.types";
 import {
   addMonths,
   eachDayOfInterval,
@@ -21,58 +19,42 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import Modal from "../ui/Modal";
+
 import CalendarDay from "./CalendarDay";
 
-// Substituir o uso de `any` por um tipo mais específico
-interface ConfirmResult {
-  success: boolean;
-  data?: {
-    success: boolean;
-    error: string | null;
-    booking_id?: string | null;
-    order_number?: string | null;
-  };
-  error?: string;
-}
-
 export default function CalendarGrid({
-  onBookingSuccess,
+  onBookingSuccess: _onBookingSuccess,
   isAdmin,
   onDayClick,
-  onSessionSelect,
+  onDateSelect,
+  sessions: sessionsProp,
   refreshKey,
   initialDate,
 }: {
   onBookingSuccess?: () => void;
   isAdmin?: boolean;
   onDayClick?: (date: Date) => void;
-  onSessionSelect?: (session: Session) => void;
+  onDateSelect?: (dateString: string) => void;
+  sessions?: SessionWithBookings[];
   refreshKey?: number;
   initialDate?: Date;
 }) {
   const [current, setCurrent] = useState<Date>(initialDate ?? new Date());
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [confirmingSessionId, setConfirmingSessionId] = useState<string | null>(
-    null,
-  );
   const [loading, setLoading] = useState(false);
-
-  // Função auxiliar para recarregar dados (sem causar loop no effect)
-  const reloadSessions = async (date: Date) => {
-    setLoading(true);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const res = await fetchSessionsByMonth(year, month);
-    if (res.error) setSessions([]);
-    else setSessions(res.data ?? []);
-    setLoading(false);
-  };
 
   // Effect para carga inicial e mudanças de mês/refreshKey
   useEffect(() => {
     let mounted = true;
+
+    // If parent provided sessions, use them and skip RPC fetch
+    if (sessionsProp) {
+      setSessions(sessionsProp);
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     const load = async () => {
       if (mounted) setLoading(true);
@@ -92,9 +74,7 @@ export default function CalendarGrid({
     return () => {
       mounted = false;
     };
-  }, [current, refreshKey]);
-
-  const { confirm } = useBooking();
+  }, [current, refreshKey, sessionsProp]);
 
   const days = useMemo(() => {
     return eachDayOfInterval({
@@ -169,9 +149,18 @@ export default function CalendarGrid({
               date={d}
               sessions={sessionsForDay(d)}
               isAdmin={isAdmin}
-              onSelect={(date) =>
-                isAdmin && onDayClick ? onDayClick(date) : setSelectedDate(date)
-              }
+              onSelect={(date) => {
+                // Admin explicit day handler
+                if (isAdmin && onDayClick) return onDayClick(date);
+
+                // If parent wants the date, notify parent (format yyyy-LL-dd)
+                if (onDateSelect) {
+                  const dateStr = format(date, "yyyy-LL-dd");
+                  return onDateSelect(dateStr);
+                }
+
+                // Fallback: do nothing (previously opened internal modal)
+              }}
             />
           </div>
         ))}
@@ -182,92 +171,6 @@ export default function CalendarGrid({
           Carregando disponibilidade...
         </div>
       )}
-
-      {/* Modal de Confirmação */}
-      <Modal
-        isOpen={!!selectedDate}
-        onClose={() => setSelectedDate(null)}
-        title={
-          selectedDate
-            ? `Agendamento: ${format(selectedDate, "dd/MM/yyyy")}`
-            : ""
-        }
-      >
-        {selectedDate &&
-          sessionsForDay(selectedDate).map((s) => {
-            const booked = s.booking_count ?? s.bookings?.length ?? 0;
-            const isFull = booked >= (s.max_capacity ?? 0);
-
-            return (
-              <div
-                key={s.id}
-                className="p-4 mb-3 rounded-xl border bg-slate-50 flex items-center justify-between"
-              >
-                <div>
-                  <h4 className="font-bold text-slate-800">
-                    {s.period === "morning" ? "Manhã" : "Tarde"}
-                  </h4>
-                  <span className="text-xs text-slate-500">
-                    Vagas: {booked}/{s.max_capacity}
-                  </span>
-                </div>
-                <Button
-                  variant="primary"
-                  disabled={
-                    confirmingSessionId !== null || isFull || Boolean(isAdmin)
-                  }
-                  isLoading={confirmingSessionId === s.id}
-                  onClick={async () => {
-                    if (isAdmin)
-                      return toastUi.genericError(
-                        "Administradores/Coordenadores não podem agendar",
-                      );
-
-                    const sDate = new Date(`${s.date}T00:00:00`);
-                    if (!isDateInAllowedWindow(sDate))
-                      return toastUi.seasonalInvalid();
-
-                    // If parent provided a handler, delegate selection to it (open modal)
-                    if (onSessionSelect) {
-                      onSessionSelect(s);
-                      return;
-                    }
-
-                    // Fallback: original inline confirm flow
-                    setConfirmingSessionId(s.id);
-                    const result: ConfirmResult = await confirm(
-                      s.id,
-                      async () => {
-                        await reloadSessions(current); // Refresh manual sem evitar o effect
-                        setSelectedDate(null);
-                      },
-                    );
-                    setConfirmingSessionId(null);
-
-                    if (result.success) {
-                      const orderNumber =
-                        result.data?.order_number || result.data?.booking_id;
-
-                      if (orderNumber) {
-                        toastUi.bookingConfirmed(orderNumber);
-                      } else {
-                        toastUi.genericError(
-                          "Erro: Número do pedido não encontrado.",
-                        );
-                      }
-
-                      onBookingSuccess?.();
-                    } else {
-                      toastUi.genericError(result.error ?? "Erro ao agendar");
-                    }
-                  }}
-                >
-                  {isAdmin ? "Não permitido" : isFull ? "Lotado" : "Confirmar"}
-                </Button>
-              </div>
-            );
-          })}
-      </Modal>
     </Card>
   );
 }

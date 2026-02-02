@@ -4,9 +4,13 @@ import CalendarGrid from "@/components/Calendar/CalendarGrid";
 import { Card } from "@/components/ui/Card";
 import { Body, H1 } from "@/components/ui/Typography";
 import { useAuth } from "@/contexts/AuthContext";
-import { confirmBooking } from "@/services/api";
+import { confirmBooking, fetchFutureSessions } from "@/services/api";
 import { getActiveBooking } from "@/services/bookings";
-import type { BookingWithDetails, Session } from "@/types/database.types";
+import { upsertProfile } from "@/services/supabase";
+import type {
+  BookingWithDetails,
+  SessionWithBookings,
+} from "@/types/database.types";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AlertTriangle, ArrowRight, History, Loader2 } from "lucide-react";
@@ -17,11 +21,13 @@ import { toast } from "sonner";
 const UserDashboard: React.FC = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const [booking, setBooking] = useState<BookingWithDetails | null>(null);
+  const [allSessions, setAllSessions] = useState<SessionWithBookings[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Estados para o Modal de Confirmação
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  // Estados para o Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [daySessions, setDaySessions] = useState<SessionWithBookings[]>([]);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Verificação de cadastro completo
@@ -39,8 +45,15 @@ const UserDashboard: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        // 1. Agendamento ativo
         const b = await getActiveBooking(user.id);
-        if (mounted) setBooking(b as any);
+        if (mounted && b) setBooking(b as any);
+
+        // 2. Sessões futuras para popular calendário
+        const sessionsRes = await fetchFutureSessions();
+        if (mounted && sessionsRes.data) {
+          setAllSessions(sessionsRes.data as unknown as SessionWithBookings[]);
+        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -54,8 +67,8 @@ const UserDashboard: React.FC = () => {
     };
   }, [user?.id]);
 
-  // Handler: Quando o usuário clica em um dia no Calendário
-  const handleSessionSelect = (session: Session) => {
+  // Handler: Quando clica em uma data no Calendário
+  const handleDateSelect = (date: string) => {
     if (booking) {
       toast.error("Você já possui um agendamento ativo.");
       return;
@@ -64,19 +77,36 @@ const UserDashboard: React.FC = () => {
       toast.error("Complete seu cadastro antes de agendar.");
       return;
     }
-    setSelectedSession(session);
+
+    const sessionsForDay = allSessions.filter(
+      (s) => s.date === date && s.status === "open",
+    );
+    if (sessionsForDay.length === 0) {
+      toast.info("Não há turnos disponíveis nesta data.");
+      return;
+    }
+
+    setSelectedDate(date);
+    setDaySessions(sessionsForDay);
     setIsModalOpen(true);
   };
 
-  // Handler: Quando confirma no Modal
-  const handleConfirmBooking = async () => {
-    if (!selectedSession || !user) return;
+  // Handler: Confirmação vinda do Modal
+  const handleConfirmBooking = async (
+    sessionId: string,
+    tafType: "1" | "2",
+  ) => {
+    if (!user) return;
     setConfirmLoading(true);
 
     try {
-      const result = await confirmBooking(selectedSession.id);
+      if (profile?.semester !== tafType) {
+        await upsertProfile({ id: user.id, semester: tafType } as any);
+      }
+
+      const result = await confirmBooking(sessionId);
       if (result.success) {
-        toast.success("Agendamento realizado com sucesso!");
+        toast.success("Agendamento Confirmado!");
         setIsModalOpen(false);
         window.location.reload();
       } else {
@@ -144,7 +174,8 @@ const UserDashboard: React.FC = () => {
             <ComprovanteTicket booking={booking} />
           ) : (
             <CalendarGrid
-              onSessionSelect={handleSessionSelect}
+              sessions={allSessions}
+              onDateSelect={handleDateSelect}
               onBookingSuccess={() => window.location.reload()}
               isAdmin={false}
             />
@@ -204,7 +235,8 @@ const UserDashboard: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleConfirmBooking}
-        session={selectedSession}
+        date={selectedDate}
+        availableSessions={daySessions}
         loading={confirmLoading}
       />
     </div>
