@@ -34,7 +34,6 @@ lerna-debug.log*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json
 .idea/
 *.suo
 *.ntvs*
@@ -42,6 +41,15 @@ lerna-debug.log*
 *.sln
 *.sw?
 *.code-workspace
+
+# AI Assistant configurations (local settings)
+.cursor/
+.continue/
+.codeium/
+.copilot/
+.aider/
+ai-chat-history/
+*.ai.log
 
 # OS files
 .DS_Store
@@ -53,10 +61,13 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
-# Temporary files
+# Temporary files and scripts
 .tmp/
 *.tmp
 *.temp
+*.bak
+*.backup
+*~
 
 # Local PDFs generated during development
 Comprovante_*.pdf
@@ -74,13 +85,29 @@ supabase/tests.sql
 supabase/seed.sql
 supabase/seeds/
 supabase/*.local.sql
+supabase/*.backup.sql
+supabase/dump-*.sql
+
+# Database dumps and backups
+*.sql.gz
+*.dump
+*.backup
 
 # Vercel local configuration
 .vercel/
 
 # MCP local configuration
 .mcp/
+mcp/*.local.json
+mcp/servers.json
+!mcp/*.example.json
 
 # Optional: Archived/local scripts
 scripts/archived/
 scripts/*-local*
+scripts/*.backup.*
+
+# Local development notes and TODOs
+TODO.local.md
+NOTES.local.md
+*.local.md
