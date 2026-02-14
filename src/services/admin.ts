@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   Booking,
+  Database,
   Profile,
   Session,
-  SessionInsert,
   SwapRequestUpdate,
 } from "@/types/database.types";
 import { supabase } from "./supabase";
@@ -36,10 +35,10 @@ export type SessionRow = Session;
 
 export async function getSessionByDateAndPeriod(
   date: string,
-  period: string,
+  period: Session["period"],
 ): Promise<Session | null> {
   const { data, error } = await supabase
-    .from("sessions" as const)
+    .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
     .select("*")
     .eq("date", date)
     .eq("period", period)
@@ -47,7 +46,7 @@ export async function getSessionByDateAndPeriod(
     .maybeSingle();
 
   if (error) return null;
-  return data as unknown as Session | null;
+  return (data as Database["public"]["Tables"]["sessions"]["Row"]) ?? null;
 }
 
 export async function getSessionWithBookings(date: string, period: string) {
@@ -65,7 +64,7 @@ export async function getSessionWithBookings(date: string, period: string) {
   type BookingWithUser = Booking & { user?: Profile };
 
   const { data: bookings } = await supabase
-    .from("bookings")
+    .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
     .select("*, user:profiles(*)")
     .eq("session_id", (session as Session).id)
     .eq("status", "confirmed");
@@ -89,13 +88,17 @@ export async function upsertSession(sessionData: {
   const row = { date, period, max_capacity, applicators, status };
 
   // Use upsert assuming a unique constraint on (date, period)
-  const { data, error } = await (supabase as any)
-    .from("sessions")
-    .upsert(row as SessionInsert, { onConflict: ["date", "period"] })
+  const { data, error } = await supabase
+    .from<Database["public"]["Tables"]["sessions"]["Insert"]>("sessions")
+    .upsert(row as Database["public"]["Tables"]["sessions"]["Insert"], {
+      onConflict: ["date", "period"],
+    })
     .select();
 
   if (error) return { error: error.message };
-  return { data: (data as Session[]) ?? [] };
+  return {
+    data: (data as Database["public"]["Tables"]["sessions"]["Row"][]) ?? [],
+  };
 }
 
 export type PendingSwapView = {
@@ -122,7 +125,7 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
   };
 
   const { data: rows, error } = await supabase
-    .from("swap_requests")
+    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
     .select("id, reason, booking_id, new_session_id, created_at")
     .eq("status", "pending");
 
@@ -134,7 +137,7 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
 
   for (const r of swapRows) {
     const bookingRes = await supabase
-      .from("bookings")
+      .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
       .select("id, user_id, session_id")
       .eq("id", r.booking_id)
       .maybeSingle();
@@ -145,9 +148,9 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     } | null;
 
     const profileRes = await supabase
-      .from("profiles")
+      .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
       .select("full_name, rank")
-      .eq("id", booking?.user_id as any)
+      .eq("id", booking?.user_id ?? null)
       .maybeSingle();
     const profile = profileRes.data as {
       full_name?: string;
@@ -155,9 +158,9 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     } | null;
 
     const fromSessionRes = await supabase
-      .from("sessions")
+      .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
       .select("date, period")
-      .eq("id", booking?.session_id as any)
+      .eq("id", booking?.session_id ?? null)
       .maybeSingle();
     const fromSession = fromSessionRes.data as {
       date?: string;
@@ -165,9 +168,9 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
     } | null;
 
     const toSessionRes = await supabase
-      .from("sessions")
+      .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
       .select("date, period")
-      .eq("id", r.new_session_id as any)
+      .eq("id", r.new_session_id)
       .maybeSingle();
     const toSession = toSessionRes.data as {
       date?: string;
@@ -198,7 +201,7 @@ export async function fetchProfiles(
   includeInactive = false,
 ): Promise<Profile[] | null> {
   const query = supabase
-    .from("profiles")
+    .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
     .select("*")
     .order("full_name", { ascending: true });
 
@@ -224,23 +227,18 @@ export async function updateProfile(
   data?: Profile;
   error?: string;
 }> {
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data, error } = await (supabase as any)
-    .from("profiles")
-    .update(updates as any)
-    .eq("id", id as any)
+  const { data, error } = await supabase
+    .from<Database["public"]["Tables"]["profiles"]["Update"]>("profiles")
+    .update(updates)
+    .eq("id", id)
     .select()
     .maybeSingle();
-  /* eslint-enable @typescript-eslint/no-explicit-any */
   if (error) return { error: error.message };
   return { data: data as Profile };
 }
 
 export async function deleteProfile(id: string) {
-  const { error } = await (supabase as any)
-    .from("profiles")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("profiles").delete().eq("id", id);
   if (error) return { error: error.message };
   return { success: true };
 }
@@ -254,13 +252,11 @@ export async function createProfile(profile: {
   role: "user" | "admin" | "coordinator";
   active: boolean;
 }): Promise<{ data?: Profile; error?: string }> {
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data, error } = await (supabase as any)
-    .from("profiles")
-    .insert(profile as any)
+  const { data, error } = await supabase
+    .from<Database["public"]["Tables"]["profiles"]["Insert"]>("profiles")
+    .insert(profile)
     .select()
     .maybeSingle();
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   if (error) return { error: error.message };
   return { data: data as Profile };
@@ -270,9 +266,8 @@ export async function approveSwap(requestId: string) {
   const { data: userData } = await supabase.auth.getUser();
   const admin_id = userData?.user?.id ?? null;
 
-  // RPC signature typed by DB is not available here; keep as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc("approve_swap", {
+  type ApproveResult = { success: boolean; error?: string | null };
+  const { data, error } = await supabase.rpc<ApproveResult[]>("approve_swap", {
     request_id: requestId,
     admin_id,
   });
@@ -291,24 +286,22 @@ export async function rejectSwap(requestId: string) {
     processed_by: admin_id,
   };
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data, error } = await (supabase as any)
-    .from("swap_requests")
-    .update(updates as any)
-    .eq("id", requestId as any)
+  const { data, error } = await supabase
+    .from<
+      Database["public"]["Tables"]["swap_requests"]["Update"]
+    >("swap_requests")
+    .update(updates)
+    .eq("id", requestId)
     .select();
-  /* eslint-enable @typescript-eslint/no-explicit-any */
   if (error) return { error: error.message };
 
   // reset booking status to confirmed if it had been set to pending_swap
   const bookingId = data?.[0]?.booking_id;
   if (bookingId) {
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const { error: e2 } = await (supabase as any)
-      .from("bookings")
-      .update({ status: "confirmed" } as any)
-      .eq("id", bookingId as any);
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+    const { error: e2 } = await supabase
+      .from<Database["public"]["Tables"]["bookings"]["Update"]>("bookings")
+      .update({ status: "confirmed" })
+      .eq("id", bookingId);
     if (e2) return { error: e2.message };
   }
 

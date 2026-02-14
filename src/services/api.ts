@@ -1,9 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { SessionWithBookings } from "@/types/database.types";
+import type {
+  BookingWithDetails,
+  Database,
+  SessionWithBookings,
+} from "@/types/database.types";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { supabase } from "./supabase";
 
 type ApproveSwapResult = { success: boolean; error: string | null };
+
+type SessionAvailabilityRow = {
+  session_id: string;
+  date: string;
+  period: SessionWithBookings["period"];
+  max_capacity: number;
+  occupied_count: number;
+};
 
 export async function confirmBooking(sessionId: string): Promise<{
   success: boolean;
@@ -35,14 +46,15 @@ export async function confirmBooking(sessionId: string): Promise<{
 }
 
 export async function approveSwap(requestId: string, adminId: string) {
-  const { data, error } = await (supabase as any).rpc("approve_swap", {
-    p_request_id: requestId,
-    p_admin_id: adminId,
-  });
-  if (error) return { success: false, error };
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | ApproveSwapResult
-    | undefined;
+  const { data, error } = await supabase.rpc<ApproveSwapResult[]>(
+    "approve_swap",
+    {
+      p_request_id: requestId,
+      p_admin_id: adminId,
+    },
+  );
+  if (error) return { success: false, error: error.message };
+  const row = Array.isArray(data) ? data[0] : data;
   return { success: row?.success === true, message: row?.error ?? null };
 }
 
@@ -54,7 +66,7 @@ export async function fetchSessionsByMonth(year: number, month: number) {
 
   // Use server-side RPC that returns counts without PII
 
-  const { data, error } = await (supabase as any).rpc(
+  const { data, error } = await supabase.rpc<SessionAvailabilityRow[]>(
     "get_sessions_availability",
     {
       p_start: start,
@@ -62,67 +74,71 @@ export async function fetchSessionsByMonth(year: number, month: number) {
     },
   );
 
-  if (error) return { data: null, error };
+  if (error) return { data: null, error: error.message };
 
-  // Map RPC rows to SessionWithBookings-like objects (bookings omitted; booking_count provided)
-  const mapped = ((data as Array<Record<string, unknown>>) ?? []).map((r) => ({
+  const mapped = ((data ?? []) as SessionAvailabilityRow[]).map((r) => ({
     id: String(r.session_id ?? ""),
     date: String(r.date ?? ""),
-    period: (r.period as SessionWithBookings["period"]) ?? ("morning" as const),
+    period: r.period ?? ("morning" as const),
     max_capacity: Number(r.max_capacity ?? 0),
-    applicators: [],
-    status: "open",
+    applicators: [] as string[],
+    status: "open" as const,
     coordinator_id: null,
     created_at: "",
     updated_at: "",
     bookings: [],
-    booking_count: Number((r.occupied_count as unknown) ?? 0),
+    booking_count: Number(r.occupied_count ?? 0),
   })) as SessionWithBookings[];
 
   return { data: mapped, error: null };
 }
 
-export async function getUserBooking() {
+export async function getUserBooking(): Promise<{
+  data: BookingWithDetails | null;
+  error: string | null;
+}> {
   // fetch a confirmed booking for current user with related session and profile
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData?.user?.id;
   if (!userId) return { data: null, error: "Not authenticated" };
 
   const { data, error } = await supabase
-    .from("bookings")
+    .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
     .select("*, sessions (*), profiles (id, full_name, rank)")
     .eq("user_id", userId)
     .in("status", ["confirmed", "pending_swap"])
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  return { data: data ?? null, error };
+  return {
+    data: (data as unknown as BookingWithDetails) ?? null,
+    error: error ? String(error) : null,
+  };
 }
 
 export async function fetchFutureSessions() {
   const today = format(new Date(), "yyyy-LL-dd");
   // Use RPC to get counts for future sessions
-
-  const { data, error } = await (supabase as any).rpc(
+  const { data, error } = await supabase.rpc<SessionAvailabilityRow[]>(
     "get_sessions_availability",
     {
       p_start: today,
       p_end: "9999-12-31",
     },
   );
-  if (error) return { data: null, error };
-  const mapped = ((data as Array<Record<string, unknown>>) ?? []).map((r) => ({
+  if (error) return { data: null, error: error.message };
+  const mapped = ((data ?? []) as SessionAvailabilityRow[]).map((r) => ({
     id: String(r.session_id ?? ""),
     date: String(r.date ?? ""),
-    period: (r.period as SessionWithBookings["period"]) ?? ("morning" as const),
+    period: r.period ?? ("morning" as const),
     max_capacity: Number(r.max_capacity ?? 0),
-    applicators: [],
-    status: "open",
+    applicators: [] as string[],
+    status: "open" as const,
     coordinator_id: null,
     created_at: "",
     updated_at: "",
     bookings: [],
-    booking_count: Number((r.occupied_count as unknown) ?? 0),
+    booking_count: Number(r.occupied_count ?? 0),
   })) as SessionWithBookings[];
   return { data: mapped, error: null };
 }
@@ -139,12 +155,16 @@ export async function requestSwap(
   try {
     // insert swap request
 
-    const { error } = await (supabase as any).from("swap_requests").insert({
-      booking_id: bookingId,
-      requested_by: userId,
-      new_session_id: newSessionId,
-      reason,
-    } as any);
+    const { error } = await supabase
+      .from<
+        Database["public"]["Tables"]["swap_requests"]["Insert"]
+      >("swap_requests")
+      .insert({
+        booking_id: bookingId,
+        requested_by: userId,
+        new_session_id: newSessionId,
+        reason,
+      });
 
     if (error)
       return {
@@ -154,10 +174,10 @@ export async function requestSwap(
 
     // optionally update booking status to pending_swap
 
-    const { error: updErr } = await (supabase as any)
-      .from("bookings")
-      .update({ status: "pending_swap" } as any)
-      .eq("id", bookingId as any);
+    const { error: updErr } = await supabase
+      .from<Database["public"]["Tables"]["bookings"]["Update"]>("bookings")
+      .update({ status: "pending_swap" })
+      .eq("id", bookingId);
 
     if (updErr) {
       return {
@@ -177,12 +197,16 @@ export async function createSession(sessionData: {
   date: string;
   period: string;
   max_capacity: number;
-}) {
-  // Use 'as any' para contornar a verificação estrita de tipo "never"
-  // quando os tipos gerados do Supabase não batem exatamente com o objeto local
+}): Promise<{
+  data?: Database["public"]["Tables"]["sessions"]["Row"] | null;
+  error?: string | null;
+}> {
+  const insertPayload: Database["public"]["Tables"]["sessions"]["Insert"] =
+    sessionData;
+
   const { data, error } = await supabase
-    .from("sessions")
-    .insert([sessionData] as any)
+    .from<Database["public"]["Tables"]["sessions"]["Insert"]>("sessions")
+    .insert([insertPayload])
     .select()
     .single();
 
@@ -190,7 +214,9 @@ export async function createSession(sessionData: {
     console.error("Error creating session:", error);
     return { error: error.message };
   }
-  return { data };
+  return {
+    data: (data as Database["public"]["Tables"]["sessions"]["Row"]) ?? null,
+  };
 }
 
 export async function deleteSession(sessionId: string) {
