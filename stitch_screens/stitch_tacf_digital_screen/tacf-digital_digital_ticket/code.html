@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TACF-Digital - Comprovante de Agendamento</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1c385f",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#13181f",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "3xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .ticket-cutout-left {
+            position: absolute;
+            left: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            background-color: #f6f7f8;
+            border-radius: 50%;
+            z-index: 10;
+        }
+        .ticket-cutout-right {
+            position: absolute;
+            right: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            background-color: #f6f7f8;
+            border-radius: 50%;
+            z-index: 10;
+        }
+        .perforated-line {
+            border-top: 2px dashed rgba(28, 56, 95, 0.1);
+            width: 100%;
+            position: relative;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+            }
+            .ticket-container {
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex flex-col items-center justify-center p-6 font-display">
+<!-- Top Navigation / Logo Branding (Optional visual anchor) -->
+<div class="mb-8 flex items-center gap-3 no-print">
+<div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-icons-outlined">verified_user</span>
+</div>
+<h1 class="text-xl font-bold text-primary dark:text-white tracking-tight">TACF-Digital</h1>
+</div>
+<!-- Main Ticket Card -->
+<div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden ticket-container transition-all">
+<!-- Header Section -->
+<div class="bg-primary px-8 py-10 text-white relative overflow-hidden">
+<!-- Background Decorative Pattern -->
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+<svg height="100%" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="grid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="1"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid)" height="100%" width="100%"></rect>
+</svg>
+</div>
+<div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+<div>
+<div class="flex items-center gap-2 mb-2">
+<span class="text-xs font-bold tracking-[0.2em] uppercase opacity-80">Documento Oficial</span>
+</div>
+<h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">COMPROVANTE DE AGENDAMENTO</h2>
+<p class="mt-1 text-blue-200/80 font-medium">Teste de Avaliação do Condicionamento Físico</p>
+</div>
+<div class="flex items-center gap-2 bg-green-500/20 backdrop-blur-md border border-green-500/30 px-4 py-2 rounded-full">
+<span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+<span class="text-xs font-bold uppercase tracking-widest text-green-100">Confirmado</span>
+</div>
+</div>
+</div>
+<!-- Main Content -->
+<div class="p-8 md:p-12 relative">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-12">
+<!-- Militar Info -->
+<div class="space-y-1">
+<span class="text-[10px] font-bold text-primary/60 dark:text-primary/40 uppercase tracking-[0.2em]">Militar</span>
+<p class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">1T SILVA</p>
+</div>
+<!-- SARAM Info -->
+<div class="space-y-1">
+<span class="text-[10px] font-bold text-primary/60 dark:text-primary/40 uppercase tracking-[0.2em]">SARAM</span>
+<p class="text-2xl font-mono font-semibold text-slate-900 dark:text-white tracking-wider">7654321</p>
+</div>
+<!-- Local Info -->
+<div class="space-y-1 col-span-full md:col-span-1">
+<span class="text-[10px] font-bold text-primary/60 dark:text-primary/40 uppercase tracking-[0.2em]">Local do Teste</span>
+<div class="flex items-start gap-2">
+<span class="material-icons-outlined text-primary text-lg mt-1">location_on</span>
+<p class="text-lg font-mono font-medium text-slate-700 dark:text-slate-300">HACO - Pista de Atletismo</p>
+</div>
+</div>
+<!-- Data/Hora Info -->
+<div class="space-y-1 col-span-full md:col-span-1">
+<span class="text-[10px] font-bold text-primary/60 dark:text-primary/40 uppercase tracking-[0.2em]">Data e Horário</span>
+<div class="flex items-start gap-2">
+<span class="material-icons-outlined text-primary text-lg mt-1">calendar_today</span>
+<p class="text-lg font-bold text-slate-900 dark:text-white">25 OUT 2023 <span class="text-primary font-normal mx-2">|</span> 08:30</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Perforated Divider -->
+<div class="relative py-4 no-print">
+<div class="ticket-cutout-left dark:bg-background-dark"></div>
+<div class="perforated-line"></div>
+<div class="ticket-cutout-right dark:bg-background-dark"></div>
+</div>
+<!-- Validation Section -->
+<div class="bg-slate-50 dark:bg-slate-800/50 p-8 md:p-12 flex flex-col md:flex-row items-center gap-10">
+<div class="flex-shrink-0 p-4 bg-white dark:bg-slate-900 border-2 border-primary/10 rounded-2xl shadow-sm">
+<img alt="QR Code de validação do agendamento" class="w-32 h-32 md:w-36 md:h-36" data-alt="Digital QR code for military ticket verification" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDELDL2ZgC0nqsWS9bMLfH59dmmSvqegBHrNKfFBjHGFMO_0a3nj-2JQ-fYQcnRRmDEBsUKaz7q1z3zMQ7ZXFmDeXsOHigL0MPfOgU4k9KrSBTxfNRh1B-6ISVf5R0m8Vxbr-7COI0k7hIwxj6_KZHPqvZloA-Uli7yF0zkIyUUPROxJG0ZoF1LIiU7Xqv_FmzCWTilG9wkdnEv2ndZYg2MANBoPpSeLqBsN7XhW8-6J1vkGFC3pw9q-bRPbjd28hwzC01vV__RfwRL"/>
+</div>
+<div class="flex-grow text-center md:text-left">
+<div class="space-y-1 mb-6">
+<span class="text-[10px] font-bold text-primary/60 dark:text-primary/40 uppercase tracking-[0.2em]">Código de Validação</span>
+<p class="text-xl font-mono font-bold text-primary dark:text-blue-400 tracking-[0.25em]">A87-X29-KB1</p>
+</div>
+<div class="bg-primary/5 dark:bg-primary/20 p-4 rounded-xl inline-flex items-center gap-3">
+<span class="material-icons-outlined text-primary dark:text-blue-300 text-sm">info</span>
+<p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-xs">
+                        Apresente este código ou QR code no acesso à pista. Tenha em mãos sua identidade militar original.
+                    </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="mt-10 flex flex-col sm:flex-row gap-4 w-full max-w-2xl no-print">
+<button class="flex-1 flex items-center justify-center gap-2 border-2 border-primary/20 hover:border-primary/40 text-primary dark:text-blue-300 font-bold py-4 px-6 rounded-xl transition-all group">
+<span class="material-icons-outlined group-hover:-translate-y-0.5 transition-transform">print</span>
+            IMPRIMIR PDF
+        </button>
+<button class="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all group">
+<span class="material-icons-outlined group-hover:translate-y-0.5 transition-transform">download</span>
+            SALVAR NO DISPOSITIVO
+        </button>
+</div>
+<!-- Help text footer -->
+<div class="mt-8 text-center no-print">
+<p class="text-slate-400 text-sm font-medium">
+            Dúvidas ou problemas com o agendamento? <a class="text-primary dark:text-blue-400 hover:underline" href="#">Contate o suporte TACF</a>
+</p>
+</div>
+</body></html>
