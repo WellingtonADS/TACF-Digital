@@ -9,7 +9,7 @@ import {
   User,
 } from "@/components/ui/icons";
 import type { BookingWithDetails } from "@/types/database.types";
-import { generateReceipt } from "@/utils/receipt/generateReceipt";
+// Carregamos o gerador de PDF dinamicamente ao solicitar download
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
@@ -47,7 +47,8 @@ export default function ComprovanteTicket({ booking }: Props) {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await generateReceipt({
+      const mod = await import("@/utils/receipt/generateReceipt");
+      await mod.generateReceipt({
         booking_id: booking.id,
         saram: user?.saram ?? "",
         full_name: user?.full_name ?? "",
