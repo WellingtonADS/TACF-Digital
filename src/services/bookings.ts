@@ -18,7 +18,9 @@ export async function getUserBooking(
     .maybeSingle(); // Retorna nulo se não existir, sem disparar erro
 
   if (error) {
-    console.error("Erro ao buscar agendamento:", error);
+    if (import.meta.env.DEV) {
+      console.error("Erro ao buscar agendamento:", error);
+    }
     return null;
   }
 

@@ -44,7 +44,9 @@ export async function generateReceipt(
     doc.addImage(dataUrl, "PNG", 400, 60, 120, 120);
   } catch (err) {
     // ignore QR errors, but continue
-    console.warn("QR generation failed", err);
+    if (import.meta.env.DEV) {
+      console.warn("QR generation failed", err);
+    }
   }
 
   // Footer timestamp

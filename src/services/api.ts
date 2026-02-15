@@ -131,7 +131,9 @@ export async function createSession(sessionData: {
     .single();
 
   if (error) {
-    console.error("Error creating session:", error);
+    if (import.meta.env.DEV) {
+      console.error("Error creating session:", error);
+    }
     return { data: null, error: error.message };
   }
   return {
@@ -149,7 +151,9 @@ export async function deleteSession(
     .eq("id", sessionId);
 
   if (error) {
-    console.error("Error deleting session:", error);
+    if (import.meta.env.DEV) {
+      console.error("Error deleting session:", error);
+    }
     return { success: false, error: error.message };
   }
   return { success: true };

@@ -17,12 +17,13 @@ export default class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to console for now; we can add remote logging later
-     
-    console.error("Unhandled render error:", error, info);
+    if (import.meta.env.DEV) {
+      console.error("Unhandled render error:", error, info);
+    }
   }
 
-  handleReload = () => {
-    window.location.reload();
+  resetErrorBoundary = () => {
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
@@ -37,7 +38,7 @@ export default class ErrorBoundary extends React.Component<
             </p>
             <div className="flex items-center justify-center gap-3">
               <button
-                onClick={this.handleReload}
+                onClick={this.resetErrorBoundary}
                 className="px-4 py-2 bg-primary text-white rounded"
               >
                 Recarregar página
