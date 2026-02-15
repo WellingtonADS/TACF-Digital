@@ -56,7 +56,10 @@ export default function UserForm({
           min={1}
           value={formData.semester ?? "1"}
           onChange={(e) =>
-            setFormData({ ...formData, semester: e.target.value })
+            setFormData({
+              ...formData,
+              semester: e.target.value || undefined,
+            })
           }
           className="mt-1 block w-24 rounded border px-2 py-1"
         />

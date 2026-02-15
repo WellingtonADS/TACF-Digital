@@ -13,6 +13,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@headlessui/react": "^2.2.9",
     "@mui/icons-material": "^7.3.8",
     "@mui/material": "^7.3.8",
     "@radix-ui/react-dialog": "^1.0.5",

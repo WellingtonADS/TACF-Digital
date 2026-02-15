@@ -66,10 +66,10 @@ export default function UserEditModal({
           </div>
           <ConfirmModal
             open={isConfirmOpen}
-            onClose={() => setIsConfirmOpen(false)}
+            onCancel={() => setIsConfirmOpen(false)}
             onConfirm={doDelete}
             title="Confirmação"
-            description="Confirma exclusão do usuário?"
+            message="Confirma exclusão do usuário?"
           />
         </Dialog.Panel>
       </div>

@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
+import useSessions from "@/hooks/useSessions";
 import { requestSwap } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import toastUi from "@/utils/toast";
@@ -46,7 +47,8 @@ export default function SwapRequestModal({
       const todayStr = format(new Date(), "yyyy-LL-dd");
       setSessions(
         (sessionsFromHook ?? []).filter(
-          (s) => s.id !== currentSessionId && s.date >= todayStr,
+          (s: SessionWithBookings) =>
+            s.id !== currentSessionId && s.date >= todayStr,
         ),
       );
     };

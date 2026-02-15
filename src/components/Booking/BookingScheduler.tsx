@@ -1,4 +1,4 @@
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { ArrowRight } from "@/components/ui/icons";
 import { useState } from "react";
 import Button from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -141,7 +141,7 @@ export function BookingScheduler({
               isLoading
             }
           >
-            Próximo <ArrowForwardIcon className="ml-2" />
+            Próximo <ArrowRight size={18} className="ml-2" />
           </Button>
         )}
         {currentStep === "confirmation" && (
