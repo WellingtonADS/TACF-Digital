@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/icons";
 import { Body, H1 } from "@/components/ui/Typography";
 import { useAuth } from "@/contexts/AuthContext";
-import { confirmBooking, fetchFutureSessions } from "@/services/api";
+import useSessions from "@/hooks/useSessions";
+import { confirmBooking } from "@/services/api";
 import { getActiveBooking } from "@/services/bookings";
 import { upsertProfile } from "@/services/supabase";
 import type {
@@ -28,6 +29,7 @@ export default function UserDashboard() {
   const [booking, setBooking] = useState<BookingWithDetails | null>(null);
   const [allSessions, setAllSessions] = useState<SessionWithBookings[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const { sessions: futureSessions, refetch: refetchSessions } = useSessions();
 
   // Estados para o Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,10 +52,9 @@ export default function UserDashboard() {
     try {
       const b = await getActiveBooking(user.id);
       setBooking(b);
-      const sessionsRes = await fetchFutureSessions();
-      if (sessionsRes.data) {
-        setAllSessions(sessionsRes.data);
-      }
+      // trigger sessions refetch and let hook populate futureSessions
+      await refetchSessions?.();
+      setAllSessions(futureSessions ?? []);
     } catch (_err) {
       if (import.meta.env.DEV) {
         console.error(_err);
@@ -61,11 +62,15 @@ export default function UserDashboard() {
     } finally {
       setDataLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, refetchSessions, futureSessions]);
 
   useEffect(() => {
     void refetchData();
   }, [refetchData]);
+
+  useEffect(() => {
+    setAllSessions(futureSessions ?? []);
+  }, [futureSessions]);
 
   // Handler: Quando clica em uma data no Calendário
   const handleDateSelect = (date: string) => {

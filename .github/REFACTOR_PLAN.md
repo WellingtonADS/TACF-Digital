@@ -512,54 +512,6 @@ yarn build               # bundle < 500KB, sem warnings críticos
 **Repositório GitHub:** WellingtonADS/TACF-Digital  
 **Branch de trabalho:** `refactor/frontend-conformity-2026-02` (a partir de `260130-Ajuste-cadastro`)
 
----
-
-## Fases 11–12: Pós-merge, Monitoramento e Rollback
-
-### **Fase 11: Pós-merge & Monitoramento (1-2h)**
-
-48. **Deploy para staging e verificação manual**
-    - Criar environment `staging` com as mesmas variáveis do `production` (exceto secrets).
-    - Implantar a branch `refactor/frontend-conformity-2026-02` no staging.
-    - Executar checklist manual: rotas, login, booking flow, dashboards admin.
-    - Coletar métricas de bundle, performance e Core Web Vitals.
-
-49. **Monitoramento contínuo (primeiras 48h)**
-    - Configurar alertas básicos (Sentry/LogRocket) para erros JS críticos.
-    - Monitorar taxa de erros e regressões visuais relatadas.
-    - Documentar quaisquer hotfixes em uma issue linkada ao PR.
-
-50. **Deploy para produção (após validação)**
-    - Pré-requisitos: QA green, testes E2E smoke passing, métricas dentro do esperado.
-    - Modo de deploy: canary/rolling se disponível; caso contrário, deploy normal com rollback pronto.
-
-### **Fase 12: Rollback & Hotfixes (contingência)**
-
-51. **Plano de rollback rápido**
-    - Identificar commit/PR anterior estável (tag ou hash) e preparar hotfix branch `hotfix/rollback-frontend-conformity`.
-    - Scripts rápidos: `yarn build` em CI, redeploy da versão anterior, e criar PR com causa/impacto para auditoria.
-
-52. **Hotfixes críticos**
-    - Corrigir problemas P0 (ex.: regressão de login, perda de dados do usuário) em `hotfix/*` e permitir merge emergencial com revisão mínima.
-    - Documentar ações e marcar revisores na issue principal do Epic.
-
----
-
-## Governança, Revisão e Documentação
-
-53. **Revisão de código & approvers**
-    - Solicitar pelo menos 2 revisores: um dev frontend senior e o coordenador HACO.
-    - Revisões obrigatórias para mudanças em `supabase/` e `src/services/*`.
-
-54. **Documentação entregue**
-    - `ARCHITECTURE.md` contendo decisões de pastas e padrões (hooks, services, UI).
-    - `CONTRIBUTING.md` com checklist de PR e comandos de verificação (`yarn lint`, `npx tsc --noEmit`, `npx vitest run`).
-    - Atualizar `AGENTS.md` com passos operacionais para agentes/automation.
-
-55. **Treinamento rápido (opcional)**
-    - Sessão de 30–45 minutos com o time mostrando mudanças principais: hooks, services refatorados e como executar testes/local build.
-
----
 
 ## Checklist Final (delta)
 
@@ -571,11 +523,3 @@ yarn build               # bundle < 500KB, sem warnings críticos
 - [ ] Todas as issues de fase fechadas e linkadas ao PR
 - [ ] Documentação atualizada (`ARCHITECTURE.md`, `CONTRIBUTING.md`, `AGENTS.md`)
 - [ ] Revisores atribuídos e PR pronto para merge
-
----
-
-Se desejar, posso:
-
-- criar automaticamente as issues filhas e o Epic no GitHub via MCP,
-- gerar `ARCHITECTURE.md` inicial com base nas mudanças já aplicadas,
-- ou submeter o PR para revisão (mudar de draft para ready).
