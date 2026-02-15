@@ -1,8 +1,4 @@
-import type {
-  BookingWithDetails,
-  Database,
-  SessionWithBookings,
-} from "@/types/database.types";
+import type { Database, SessionWithBookings } from "@/types/database.types";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { supabase } from "./supabase";
 
@@ -16,34 +12,13 @@ type SessionAvailabilityRow = {
   occupied_count: number;
 };
 
-export async function confirmBooking(sessionId: string): Promise<{
-  success: boolean;
-  error: string | null;
-  booking_id?: string | null;
-  order_number?: string | null;
-}> {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id;
-  if (!userId)
-    return { success: false, error: "Not authenticated", booking_id: null };
-
-  // Delegate to backend RPC via confirmarAgendamentoRPC (server enforces capacity/quorum)
-  const { confirmarAgendamentoRPC } = await import("./supabase");
-  const res = await confirmarAgendamentoRPC(userId, sessionId);
-  if (!res.success)
-    return {
-      success: false,
-      error: res.error ?? "Unknown error",
-      booking_id: res.booking_id ?? null,
-      order_number: res.order_number ?? null,
-    };
-  return {
-    success: true,
-    error: null,
-    booking_id: res.booking_id ?? null,
-    order_number: res.order_number ?? null,
-  };
-}
+// Bookings-related functions re-implemented in `src/services/bookings.ts` and re-exported below.
+export {
+  confirmBooking,
+  getActiveBooking,
+  getUserBooking,
+  requestSwap,
+} from "./bookings";
 
 export async function approveSwap(requestId: string, adminId: string) {
   const { data, error } = await supabase.rpc<ApproveSwapResult[]>(
@@ -93,28 +68,7 @@ export async function fetchSessionsByMonth(year: number, month: number) {
   return { data: mapped, error: null };
 }
 
-export async function getUserBooking(): Promise<{
-  data: BookingWithDetails | null;
-  error: string | null;
-}> {
-  // fetch a confirmed booking for current user with related session and profile
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id;
-  if (!userId) return { data: null, error: "Not authenticated" };
-
-  const { data, error } = await supabase
-    .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
-    .select("*, sessions (*), profiles (id, full_name, rank)")
-    .eq("user_id", userId)
-    .in("status", ["confirmed", "pending_swap"])
-    .limit(1)
-    .maybeSingle();
-
-  return {
-    data: (data as unknown as BookingWithDetails) ?? null,
-    error: error ? String(error) : null,
-  };
-}
+// getUserBooking moved to bookings.ts
 
 export async function fetchFutureSessions() {
   const today = format(new Date(), "yyyy-LL-dd");
@@ -143,55 +97,7 @@ export async function fetchFutureSessions() {
   return { data: mapped, error: null };
 }
 
-export async function requestSwap(
-  bookingId: string,
-  newSessionId: string,
-  reason: string,
-): Promise<{ success: boolean; error?: string | null }> {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id;
-  if (!userId) return { success: false, error: "Not authenticated" };
-
-  try {
-    // insert swap request
-
-    const { error } = await supabase
-      .from<
-        Database["public"]["Tables"]["swap_requests"]["Insert"]
-      >("swap_requests")
-      .insert({
-        booking_id: bookingId,
-        requested_by: userId,
-        new_session_id: newSessionId,
-        reason,
-      });
-
-    if (error)
-      return {
-        success: false,
-        error: (error as { message?: string })?.message ?? "Unknown error",
-      };
-
-    // optionally update booking status to pending_swap
-
-    const { error: updErr } = await supabase
-      .from<Database["public"]["Tables"]["bookings"]["Update"]>("bookings")
-      .update({ status: "pending_swap" })
-      .eq("id", bookingId);
-
-    if (updErr) {
-      return {
-        success: true,
-        error: "Swap request saved but failed to update booking status",
-      };
-    }
-
-    return { success: true };
-  } catch (err) {
-    const e = err as { message?: string };
-    return { success: false, error: e?.message ?? String(err) };
-  }
-}
+// requestSwap moved to bookings.ts
 
 export async function createSession(sessionData: {
   date: string;
