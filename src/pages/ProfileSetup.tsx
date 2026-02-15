@@ -43,7 +43,7 @@ const RANKS = [
   "Soldado",
 ];
 
-const ProfileSetup: React.FC = () => {
+export default function ProfileSetup() {
   const { profile, upsertProfile, user } = useAuth();
 
   // Estados do Formulário
@@ -271,6 +271,4 @@ const ProfileSetup: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default ProfileSetup;
+}

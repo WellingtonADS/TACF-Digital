@@ -23,7 +23,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-const UserDashboard: React.FC = () => {
+export default function UserDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
   const [booking, setBooking] = useState<BookingWithDetails | null>(null);
   const [allSessions, setAllSessions] = useState<SessionWithBookings[]>([]);
@@ -44,33 +44,28 @@ const UserDashboard: React.FC = () => {
     profile?.sector
   );
 
-  useEffect(() => {
+  const refetchData = React.useCallback(async () => {
     if (!user?.id) return;
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        // 1. Agendamento ativo
-        const b = await getActiveBooking(user.id);
-        if (mounted && b) setBooking(b);
-
-        // 2. Sessões futuras para popular calendário
-        const sessionsRes = await fetchFutureSessions();
-        if (mounted && sessionsRes.data) {
-          setAllSessions(sessionsRes.data);
-        }
-      } catch (_err) {
-        console.error(_err);
-      } finally {
-        if (mounted) setDataLoading(false);
+    setDataLoading(true);
+    try {
+      const b = await getActiveBooking(user.id);
+      setBooking(b);
+      const sessionsRes = await fetchFutureSessions();
+      if (sessionsRes.data) {
+        setAllSessions(sessionsRes.data);
       }
-    };
-
-    fetchData();
-    return () => {
-      mounted = false;
-    };
+    } catch (_err) {
+      if (import.meta.env.DEV) {
+        console.error(_err);
+      }
+    } finally {
+      setDataLoading(false);
+    }
   }, [user?.id]);
+
+  useEffect(() => {
+    void refetchData();
+  }, [refetchData]);
 
   // Handler: Quando clica em uma data no Calendário
   const handleDateSelect = (date: string) => {
@@ -113,7 +108,7 @@ const UserDashboard: React.FC = () => {
       if (result.success) {
         toast.success("Agendamento Confirmado!");
         setIsModalOpen(false);
-        window.location.reload();
+        await refetchData();
       } else {
         toast.error(result.error || "Erro ao agendar.");
       }
@@ -181,7 +176,7 @@ const UserDashboard: React.FC = () => {
             <CalendarGrid
               sessions={allSessions}
               onDateSelect={handleDateSelect}
-              onBookingSuccess={() => window.location.reload()}
+              onBookingSuccess={() => void refetchData()}
               isAdmin={false}
             />
           )}
@@ -246,6 +241,4 @@ const UserDashboard: React.FC = () => {
       />
     </div>
   );
-};
-
-export default UserDashboard;
+}

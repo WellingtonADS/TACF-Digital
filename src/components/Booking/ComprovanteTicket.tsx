@@ -205,7 +205,10 @@ export default function ComprovanteTicket({ booking }: Props) {
         currentSessionId={session?.id ?? ""}
         isOpen={swapModalOpen}
         onClose={() => setSwapModalOpen(false)}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {
+          setSwapModalOpen(false);
+          toast.success("Solicitação de troca enviada!");
+        }}
       />
     </div>
   );

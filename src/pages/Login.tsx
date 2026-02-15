@@ -4,7 +4,7 @@ import { supabase } from "@/services/supabase"; // Corrigida a importação do s
 import React, { useState } from "react";
 import { toast } from "sonner"; // Corrigida a importação para usar sonner
 
-const Login: React.FC = () => {
+export default function Login() {
   // 1. Lógica de Backend (Preservada)
   const [isLoading, setIsLoading] = useState(false);
 
@@ -272,6 +272,4 @@ const Login: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default Login;
+}
