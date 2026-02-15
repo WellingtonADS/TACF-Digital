@@ -23,7 +23,6 @@
     "date-fns": "^3.0.0",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
-    "lucide-react": "^0.300.0",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
