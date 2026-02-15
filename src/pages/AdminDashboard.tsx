@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { ArrowRight } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { fetchDashboardStats } from "@/services/admin";
@@ -6,7 +7,6 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 

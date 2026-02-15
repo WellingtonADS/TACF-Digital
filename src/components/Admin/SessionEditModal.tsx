@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { Clock, Plus, Trash2, Users } from "@/components/ui/icons";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import {
@@ -17,7 +18,6 @@ import type { SessionWithBookings } from "@/types/database.types";
 import toastUi from "@/utils/toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Plus, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

@@ -111,3 +111,5 @@ scripts/*.backup.*
 TODO.local.md
 NOTES.local.md
 *.local.md
+
+.env

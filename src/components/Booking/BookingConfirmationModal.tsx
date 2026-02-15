@@ -1,8 +1,4 @@
 import Button from "@/components/ui/Button";
-import type { SessionWithBookings } from "@/types/database.types";
-import { cn } from "@/utils/cn";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -12,7 +8,11 @@ import {
   Moon,
   Sun,
   X,
-} from "lucide-react";
+} from "@/components/ui/icons";
+import type { SessionWithBookings } from "@/types/database.types";
+import { cn } from "@/utils/cn";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 
 interface BookingConfirmationModalProps {
@@ -38,11 +38,22 @@ export default function BookingConfirmationModal({
   >(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    // Schedule reset on next tick to avoid synchronous setState in effect body
+    const id = window.setTimeout(() => {
       setSelectedTaf("1");
-      setSelectedPeriod(null);
-    }
-  }, [isOpen, date]);
+      // Auto-select the only available period for convenience/tests
+      const hasMorning = availableSessions.some((s) => s.period === "morning");
+      const hasAfternoon = availableSessions.some(
+        (s) => s.period === "afternoon",
+      );
+      if (hasMorning && !hasAfternoon) setSelectedPeriod("morning");
+      else if (!hasMorning && hasAfternoon) setSelectedPeriod("afternoon");
+      else setSelectedPeriod(null);
+    }, 0);
+
+    return () => window.clearTimeout(id);
+  }, [isOpen, date, availableSessions]);
 
   if (!isOpen || !date) return null;
 
@@ -249,7 +260,7 @@ export default function BookingConfirmationModal({
             disabled={!selectedPeriod}
             className="flex-[2] h-12 text-base bg-[#1B365D] hover:bg-[#1B365D]/90 shadow-lg shadow-blue-900/20"
           >
-            Confirmar Agendamento
+            Confirmar
           </Button>
         </div>
       </div>

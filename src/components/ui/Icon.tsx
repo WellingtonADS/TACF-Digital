@@ -1,8 +1,10 @@
-import type { LucideIcon, LucideProps } from "lucide-react";
 import React from "react";
 
-interface IconProps extends Omit<LucideProps, "ref"> {
-  as: LucideIcon | React.ElementType;
+interface IconProps {
+  as: React.ElementType;
+  size?: number;
+  className?: string;
+  [key: string]: unknown;
 }
 
 export const Icon: React.FC<IconProps> = ({
@@ -12,8 +14,7 @@ export const Icon: React.FC<IconProps> = ({
   ...rest
 }) => {
   const Comp = IconComponent as React.ElementType;
-
-  return <Comp size={size} className={className} {...rest} />;
+  return <Comp style={{ fontSize: size }} className={className} {...rest} />;
 };
 
 export default Icon;

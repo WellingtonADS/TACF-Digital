@@ -1,5 +1,5 @@
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+// Carrega `jspdf` dinamicamente para reduzir bundle inicial
+// `jspdf-autotable` é um side-effect que estende o prototype, carregamos também dinamicamente
 import QRCode from "qrcode";
 
 export type ReceiptBooking = {
@@ -16,6 +16,8 @@ export async function generateReceipt(
   booking: ReceiptBooking,
   download = true,
 ): Promise<Blob | undefined> {
+  const { default: jsPDF } = await import("jspdf");
+  await import("jspdf-autotable");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
   const title = `Comprovante_${booking.order_number ?? booking.booking_id}_${formatDateForFilename(booking.date)}.pdf`;

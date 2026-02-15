@@ -1,6 +1,6 @@
 import Button from "@/components/ui/Button";
+import { LogOut, Menu, Plane, Shield, User, X } from "@/components/ui/icons";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, Menu, Plane, Shield, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 

@@ -17,7 +17,7 @@ export default class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to console for now; we can add remote logging later
-    // eslint-disable-next-line no-console
+     
     console.error("Unhandled render error:", error, info);
   }
 

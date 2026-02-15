@@ -2,12 +2,13 @@ import type {
   BookingWithDetails,
   SessionWithBookings,
 } from "@/types/database.types";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+// Lazy-load jsPDF to avoid inflating main bundle
 
 export async function generateSessionPDF(
   session: SessionWithBookings & { bookings: BookingWithDetails[] },
 ) {
+  const { default: jsPDF } = await import("jspdf");
+  await import("jspdf-autotable");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const margin = 40;
   const pageWidth = doc.internal.pageSize.getWidth();

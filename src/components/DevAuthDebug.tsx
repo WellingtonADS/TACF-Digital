@@ -7,34 +7,34 @@ const DevAuthDebug: React.FC = () => {
 
   const forceSignOut = async () => {
     // Debug logs to confirm clicks
-    // eslint-disable-next-line no-console
+     
     console.debug("Dev debug: forceSignOut clicked");
     try {
       await supabase.auth.signOut();
       await signOut();
-      // eslint-disable-next-line no-console
+       
       console.debug("Dev debug: forceSignOut completed");
       // Reload to ensure UI fully resets
       window.location.reload();
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.warn("Force signOut error:", e);
       window.location.reload();
     }
   };
 
   const clearStorage = () => {
-    // eslint-disable-next-line no-console
+     
     console.debug("Dev debug: clearStorage clicked");
     try {
       localStorage.clear();
       sessionStorage.clear();
-      // eslint-disable-next-line no-console
+       
       console.debug("Cleared local/session storage");
       // Reload to ensure any in-memory state is reset
       window.location.reload();
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.warn(e);
     }
   };

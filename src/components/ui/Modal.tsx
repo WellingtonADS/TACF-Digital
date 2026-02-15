@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { X } from "@/components/ui/icons";
 import { cn } from "@/utils/cn";
-import { X } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 export interface ModalProps {
@@ -18,12 +18,8 @@ export default function Modal({
   children,
   maxWidth = "md",
 }: ModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  // Efeito 1: Montagem Inicial (Roda apenas uma vez)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Inicializa montado diretamente para evitar setState síncrono em efeito
+  const [mounted] = useState(() => true);
 
   // Efeito 2: Gestão do Scroll (Roda quando isOpen muda)
   useEffect(() => {
@@ -54,33 +50,33 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Overlay com Blur */}
-      <div 
+      <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
-      
+
       {/* Modal Content */}
-      <div 
+      <div
         className={cn(
           "relative w-full bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200",
-          maxWidthClasses[maxWidth]
+          maxWidthClasses[maxWidth],
         )}
       >
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
-          <button 
+          <h3 className="text-lg font-bold text-slate-800 tracking-tight">
+            {title}
+          </h3>
+          <button
             onClick={onClose}
             className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors outline-none focus:ring-2 focus:ring-primary/20"
           >
             <X size={20} />
           </button>
         </div>
-        
-        <div className="p-6 overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
+
+        <div className="p-6 overflow-y-auto custom-scrollbar">{children}</div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { AlertCircle, Calendar } from "@/components/ui/icons";
 import Modal from "@/components/ui/Modal";
 import {
   Select,
@@ -12,7 +13,6 @@ import type { SessionWithBookings } from "@/types/database.types";
 import toastUi from "@/utils/toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertCircle, Calendar } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 

@@ -1,8 +1,4 @@
 import Button from "@/components/ui/Button";
-import type { BookingWithDetails } from "@/types/database.types";
-import { generateReceipt } from "@/utils/receipt/generateReceipt";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Calendar,
   Clock,
@@ -11,7 +7,11 @@ import {
   Plane,
   RefreshCw,
   User,
-} from "lucide-react";
+} from "@/components/ui/icons";
+import type { BookingWithDetails } from "@/types/database.types";
+import { generateReceipt } from "@/utils/receipt/generateReceipt";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
