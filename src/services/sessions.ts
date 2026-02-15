@@ -1,10 +1,10 @@
-import type { SessionWithBookings } from "@/types/database.types";
+import type { Database, SessionWithBookings } from "@/types/database.types";
 import { supabase } from "./supabase";
 
-export async function getAvailableSessions() {
+export async function getAvailableSessions(): Promise<SessionWithBookings[]> {
   // Buscamos as sessões e usamos o recurso do Supabase para contar os bookings relacionados
   const { data, error } = await supabase
-    .from("sessions")
+    .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
     .select(
       `
       *,
@@ -17,14 +17,15 @@ export async function getAvailableSessions() {
   if (error) throw error;
 
   // Formatamos o retorno para facilitar o uso no componente
-  return (data || []).map((session: unknown) => {
-    const s = session as Record<string, unknown>;
-    const bookings = s.bookings as unknown;
-    let booking_count = 0;
-    if (Array.isArray(bookings) && bookings.length > 0) {
-      const first = bookings[0] as Record<string, unknown>;
-      booking_count = Number(first.count ?? 0);
-    }
+  return (data || []).map((session) => {
+    const s = session as unknown as Record<string, unknown> & {
+      bookings?: Array<{ count?: number }>;
+    };
+    const booking_count =
+      Array.isArray(s.bookings) && s.bookings.length > 0
+        ? Number(s.bookings[0].count ?? 0)
+        : 0;
+
     return {
       ...(s as unknown as SessionWithBookings),
       booking_count,

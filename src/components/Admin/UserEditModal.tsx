@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { UserCog } from "@/components/ui/icons";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import {
@@ -12,7 +13,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createProfile, deleteProfile, updateProfile } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
 import toastUi from "@/utils/toast";
-import { UserCog } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -91,7 +91,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       if (profile) {
         res = await updateProfile(profile.id, payload);
       } else {
-        res = await createProfile(payload as any);
+        res = await createProfile(payload as unknown as Profile);
       }
 
       if (res.error) {

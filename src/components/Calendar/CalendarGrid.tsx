@@ -1,6 +1,11 @@
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "@/components/ui/icons";
 import { fetchSessionsByMonth } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import {
@@ -13,17 +18,15 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import BookingConfirmationModal from "@/components/Booking/BookingConfirmationModal";
+import { confirmBooking } from "@/services/api";
+import { isDateInAllowedWindow } from "@/utils/seasonal";
+import { toast } from "sonner";
 import CalendarDay from "./CalendarDay";
 
 export default function CalendarGrid({
-  onBookingSuccess: _onBookingSuccess,
   isAdmin,
   onDayClick,
   onDateSelect,
@@ -42,16 +45,22 @@ export default function CalendarGrid({
   const [current, setCurrent] = useState<Date>(initialDate ?? new Date());
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [daySessions, setDaySessions] = useState<SessionWithBookings[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [localRefresh, setLocalRefresh] = useState(0);
 
   // Effect para carga inicial e mudanças de mês/refreshKey
   useEffect(() => {
     let mounted = true;
 
-    // If parent provided sessions, use them and skip RPC fetch
+    // If parent provided sessions, skip RPC fetch (we'll render sessionsProp directly)
     if (sessionsProp) {
-      setSessions(sessionsProp);
-      setLoading(false);
+      // avoid synchronous setState in effect body
+      const id = window.setTimeout(() => setLoading(false), 0);
       return () => {
+        window.clearTimeout(id);
         mounted = false;
       };
     }
@@ -74,7 +83,9 @@ export default function CalendarGrid({
     return () => {
       mounted = false;
     };
-  }, [current, refreshKey, sessionsProp]);
+  }, [current, refreshKey, sessionsProp, localRefresh]);
+
+  const displayedSessions = sessionsProp ?? sessions;
 
   const days = useMemo(() => {
     return eachDayOfInterval({
@@ -85,7 +96,7 @@ export default function CalendarGrid({
 
   function sessionsForDay(d: Date) {
     const key = format(d, "yyyy-LL-dd");
-    return sessions.filter((s) => s.date === key);
+    return displayedSessions.filter((s) => s.date === key);
   }
 
   return (
@@ -159,7 +170,11 @@ export default function CalendarGrid({
                   return onDateSelect(dateStr);
                 }
 
-                // Fallback: do nothing (previously opened internal modal)
+                // Fallback: open internal modal for backward compatibility
+                const dateStr = format(date, "yyyy-LL-dd");
+                setSelectedDate(dateStr);
+                setDaySessions(sessionsForDay(date));
+                setIsModalOpen(true);
               }}
             />
           </div>
@@ -171,6 +186,44 @@ export default function CalendarGrid({
           Carregando disponibilidade...
         </div>
       )}
+
+      <BookingConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedDate(null);
+        }}
+        onConfirm={async (sessionId) => {
+          // prevent booking outside seasonal window
+          if (selectedDate) {
+            const dateObj = new Date(selectedDate);
+            if (!isDateInAllowedWindow(dateObj)) {
+              toast.error("Data fora da janela de agendamento");
+              return;
+            }
+          }
+          try {
+            setConfirmLoading(true);
+            const res = await confirmBooking(sessionId);
+            if (res.success) {
+              setIsModalOpen(false);
+              setSelectedDate(null);
+              // trigger reload
+              setLocalRefresh((s) => s + 1);
+              toast.success("Agendamento confirmado");
+            } else {
+              toast.error(res.error || "Erro ao agendar");
+            }
+          } catch {
+            toast.error("Erro de conexão");
+          } finally {
+            setConfirmLoading(false);
+          }
+        }}
+        date={selectedDate}
+        availableSessions={daySessions}
+        loading={confirmLoading}
+      />
     </Card>
   );
 }

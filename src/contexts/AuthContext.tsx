@@ -109,14 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Global handlers to catch unexpected runtime errors that might leave the UI blank
     const onWindowError = (ev: ErrorEvent) => {
-      // eslint-disable-next-line no-console
       console.error("Global window error:", ev.error ?? ev.message, ev);
       setLoading(false);
       setProfileResolved(true);
     };
 
     const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
-      // eslint-disable-next-line no-console
       console.error("Unhandled promise rejection:", ev.reason, ev);
       setLoading(false);
       setProfileResolved(true);
@@ -143,22 +141,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Try to create a minimal profile for the newly created user when possible.
     // Some Supabase instances do not auto sign-in on signUp, so we check for returned session/user first.
     try {
-      const userId = (res as any)?.data?.user?.id ?? undefined;
+      const userId = (res as unknown)?.data?.user?.id ?? undefined;
       // If we didn't get a user back, attempt to read current session user
       if (!userId) {
         const { data: sessionData } = await supabase.auth.getSession();
-        const currentUser = (sessionData as any)?.session?.user;
+        const currentUser = (sessionData as unknown)?.session?.user;
         if (currentUser) {
           // We are auto-signed in
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await svcUpsertProfile({ id: currentUser.id } as any).catch((e) => {
+          await svcUpsertProfile({ id: currentUser.id }).catch((e) => {
             console.warn("upsertProfile after signup failed (auto-signin):", e);
           });
         }
       } else {
         // We have a user returned from signUp (sessionless case)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await svcUpsertProfile({ id: userId } as any).catch((e) => {
+        await svcUpsertProfile({ id: userId }).catch((e) => {
           console.warn("upsertProfile after signup failed (returned user):", e);
         });
       }
@@ -190,8 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         id: user.id,
         email: user.email ?? undefined,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await svcUpsertProfile(payload as any);
+      const res = await svcUpsertProfile(payload);
       const { data, error } = res;
 
       if (error) throw error;

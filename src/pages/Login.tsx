@@ -1,6 +1,6 @@
+import { Loader2, Plane } from "@/components/ui/icons"; // Ícones visuais
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/services/supabase"; // Corrigida a importação do supabase
-import { Loader2, Plane } from "lucide-react"; // Ícones visuais
 import React, { useState } from "react";
 import { toast } from "sonner"; // Corrigida a importação para usar sonner
 
@@ -33,10 +33,9 @@ const Login: React.FC = () => {
       if (error) throw error;
       setAutoLoginFailed(false);
       toast.success("Login automático realizado com sucesso.");
-    } catch (e: any) {
-      toast.error(
-        e?.message || "Falha ao tentar login automático. Tente novamente.",
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || "Falha ao tentar login automático. Tente novamente.");
     } finally {
       setRetryingAutoLogin(false);
     }
@@ -99,9 +98,10 @@ const Login: React.FC = () => {
         });
         if (error) throw error;
       }
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || "Erro na autenticação.");
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || "Erro na autenticação.");
     } finally {
       setIsLoading(false);
     }

@@ -2,6 +2,12 @@ import BookingConfirmationModal from "@/components/Booking/BookingConfirmationMo
 import ComprovanteTicket from "@/components/Booking/ComprovanteTicket";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
 import { Card } from "@/components/ui/Card";
+import {
+  AlertTriangle,
+  ArrowRight,
+  History,
+  Loader2,
+} from "@/components/ui/icons";
 import { Body, H1 } from "@/components/ui/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { confirmBooking, fetchFutureSessions } from "@/services/api";
@@ -13,7 +19,6 @@ import type {
 } from "@/types/database.types";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, ArrowRight, History, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -47,15 +52,15 @@ const UserDashboard: React.FC = () => {
       try {
         // 1. Agendamento ativo
         const b = await getActiveBooking(user.id);
-        if (mounted && b) setBooking(b as any);
+        if (mounted && b) setBooking(b);
 
         // 2. Sessões futuras para popular calendário
         const sessionsRes = await fetchFutureSessions();
         if (mounted && sessionsRes.data) {
-          setAllSessions(sessionsRes.data as unknown as SessionWithBookings[]);
+          setAllSessions(sessionsRes.data);
         }
-      } catch (error) {
-        console.error(error);
+      } catch (_err) {
+        console.error(_err);
       } finally {
         if (mounted) setDataLoading(false);
       }
@@ -101,7 +106,7 @@ const UserDashboard: React.FC = () => {
 
     try {
       if (profile?.semester !== tafType) {
-        await upsertProfile({ id: user.id, semester: tafType } as any);
+        await upsertProfile({ id: user.id, semester: tafType });
       }
 
       const result = await confirmBooking(sessionId);
@@ -112,7 +117,7 @@ const UserDashboard: React.FC = () => {
       } else {
         toast.error(result.error || "Erro ao agendar.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Erro de conexão.");
     } finally {
       setConfirmLoading(false);
