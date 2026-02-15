@@ -1,4 +1,9 @@
-import type { Database, Session, Booking, Profile } from "@/types/database.types";
+import type {
+  Booking,
+  Database,
+  Profile,
+  Session,
+} from "@/types/database.types";
 import { supabase } from "../supabase";
 
 export async function getSessionByDateAndPeriod(
@@ -17,7 +22,10 @@ export async function getSessionByDateAndPeriod(
   return (data as Database["public"]["Tables"]["sessions"]["Row"]) ?? null;
 }
 
-export async function getSessionWithBookings(date: string, period: Session["period"]) {
+export async function getSessionWithBookings(
+  date: string,
+  period: Session["period"],
+) {
   const { data: session } = await supabase
     .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
     .select("*")
@@ -54,51 +62,84 @@ export async function upsertSession(sessionData: {
 
   const { data, error } = await supabase
     .from<Database["public"]["Tables"]["sessions"]["Insert"]>("sessions")
-    .upsert(row as Database["public"]["Tables"]["sessions"]["Insert"], { onConflict: ["date", "period"] })
+    .upsert(row as Database["public"]["Tables"]["sessions"]["Insert"], {
+      onConflict: ["date", "period"],
+    })
     .select();
 
   if (error) return { error: error.message };
-  return { data: (data as Database["public"]["Tables"]["sessions"]["Row"][]) ?? [] };
+  return {
+    data: (data as Database["public"]["Tables"]["sessions"]["Row"][]) ?? [],
+  };
 }
 
-export async function fetchPendingSwaps(): Promise<any[]> {
+export type PendingSwapView = {
+  id: string;
+  reason: string | null;
+  created_at: string;
+  booking_id: string;
+  new_session_id: string;
+  full_name: string;
+  rank: string;
+  from_date: string | null;
+  from_period: "morning" | "afternoon" | null;
+  to_date: string | null;
+  to_period: "morning" | "afternoon" | null;
+};
+
+export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
+  type SwapRequestRow = Database["public"]["Tables"]["swap_requests"]["Row"];
+
   const { data: rows, error } = await supabase
-    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
+    .from<SwapRequestRow>("swap_requests")
     .select("id, reason, booking_id, new_session_id, created_at")
     .eq("status", "pending");
 
   if (error || !rows) return [];
 
-  const out: any[] = [];
+  const out: PendingSwapView[] = [];
 
-  for (const r of rows as any[]) {
+  for (const r of rows as SwapRequestRow[]) {
     const bookingRes = await supabase
       .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
       .select("id, user_id, session_id")
       .eq("id", r.booking_id)
       .maybeSingle();
-    const booking = bookingRes.data as { id: string; user_id: string; session_id: string } | null;
+    const booking = bookingRes.data as {
+      id: string;
+      user_id: string;
+      session_id: string;
+    } | null;
 
     const profileRes = await supabase
       .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
       .select("full_name, rank")
       .eq("id", booking?.user_id ?? null)
       .maybeSingle();
-    const profile = profileRes.data as { full_name?: string; rank?: string } | null;
+    const profile = profileRes.data as {
+      full_name?: string;
+      rank?: string;
+    } | null;
 
     const fromSessionRes = await supabase
       .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
       .select("date, period")
       .eq("id", booking?.session_id ?? null)
       .maybeSingle();
-    const fromSession = fromSessionRes.data as { date?: string; period?: "morning" | "afternoon" } | null;
+    const fromSession = fromSessionRes.data as {
+      date?: string;
+      period?: "morning" | "afternoon";
+    } | null;
 
     const toSessionRes = await supabase
       .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
       .select("date, period")
       .eq("id", r.new_session_id)
       .maybeSingle();
-    const toSession = toSessionRes.data as { date?: string; period?: "morning" | "afternoon" } | null;
+    const toSession = toSessionRes.data as {
+      date?: string;
+      period?: "morning" | "afternoon";
+    } | null;
 
     out.push({
       id: r.id,
