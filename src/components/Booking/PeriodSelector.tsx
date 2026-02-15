@@ -40,7 +40,7 @@ export default function PeriodSelector({
                 : "bg-slate-100 text-slate-500",
             )}
           >
-            <Sun sx={{ fontSize: 24 }} />
+            <Sun size={24} />
           </div>
           <div className="text-left flex-1">
             <span className="block font-bold text-slate-900">
@@ -78,7 +78,7 @@ export default function PeriodSelector({
                 : "bg-slate-100 text-slate-500",
             )}
           >
-            <Moon sx={{ fontSize: 24 }} />
+            <Moon size={24} />
           </div>
           <div className="text-left flex-1">
             <span className="block font-bold text-slate-900">

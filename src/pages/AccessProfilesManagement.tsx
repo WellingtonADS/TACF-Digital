@@ -1,76 +1,50 @@
 import { Body, H1, H2 } from "@/components/ui/Typography";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserRole } from "@/types/database.types";
+import {
+  fetchAccessProfiles,
+  toggleAccessProfilePermission,
+  type AccessProfileWithPermissions,
+  type PermissionOption,
+} from "@/services/admin";
 import {
   AdminPanelSettings,
   AssignmentInd,
   Person,
   Shield,
 } from "@mui/icons-material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
-interface AccessProfile {
-  id: string;
-  name: string;
-  description: string;
-  role: UserRole;
-  permissions: string[];
-  icon: string;
-  isActive: boolean;
-}
-
-const defaultProfiles: AccessProfile[] = [
-  {
-    id: "admin",
-    name: "Administrador Central",
-    description: "Acesso Total ao Sistema",
-    role: "admin",
-    permissions: [
-      "Gerenciar Usuários",
-      "Gerenciar Sessões",
-      "Aprovar Trocas",
-      "Visualizar Relatórios",
-      "Configurações do Sistema",
-      "Gerenciar Perfis de Acesso",
-    ],
-    icon: "admin_panel_settings",
-    isActive: true,
-  },
-  {
-    id: "coordinator",
-    name: "Coordenador de Turma",
-    description: "Gestão de Sessões e Usuários",
-    role: "coordinator",
-    permissions: [
-      "Gerenciar Sessões",
-      "Visualizar Usuários",
-      "Aprovar Trocas",
-      "Gerar Listas de Chamada",
-    ],
-    icon: "assignment_ind",
-    isActive: true,
-  },
-  {
-    id: "user",
-    name: "Usuário Militar",
-    description: "Agendamento e Consulta",
-    role: "user",
-    permissions: [
-      "Fazer Agendamentos",
-      "Solicitar Trocas",
-      "Visualizar Sessões",
-      "Baixar Comprovantes",
-    ],
-    icon: "person",
-    isActive: true,
-  },
-];
 
 export default function AccessProfilesManagement() {
   const { profile } = useAuth();
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("admin");
-  const [profiles] = useState<AccessProfile[]>(defaultProfiles);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [profiles, setProfiles] = useState<AccessProfileWithPermissions[]>([]);
+  const [permissions, setPermissions] = useState<PermissionOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingPermission, setSavingPermission] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      const res = await fetchAccessProfiles();
+      if (!mounted) return;
+      if (res.error) {
+        toast.error("Erro ao carregar perfis de acesso");
+      } else {
+        setProfiles(res.data);
+        setPermissions(res.permissions);
+        if (res.data.length > 0) {
+          setSelectedProfileId((prev) => prev || res.data[0].id);
+        }
+      }
+      setLoading(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Apenas admins root podem acessar
   if (profile?.role !== "admin") {
@@ -102,10 +76,40 @@ export default function AccessProfilesManagement() {
     }
   };
 
-  const handleTogglePermission = () => {
-    toast.info(
-      `Alteração de permissões requer implementação de tabela access_profiles no banco de dados`,
+  const handleTogglePermission = async (
+    permissionId: string,
+    enabled: boolean,
+  ) => {
+    if (!selectedProfile) return;
+    setSavingPermission(permissionId);
+    const res = await toggleAccessProfilePermission(
+      selectedProfile.id,
+      permissionId,
+      enabled,
     );
+
+    if (res.error) {
+      toast.error("Erro ao atualizar permissao");
+    } else {
+      setProfiles((prev) =>
+        prev.map((profileItem) => {
+          if (profileItem.id !== selectedProfile.id) return profileItem;
+          const permissionIds = enabled
+            ? Array.from(new Set([...profileItem.permissionIds, permissionId]))
+            : profileItem.permissionIds.filter((id) => id !== permissionId);
+          const permissionNames = permissionIds
+            .map((id) => permissions.find((p) => p.id === id)?.name)
+            .filter((name): name is string => Boolean(name));
+          return {
+            ...profileItem,
+            permissionIds,
+            permissions: permissionNames,
+          };
+        }),
+      );
+    }
+
+    setSavingPermission(null);
   };
 
   return (
@@ -146,44 +150,53 @@ export default function AccessProfilesManagement() {
           </div>
 
           <div className="space-y-3">
-            {profiles.map((profile) => (
-              <button
-                key={profile.id}
-                onClick={() => setSelectedProfileId(profile.id)}
-                className={`w-full text-left p-4 bg-white rounded-xl shadow-sm transition-all ${
-                  selectedProfileId === profile.id
-                    ? "border-2 border-primary"
-                    : "border border-slate-200 hover:border-primary/50"
-                }`}
-                type="button"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      selectedProfileId === profile.id
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 text-slate-400 group-hover:text-primary"
-                    }`}
-                  >
-                    {getIconComponent(profile.icon)}
-                  </div>
-                  <div>
-                    <Body
-                      className={`font-bold text-sm ${
+            {loading && (
+              <div className="text-sm text-slate-400">Carregando perfis...</div>
+            )}
+            {!loading && profiles.length === 0 && (
+              <div className="text-sm text-slate-400">
+                Nenhum perfil encontrado
+              </div>
+            )}
+            {!loading &&
+              profiles.map((profile) => (
+                <button
+                  key={profile.id}
+                  onClick={() => setSelectedProfileId(profile.id)}
+                  className={`w-full text-left p-4 bg-white rounded-xl shadow-sm transition-all ${
+                    selectedProfileId === profile.id
+                      ? "border-2 border-primary"
+                      : "border border-slate-200 hover:border-primary/50"
+                  }`}
+                  type="button"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-2 rounded-lg ${
                         selectedProfileId === profile.id
-                          ? "text-slate-900"
-                          : "text-slate-700"
+                          ? "bg-primary text-white"
+                          : "bg-slate-100 text-slate-400 group-hover:text-primary"
                       }`}
                     >
-                      {profile.name}
-                    </Body>
-                    <Body className="text-xs text-slate-500">
-                      {profile.description}
-                    </Body>
+                      {getIconComponent(profile.icon)}
+                    </div>
+                    <div>
+                      <Body
+                        className={`font-bold text-sm ${
+                          selectedProfileId === profile.id
+                            ? "text-slate-900"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        {profile.name}
+                      </Body>
+                      <Body className="text-xs text-slate-500">
+                        {profile.description}
+                      </Body>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
           </div>
 
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
@@ -244,22 +257,40 @@ export default function AccessProfilesManagement() {
                 </Body>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedProfile.permissions.map((permission, index) => (
-                    <label
-                      key={index}
-                      className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked
-                        onChange={handleTogglePermission}
-                        className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
-                      />
-                      <Body className="font-medium text-slate-700">
-                        {permission}
-                      </Body>
-                    </label>
-                  ))}
+                  {permissions.map((permission) => {
+                    const checked = selectedProfile.permissionIds.includes(
+                      permission.id,
+                    );
+                    return (
+                      <label
+                        key={permission.id}
+                        className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            handleTogglePermission(
+                              permission.id,
+                              e.target.checked,
+                            )
+                          }
+                          disabled={savingPermission === permission.id}
+                          className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                        />
+                        <div>
+                          <Body className="font-medium text-slate-700">
+                            {permission.name}
+                          </Body>
+                          {permission.description && (
+                            <Body className="text-xs text-slate-500">
+                              {permission.description}
+                            </Body>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

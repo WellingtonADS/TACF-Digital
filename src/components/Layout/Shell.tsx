@@ -1,4 +1,14 @@
-import { Close, Menu, User } from "@/components/ui/icons";
+import {
+  Calendar,
+  Close,
+  Hash,
+  History,
+  Menu,
+  Shield,
+  User,
+  UserCog,
+  Users,
+} from "@/components/ui/icons";
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "../ui/Sidebar";
@@ -62,6 +72,72 @@ export default function Shell({
           >
             {!sidebarCollapsed && "Meu Perfil"}
           </SidebarItem>
+
+          {adminEnabled && profile?.role === "admin" && (
+            <div className="pt-4">
+              {!sidebarCollapsed && (
+                <p className="px-6 text-[10px] uppercase tracking-widest text-white/50">
+                  Administracao
+                </p>
+              )}
+              <SidebarItem
+                href="/admin"
+                active={location.pathname === "/admin"}
+                icon={<Shield size={20} />}
+              >
+                {!sidebarCollapsed && "Painel Admin"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/sessions"
+                active={location.pathname.startsWith("/admin/sessions")}
+                icon={<Calendar size={20} />}
+              >
+                {!sidebarCollapsed && "Sessoes"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/users"
+                active={location.pathname.startsWith("/admin/users")}
+                icon={<Users size={20} />}
+              >
+                {!sidebarCollapsed && "Usuarios"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/personnel"
+                active={location.pathname.startsWith("/admin/personnel")}
+                icon={<Users size={20} />}
+              >
+                {!sidebarCollapsed && "Efetivo"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/analytics"
+                active={location.pathname.startsWith("/admin/analytics")}
+                icon={<Hash size={20} />}
+              >
+                {!sidebarCollapsed && "Analytics"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/audit-logs"
+                active={location.pathname.startsWith("/admin/audit-logs")}
+                icon={<History size={20} />}
+              >
+                {!sidebarCollapsed && "Auditoria"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/settings"
+                active={location.pathname.startsWith("/admin/settings")}
+                icon={<UserCog size={20} />}
+              >
+                {!sidebarCollapsed && "Configuracoes"}
+              </SidebarItem>
+              <SidebarItem
+                href="/admin/access-profiles"
+                active={location.pathname.startsWith("/admin/access-profiles")}
+                icon={<UserCog size={20} />}
+              >
+                {!sidebarCollapsed && "Perfis de Acesso"}
+              </SidebarItem>
+            </div>
+          )}
         </nav>
 
         {/* Profile Card no Rodapé */}

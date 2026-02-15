@@ -1,5 +1,6 @@
 import { Body, H1, H2 } from "@/components/ui/Typography";
 import { useSessions } from "@/hooks/useSessions";
+import { updateSessionScores } from "@/services/api";
 import { supabase } from "@/services/supabase";
 import { Booking, Profile, SessionWithBookings } from "@/types/database.types";
 import { ArrowBack, Check, Groups, Search } from "@mui/icons-material";
@@ -24,6 +25,7 @@ export default function ScoreEntryScreen() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const { sessions } = useSessions();
 
@@ -61,7 +63,7 @@ export default function ScoreEntryScreen() {
         ).map((b) => ({
           ...(b as Booking & { profiles: Profile }),
           profile: (b as { profiles: Profile }).profiles,
-          attendance_confirmed: false, // TODO: implementar campo na tabela bookings
+          attendance_confirmed: (b as Booking).attendance_confirmed ?? false,
         }));
 
         setBookings(bookingsWithProfiles);
@@ -91,14 +93,25 @@ export default function ScoreEntryScreen() {
   const confirmedCount = bookings.filter((b) => b.attendance_confirmed).length;
 
   const handleConfirmAttendance = async (userId: string) => {
-    // TODO: Implementar chamada RPC ou update na tabela bookings
-    // Por ora, apenas atualiza estado local
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.user_id === userId ? { ...b, attendance_confirmed: true } : b,
-      ),
-    );
-    toast.success("Presença confirmada");
+    if (!session) return;
+    setConfirmingId(userId);
+    try {
+      const res = await updateSessionScores(session.id, userId, true);
+      if (!res.success) {
+        throw new Error(res.error || "Falha ao confirmar presenca");
+      }
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.user_id === userId ? { ...b, attendance_confirmed: true } : b,
+        ),
+      );
+      toast.success("Presenca confirmada");
+    } catch (err) {
+      const error = err as { message?: string };
+      toast.error(error.message || "Erro ao confirmar presenca");
+    } finally {
+      setConfirmingId(null);
+    }
   };
 
   if (loading) {
@@ -324,10 +337,13 @@ export default function ScoreEntryScreen() {
                         onClick={() =>
                           handleConfirmAttendance(selectedBooking.user_id)
                         }
+                        disabled={confirmingId === selectedBooking.user_id}
                         className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors"
                         type="button"
                       >
-                        Confirmar Presença
+                        {confirmingId === selectedBooking.user_id
+                          ? "Confirmando..."
+                          : "Confirmar Presença"}
                       </button>
                     )}
                   </div>

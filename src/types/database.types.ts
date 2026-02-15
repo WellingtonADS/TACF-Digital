@@ -41,6 +41,7 @@ export interface Booking {
   user_id: string;
   session_id: string;
   status: "confirmed" | "cancelled" | "pending_swap";
+  attendance_confirmed: boolean;
   order_number?: string | null;
   created_at: string;
   updated_at: string;
@@ -62,6 +63,54 @@ export interface SwapRequest {
   processed_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SystemSettings {
+  id: string;
+  is_global: boolean;
+  system_name: string;
+  organization_name: string;
+  min_capacity: number;
+  max_capacity: number;
+  default_periods: Array<"morning" | "afternoon">;
+  allow_swaps: boolean;
+  require_quorum: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccessProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  role: UserRole;
+  icon: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Permission {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface AccessProfilePermission {
+  access_profile_id: string;
+  permission_id: string;
+  created_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string | null;
+  entity: string | null;
+  user_id: string | null;
+  user_name: string | null;
+  details: string | null;
+  created_at: string;
 }
 
 // Tipos auxiliares para Inserts/Updates (usados no admin.ts e supabase.ts)
@@ -97,6 +146,31 @@ export interface Database {
         Row: SwapRequest;
         Insert: Partial<SwapRequest>;
         Update: Partial<SwapRequest>;
+      };
+      system_settings: {
+        Row: SystemSettings;
+        Insert: Partial<SystemSettings>;
+        Update: Partial<SystemSettings>;
+      };
+      access_profiles: {
+        Row: AccessProfile;
+        Insert: Partial<AccessProfile>;
+        Update: Partial<AccessProfile>;
+      };
+      permissions: {
+        Row: Permission;
+        Insert: Partial<Permission>;
+        Update: Partial<Permission>;
+      };
+      access_profile_permissions: {
+        Row: AccessProfilePermission;
+        Insert: Partial<AccessProfilePermission>;
+        Update: Partial<AccessProfilePermission>;
+      };
+      audit_logs: {
+        Row: AuditLog;
+        Insert: Partial<AuditLog>;
+        Update: Partial<AuditLog>;
       };
     };
   };

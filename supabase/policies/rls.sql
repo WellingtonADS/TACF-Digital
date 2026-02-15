@@ -9,6 +9,11 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.swap_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.access_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.access_profile_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- profiles: Users can select their own profile, admins can select all
@@ -142,6 +147,94 @@ CREATE POLICY swap_requests_update_admin_only
   FOR UPDATE
   USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'))
   WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+
+-- =========================================================================
+-- system_settings: admin-only access
+-- =========================================================================
+DROP POLICY IF EXISTS system_settings_admin_only ON public.system_settings;
+CREATE POLICY system_settings_admin_only
+  ON public.system_settings
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+-- =========================================================================
+-- access_profiles + permissions: admin-only access
+-- =========================================================================
+DROP POLICY IF EXISTS access_profiles_admin_only ON public.access_profiles;
+CREATE POLICY access_profiles_admin_only
+  ON public.access_profiles
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+DROP POLICY IF EXISTS permissions_admin_only ON public.permissions;
+CREATE POLICY permissions_admin_only
+  ON public.permissions
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+DROP POLICY IF EXISTS access_profile_permissions_admin_only ON public.access_profile_permissions;
+CREATE POLICY access_profile_permissions_admin_only
+  ON public.access_profile_permissions
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+-- =========================================================================
+-- audit_logs: admin read only
+-- =========================================================================
+DROP POLICY IF EXISTS audit_logs_admin_read ON public.audit_logs;
+CREATE POLICY audit_logs_admin_read
+  ON public.audit_logs
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
 
 -- Note:
 -- After deploying functions (RPC) that run with SECURITY DEFINER, ensure the function owner is a trusted role

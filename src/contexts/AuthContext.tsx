@@ -159,11 +159,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Try to create a minimal profile for the newly created user when possible.
     // Some Supabase instances do not auto sign-in on signUp, so we check for returned session/user first.
     try {
-      const userId = (res as unknown)?.data?.user?.id ?? undefined;
+      const userId =
+        (res as { data?: { user?: { id: string } } })?.data?.user?.id ??
+        undefined;
       // If we didn't get a user back, attempt to read current session user
       if (!userId) {
         const { data: sessionData } = await supabase.auth.getSession();
-        const currentUser = (sessionData as unknown)?.session?.user;
+        const currentUser = (
+          sessionData as { session?: { user?: { id: string } } }
+        )?.session?.user;
         if (currentUser) {
           // We are auto-signed in
           await svcUpsertProfile({ id: currentUser.id }).catch((e) => {
