@@ -8,9 +8,21 @@ vi.mock("sonner", () => ({
   },
 }));
 
-// Mock the api module so CalendarGrid's imported functions use the mocked implementations
+// Provide a mutable sessionsState and a hook mock for useSessions so tests can control refetch behavior
+let sessionsState: any[] = [];
+let onRefetchCalled: (() => void) | null = null;
+vi.mock("@/hooks/useSessions", () => ({
+  // default hook implementation used by the component during tests
+  default: () => ({
+    sessions: sessionsState,
+    loading: false,
+    error: null,
+    refetch: () => onRefetchCalled?.(),
+  }),
+}));
+
+// Mock the api module (only RPCs still used in tests)
 vi.mock("@/services/api", () => ({
-  fetchSessionsByMonth: vi.fn(),
   confirmBooking: vi.fn(),
   getUserBooking: vi.fn(),
 }));
@@ -55,10 +67,8 @@ const session = {
 
 describe("CalendarGrid optimistic booking", () => {
   beforeEach(() => {
-    (api.fetchSessionsByMonth as any).mockResolvedValue({
-      data: [session],
-      error: null,
-    } as any);
+    sessionsState = [session];
+    onRefetchCalled = null;
   });
 
   afterEach(() => {
@@ -109,13 +119,16 @@ describe("CalendarGrid optimistic booking", () => {
       },
     );
 
-    // Also mock fetchSessionsByMonth to return occupied_count 1 after confirmation
-    const fetchMock = api.fetchSessionsByMonth as any;
-    fetchMock.mockResolvedValueOnce({ data: [session], error: null } as any);
-    fetchMock.mockResolvedValueOnce({
-      data: [{ ...session, booking_count: 1 }],
-      error: null,
-    } as any);
+    // Prepare rerender handler so mocked refetch can update sessionsState and force a rerender
+    const { rerender } = render(
+      <CalendarGrid initialDate={new Date(session.date)} />,
+    );
+
+    // When refetch is invoked by the component, update sessionsState to reflect booking_count=1 and rerender
+    onRefetchCalled = () => {
+      sessionsState = [{ ...session, booking_count: 1 }];
+      rerender(<CalendarGrid initialDate={new Date(session.date)} />);
+    };
 
     // Mock getUserBooking to return booking data so receipt generation flow runs without throwing
     (api.getUserBooking as any).mockResolvedValueOnce({
@@ -126,8 +139,6 @@ describe("CalendarGrid optimistic booking", () => {
       },
       error: null,
     } as any);
-
-    render(<CalendarGrid initialDate={new Date(session.date)} />);
 
     const agendarButtons = await screen.findAllByText("Agendar");
     await userEvent.click(agendarButtons[0]);
@@ -149,10 +160,8 @@ describe("CalendarGrid optimistic booking", () => {
   test("prevents booking outside seasonal window", async () => {
     // session on June 15 (outside Fev–Mai and Sep–Nov)
     const outOfSeasonSession = { ...session, date: "2026-06-15" };
-    (api.fetchSessionsByMonth as any).mockResolvedValue({
-      data: [outOfSeasonSession],
-      error: null,
-    } as any);
+    // update the mocked hook state so component sees the out-of-season session
+    sessionsState = [outOfSeasonSession];
 
     const confirmMock = api.confirmBooking as any;
     // ensure previous calls don't leak into this test

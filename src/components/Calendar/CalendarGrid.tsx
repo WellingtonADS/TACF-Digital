@@ -1,5 +1,4 @@
 import Card from "@/components/ui/Card";
-import { fetchSessionsByMonth } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import {
   addMonths,
@@ -9,12 +8,12 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CalendarBody from "./CalendarBody";
 import CalendarHeader from "./CalendarHeader";
 
 import BookingConfirmationModal from "@/components/Booking/BookingConfirmationModal";
-import useSupabaseQuery from "@/hooks/useSupabaseQuery";
+import useSessions from "@/hooks/useSessions";
 import { confirmBooking } from "@/services/api";
 import { isDateInAllowedWindow } from "@/utils/seasonal";
 import { toast } from "sonner";
@@ -41,25 +40,34 @@ export default function CalendarGrid({
   const [daySessions, setDaySessions] = useState<SessionWithBookings[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [localRefresh, setLocalRefresh] = useState(0);
 
   // Use generic query hook to fetch sessions by month when parent doesn't provide sessions
   const year = current.getFullYear();
   const month = current.getMonth() + 1;
 
+  // Prefer centralized hook for sessions; filter by current month when needed
   const {
-    data: monthResult,
-    loading: monthLoading,
-    refetch: refetchMonth,
-  } = useSupabaseQuery(
-    () => fetchSessionsByMonth(year, month),
-    [current, refreshKey, localRefresh, sessionsProp],
-  );
+    sessions: sessionsFromHook,
+    loading: sessionsLoading,
+    refetch: refetchSessions,
+  } = useSessions();
 
   // keep an explicit loading flag for compatibility with previous UI
-  const effectiveLoading = monthLoading;
+  const effectiveLoading = sessionsLoading;
 
-  const displayedSessions = sessionsProp ?? monthResult?.data ?? [];
+  const displayedSessions =
+    sessionsProp ??
+    (sessionsFromHook ?? []).filter((s) => {
+      const d = new Date(s.date);
+      return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+
+  // respond to external refreshKey by triggering sessions refetch
+  useEffect(() => {
+    if (typeof refreshKey !== "undefined") {
+      void refetchSessions?.();
+    }
+  }, [refreshKey, refetchSessions]);
 
   const days = useMemo(() => {
     return eachDayOfInterval({
@@ -129,10 +137,9 @@ export default function CalendarGrid({
               setSelectedDate(null);
               // trigger reload (refetch month)
               try {
-                await refetchMonth?.();
+                await refetchSessions?.();
               } catch {
-                // fallback to local refresh counter
-                setLocalRefresh((s) => s + 1);
+                // silent fallback: refetch failed, nothing more we can do from the UI
               }
               toast.success("Agendamento confirmado");
             } else {
