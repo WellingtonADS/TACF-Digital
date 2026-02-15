@@ -11,8 +11,8 @@ Atualizado: 15/02/2026
 - **Fase 2 — Hooks Customizados:** Concluída — `useSupabaseQuery`, `useAuth` e `useSessions` implementados e testados.
 - **Fase 3 — Migração de Ícones (Lucide → MUI):** Concluída — migração aplicada onde necessário.
 - **Fase 4 — Bundle Optimization (jsPDF lazy-load):** Concluída — geração de PDF via `generateReceipt` carrega `jspdf` dinamicamente.
-- **Fase 5 — Refatoração de Componentes Grandes:** Em progresso — trabalhos por componente; calendar e parte do admin já refatorados.
-- **Fase 6 — Remoção de Anti-Padrões:** Em planejamento (a executar conforme refactors avançam).
+- **Fase 5 — Refatoração de Componentes Grandes:** Concluída — UserEditModal, AuthContext, BookingConfirmationModal e CalendarGrid todos refatorados e decompostos.
+- **Fase 6 — Remoção de Anti-Padrões:** Concluída — window.location.reload substituído, console statements envolvidos em DEV guards, React.FC removido.
 - **Fase 7 — Componentes Faltantes (Admin / Cross-Module):** Pendente.
 - **Fase 8 — Dark Mode & Testes:** Pendente.
 - **Fase 9 — Validação & Deploy:** Pendente.
@@ -24,12 +24,13 @@ Atualizado: 15/02/2026
 - [x] Migrar ícones para MUI wrapper — concluído
 - [x] Lazy-load heavy libs: `jspdf`, `jspdf-autotable` — concluído
 - [x] Testes: adicionar/atualizar testes Vitest para hooks e serviços — concluído (suite verde nas últimas execuções)
-- [ ] Refactor CalendarGrid into subcomponents — concluído (`CalendarHeader`, `CalendarBody`)
-- [~] Refactor UserEditModal into `UserForm` + `useUserForm` — em progresso (componentes criados; lint apontou erro de parsing durante verificação)
-- [ ] Refactor BookingConfirmationModal into composable parts — pendente
-- [ ] Replace `window.location.reload` usages — pendente
-- [ ] Standardize component declarations to `export default function` — pendente (migrar gradualmente)
-- [ ] Remover anti-padrões — pendente
+- [x] Refactor CalendarGrid into subcomponents — concluído (`CalendarHeader`, `CalendarBody`)
+- [x] Refactor UserEditModal into `UserForm` + `useUserForm` — concluído
+- [x] Refactor BookingConfirmationModal into composable parts — concluído (`TafSelector`, `PeriodSelector`, `useBookingConfirmation`)
+- [x] Replace `window.location.reload` usages — concluído (4 instâncias refatoradas; 3 em DevAuthDebug preservadas intencionalmente)
+- [x] Wrap console statements with DEV guards — concluído (services, utils, ErrorBoundary)
+- [x] Standardize component declarations to `export default function` — concluído (Login, UserDashboard, ProfileSetup, Button, DevAuthDebug, AuthProvider)
+- [ ] Remover anti-padrões adicionais — pendente
 - [ ] Criar páginas Admin faltantes — pendente
 - [ ] Criar componentes Cross-module — pendente
 - [ ] Dark mode & testes — pendente
@@ -38,13 +39,15 @@ Atualizado: 15/02/2026
 ## Notas operacionais
 
 - Branch de trabalho: `refactor/frontend-conformity-2026-02` (PR draft: chore(refactor): Frontend Conformity — Phase 0 #9).
-- Estado atual: a maior parte das fases iniciais foi concluída; foco imediato no término da refatoração de `UserEditModal` e correção de lint/parse.
-- Próxima ação recomendada: corrigir erro de parsing em `src/components/Admin/UserEditModal.tsx`, rodar (`npx tsc --noEmit`, `yarn lint`, `npx vitest run`) e só então commitar a conclusão desta subfase.
+- Estado atual: Fases 0-6 concluídas — todas as refatorações principais de componentes e anti-padrões aplicadas. Testes passando (18/18), tsc clean, lint clean.
+- Próxima ação recomendada: executar Fase 7 (componentes faltantes Admin/Cross-module) conforme plano original.
+- Commits:
+  - `c2c721e` — Phase 5 (decomposição de componentes grandes)
+  - `a37f1dd` — Phase 6 (remoção de anti-padrões)
 
 ## Comandos úteis (executar localmente antes do PR)
 
 ```bash
-YARN
 npx tsc --noEmit
 yarn lint
 npx vitest run
