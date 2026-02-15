@@ -1,7 +1,4 @@
-import CloseIcon from "@mui/icons-material/Close";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import MenuIcon from "@mui/icons-material/Menu";
-import PersonIcon from "@mui/icons-material/Person";
+import { Close, Menu, User } from "@/components/ui/icons";
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "../ui/Sidebar";
@@ -44,7 +41,7 @@ export default function Shell({
               className="p-1 hover:bg-white/10 rounded transition-colors"
               title={sidebarCollapsed ? "Expandir" : "Recolher"}
             >
-              <MenuIcon className="text-white" />
+              <Menu size={24} className="text-white" />
             </button>
           </div>
         </div>
@@ -54,14 +51,14 @@ export default function Shell({
           <SidebarItem
             href="/dashboard"
             active={location.pathname === "/dashboard"}
-            icon={<DashboardIcon />}
+            icon={<Menu size={20} />}
           >
             {!sidebarCollapsed && "Dashboard"}
           </SidebarItem>
           <SidebarItem
             href="/profile"
             active={location.pathname === "/profile"}
-            icon={<PersonIcon />}
+            icon={<User size={20} />}
           >
             {!sidebarCollapsed && "Meu Perfil"}
           </SidebarItem>
@@ -72,7 +69,7 @@ export default function Shell({
           <div className="border-t border-white/10 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-military-gold/20 flex items-center justify-center">
-                <PersonIcon className="text-military-gold" fontSize="small" />
+                <User size={16} className="text-military-gold" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
@@ -102,7 +99,7 @@ export default function Shell({
             onClick={toggleSidebar}
             className="p-2 hover:bg-slate-100 rounded transition-colors"
           >
-            {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
+            {sidebarOpen ? <Close size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
