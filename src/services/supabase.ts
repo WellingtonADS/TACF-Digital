@@ -73,23 +73,17 @@ export const signUp = (email: string, password: string) =>
  * Recebe um payload compatível com Database.public.Tables.profiles.Insert
  */
 export async function upsertProfile(
-  profile: Database["public"]["Tables"]["profiles"]["Insert"],
+  profile: Partial<Database["public"]["Tables"]["profiles"]["Row"]>,
 ) {
-  return supabase
-    .from<Database["public"]["Tables"]["profiles"]["Insert"]>("profiles")
-    .upsert(profile)
-    .select()
-    .maybeSingle();
+  return supabase.from("profiles").upsert(profile).select().maybeSingle();
 }
 
 /**
- * Helper tipado para `supabase.from<T>()`
+ * Helper tipado para `supabase.from()`
  * Uso: `table('sessions').select('*')`
  */
 export function table<Table extends keyof Database["public"]["Tables"]>(
   name: Table,
 ) {
-  return supabase.from<Database["public"]["Tables"][Table]["Row"]>(
-    String(name),
-  );
+  return supabase.from(String(name));
 }

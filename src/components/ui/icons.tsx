@@ -112,6 +112,9 @@ export const Plane = ({ size = 20, className = "" }: IconProps) => (
 export const Plus = ({ size = 20, className = "" }: IconProps) => (
   <Add style={{ fontSize: size }} className={className} />
 );
+export const MessageSquare = ({ size = 20, className = "" }: IconProps) => (
+  <CommentIcon style={{ fontSize: size }} className={className} />
+);
 export const Search_Icon = ({ size = 20, className = "" }: IconProps) => (
   <Search style={{ fontSize: size }} className={className} />
 );

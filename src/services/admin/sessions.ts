@@ -86,6 +86,58 @@ export type PendingSwapView = {
   to_date: string | null;
   to_period: "morning" | "afternoon" | null;
 };
+export async function approveSwap(
+  swapRequestId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
+    .update({ status: "approved" })
+    .eq("id", swapRequestId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function rejectSwap(
+  swapRequestId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
+    .update({ status: "rejected" })
+    .eq("id", swapRequestId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function fetchDashboardStats(): Promise<{
+  totalUsers: number;
+  totalScheduled: number;
+  pendingSwaps: number;
+}> {
+  // Total de usuários (profiles)
+  const { count: userCount } = await supabase
+    .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+    .select("*", { count: "exact", head: true });
+
+  // Total de reservas confirmadas
+  const { count: bookingCount } = await supabase
+    .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "confirmed");
+
+  // Swaps pendentes
+  const { count: swapCount } = await supabase
+    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  return {
+    totalUsers: userCount ?? 0,
+    totalScheduled: bookingCount ?? 0,
+    pendingSwaps: swapCount ?? 0,
+  };
+}
 
 export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
   type SwapRequestRow = Database["public"]["Tables"]["swap_requests"]["Row"];
@@ -157,4 +209,72 @@ export async function fetchPendingSwaps(): Promise<PendingSwapView[]> {
   }
 
   return out;
+}
+
+export type AnalyticsSessionRow = {
+  id: string;
+  date: string;
+  max_capacity: number;
+};
+
+export type AnalyticsBookingRow = {
+  session_id: string;
+  status: "confirmed" | "cancelled" | "pending_swap";
+};
+
+export type AnalyticsSnapshot = {
+  sessions: AnalyticsSessionRow[];
+  bookings: AnalyticsBookingRow[];
+  swapRequests: number;
+};
+
+export async function fetchAnalyticsSnapshot(
+  startDate: string,
+  endDate: string,
+): Promise<{ data: AnalyticsSnapshot | null; error: string | null }> {
+  const { data: sessions, error: sessionsError } = await supabase
+    .from<Database["public"]["Tables"]["sessions"]["Row"]>("sessions")
+    .select("id, date, max_capacity")
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  if (sessionsError) {
+    return { data: null, error: sessionsError.message };
+  }
+
+  const sessionRows = (sessions ?? []) as AnalyticsSessionRow[];
+  const sessionIds = sessionRows.map((s) => s.id);
+
+  let bookingRows: AnalyticsBookingRow[] = [];
+  if (sessionIds.length > 0) {
+    const { data: bookings, error: bookingsError } = await supabase
+      .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
+      .select("session_id, status")
+      .in("session_id", sessionIds);
+
+    if (bookingsError) {
+      return { data: null, error: bookingsError.message };
+    }
+
+    bookingRows = (bookings ?? []) as AnalyticsBookingRow[];
+  }
+
+  const { count: swapCount, error: swapError } = await supabase
+    .from<Database["public"]["Tables"]["swap_requests"]["Row"]>("swap_requests")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", startDate)
+    .lte("created_at", endDate);
+
+  if (swapError) {
+    return { data: null, error: swapError.message };
+  }
+
+  return {
+    data: {
+      sessions: sessionRows,
+      bookings: bookingRows,
+      swapRequests: swapCount ?? 0,
+    },
+    error: null,
+  };
 }

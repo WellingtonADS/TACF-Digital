@@ -58,7 +58,7 @@ export default function ComprovanteTicket({ booking }: Props) {
       });
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
       toast.error("Erro ao gerar PDF.");
     } finally {
       setDownloading(false);

@@ -49,7 +49,7 @@ export default function AdminSwapRequests() {
       // Casting para garantir tipagem se o retorno for genérico
       setRequests((res || []) as unknown as SwapRequest[]);
     } catch (error) {
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
       toast.error("Erro ao carregar solicitações.");
     } finally {
       setLoading(false);

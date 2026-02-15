@@ -98,7 +98,7 @@ export default function UserProfile() {
         toast.success("Dados atualizados com sucesso!");
       }
     } catch (err: unknown) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(msg || "Erro ao salvar dados.");
     } finally {

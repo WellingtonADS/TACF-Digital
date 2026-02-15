@@ -81,7 +81,7 @@ export default function Login() {
           toast.success("Conta criada e autenticada. Redirecionando...");
         } catch (e) {
           // Falha de rede ou outro problema durante o auto-login
-          console.warn("Auto-login failed:", e);
+          if (import.meta.env.DEV) console.warn("Auto-login failed:", e);
           toast.error(
             "Conta criada, mas não foi possível efetuar login automático. Tente novamente.",
           );
@@ -99,7 +99,7 @@ export default function Login() {
         if (error) throw error;
       }
     } catch (err: unknown) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(msg || "Erro na autenticação.");
     } finally {

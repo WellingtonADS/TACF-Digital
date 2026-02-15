@@ -3,6 +3,7 @@ import { endOfMonth, format, startOfMonth } from "date-fns";
 import { supabase } from "./supabase";
 
 type ApproveSwapResult = { success: boolean; error: string | null };
+type UpdateSessionScoresResult = { success: boolean; error?: string | null };
 
 type SessionAvailabilityRow = {
   session_id: string;
@@ -29,6 +30,26 @@ export async function approveSwap(
     {
       p_request_id: requestId,
       p_admin_id: adminId,
+    },
+  );
+
+  if (error) return { success: false, error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { success: row?.success === true, error: row?.error ?? null };
+}
+
+export async function updateSessionScores(
+  sessionId: string,
+  userId: string,
+  attendanceConfirmed: boolean,
+): Promise<UpdateSessionScoresResult> {
+  const { data, error } = await supabase.rpc<UpdateSessionScoresResult[]>(
+    "update_session_scores",
+    {
+      p_session_id: sessionId,
+      p_user_id: userId,
+      p_attendance_confirmed: attendanceConfirmed,
     },
   );
 
