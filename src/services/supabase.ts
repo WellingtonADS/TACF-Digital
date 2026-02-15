@@ -13,15 +13,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
-/**
- * Helper para obter uma query tipada para uma tabela do Database
- * Uso: `table('sessions').select('*')` retorna supabase.from<SessionRow>('sessions')
- */
-export function table<Table extends keyof Database["public"]["Tables"]>(
-  name: Table,
-) {
-  return supabase.from<Database["public"]["Tables"][Table]["Row"]](String(name));
-}
+// (table helper defined at end)
 
 /**
  * Tipagem para o retorno do RPC de agendamento
@@ -83,5 +75,21 @@ export const signUp = (email: string, password: string) =>
 export async function upsertProfile(
   profile: Database["public"]["Tables"]["profiles"]["Insert"],
 ) {
-  return supabase.from("profiles").upsert(profile).select().maybeSingle();
+  return supabase
+    .from<Database["public"]["Tables"]["profiles"]["Insert"]>("profiles")
+    .upsert(profile)
+    .select()
+    .maybeSingle();
+}
+
+/**
+ * Helper tipado para `supabase.from<T>()`
+ * Uso: `table('sessions').select('*')`
+ */
+export function table<Table extends keyof Database["public"]["Tables"]>(
+  name: Table,
+) {
+  return supabase.from<Database["public"]["Tables"][Table]["Row"]>(
+    String(name),
+  );
 }
