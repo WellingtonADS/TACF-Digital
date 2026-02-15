@@ -20,7 +20,10 @@ export {
   requestSwap,
 } from "./bookings";
 
-export async function approveSwap(requestId: string, adminId: string) {
+export async function approveSwap(
+  requestId: string,
+  adminId: string,
+): Promise<ApproveSwapResult> {
   const { data, error } = await supabase.rpc<ApproveSwapResult[]>(
     "approve_swap",
     {
@@ -28,12 +31,17 @@ export async function approveSwap(requestId: string, adminId: string) {
       p_admin_id: adminId,
     },
   );
+
   if (error) return { success: false, error: error.message };
+
   const row = Array.isArray(data) ? data[0] : data;
-  return { success: row?.success === true, message: row?.error ?? null };
+  return { success: row?.success === true, error: row?.error ?? null };
 }
 
-export async function fetchSessionsByMonth(year: number, month: number) {
+export async function fetchSessionsByMonth(
+  year: number,
+  month: number,
+): Promise<{ data: SessionWithBookings[] | null; error: string | null }> {
   // month is 1-12
   const d = new Date(year, month - 1, 1);
   const start = format(startOfMonth(d), "yyyy-LL-dd");
@@ -70,7 +78,10 @@ export async function fetchSessionsByMonth(year: number, month: number) {
 
 // getUserBooking moved to bookings.ts
 
-export async function fetchFutureSessions() {
+export async function fetchFutureSessions(): Promise<{
+  data: SessionWithBookings[] | null;
+  error: string | null;
+}> {
   const today = format(new Date(), "yyyy-LL-dd");
   // Use RPC to get counts for future sessions
   const { data, error } = await supabase.rpc<SessionAvailabilityRow[]>(
@@ -104,28 +115,34 @@ export async function createSession(sessionData: {
   period: string;
   max_capacity: number;
 }): Promise<{
-  data?: Database["public"]["Tables"]["sessions"]["Row"] | null;
-  error?: string | null;
+  data: Database["public"]["Tables"]["sessions"]["Row"] | null;
+  error: string | null;
 }> {
-  const insertPayload: Database["public"]["Tables"]["sessions"]["Insert"] =
-    sessionData;
+  const insertPayload = sessionData as
+    | Database["public"]["Tables"]["sessions"]["Insert"]
+    | undefined;
 
   const { data, error } = await supabase
     .from<Database["public"]["Tables"]["sessions"]["Insert"]>("sessions")
-    .insert([insertPayload])
+    .insert([
+      insertPayload as Database["public"]["Tables"]["sessions"]["Insert"],
+    ])
     .select()
     .single();
 
   if (error) {
     console.error("Error creating session:", error);
-    return { error: error.message };
+    return { data: null, error: error.message };
   }
   return {
     data: (data as Database["public"]["Tables"]["sessions"]["Row"]) ?? null,
+    error: null,
   };
 }
 
-export async function deleteSession(sessionId: string) {
+export async function deleteSession(
+  sessionId: string,
+): Promise<{ success: boolean; error?: string | null }> {
   const { error } = await supabase
     .from("sessions")
     .delete()
@@ -133,7 +150,7 @@ export async function deleteSession(sessionId: string) {
 
   if (error) {
     console.error("Error deleting session:", error);
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
   return { success: true };
 }
