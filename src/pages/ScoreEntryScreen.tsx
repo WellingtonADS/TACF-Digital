@@ -58,9 +58,9 @@ export default function ScoreEntryScreen() {
 
         const bookingsWithProfiles: BookingWithProfile[] = (
           bookingsData || []
-        ).map((b: any) => ({
-          ...b,
-          profile: b.profiles,
+        ).map((b) => ({
+          ...(b as Booking & { profiles: Profile }),
+          profile: (b as { profiles: Profile }).profiles,
           attendance_confirmed: false, // TODO: implementar campo na tabela bookings
         }));
 
@@ -68,9 +68,12 @@ export default function ScoreEntryScreen() {
         if (bookingsWithProfiles.length > 0) {
           setSelectedUserId(bookingsWithProfiles[0].user_id);
         }
-      } catch (err: any) {
-        console.error("Erro ao carregar detalhes da sessão:", err);
-        toast.error(err.message || "Erro ao carregar dados da sessão");
+      } catch (err) {
+        const error = err as { message?: string };
+        if (import.meta.env.DEV) {
+          console.error("Erro ao carregar detalhes da sessão:", err);
+        }
+        toast.error(error.message || "Erro ao carregar dados da sessão");
       } finally {
         setLoading(false);
       }

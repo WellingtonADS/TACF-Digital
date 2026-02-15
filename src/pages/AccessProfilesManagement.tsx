@@ -102,7 +102,7 @@ export default function AccessProfilesManagement() {
     }
   };
 
-  const handleTogglePermission = (permission: string) => {
+  const handleTogglePermission = () => {
     toast.info(
       `Alteração de permissões requer implementação de tabela access_profiles no banco de dados`,
     );
@@ -252,7 +252,7 @@ export default function AccessProfilesManagement() {
                       <input
                         type="checkbox"
                         checked
-                        onChange={() => handleTogglePermission(permission)}
+                        onChange={handleTogglePermission}
                         className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
                       />
                       <Body className="font-medium text-slate-700">
