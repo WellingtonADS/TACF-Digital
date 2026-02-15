@@ -18,9 +18,10 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import BookingConfirmationModal from "@/components/Booking/BookingConfirmationModal";
+import useSupabaseQuery from "@/hooks/useSupabaseQuery";
 import { confirmBooking } from "@/services/api";
 import { isDateInAllowedWindow } from "@/utils/seasonal";
 import { toast } from "sonner";
@@ -43,49 +44,30 @@ export default function CalendarGrid({
   initialDate?: Date;
 }) {
   const [current, setCurrent] = useState<Date>(initialDate ?? new Date());
-  const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
-  const [loading, setLoading] = useState(false);
+  // local loading kept for compatibility with previous UI, but primary loading comes from query hook
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [daySessions, setDaySessions] = useState<SessionWithBookings[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [localRefresh, setLocalRefresh] = useState(0);
 
-  // Effect para carga inicial e mudanças de mês/refreshKey
-  useEffect(() => {
-    let mounted = true;
+  // Use generic query hook to fetch sessions by month when parent doesn't provide sessions
+  const year = current.getFullYear();
+  const month = current.getMonth() + 1;
 
-    // If parent provided sessions, skip RPC fetch (we'll render sessionsProp directly)
-    if (sessionsProp) {
-      // avoid synchronous setState in effect body
-      const id = window.setTimeout(() => setLoading(false), 0);
-      return () => {
-        window.clearTimeout(id);
-        mounted = false;
-      };
-    }
+  const {
+    data: monthResult,
+    loading: monthLoading,
+    refetch: refetchMonth,
+  } = useSupabaseQuery(
+    () => fetchSessionsByMonth(year, month),
+    [current, refreshKey, localRefresh, sessionsProp],
+  );
 
-    const load = async () => {
-      if (mounted) setLoading(true);
-      const year = current.getFullYear();
-      const month = current.getMonth() + 1;
-      const res = await fetchSessionsByMonth(year, month);
+  // keep an explicit loading flag for compatibility with previous UI
+  const effectiveLoading = monthLoading;
 
-      if (mounted) {
-        if (res.error) setSessions([]);
-        else setSessions(res.data ?? []);
-        setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [current, refreshKey, sessionsProp, localRefresh]);
-
-  const displayedSessions = sessionsProp ?? sessions;
+  const displayedSessions = sessionsProp ?? monthResult?.data ?? [];
 
   const days = useMemo(() => {
     return eachDayOfInterval({
@@ -181,7 +163,7 @@ export default function CalendarGrid({
         ))}
       </div>
 
-      {loading && sessions.length === 0 && (
+      {effectiveLoading && displayedSessions.length === 0 && (
         <div className="text-center py-10 text-slate-400 animate-pulse">
           Carregando disponibilidade...
         </div>
@@ -208,8 +190,13 @@ export default function CalendarGrid({
             if (res.success) {
               setIsModalOpen(false);
               setSelectedDate(null);
-              // trigger reload
-              setLocalRefresh((s) => s + 1);
+              // trigger reload (refetch month)
+              try {
+                await refetchMonth?.();
+              } catch {
+                // fallback to local refresh counter
+                setLocalRefresh((s) => s + 1);
+              }
               toast.success("Agendamento confirmado");
             } else {
               toast.error(res.error || "Erro ao agendar");

@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { confirmBooking, getUserBooking, requestSwap } from "../bookings";
 import * as supabaseModule from "../supabase";
 import { supabase } from "../supabase";
-import {
-  getUserBooking,
-  confirmBooking,
-  requestSwap,
-} from "../bookings";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -36,7 +32,9 @@ describe("bookings service", () => {
   });
 
   it("confirmBooking returns success when RPC succeeds", async () => {
-    vi.spyOn(supabase.auth, "getUser").mockResolvedValue({ data: { user: { id: "u1" } } } as any);
+    vi.spyOn(supabase.auth, "getUser").mockResolvedValue({
+      data: { user: { id: "u1" } },
+    } as any);
 
     vi.spyOn(supabaseModule, "confirmarAgendamentoRPC").mockResolvedValue({
       success: true,
@@ -51,7 +49,9 @@ describe("bookings service", () => {
   });
 
   it("requestSwap creates swap request and updates booking status", async () => {
-    vi.spyOn(supabase.auth, "getUser").mockResolvedValue({ data: { user: { id: "u1" } } } as any);
+    vi.spyOn(supabase.auth, "getUser").mockResolvedValue({
+      data: { user: { id: "u1" } },
+    } as any);
 
     vi.spyOn(supabase, "from").mockImplementation((table: string): any => {
       if (table === "swap_requests") {

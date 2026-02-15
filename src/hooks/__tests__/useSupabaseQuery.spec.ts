@@ -1,6 +1,5 @@
+import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
-import { waitFor } from "@testing-library/react";
 import useSupabaseQuery from "../useSupabaseQuery";
 
 describe("useSupabaseQuery", () => {
