@@ -14,8 +14,9 @@ Atualizado: 15/02/2026
 - **Fase 5 — Refatoração de Componentes Grandes:** Concluída — UserEditModal, AuthContext, BookingConfirmationModal e CalendarGrid todos refatorados e decompostos.
 - **Fase 6 — Remoção de Anti-Padrões:** Concluída — window.location.reload substituído, console statements envolvidos em DEV guards, React.FC removido.
 - **Fase 7 — Componentes Faltantes (Admin / Cross-Module):** Pendente.
-- **Fase 8 — Dark Mode & Testes:** Pendente.
-- **Fase 9 — Validação & Deploy:** Pendente.
+- **Fase 8 — Componentes Cross-Module:** Concluída — ScoreEntryScreen, SystemSettings, AccessProfilesManagement criados.
+- **Fase 9 — Dark Mode & Testes:** Pendente.
+- **Fase 10 — Validação & Deploy:** Pendente.
 
 ## Itens de sprint (status atual)
 
@@ -30,20 +31,32 @@ Atualizado: 15/02/2026
 - [x] Replace `window.location.reload` usages — concluído (4 instâncias refatoradas; 3 em DevAuthDebug preservadas intencionalmente)
 - [x] Wrap console statements with DEV guards — concluído (services, utils, ErrorBoundary)
 - [x] Standardize component declarations to `export default function` — concluído (Login, UserDashboard, ProfileSetup, Button, DevAuthDebug, AuthProvider)
-- [ ] Remover anti-padrões adicionais — pendente
-- [ ] Criar páginas Admin faltantes — pendente
-- [ ] Criar componentes Cross-module — pendente
+- [x] Criar ScoreEntryScreen — concluído (confirmação de presença, busca e filtro de militares)
+- [x] Criar SystemSettings — concluído (configurações gerais, parâmetros TAF, locais, perfis de acesso, auditoria)
+- [x] Criar AccessProfilesManagement — concluído (gestão de perfis admin/coordinator/user com permissões)
+- [ ] Criar páginas Admin faltantes — pendente (Issue #40+)
 - [ ] Dark mode & testes — pendente
 - [ ] Validação, docs & deploy — pendente
 
 ## Notas operacionais
 
 - Branch de trabalho: `refactor/frontend-conformity-2026-02` (PR draft: chore(refactor): Frontend Conformity — Phase 0 #9).
-- Estado atual: Fases 0-6 concluídas — todas as refatorações principais de componentes e anti-padrões aplicadas. Testes passando (18/18), tsc clean, lint clean.
-- Próxima ação recomendada: executar Fase 7 (componentes faltantes Admin/Cross-module) conforme plano original.
-- Commits:
+- Estado atual: Fases 0-6 e 8 concluídas — todas as refatorações principais de componentes e anti-padrões aplicadas. Testes passando (18/18), tsc clean, lint clean.
+- Próxima ação recomendada: Fase 9 (Dark Mode & Testes) ou continuar com páginas Admin restantes conforme necessário.
+- Commits recentes:
   - `c2c721e` — Phase 5 (decomposição de componentes grandes)
   - `a37f1dd` — Phase 6 (remoção de anti-padrões)
+  - `ea4d9dd` — Phase 8 (ScoreEntryScreen + SystemSettings)
+  - `3535a5e` — Phase 8 (AccessProfilesManagement)
+  - `d6bde12` — Phase 8 (refactor ScoreEntryScreen lint fixes)
+
+## Pendências de banco de dados (necessárias para funcionalidades completas)
+
+- **ScoreEntryScreen:** campo `attendance_confirmed` na tabela `bookings`
+- **SystemSettings:** tabela `settings`, `locations`, `audit_logs`
+- **AccessProfilesManagement:** tabelas `access_profiles`, `permissions`
+
+Todas as pendências foram documentadas com comentários TODO nos componentes e avisos visuais nas interfaces.
 
 ## Comandos úteis (executar localmente antes do PR)
 
