@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import { useCallback, useEffect, useState } from "react";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
 
 export default function useAuth() {
-  const [user, setUser] = useState(supabase.auth.getUser);
+  const [user, setUser] = useState<unknown | null>(null);
   const [profile, setProfile] = useState<Profile>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,12 +17,12 @@ export default function useAuth() {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData?.user?.id;
       if (!uid) {
-        setUser(null as any);
+        setUser(null);
         setProfile(null);
         return;
       }
 
-      setUser(userData?.user as any);
+      setUser(userData?.user ?? null);
 
       const { data: p } = await supabase
         .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
@@ -30,7 +30,7 @@ export default function useAuth() {
         .eq("id", uid)
         .maybeSingle();
 
-      setProfile((p as any) ?? null);
+      setProfile((p as Profile) ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -40,7 +40,7 @@ export default function useAuth() {
 
   useEffect(() => {
     load();
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
       // reload on auth change
       load();
     });
@@ -53,18 +53,20 @@ export default function useAuth() {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    setUser(null as any);
+    setUser(null);
     setProfile(null);
   }, []);
 
   const updateProfile = useCallback(async (payload: Partial<Profile>) => {
     try {
-      const up = await upsertProfile(payload as any);
+      const up = await upsertProfile(
+        payload as unknown as Database["public"]["Tables"]["profiles"]["Insert"],
+      );
       return up;
-    } catch (err) {
+    } catch {
       return null;
     }
   }, []);
 
-  return { user: user as any, profile, loading, error, signOut, updateProfile } as const;
+  return { user, profile, loading, error, signOut, updateProfile } as const;
 }
