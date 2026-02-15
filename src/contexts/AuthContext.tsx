@@ -41,7 +41,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Função centralizada para buscar perfil
   const fetchProfile = async (userId: string) => {
-    console.debug("fetchProfile start:", userId);
+    if (import.meta.env.DEV) {
+      console.debug("fetchProfile start:", userId);
+    }
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -57,19 +59,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } = await supabase.auth.getSession();
 
       if (!session?.user || session.user.id !== userId) {
-        console.warn(
-          "fetchProfile result ignored because session changed or user signed out",
-          session?.user?.id ?? null,
-        );
+        if (import.meta.env.DEV) {
+          console.warn(
+            "fetchProfile result ignored because session changed or user signed out",
+            session?.user?.id ?? null,
+          );
+        }
         return { data: null, error: new Error("session_changed") };
       }
 
-      console.debug("fetchProfile success:", (data as Profile | null)?.id);
+      if (import.meta.env.DEV) {
+        console.debug("fetchProfile success:", (data as Profile | null)?.id);
+      }
       setProfile(data as Profile);
       setProfileResolved(true);
       return { data, error: null };
     } catch (error) {
-      console.warn("Perfil não encontrado ou erro na busca:", error);
+      if (import.meta.env.DEV) {
+        console.warn("Perfil não encontrado ou erro na busca:", error);
+      }
       setProfile(null);
       setProfileResolved(true);
       return { data: null, error };
@@ -87,14 +95,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.debug("onAuthStateChange:", _event, session?.user?.id ?? "none");
+      if (import.meta.env.DEV) {
+        console.debug(
+          "onAuthStateChange:",
+          _event,
+          session?.user?.id ?? "none",
+        );
+      }
       const currentUser = session?.user;
 
       if (currentUser) {
         setUser({ id: currentUser.id, email: currentUser.email });
         // attempt to fetch profile but do not block UI on failure
         fetchProfile(currentUser.id).catch((err) => {
-          console.warn("fetchProfile failed on auth change:", err);
+          if (import.meta.env.DEV) {
+            console.warn("fetchProfile failed on auth change:", err);
+          }
           setProfile(null);
           setProfileResolved(true);
         });
@@ -109,13 +125,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Global handlers to catch unexpected runtime errors that might leave the UI blank
     const onWindowError = (ev: ErrorEvent) => {
-      console.error("Global window error:", ev.error ?? ev.message, ev);
+      if (import.meta.env.DEV) {
+        console.error("Global window error:", ev.error ?? ev.message, ev);
+      }
       setLoading(false);
       setProfileResolved(true);
     };
 
     const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
-      console.error("Unhandled promise rejection:", ev.reason, ev);
+      if (import.meta.env.DEV) {
+        console.error("Unhandled promise rejection:", ev.reason, ev);
+      }
       setLoading(false);
       setProfileResolved(true);
     };
@@ -149,17 +169,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (currentUser) {
           // We are auto-signed in
           await svcUpsertProfile({ id: currentUser.id }).catch((e) => {
-            console.warn("upsertProfile after signup failed (auto-signin):", e);
+            if (import.meta.env.DEV) {
+              console.warn(
+                "upsertProfile after signup failed (auto-signin):",
+                e,
+              );
+            }
           });
         }
       } else {
         // We have a user returned from signUp (sessionless case)
         await svcUpsertProfile({ id: userId }).catch((e) => {
-          console.warn("upsertProfile after signup failed (returned user):", e);
+          if (import.meta.env.DEV) {
+            console.warn(
+              "upsertProfile after signup failed (returned user):",
+              e,
+            );
+          }
         });
       }
     } catch (e) {
-      console.warn("Post-signup profile upsert attempt failed:", e);
+      if (import.meta.env.DEV) {
+        console.warn("Post-signup profile upsert attempt failed:", e);
+      }
     }
 
     // No signUp, o Supabase geralmente loga o usuário automaticamente se a confirmação de e-mail estiver off

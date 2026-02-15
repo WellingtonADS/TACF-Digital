@@ -11,6 +11,8 @@ O projeto TACF Digital está 65% conforme com o design system planejado, mas apr
 - Hook customizado `useSessions()` para eliminar duplicação
 - Padrão unificado: `export default function` (não `React.FC`)
 
+FAZER TESTES E COMMITAR SOMENTE NO FINAL DAS FASES.
+
 ---
 
 ## **Steps**
