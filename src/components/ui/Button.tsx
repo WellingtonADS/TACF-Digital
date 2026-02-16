@@ -17,7 +17,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   block?: boolean;
 }
 
-const Button: React.FC<ButtonProps> = ({
+export default function Button({
   variant = "primary",
   size = "md",
   isLoading = false,
@@ -26,7 +26,7 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   children,
   ...rest
-}) => {
+}: ButtonProps) {
   // Mapeamento de variantes usando seus Design Tokens
   const variantStyles: Record<Variant, string> = {
     primary:
@@ -75,6 +75,4 @@ const Button: React.FC<ButtonProps> = ({
       )}
     </button>
   );
-};
-
-export default Button;
+}

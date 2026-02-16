@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#577298",
+            "background-light": "#f6f7f7",
+            "background-dark": "#16191c",
+            "fab-blue": "#1B365D",
+            "fab-green": "#2D5A27",
+            "fab-danger": "#B33939",
+            "slate-900": "#0f172a"
+          },
+          fontFamily: {
+            "display": ["Public Sans", "sans-serif"]
+          },
+          borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      background-color: #F4F7F9;
+    }
+    .radial-progress-container {
+      position: relative;
+      width: 100px;
+      height: 100px;
+    }
+    .radial-progress-bg {
+      fill: none;
+      stroke: #e2e8f0;
+      stroke-width: 8;
+    }
+    .radial-progress-fill {
+      fill: none;
+      stroke: #2D5A27;
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 251.2;
+      stroke-dashoffset: 37.68; /* 85% example */
+    }
+  </style>
+<title>TACF-Digital Analytics Dashboard</title>
+</head>
+<body class="font-display text-slate-800 bg-background-light dark:bg-background-dark min-h-screen">
+<div class="flex min-h-screen">
+<!-- Sidebar -->
+<aside class="w-64 bg-fab-blue text-white hidden lg:flex flex-col p-6 shadow-xl">
+<div class="flex items-center gap-3 mb-10">
+<div class="bg-white/10 p-2 rounded-lg">
+<span class="material-icons text-white">shield</span>
+</div>
+<h1 class="font-bold text-xl tracking-tight leading-tight">TACF<br/><span class="text-primary-light font-medium text-sm opacity-80">Digital (FAB)</span></h1>
+</div>
+<nav class="space-y-4 flex-1">
+<a class="flex items-center gap-3 p-3 bg-white/10 rounded-xl" href="#">
+<span class="material-icons">dashboard</span>
+<span class="font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-colors" href="#">
+<span class="material-icons">assessment</span>
+<span class="font-medium">Relatórios</span>
+</a>
+<a class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-colors" href="#">
+<span class="material-icons">groups</span>
+<span class="font-medium">Militares</span>
+</a>
+<a class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-colors" href="#">
+<span class="material-icons">health_and_safety</span>
+<span class="font-medium">Avaliações</span>
+</a>
+</nav>
+<div class="pt-6 border-t border-white/10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center text-sm font-bold border border-white/20">AD</div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold">Administrador</span>
+<span class="text-[10px] opacity-60">Sede (Brasília)</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+<!-- Top Header -->
+<header class="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div>
+<h2 class="text-3xl font-bold text-slate-900 dark:text-white">Relatórios Consolidados</h2>
+<p class="text-slate-500 text-sm mt-1">Visão geral do desempenho físico e prontidão operacional.</p>
+</div>
+<div class="flex items-center gap-4 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+<div class="flex items-center px-4 py-2 gap-3 border-r border-slate-100 dark:border-slate-700">
+<span class="material-icons text-slate-400">calendar_today</span>
+<span class="text-sm font-medium">Jan 2023 - Dez 2023</span>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2">
+<span class="material-icons text-sm">file_download</span>
+            Exportar
+          </button>
+</div>
+</header>
+<div class="px-8 pb-12">
+<!-- Top Metrics Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<!-- Aptidão Geral -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex items-center justify-between border-b-4 border-fab-green">
+<div>
+<p class="text-slate-500 text-sm font-medium">Índice de Aptidão Geral</p>
+<h3 class="text-4xl font-extrabold mt-1 text-slate-900 dark:text-white">85.4%</h3>
+<span class="text-fab-green text-xs font-bold flex items-center mt-2">
+<span class="material-icons text-sm mr-1">trending_up</span> +2.1%
+              </span>
+</div>
+<div class="radial-progress-container">
+<svg class="w-full h-full -rotate-90">
+<circle class="radial-progress-bg" cx="50" cy="50" r="40"></circle>
+<circle class="radial-progress-fill" cx="50" cy="50" r="40"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-icons text-fab-green">task_alt</span>
+</div>
+</div>
+</div>
+<!-- Total Avaliações -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col justify-between border-b-4 border-fab-blue">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-500 text-sm font-medium">Total de Avaliações</p>
+<h3 class="text-4xl font-extrabold mt-1 text-slate-900 dark:text-white">4.821</h3>
+</div>
+<div class="bg-fab-blue/10 p-2 rounded-lg">
+<span class="material-icons text-fab-blue">fact_check</span>
+</div>
+</div>
+<p class="text-slate-400 text-xs mt-4">98% de conclusão do cronograma anual</p>
+</div>
+<!-- Média TAF -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col justify-between border-b-4 border-primary">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-500 text-sm font-medium">Média de Notas (TAF)</p>
+<h3 class="text-4xl font-extrabold mt-1 text-slate-900 dark:text-white">8.7</h3>
+</div>
+<div class="bg-primary/10 p-2 rounded-lg">
+<span class="material-icons text-primary">equalizer</span>
+</div>
+</div>
+<div class="flex items-center gap-2 mt-4">
+<div class="h-2 flex-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-[87%]"></div>
+</div>
+</div>
+</div>
+<!-- Inaptidões -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col justify-between border-b-4 border-fab-danger">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-500 text-sm font-medium">Inaptidões Críticas</p>
+<h3 class="text-4xl font-extrabold mt-1 text-fab-danger">42</h3>
+</div>
+<div class="bg-fab-danger/10 p-2 rounded-lg">
+<span class="material-icons text-fab-danger">warning</span>
+</div>
+</div>
+<p class="text-fab-danger/80 text-xs mt-4 font-semibold uppercase tracking-wider">Atenção Necessária Imediata</p>
+</div>
+</div>
+<!-- Middle Section: Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+<!-- Unit Comparison (Bar Chart Simulation) -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-2xl">
+<div class="flex items-center justify-between mb-8">
+<h4 class="text-lg font-bold text-slate-900 dark:text-white">Desempenho por Unidade/Grupamento</h4>
+<button class="text-primary text-sm font-bold flex items-center">Ver detalhes <span class="material-icons text-sm ml-1">chevron_right</span></button>
+</div>
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>HACO (Hospital de Aeronáutica de Canoas)</span>
+<span>92%</span>
+</div>
+<div class="h-6 bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden">
+<div class="h-full bg-fab-blue w-[92%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>HAAF (Hospital de Aeronáutica dos Afonsos)</span>
+<span>88%</span>
+</div>
+<div class="h-6 bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden">
+<div class="h-full bg-fab-blue w-[88%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>BAGL (Base Aérea do Galeão)</span>
+<span>85%</span>
+</div>
+<div class="h-6 bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden">
+<div class="h-full bg-fab-blue w-[85%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>BASP (Base Aérea de São Paulo)</span>
+<span>79%</span>
+</div>
+<div class="h-6 bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden">
+<div class="h-full bg-fab-blue w-[79%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Trend Line Simulation -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-2xl">
+<div class="flex items-center justify-between mb-8">
+<h4 class="text-lg font-bold text-slate-900 dark:text-white">Evolução de Aptidão</h4>
+<div class="flex gap-2">
+<span class="flex items-center gap-1 text-xs text-slate-400"><span class="w-3 h-3 rounded-full bg-primary"></span> Atual</span>
+<span class="flex items-center gap-1 text-xs text-slate-400"><span class="w-3 h-3 rounded-full bg-slate-200"></span> Projeção</span>
+</div>
+</div>
+<div class="relative h-[250px] w-full mt-4">
+<!-- Simulated Line Chart with SVG -->
+<svg class="w-full h-full" viewbox="0 0 500 200">
+<path d="M0,150 Q125,160 250,120 T500,80" fill="none" stroke="#577298" stroke-width="4"></path>
+<path d="M0,150 Q125,160 250,120 T500,80" fill="none" stroke="rgba(87,114,152,0.2)" stroke-width="12"></path>
+<circle cx="0" cy="150" fill="#1B365D" r="5"></circle>
+<circle cx="125" cy="155" fill="#1B365D" r="5"></circle>
+<circle cx="250" cy="120" fill="#1B365D" r="5"></circle>
+<circle cx="375" cy="100" fill="#1B365D" r="5"></circle>
+<circle cx="500" cy="80" fill="#1B365D" r="5"></circle>
+<line stroke="#e2e8f0" stroke-width="1" x1="0" x2="500" y1="180" y2="180"></line>
+</svg>
+<div class="flex justify-between text-[10px] text-slate-400 mt-4 uppercase font-bold">
+<span>Jan</span>
+<span>Mar</span>
+<span>Jun</span>
+<span>Set</span>
+<span>Dez</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Section: Table -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
+<div class="p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+<h4 class="text-xl font-bold text-slate-900 dark:text-white">Militares com Revalidação Pendente</h4>
+<div class="flex gap-2">
+<button class="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+<span class="material-icons text-slate-500">filter_list</span>
+</button>
+<button class="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+<span class="material-icons text-slate-500">search</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase tracking-widest font-bold">
+<th class="px-8 py-5">Prioridade</th>
+<th class="px-8 py-5">Militar</th>
+<th class="px-8 py-5">Unidade</th>
+<th class="px-8 py-5">Data de Expiração</th>
+<th class="px-8 py-5">Status</th>
+<th class="px-8 py-5 text-right">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-fab-danger/10 text-fab-danger text-[10px] font-bold rounded-full border border-fab-danger/20">ALTA</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-icons text-slate-400 text-lg">person</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-slate-900 dark:text-white">1º Ten Silva Pinto</span>
+<span class="text-xs text-slate-500">ID: 002.941-5</span>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-medium">HACO</td>
+<td class="px-8 py-5 text-slate-600 dark:text-slate-400">15 Set 2023</td>
+<td class="px-8 py-5">
+<span class="flex items-center gap-2 text-fab-danger font-bold">
+<span class="w-2 h-2 rounded-full bg-fab-danger"></span> Expirado
+                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="text-primary font-bold hover:underline">Notificar</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold rounded-full border border-orange-200">MÉDIA</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-icons text-slate-400 text-lg">person</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-slate-900 dark:text-white">Cap Ricardo Neves</span>
+<span class="text-xs text-slate-500">ID: 014.823-1</span>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-medium">HAAF</td>
+<td class="px-8 py-5 text-slate-600 dark:text-slate-400">02 Out 2023</td>
+<td class="px-8 py-5">
+<span class="flex items-center gap-2 text-orange-500 font-bold">
+<span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendente
+                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="text-primary font-bold hover:underline">Notificar</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full border border-blue-200">BAIXA</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-icons text-slate-400 text-lg">person</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-slate-900 dark:text-white">Ten Cel Maria Luiza</span>
+<span class="text-xs text-slate-500">ID: 088.112-9</span>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-medium">BAGL</td>
+<td class="px-8 py-5 text-slate-600 dark:text-slate-400">12 Nov 2023</td>
+<td class="px-8 py-5">
+<span class="flex items-center gap-2 text-blue-500 font-bold">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span> Agendado
+                    </span>
+</td>
+<td class="px-8 py-5 text-right">
+<button class="text-primary font-bold hover:underline">Visualizar</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-500 font-medium">
+<span>Mostrando 3 de 154 resultados encontrados</span>
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors">1</button>
+<button class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors">2</button>
+<button class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors">...</button>
+<button class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><span class="material-icons text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

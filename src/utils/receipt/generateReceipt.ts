@@ -1,10 +1,11 @@
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+// Carrega `jspdf` dinamicamente para reduzir bundle inicial
+// `jspdf-autotable` é um side-effect que estende o prototype, carregamos também dinamicamente
 import QRCode from "qrcode";
 
 export type ReceiptBooking = {
   booking_id: string;
-  order_number: string;
+  order_number?: string | null;
+  saram?: string;
   full_name: string;
   rank: string;
   date: string; // ISO
@@ -15,9 +16,11 @@ export async function generateReceipt(
   booking: ReceiptBooking,
   download = true,
 ): Promise<Blob | undefined> {
+  const { default: jsPDF } = await import("jspdf");
+  await import("jspdf-autotable");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-  const title = `Comprovante_${booking.order_number}_${formatDateForFilename(booking.date)}.pdf`;
+  const title = `Comprovante_${booking.order_number ?? booking.booking_id}_${formatDateForFilename(booking.date)}.pdf`;
 
   doc.setFontSize(14);
   doc.text("Comprovante de Agendamento - TACF HACO", 40, 50);
@@ -41,7 +44,9 @@ export async function generateReceipt(
     doc.addImage(dataUrl, "PNG", 400, 60, 120, 120);
   } catch (err) {
     // ignore QR errors, but continue
-    console.warn("QR generation failed", err);
+    if (import.meta.env.DEV) {
+      console.warn("QR generation failed", err);
+    }
   }
 
   // Footer timestamp

@@ -1,5 +1,4 @@
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+// Lazy-load pesado `jspdf` para reduzir bundle inicial
 
 export type CallListRow = {
   order_number: string;
@@ -17,11 +16,13 @@ export type SessionMeta = {
  * Generate a call list PDF for a session.
  * Returns a Blob or triggers download depending on `download` flag.
  */
-export function generateCallList(
+export async function generateCallList(
   session: SessionMeta,
   bookings: CallListRow[],
   download = true,
-): Blob | undefined {
+): Promise<Blob | undefined> {
+  const { default: jsPDF } = await import("jspdf");
+  await import("jspdf-autotable");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
   const title = `Lista_Chamada_${formatDateForFilename(session.date)}_${session.period}.pdf`;

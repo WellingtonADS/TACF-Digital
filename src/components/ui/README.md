@@ -7,7 +7,7 @@ Available components:
 - `Button` — variants: `primary`, `ghost`, `success`, `alert`, `error`.
 - `Card` — simple container with rounded corners and optional shadow.
 - `Typography` — `H1`, `H2`, `Body`, `Caption`.
-- `Icon` — wrapper for `lucide-react` icons (use `as` prop).
+- `Icon` — wrapper for `@mui/icons-material` icons (use `as` prop).
 - `Badge` — small status/counter badge.
 
 Usage examples:

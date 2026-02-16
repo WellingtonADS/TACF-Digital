@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TACF-Digital - Criar Nova Turma</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1c385f",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#13181f",
+                        "slate-900": "#0f172a",
+                        "slate-700": "#334155",
+                        "slate-600": "#475569",
+                        "slate-400": "#94a3b8",
+                        "slate-200": "#e2e8f0",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "3xl": "2.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .form-input-focus:focus {
+            outline: none;
+            border-color: #1c385f;
+            box-shadow: 0 0 0 2px rgba(28, 56, 95, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen font-display text-slate-900 flex flex-col">
+<!-- Header Section -->
+<header class="w-full py-8 px-6 max-w-5xl mx-auto flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="bg-primary/10 p-2.5 rounded-lg">
+<span class="material-icons text-primary text-2xl">add_circle_outline</span>
+</div>
+<div>
+<h1 class="text-3xl font-bold text-slate-900 dark:text-white leading-tight">Criar Nova Turma</h1>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Preencha os dados abaixo para configurar a nova turma de teste físico.</p>
+</div>
+</div>
+<div class="hidden md:block">
+<img alt="TACF Logo" class="h-10 opacity-80" data-alt="Logotipo corporativo da instituição administrativa" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1BAmB5ZTZDqaoJ-oRxcIejd2qFDU7rhhQXvY7A1E5BA3NtRqOZSGKp4mRngU6xeTF8fkiiJ9GcGRgg8S10wcb7aroj_BtjgBICSiz2zsmSpqdftEbXHxHwK9A46SdzT-UpANeb_Zan1R7mY-ZFCb9pwuC2DB9E1umNfPQ_DWBRThnQwtRIVlC1qe4Tmj1X43tEENErj2LthcAob7mUwJVZThbWkEQr2ndoiE-e0vLfWIb81kxH1QpJrk9oUTh8ZyThnu8T4GmZ8sy"/>
+</div>
+</header>
+<main class="flex-grow flex items-start justify-center px-4 pb-20">
+<!-- Main Form Card -->
+<div class="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800">
+<form action="#" class="flex flex-col" method="POST">
+<!-- Card Body -->
+<div class="p-8 md:p-12 space-y-12">
+<!-- Section: INFORMAÇÕES BÁSICAS -->
+<section class="space-y-6">
+<div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+<span class="material-icons text-primary/60 text-lg">info</span>
+<h2 class="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">Informações Básicas</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="nome-turma">Nome da Turma</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 form-input-focus transition-all" id="nome-turma" placeholder="Ex: TAF 2º Semestre" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="local-teste">Local do Teste</label>
+<div class="relative">
+<select class="appearance-none w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white form-input-focus transition-all cursor-pointer" id="local-teste">
+<option disabled="" selected="" value="">Selecione um local</option>
+<option value="haco">HACO - Hospital de Aeronáutica de Canoas</option>
+<option value="haaf">HAAF - Hospital de Aeronáutica dos Afonsos</option>
+<option value="hfasp">HFASP - Hospital de Força Aérea de São Paulo</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+<span class="material-icons">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: CALENDÁRIO E HORÁRIO -->
+<section class="space-y-6">
+<div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+<span class="material-icons text-primary/60 text-lg">calendar_today</span>
+<h2 class="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">Calendário e Horário</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="data-teste">Data do Teste</label>
+<div class="relative">
+<input class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white form-input-focus transition-all" id="data-teste" type="date"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="horario-inicio">Horário de Início</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white form-input-focus transition-all" id="horario-inicio" type="time"/>
+</div>
+</div>
+</section>
+<!-- Section: CONFIGURAÇÃO DE CAPACIDADE -->
+<section class="space-y-6">
+<div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+<span class="material-icons text-primary/60 text-lg">group</span>
+<h2 class="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">Configuração de Capacidade</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="limite-vagas">Limite de Vagas</label>
+<div class="flex items-center">
+<input class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white form-input-focus transition-all" id="limite-vagas" min="1" placeholder="0" type="number"/>
+</div>
+</div>
+<div class="flex items-center justify-between p-4 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10">
+<div>
+<span class="block text-xs font-semibold uppercase tracking-widest text-primary dark:text-primary/80">Lista de Espera</span>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Permitir inscrições excedentes</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- Section: REQUISITOS ESPECÍFICOS -->
+<section class="space-y-6">
+<div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+<span class="material-icons text-primary/60 text-lg">assignment</span>
+<h2 class="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">Requisitos Específicos</h2>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400" for="instrucoes">Instruções Adicionais</label>
+<textarea class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 form-input-focus transition-all" id="instrucoes" placeholder="Ex: Traje específico de treinamento físico, trazer documento oficial com foto e garrafa de água." rows="4"></textarea>
+</div>
+</section>
+</div>
+<!-- Footer Actions -->
+<div class="px-8 md:px-12 py-8 bg-slate-50 dark:bg-slate-800/30 flex flex-col-reverse md:flex-row items-center justify-end gap-4 border-t border-slate-200/50 dark:border-slate-800">
+<button class="w-full md:w-auto px-8 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors" type="button">
+                        Cancelar
+                    </button>
+<button class="w-full md:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg shadow-lg shadow-primary/20 transition-all transform active:scale-[0.98]" type="submit">
+<span class="material-icons text-xl">add_circle</span>
+<span class="text-xs font-bold uppercase tracking-widest">Publicar Turma</span>
+</button>
+</div>
+</form>
+</div>
+</main>
+<!-- Map Contextual Element (Decorative/Background hint) -->
+<div class="fixed bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary/50 to-primary"></div>
+<!-- Footer Copyright -->
+<footer class="py-6 text-center text-slate-400 text-xs">
+<p>© 2024 TACF-Digital - Sistema de Administração de Testes de Aptidão</p>
+</footer>
+</body></html>

@@ -1,8 +1,4 @@
 import Button from "@/components/ui/Button";
-import type { BookingWithDetails } from "@/types/database.types";
-import { generateReceipt } from "@/utils/receipt/generateReceipt";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Calendar,
   Clock,
@@ -11,7 +7,11 @@ import {
   Plane,
   RefreshCw,
   User,
-} from "lucide-react";
+} from "@/components/ui/icons";
+import type { BookingWithDetails } from "@/types/database.types";
+// Carregamos o gerador de PDF dinamicamente ao solicitar download
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
@@ -47,7 +47,8 @@ export default function ComprovanteTicket({ booking }: Props) {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await generateReceipt({
+      const mod = await import("@/utils/receipt/generateReceipt");
+      await mod.generateReceipt({
         booking_id: booking.id,
         saram: user?.saram ?? "",
         full_name: user?.full_name ?? "",
@@ -57,7 +58,7 @@ export default function ComprovanteTicket({ booking }: Props) {
       });
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
       toast.error("Erro ao gerar PDF.");
     } finally {
       setDownloading(false);
@@ -204,7 +205,10 @@ export default function ComprovanteTicket({ booking }: Props) {
         currentSessionId={session?.id ?? ""}
         isOpen={swapModalOpen}
         onClose={() => setSwapModalOpen(false)}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {
+          setSwapModalOpen(false);
+          toast.success("Solicitação de troca enviada!");
+        }}
       />
     </div>
   );

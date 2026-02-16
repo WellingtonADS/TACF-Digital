@@ -1,3 +1,5 @@
+// src/pages/ProfileSetup.tsx
+
 import Button from "@/components/ui/Button";
 import {
   Card,
@@ -5,6 +7,14 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/Card";
+import {
+  Calendar,
+  CheckCircle2,
+  Medal,
+  Save,
+  ShieldAlert,
+  User,
+} from "@/components/ui/icons";
 import Input from "@/components/ui/Input";
 import {
   Select,
@@ -15,14 +25,6 @@ import {
 } from "@/components/ui/Select";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentSemester } from "@/utils/seasonal";
-import {
-  Calendar,
-  CheckCircle2,
-  Medal,
-  Save,
-  ShieldAlert,
-  User,
-} from "lucide-react";
 import React, { useState } from "react";
 
 const RANKS = [
@@ -41,7 +43,7 @@ const RANKS = [
   "Soldado",
 ];
 
-const ProfileSetup: React.FC = () => {
+export default function ProfileSetup() {
   const { profile, upsertProfile, user } = useAuth();
 
   // Estados do Formulário
@@ -269,6 +271,4 @@ const ProfileSetup: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default ProfileSetup;
+}

@@ -6,11 +6,6 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/Card";
-import { Body, H1 } from "@/components/ui/Typography";
-import { approveSwap, fetchPendingSwaps, rejectSwap } from "@/services/admin";
-import toastUi from "@/utils/toast";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   ArrowRight,
   Calendar,
@@ -19,7 +14,12 @@ import {
   RefreshCw,
   User,
   X,
-} from "lucide-react";
+} from "@/components/ui/icons";
+import { Body, H1 } from "@/components/ui/Typography";
+import { approveSwap, fetchPendingSwaps, rejectSwap } from "@/services/admin";
+import toastUi from "@/utils/toast";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -49,7 +49,7 @@ export default function AdminSwapRequests() {
       // Casting para garantir tipagem se o retorno for genérico
       setRequests((res || []) as unknown as SwapRequest[]);
     } catch (error) {
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
       toast.error("Erro ao carregar solicitações.");
     } finally {
       setLoading(false);

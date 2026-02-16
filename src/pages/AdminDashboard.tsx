@@ -1,14 +1,12 @@
-import StatsCard from "@/components/Admin/StatsCard";
 import Button from "@/components/ui/Button";
-import { Body, H1 } from "@/components/ui/Typography";
+import { ArrowRight } from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 import { fetchDashboardStats } from "@/services/admin";
-import {
-  ArrowRight,
-  CalendarCheck,
-  RefreshCw,
-  Settings,
-  Users,
-} from "lucide-react";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import PeopleIcon from "@mui/icons-material/People";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -43,41 +41,40 @@ export default function AdminDashboard() {
     );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 p-8">
       {/* Header da Página */}
-      <div className="flex items-center justify-between">
-        <div>
-          <H1>Painel Administrativo</H1>
-          <Body className="text-slate-500 mt-1">
-            Visão geral do efetivo e agendamentos.
-          </Body>
-        </div>
-        <div className="hidden sm:block">
+      <PageHeader
+        title="Painel Administrativo"
+        description="Visão geral do efetivo e agendamentos"
+        icon={<DashboardIcon />}
+        actions={
           <Button variant="outline" size="sm" className="text-xs">
-            <Settings size={14} className="mr-2" /> Configurações
+            ⚙️ Configurações
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Grid de Estatísticas */}
+      {/* Grid de Estatísticas com StatCard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard
+        <StatCard
           title="Efetivo Cadastrado"
           value={stats?.totalUsers ?? 0}
-          icon={Users}
-          description="Militares registrados no sistema"
+          icon={<PeopleIcon />}
+          variant="default"
+          trend={{ value: 12, direction: "up" }}
         />
-        <StatsCard
+        <StatCard
           title="Agendamentos Ativos"
           value={stats?.totalScheduled ?? 0}
-          icon={CalendarCheck}
-          description="Testes marcados para este ciclo"
+          icon={<CalendarTodayIcon />}
+          variant="success"
+          trend={{ value: 8, direction: "up" }}
         />
-        <StatsCard
+        <StatCard
           title="Trocas Pendentes"
           value={stats?.pendingSwaps ?? 0}
-          icon={RefreshCw}
-          description="Solicitações aguardando aprovação"
+          icon={<SwapHorizIcon />}
+          variant="alert"
         />
       </div>
 
@@ -94,7 +91,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-50 text-primary rounded-lg group-hover:bg-primary group-hover:text-white transition-colors">
-                  <CalendarCheck size={20} />
+                  <CalendarTodayIcon />
                 </div>
                 <div className="text-left">
                   <div className="font-semibold text-slate-800">
@@ -119,7 +116,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-50 text-orange-600 rounded-lg group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                  <RefreshCw size={20} />
+                  <SwapHorizIcon />
                 </div>
                 <div className="text-left">
                   <div className="font-semibold text-slate-800">
@@ -144,14 +141,14 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-slate-800 group-hover:text-white transition-colors">
-                  <Users size={20} />
+                  <PeopleIcon />
                 </div>
                 <div className="text-left">
                   <div className="font-semibold text-slate-800">
                     Base de Usuários
                   </div>
                   <div className="text-xs text-slate-500">
-                    Editar perfis e saram
+                    Editar perfis e permissões
                   </div>
                 </div>
               </div>

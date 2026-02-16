@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { Clock, Plus, Trash2, Users } from "@/components/ui/icons";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import {
@@ -8,16 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import {
-  createSession,
-  deleteSession,
-  fetchSessionsByMonth,
-} from "@/services/api";
+import useSessions from "@/hooks/useSessions";
+import { createSession, deleteSession } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import toastUi from "@/utils/toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Plus, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -35,7 +32,8 @@ export default function SessionEditModal({
   onSaved,
 }: SessionEditModalProps) {
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { sessions: sessionsFromHook, loading: sessionsLoading } =
+    useSessions();
 
   // Form States para Nova Sessão
   const [newPeriod, setNewPeriod] = useState<"morning" | "afternoon" | "">("");
@@ -45,23 +43,9 @@ export default function SessionEditModal({
   // Carrega as sessões do dia selecionado
   useEffect(() => {
     if (!isOpen) return;
-
-    const loadSessions = async () => {
-      setLoading(true);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const res = await fetchSessionsByMonth(year, month);
-
-      if (res.data) {
-        const dateKey = format(date, "yyyy-MM-dd");
-        const daysSessions = res.data.filter((s) => s.date === dateKey);
-        setSessions(daysSessions);
-      }
-      setLoading(false);
-    };
-
-    loadSessions();
-  }, [isOpen, date]);
+    const dateKey = format(date, "yyyy-MM-dd");
+    setSessions((sessionsFromHook ?? []).filter((s) => s.date === dateKey));
+  }, [isOpen, date, sessionsFromHook]);
 
   const handleCreate = async () => {
     if (!newPeriod) return toast.error("Selecione um turno.");
@@ -131,7 +115,7 @@ export default function SessionEditModal({
             Sessões Ativas
           </h4>
 
-          {loading ? (
+          {sessionsLoading ? (
             <div className="text-center py-4 text-slate-400 text-sm">
               Carregando...
             </div>

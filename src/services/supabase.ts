@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
 // No Vite, usamos import.meta.env de forma direta e limpa
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as
+  | string
+  | undefined;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error("Credenciais do Supabase não encontradas no .env");
@@ -12,30 +13,33 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
+// (table helper defined at end)
+
 /**
  * Tipagem para o retorno do RPC de agendamento
  */
-interface BookingResponse {
+export interface BookingResponse {
   success: boolean;
   booking_id: string | null;
   order_number?: string | null;
-  error: string | null;
+  error?: string | null;
 }
 
 /**
  * Confirmar agendamento via RPC (Backend-First)
- * Esta função garante que a lógica de vagas (8-21) seja processada no Postgres
+ * Esta função delega a lógica de reservas ao Postgres e normaliza o resultado
  */
 export async function confirmarAgendamentoRPC(
   userId: string,
   sessionId: string,
 ): Promise<BookingResponse> {
-  // RPC calls have loose typings; cast params/result to any to avoid TS overload issues
-
-  const { data, error } = await supabase.rpc("confirmar_agendamento", {
-    p_user_id: userId,
-    p_session_id: sessionId,
-  } as any);
+  const { data, error } = await supabase.rpc<BookingResponse[]>(
+    "confirmar_agendamento",
+    {
+      p_user_id: userId,
+      p_session_id: sessionId,
+    },
+  );
 
   if (error) {
     return {
@@ -45,7 +49,7 @@ export async function confirmarAgendamentoRPC(
     };
   }
 
-  const result = Array.isArray(data) ? (data[0] as any) : (data as any);
+  const result = Array.isArray(data) ? data[0] : data;
 
   return {
     success: !!result?.success,
@@ -65,17 +69,21 @@ export const signUp = (email: string, password: string) =>
   supabase.auth.signUp({ email, password });
 
 /**
- * Upsert Profile com Proteção de Segurança
- * Impede que o cliente tente sobrescrever o próprio 'role' (militar -> admin)
+ * Upsert Profile com proteção de segurança
+ * Recebe um payload compatível com Database.public.Tables.profiles.Insert
  */
 export async function upsertProfile(
-  profile: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>,
+  profile: Partial<Database["public"]["Tables"]["profiles"]["Row"]>,
 ) {
-  const safePayload = profile as any;
+  return supabase.from("profiles").upsert(profile).select().maybeSingle();
+}
 
-  return (supabase as any)
-    .from("profiles")
-    .upsert(safePayload)
-    .select()
-    .maybeSingle();
+/**
+ * Helper tipado para `supabase.from()`
+ * Uso: `table('sessions').select('*')`
+ */
+export function table<Table extends keyof Database["public"]["Tables"]>(
+  name: Table,
+) {
+  return supabase.from(String(name));
 }

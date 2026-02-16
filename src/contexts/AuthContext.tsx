@@ -29,9 +29,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,7 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Função centralizada para buscar perfil
   const fetchProfile = async (userId: string) => {
-    console.debug("fetchProfile start:", userId);
+    if (import.meta.env.DEV) {
+      console.debug("fetchProfile start:", userId);
+    }
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -57,19 +57,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } = await supabase.auth.getSession();
 
       if (!session?.user || session.user.id !== userId) {
-        console.warn(
-          "fetchProfile result ignored because session changed or user signed out",
-          session?.user?.id ?? null,
-        );
+        if (import.meta.env.DEV) {
+          console.warn(
+            "fetchProfile result ignored because session changed or user signed out",
+            session?.user?.id ?? null,
+          );
+        }
         return { data: null, error: new Error("session_changed") };
       }
 
-      console.debug("fetchProfile success:", (data as Profile | null)?.id);
+      if (import.meta.env.DEV) {
+        console.debug("fetchProfile success:", (data as Profile | null)?.id);
+      }
       setProfile(data as Profile);
       setProfileResolved(true);
       return { data, error: null };
     } catch (error) {
-      console.warn("Perfil não encontrado ou erro na busca:", error);
+      if (import.meta.env.DEV) {
+        console.warn("Perfil não encontrado ou erro na busca:", error);
+      }
       setProfile(null);
       setProfileResolved(true);
       return { data: null, error };
@@ -78,97 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     // 1. Inicialização da sessão (com timeout por etapa para diagnóstico)
-    const bootstrap = async () => {
-      console.debug("Auth bootstrap start");
-      setLoading(true);
-
-      const BOOT_STEP_TIMEOUT = 15000; // ms per step (getSession / fetchProfile)
-
-      const withTimeout = async <T,>(
-        promise: Promise<T>,
-        ms: number,
-        name: string,
-      ): Promise<T> => {
-        return new Promise<T>((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error(`timeout:${name}`)), ms);
-          promise
-            .then((v) => {
-              clearTimeout(t);
-              resolve(v);
-            })
-            .catch((e) => {
-              clearTimeout(t);
-              reject(e);
-            });
-        });
-      };
-
-      try {
-        // Step 1: getSession with timeout
-        const sessionResp = await withTimeout(
-          supabase.auth.getSession(),
-          BOOT_STEP_TIMEOUT,
-          "getSession",
-        );
-        // supabase.auth.getSession() returns { data: { session } }
-        const {
-          data: { session },
-        } = sessionResp as any;
-
-        console.debug("Auth bootstrap session:", session?.user?.id ?? "none");
-
-        if (session?.user) {
-          setUser({ id: session.user.id, email: session.user.email });
-
-          // Step 2: fetchProfile with timeout
-          const res = await withTimeout(
-            fetchProfile(session.user.id),
-            BOOT_STEP_TIMEOUT,
-            "fetchProfile",
-          );
-
-          if ((res as any)?.error) {
-            console.warn(
-              "Perfil falhou ao carregar durante bootstrap — deslogando para liberar tela de login",
-              (res as any).error,
-            );
-            try {
-              await supabase.auth.signOut();
-            } catch (e) {
-              console.warn("Falha ao tentar signOut forçado:", e);
-            }
-            setUser(null);
-            setProfile(null);
-            setProfileResolved(true);
-            return;
-          }
-        } else {
-          // No authenticated user - mark profile resolved so UI can show login
-          setProfileResolved(true);
-        }
-      } catch (error) {
-        const msg = (error as Error).message ?? String(error);
-        if (msg.startsWith("timeout:")) {
-          console.warn(
-            "Auth bootstrap timed out at step:",
-            msg.replace("timeout:", ""),
-          );
-        } else {
-          console.warn("Erro ao inicializar sessão de auth:", error);
-        }
-        // Ensure we sign out and show login
-        try {
-          await supabase.auth.signOut();
-        } catch (e) {
-          console.warn("Falha ao tentar signOut forçado:", e);
-        }
-        setUser(null);
-        setProfile(null);
-        setProfileResolved(true);
-      } finally {
-        // no-op — bootstrap removed; rely on onAuthStateChange listener below
-      }
-    };
+    // Bootstrap intentionally removed: do not block the UI on mount. Auth state driven by onAuthStateChange.
 
     // Bootstrap removed: avoid blocking the UI on mount. Rely on onAuthStateChange to drive auth state.
     setLoading(false);
@@ -177,14 +93,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.debug("onAuthStateChange:", _event, session?.user?.id ?? "none");
+      if (import.meta.env.DEV) {
+        console.debug(
+          "onAuthStateChange:",
+          _event,
+          session?.user?.id ?? "none",
+        );
+      }
       const currentUser = session?.user;
 
       if (currentUser) {
         setUser({ id: currentUser.id, email: currentUser.email });
         // attempt to fetch profile but do not block UI on failure
         fetchProfile(currentUser.id).catch((err) => {
-          console.warn("fetchProfile failed on auth change:", err);
+          if (import.meta.env.DEV) {
+            console.warn("fetchProfile failed on auth change:", err);
+          }
           setProfile(null);
           setProfileResolved(true);
         });
@@ -199,15 +123,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Global handlers to catch unexpected runtime errors that might leave the UI blank
     const onWindowError = (ev: ErrorEvent) => {
-      // eslint-disable-next-line no-console
-      console.error("Global window error:", ev.error ?? ev.message, ev);
+      if (import.meta.env.DEV) {
+        console.error("Global window error:", ev.error ?? ev.message, ev);
+      }
       setLoading(false);
       setProfileResolved(true);
     };
 
     const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
-      // eslint-disable-next-line no-console
-      console.error("Unhandled promise rejection:", ev.reason, ev);
+      if (import.meta.env.DEV) {
+        console.error("Unhandled promise rejection:", ev.reason, ev);
+      }
       setLoading(false);
       setProfileResolved(true);
     };
@@ -233,27 +159,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Try to create a minimal profile for the newly created user when possible.
     // Some Supabase instances do not auto sign-in on signUp, so we check for returned session/user first.
     try {
-      const userId = (res as any)?.data?.user?.id ?? undefined;
+      const userId =
+        (res as { data?: { user?: { id: string } } })?.data?.user?.id ??
+        undefined;
       // If we didn't get a user back, attempt to read current session user
       if (!userId) {
         const { data: sessionData } = await supabase.auth.getSession();
-        const currentUser = (sessionData as any)?.session?.user;
+        const currentUser = (
+          sessionData as { session?: { user?: { id: string } } }
+        )?.session?.user;
         if (currentUser) {
           // We are auto-signed in
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await svcUpsertProfile({ id: currentUser.id } as any).catch((e) => {
-            console.warn("upsertProfile after signup failed (auto-signin):", e);
+          await svcUpsertProfile({ id: currentUser.id }).catch((e) => {
+            if (import.meta.env.DEV) {
+              console.warn(
+                "upsertProfile after signup failed (auto-signin):",
+                e,
+              );
+            }
           });
         }
       } else {
         // We have a user returned from signUp (sessionless case)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await svcUpsertProfile({ id: userId } as any).catch((e) => {
-          console.warn("upsertProfile after signup failed (returned user):", e);
+        await svcUpsertProfile({ id: userId }).catch((e) => {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "upsertProfile after signup failed (returned user):",
+              e,
+            );
+          }
         });
       }
     } catch (e) {
-      console.warn("Post-signup profile upsert attempt failed:", e);
+      if (import.meta.env.DEV) {
+        console.warn("Post-signup profile upsert attempt failed:", e);
+      }
     }
 
     // No signUp, o Supabase geralmente loga o usuário automaticamente se a confirmação de e-mail estiver off
@@ -280,8 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         id: user.id,
         email: user.email ?? undefined,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await svcUpsertProfile(payload as any);
+      const res = await svcUpsertProfile(payload);
       const { data, error } = res;
 
       if (error) throw error;
@@ -321,7 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export function useAuth() {
   const ctx = useContext(AuthContext);

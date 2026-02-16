@@ -1,6 +1,6 @@
+import { Check, ChevronDown } from "@/components/ui/icons";
 import { cn } from "@/utils/cn";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
 
 const Select = SelectPrimitive.Root;

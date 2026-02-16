@@ -2,11 +2,11 @@ import AdminRoute from "@/components/Admin/AdminRoute";
 import UserEditModal from "@/components/Admin/UserEditModal";
 import Button from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Edit2, Search } from "@/components/ui/icons"; // REMOVIDO: UserCog
 import Input from "@/components/ui/Input";
 import { Body, H1 } from "@/components/ui/Typography";
 import { fetchProfiles, updateProfile } from "@/services/admin";
 import type { Profile } from "@/types/database.types";
-import { Edit2, Search } from "lucide-react"; // REMOVIDO: UserCog
 import { useEffect, useMemo, useState } from "react";
 
 export default function AdminUsers() {

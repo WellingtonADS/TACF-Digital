@@ -16,20 +16,26 @@ export default {
     },
     extend: {
       colors: {
-        primary: { DEFAULT: "#1B365D", foreground: "#FFFFFF" }, // Azul Aeronáutica
+        primary: { DEFAULT: "#1a355b", foreground: "#FFFFFF" }, // Azul Militar (novo)
         secondary: { DEFAULT: "#0078D4", foreground: "#FFFFFF" }, // Azul Digital
-        success: { DEFAULT: "#2D5A27", foreground: "#FFFFFF" }, // Verde
+        success: { DEFAULT: "#2D5A27", foreground: "#FFFFFF" }, // Verde Militar
         alert: { DEFAULT: "#E67E22", foreground: "#FFFFFF" }, // Laranja
         error: { DEFAULT: "#C0392B", foreground: "#FFFFFF" }, // Vermelho
-        canvas: { DEFAULT: "#F4F7F9" }, // Fundo Gelo
+        "military-gold": { DEFAULT: "#F59E0B", foreground: "#000000" }, // Ouro Militar
+        canvas: { DEFAULT: "#F4F7F9" }, // Fundo Gelo (light)
+        "background-light": { DEFAULT: "#f6f7f8" }, // Background claro
+        "background-dark": { DEFAULT: "#13181f" }, // Background escuro
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
+        display: ["Public Sans", "Inter", "sans-serif"],
       },
       borderRadius: {
         lg: "0.5rem", // 8px
         md: "0.375rem", // 6px (Padrão dos inputs)
         sm: "0.25rem", // 4px
+        "2xl": "1rem", // 16px
+        "3xl": "1.5rem", // 24px
       },
       // Adicionando animações para os componentes Radix (Select/Modal)
       keyframes: {

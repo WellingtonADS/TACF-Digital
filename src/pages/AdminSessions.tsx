@@ -1,7 +1,7 @@
 import SessionEditModal from "@/components/Admin/SessionEditModal";
 import CalendarGrid from "@/components/Calendar/CalendarGrid";
 import { Body, H1 } from "@/components/ui/Typography";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck } from "@/components/ui/icons";
 import { useState } from "react";
 
 export default function AdminSessions() {

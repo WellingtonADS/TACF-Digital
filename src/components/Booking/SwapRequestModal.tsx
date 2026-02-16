@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { AlertCircle, Calendar } from "@/components/ui/icons";
 import Modal from "@/components/ui/Modal";
 import {
   Select,
@@ -7,12 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { fetchFutureSessions, requestSwap } from "@/services/api";
+import useSessions from "@/hooks/useSessions";
+import { requestSwap } from "@/services/api";
 import type { SessionWithBookings } from "@/types/database.types";
 import toastUi from "@/utils/toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertCircle, Calendar } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,37 +33,28 @@ export default function SwapRequestModal({
   onSuccess,
 }: SwapRequestModalProps) {
   const [sessions, setSessions] = useState<SessionWithBookings[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { sessions: sessionsFromHook, loading: sessionsLoading } =
+    useSessions();
   const [submitting, setSubmitting] = useState(false);
   const [reason, setReason] = useState("");
   const [selectedSession, setSelectedSession] = useState<string>("");
 
   useEffect(() => {
-    let mounted = true;
     if (!isOpen) return;
 
-    const loadOptions = async () => {
-      setLoading(true);
-      const res = await fetchFutureSessions();
-      if (mounted) {
-        if (res.error) {
-          toast.error("Erro ao carregar datas disponíveis");
-          setSessions([]);
-        } else {
-          // Filtra a sessão atual para não aparecer na lista de troca
-          setSessions(
-            (res.data ?? []).filter((s) => s.id !== currentSessionId),
-          );
-        }
-        setLoading(false);
-      }
+    const loadOptions = () => {
+      // Filtra sessões futuras e remove a sessão atual
+      const todayStr = format(new Date(), "yyyy-LL-dd");
+      setSessions(
+        (sessionsFromHook ?? []).filter(
+          (s: SessionWithBookings) =>
+            s.id !== currentSessionId && s.date >= todayStr,
+        ),
+      );
     };
 
     loadOptions();
-    return () => {
-      mounted = false;
-    };
-  }, [isOpen, currentSessionId]);
+  }, [isOpen, currentSessionId, sessionsFromHook]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -106,7 +98,7 @@ export default function SwapRequestModal({
           <label className="text-sm font-semibold text-slate-700">
             Nova Data Desejada
           </label>
-          {loading ? (
+          {sessionsLoading ? (
             <div className="h-12 w-full bg-slate-100 animate-pulse rounded-xl" />
           ) : (
             <Select value={selectedSession} onValueChange={setSelectedSession}>
