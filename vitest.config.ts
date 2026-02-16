@@ -25,5 +25,12 @@ export default defineConfig({
       "src/**/__tests__/**/*.spec.{ts,tsx}",
       "src/**/*.spec.{ts,tsx}",
     ],
+    // Integration tests that touch external services can be slow and should run
+    // sequentially to avoid race conditions. These defaults keep unit tests
+    // fast while providing safer defaults for integration runs.
+    // Run-time overrides (CI) can change these values if desired.
+    threads: false,
+    isolate: true,
+    timeout: 60_000,
   },
 });
