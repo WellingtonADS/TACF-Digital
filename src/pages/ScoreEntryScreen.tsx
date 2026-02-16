@@ -1,5 +1,5 @@
 import { Body, H1, H2 } from "@/components/ui/Typography";
-import { useSessions } from "@/hooks/useSessions";
+import useSessions from "@/hooks/useSessions";
 import { updateSessionScores } from "@/services/api";
 import { supabase } from "@/services/supabase";
 import { Booking, Profile, SessionWithBookings } from "@/types/database.types";

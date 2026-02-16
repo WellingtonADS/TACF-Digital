@@ -7,6 +7,7 @@ import CheckCircle from "@mui/icons-material/CheckCircle";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import CloseIcon from "@mui/icons-material/Close";
+import CommentIcon from "@mui/icons-material/Comment";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
 import Edit from "@mui/icons-material/Edit";
@@ -25,7 +26,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import NightsStay from "@mui/icons-material/NightsStay";
 import Person from "@mui/icons-material/Person";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import Search from "@mui/icons-material/Search";
+import SearchIcon from "@mui/icons-material/Search";
 import Security from "@mui/icons-material/Security";
 import HashIcon from "@mui/icons-material/Tag";
 import WarningAmber from "@mui/icons-material/WarningAmber";
@@ -116,8 +117,9 @@ export const MessageSquare = ({ size = 20, className = "" }: IconProps) => (
   <CommentIcon style={{ fontSize: size }} className={className} />
 );
 export const Search_Icon = ({ size = 20, className = "" }: IconProps) => (
-  <Search style={{ fontSize: size }} className={className} />
+  <SearchIcon style={{ fontSize: size }} className={className} />
 );
+export const Search = Search_Icon;
 export const Shield = ({ size = 20, className = "" }: IconProps) => (
   <Security style={{ fontSize: size }} className={className} />
 );
