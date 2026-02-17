@@ -44,4 +44,7 @@ Frontend em React + Supabase para gerenciamento de agendamentos e listas de cham
 
 - Alterações que toquem RLS, políticas de privacidade, ou regras de domínio: solicitar revisão do coordenador (HACO) antes de merge.
 
-
+## Arquivos úteis para referência
+- `src/services/supabase.ts` — wrapper Supabase
+- `src/utils/pdf/generateCallList.ts` — gerador de listas de chamada
+- `supabase/migrations` e `supabase/policies/rls.sql` — regras de domínio e segurança       
