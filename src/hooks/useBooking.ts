@@ -1,3 +1,8 @@
+export const useBooking = () => {
+  return { bookings: [], isLoading: false };
+};
+
+export default useBooking;
 import { confirmBooking as confirmBookingService } from "@/services/api";
 import { useState } from "react";
 
