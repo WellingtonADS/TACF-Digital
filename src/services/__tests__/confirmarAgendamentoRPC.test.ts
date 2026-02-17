@@ -38,20 +38,50 @@ describe.skipIf(!svc || !anon)("confirmarAgendamentoRPC (real backend)", () => {
         email_confirm: true,
       });
     expect(createUserErr).toBeNull();
-    const userId = (createdUser as any)?.id;
+    const userId =
+      (createdUser as any)?.user?.id ?? (createdUser as any)?.id ?? null;
     expect(userId).toBeTruthy();
 
     // create a session
-    const { data: sessionData, error: sessErr } = await svc!
+    // pick a random future date to avoid colliding with other test inserts
+    const offsetDays = Math.floor(Math.random() * 7);
+    // pick an hour offset to reduce chance of same date+period collisions
+    const hour = Math.floor(Math.random() * 24);
+    const startsAt = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+    startsAt.setUTCHours(hour, 0, 0, 0);
+    const startsAtIso = startsAt.toISOString();
+
+    const insertRes = await svc!
       .from("sessions")
       .insert({
         title: "E2E RPC Session",
-        starts_at: new Date().toISOString(),
+        starts_at: startsAtIso,
         capacity: 5,
         metadata: { test_run_id },
       })
-      .select()
-      .maybeSingle();
+      .select();
+
+    let sessionData: any = null;
+    let sessErr: any = null;
+    if ((insertRes as any)?.error) {
+      const err = (insertRes as any).error;
+      if (err.code === "23505") {
+        // determine period from hour
+        const period = hour < 12 ? "morning" : "afternoon";
+        const q = await svc!
+          .from("sessions")
+          .select("*")
+          .eq("date", startsAt.toISOString().slice(0, 10))
+          .eq("period", period)
+          .maybeSingle();
+        sessionData = (q as any)?.data ?? null;
+        sessErr = (q as any)?.error ?? null;
+      } else {
+        sessErr = err;
+      }
+    } else {
+      sessionData = (insertRes as any)?.data?.[0] ?? null;
+    }
 
     expect(sessErr).toBeNull();
     const sessionId = (sessionData as any)?.id;

@@ -1,13 +1,17 @@
 import { Body, H1, H2 } from "@/components/ui/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  fetchSystemSettings,
+  saveSystemSettings,
+} from "@/services/admin/settings";
+import {
   Analytics,
   History,
   LocationOn,
   Settings,
   VerifiedUser,
 } from "@mui/icons-material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type SettingsTab = "general" | "taf_tables" | "locations" | "access" | "audit";
@@ -19,7 +23,15 @@ export default function SystemSettings() {
   const [saving, setSaving] = useState(false);
 
   // Configurações simuladas (em produção viriam do Supabase)
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<{
+    minCapacity: number;
+    maxCapacity: number;
+    defaultPeriods: Array<"morning" | "afternoon">;
+    allowSwaps: boolean;
+    requireQuorum: boolean;
+    systemName: string;
+    organizationName: string;
+  }>({
     minCapacity: 8,
     maxCapacity: 21,
     defaultPeriods: ["morning", "afternoon"],
@@ -38,10 +50,15 @@ export default function SystemSettings() {
       if (res.error) {
         toast.error("Falha ao carregar configuracoes");
       } else if (res.data) {
+        const defaultPeriods = (res.data.default_periods ?? []).filter(
+          (p): p is "morning" | "afternoon" =>
+            p === "morning" || p === "afternoon",
+        );
+
         setSettings({
           minCapacity: res.data.min_capacity,
           maxCapacity: res.data.max_capacity,
-          defaultPeriods: res.data.default_periods,
+          defaultPeriods,
           allowSwaps: res.data.allow_swaps,
           requireQuorum: res.data.require_quorum,
           systemName: res.data.system_name,
@@ -213,6 +230,7 @@ export default function SystemSettings() {
                             Nome do Sistema
                           </label>
                           <input
+                            aria-label="Nome do sistema"
                             type="text"
                             value={settings.systemName}
                             onChange={(e) =>
@@ -230,6 +248,7 @@ export default function SystemSettings() {
                             Organização
                           </label>
                           <input
+                            aria-label="Organização"
                             type="text"
                             value={settings.organizationName}
                             onChange={(e) =>
@@ -273,6 +292,7 @@ export default function SystemSettings() {
                                   minCapacity: parseInt(e.target.value),
                                 })
                               }
+                              aria-label="Capacidade mínima"
                               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                             />
                             <Body className="text-xs text-slate-500 mt-1">
@@ -295,6 +315,7 @@ export default function SystemSettings() {
                                   maxCapacity: parseInt(e.target.value),
                                 })
                               }
+                              aria-label="Capacidade máxima"
                               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                             />
                             <Body className="text-xs text-slate-500 mt-1">
@@ -414,47 +435,49 @@ export default function SystemSettings() {
                         <H2 className="text-lg font-semibold mb-4">
                           Perfis Existentes
                         </H2>
-                        <dl className="space-y-3">
+                        <div className="space-y-3">
                           <div className="flex items-center justify-between py-2 border-b border-slate-200">
                             <div>
-                              <dt className="font-semibold text-slate-900">
+                              <div className="font-semibold text-slate-900">
                                 Admin
-                              </dt>
-                              <dd className="text-sm text-slate-500">
+                              </div>
+                              <div className="text-sm text-slate-500">
                                 Acesso total ao sistema
-                              </dd>
+                              </div>
                             </div>
                             <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
                               Ativo
                             </span>
                           </div>
+
                           <div className="flex items-center justify-between py-2 border-b border-slate-200">
                             <div>
-                              <dt className="font-semibold text-slate-900">
+                              <div className="font-semibold text-slate-900">
                                 Coordinator
-                              </dt>
-                              <dd className="text-sm text-slate-500">
+                              </div>
+                              <div className="text-sm text-slate-500">
                                 Gestão de sessões e usuários
-                              </dd>
+                              </div>
                             </div>
                             <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
                               Ativo
                             </span>
                           </div>
+
                           <div className="flex items-center justify-between py-2">
                             <div>
-                              <dt className="font-semibold text-slate-900">
+                              <div className="font-semibold text-slate-900">
                                 User
-                              </dt>
-                              <dd className="text-sm text-slate-500">
+                              </div>
+                              <div className="text-sm text-slate-500">
                                 Acesso básico para agendamentos
-                              </dd>
+                              </div>
                             </div>
                             <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
                               Ativo
                             </span>
                           </div>
-                        </dl>
+                        </div>
                       </div>
                     </div>
                   )}

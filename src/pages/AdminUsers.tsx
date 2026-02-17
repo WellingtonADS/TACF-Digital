@@ -234,7 +234,7 @@ export default function AdminUsers() {
         </div>
 
         <UserEditModal
-          isOpen={isOpen}
+          open={isOpen}
           profile={selected}
           onClose={() => setIsOpen(false)}
           onSaved={onSaved}

@@ -157,6 +157,16 @@ export default function AdminAnalyticsDashboard() {
     return points.slice(-10);
   }, [view]);
 
+  const getBarHeightClass = (value: number) => {
+    const px = Math.max(12, value * 6);
+    if (px <= 12) return "h-3"; // 12px
+    if (px <= 16) return "h-4"; // 16px
+    if (px <= 24) return "h-6"; // 24px
+    if (px <= 32) return "h-8"; // 32px
+    if (px <= 40) return "h-10"; // 40px
+    return "h-12"; // 48px
+  };
+
   if (loading) {
     return (
       <div className="p-8 text-center text-slate-500 animate-pulse">
@@ -234,10 +244,9 @@ export default function AdminAnalyticsDashboard() {
               {chartPoints.map((point) => (
                 <div key={point.label} className="flex-1 text-center">
                   <div
-                    className="bg-primary/20 border border-primary/30 rounded-lg"
-                    style={{
-                      height: `${Math.max(12, point.value * 6)}px`,
-                    }}
+                    className={`bg-primary/20 border border-primary/30 rounded-lg mx-auto w-3 ${getBarHeightClass(
+                      point.value,
+                    )}`}
                   />
                   <div className="mt-2 text-[10px] text-slate-400">
                     {point.label}

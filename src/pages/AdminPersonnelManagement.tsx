@@ -198,6 +198,7 @@ export default function AdminPersonnelManagement() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <select
+              aria-label="Filtrar por OM"
               value={selectedSector}
               onChange={(e) => setSelectedSector(e.target.value)}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700"
@@ -210,6 +211,7 @@ export default function AdminPersonnelManagement() {
               ))}
             </select>
             <select
+              aria-label="Filtrar por função"
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700"
@@ -302,6 +304,7 @@ export default function AdminPersonnelManagement() {
                     <td className="py-3 px-4 text-slate-600">
                       {isEditing ? (
                         <input
+                          aria-label="Editar setor"
                           value={draft?.sector ?? ""}
                           onChange={(e) =>
                             updateDraft("sector", e.target.value)
@@ -315,6 +318,7 @@ export default function AdminPersonnelManagement() {
                     <td className="py-3 px-4">
                       {isEditing ? (
                         <select
+                          aria-label="Editar função"
                           value={draft?.role ?? "user"}
                           onChange={(e) =>
                             updateDraft("role", e.target.value as UserRole)
@@ -339,6 +343,7 @@ export default function AdminPersonnelManagement() {
                     <td className="py-3 px-4">
                       {isEditing ? (
                         <select
+                          aria-label="Editar semestre"
                           value={draft?.semester ?? "1"}
                           onChange={(e) =>
                             updateDraft(

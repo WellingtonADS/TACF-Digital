@@ -113,13 +113,7 @@ export default function Login() {
       {/* --- LADO ESQUERDO: Imagem Imersiva (8 colunas) --- */}
       <div className="hidden lg:block lg:col-span-8 relative overflow-hidden">
         {/* Camada de Imagem */}
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 hover:scale-105"
-          style={{
-            // Usando uma imagem de alta qualidade de "corridas/militar" similar ao mockup
-            backgroundImage: "url('/baseareacanoas.jpg')",
-          }}
-        />
+        <div className="absolute inset-0 bg-[url('/baseareacanoas.jpg')] bg-cover bg-center transition-transform duration-1000 hover:scale-105" />
         {/* Camada de Overlay (Filtro Azulado para legibilidade e marca) */}
         <div className="absolute inset-0 bg-primary/40 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />

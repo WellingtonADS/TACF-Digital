@@ -2,7 +2,11 @@ import { Body, H1, H2 } from "@/components/ui/Typography";
 import useSessions from "@/hooks/useSessions";
 import { updateSessionScores } from "@/services/api";
 import { supabase } from "@/services/supabase";
-import { Booking, Profile, SessionWithBookings } from "@/types/database.types";
+import type {
+  Booking,
+  Profile,
+  SessionWithBookings,
+} from "@/types/database.types";
 import { ArrowBack, Check, Groups, Search } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,7 +16,7 @@ import { toast } from "sonner";
 
 interface BookingWithProfile extends Booking {
   profile: Profile;
-  attendance_confirmed?: boolean;
+  attendance_confirmed: boolean;
 }
 
 export default function ScoreEntryScreen() {
@@ -142,6 +146,8 @@ export default function ScoreEntryScreen() {
               onClick={() => navigate("/admin/sessions")}
               className="p-2 hover:bg-white/10 rounded-full transition-colors"
               type="button"
+              aria-label="Voltar"
+              title="Voltar"
             >
               <ArrowBack />
             </button>

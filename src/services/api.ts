@@ -25,17 +25,16 @@ export async function approveSwap(
   requestId: string,
   adminId: string,
 ): Promise<ApproveSwapResult> {
-  const { data, error } = await supabase.rpc<ApproveSwapResult[]>(
-    "approve_swap",
-    {
-      p_request_id: requestId,
-      p_admin_id: adminId,
-    },
-  );
+  const { data, error } = await supabase.rpc("approve_swap", {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+  } as unknown as never);
 
   if (error) return { success: false, error: error.message };
 
-  const row = Array.isArray(data) ? data[0] : data;
+  const row = Array.isArray(data)
+    ? (data[0] as unknown as ApproveSwapResult)
+    : (data as unknown as ApproveSwapResult);
   return { success: row?.success === true, error: row?.error ?? null };
 }
 
@@ -44,18 +43,17 @@ export async function updateSessionScores(
   userId: string,
   attendanceConfirmed: boolean,
 ): Promise<UpdateSessionScoresResult> {
-  const { data, error } = await supabase.rpc<UpdateSessionScoresResult[]>(
-    "update_session_scores",
-    {
-      p_session_id: sessionId,
-      p_user_id: userId,
-      p_attendance_confirmed: attendanceConfirmed,
-    },
-  );
+  const { data, error } = await supabase.rpc("update_session_scores", {
+    p_session_id: sessionId,
+    p_user_id: userId,
+    p_attendance_confirmed: attendanceConfirmed,
+  } as unknown as never);
 
   if (error) return { success: false, error: error.message };
 
-  const row = Array.isArray(data) ? data[0] : data;
+  const row = Array.isArray(data)
+    ? (data[0] as unknown as UpdateSessionScoresResult)
+    : (data as unknown as UpdateSessionScoresResult);
   return { success: row?.success === true, error: row?.error ?? null };
 }
 
@@ -70,17 +68,16 @@ export async function fetchSessionsByMonth(
 
   // Use server-side RPC that returns counts without PII
 
-  const { data, error } = await supabase.rpc<SessionAvailabilityRow[]>(
-    "get_sessions_availability",
-    {
-      p_start: start,
-      p_end: end,
-    },
-  );
+  const { data, error } = await supabase.rpc("get_sessions_availability", {
+    p_start: start,
+    p_end: end,
+  } as unknown as never);
 
   if (error) return { data: null, error: error.message };
 
-  const mapped = ((data ?? []) as SessionAvailabilityRow[]).map((r) => ({
+  const rows = (data as unknown as SessionAvailabilityRow[]) ?? [];
+
+  const mapped = rows.map((r) => ({
     id: String(r.session_id ?? ""),
     date: String(r.date ?? ""),
     period: r.period ?? ("morning" as const),
@@ -105,15 +102,14 @@ export async function fetchFutureSessions(): Promise<{
 }> {
   const today = format(new Date(), "yyyy-LL-dd");
   // Use RPC to get counts for future sessions
-  const { data, error } = await supabase.rpc<SessionAvailabilityRow[]>(
-    "get_sessions_availability",
-    {
-      p_start: today,
-      p_end: "9999-12-31",
-    },
-  );
+
+  const { data, error } = await supabase.rpc("get_sessions_availability", {
+    p_start: today,
+    p_end: "9999-12-31",
+  } as unknown as never);
   if (error) return { data: null, error: error.message };
-  const mapped = ((data ?? []) as SessionAvailabilityRow[]).map((r) => ({
+  const rows = (data as unknown as SessionAvailabilityRow[]) ?? [];
+  const mapped = rows.map((r) => ({
     id: String(r.session_id ?? ""),
     date: String(r.date ?? ""),
     period: r.period ?? ("morning" as const),
@@ -131,36 +127,30 @@ export async function fetchFutureSessions(): Promise<{
 
 // requestSwap moved to bookings.ts
 
+import { upsertSession as upsertAdminSession } from "./admin/sessions";
+
 export async function createSession(sessionData: {
   date: string;
-  period: string;
+  period: "morning" | "afternoon";
   max_capacity: number;
 }): Promise<{
   data: Database["public"]["Tables"]["sessions"]["Row"] | null;
   error: string | null;
 }> {
-  const insertPayload = sessionData as
-    | Database["public"]["Tables"]["sessions"]["Insert"]
-    | undefined;
-
-  const { data, error } = await supabase
-    .from<Database["public"]["Tables"]["sessions"]["Insert"]>("sessions")
-    .insert([
-      insertPayload as Database["public"]["Tables"]["sessions"]["Insert"],
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    if (import.meta.env.DEV) {
-      console.error("Error creating session:", error);
-    }
-    return { data: null, error: error.message };
-  }
-  return {
-    data: (data as Database["public"]["Tables"]["sessions"]["Row"]) ?? null,
-    error: null,
+  // reuse admin upsert to keep DB logic in one place and avoid duplicate typing
+  const row = {
+    date: sessionData.date,
+    period: sessionData.period,
+    max_capacity: sessionData.max_capacity,
+    applicators: [] as string[],
+    status: "open" as const,
   };
+
+  const res = await upsertAdminSession(row);
+  if ("error" in res) return { data: null, error: res.error ?? null };
+
+  const created = (res.data ?? [])[0] ?? null;
+  return { data: created ?? null, error: null };
 }
 
 export async function deleteSession(
