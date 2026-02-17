@@ -1,0 +1,56 @@
+Como Engenheiro de Software Sênior, organizei a documentação do projeto **TACF-Digital** seguindo a progressão lógica do Ciclo de Vida de Desenvolvimento de Software (SDLC). Esta ordem garante que a fundação estratégica suporte as decisões técnicas e visuais tomadas até agora.
+
+Abaixo, apresento o índice estruturado dos artefatos criados para o Hospital da Aeronáutica de Canoas (HACO).
+
+---
+
+### 1. Fase de Iniciação e Estratégia
+
+Esta fase define o propósito, os objetivos e as partes interessadas, transformando a necessidade de sair do Google Forms em um projeto oficial.
+
+* **Documento de Constituição do Projeto (Project Charter):** Formaliza o início, define os patrocinadores, o problema (limitações do Google Sheets), os objetivos estratégicos e os riscos iniciais.
+* **Análise de Atores e Perfis de Acesso:** Identifica quem interage com o sistema (Militar, Coordenador, Sistema) e seus respectivos níveis de permissão.
+
+### 2. Fase de Definição e Requisitos
+
+Aqui detalhamos "o que" o sistema deve fazer. É o contrato técnico entre a engenharia e o cliente.
+
+* **Especificações de Requisitos de Software (SRS):** Consolidação dos **Requisitos Funcionais (RF)**, como a geração de Número de Ordem, e **Requisitos Não Funcionais (RNF)**, como a privacidade de dados (LGPD).
+* **Regras de Negócio (RN):** Detalhamento das restrições rígidas (limite de 8 a 21 pessoas, janelas de FEV-MAI e SET-NOV).
+* **Matriz de Rastreabilidade de Requisitos (RTM):** Tabela que conecta cada requisito à sua origem e ao seu respectivo caso de teste, garantindo 100% de cobertura.
+
+### 3. Fase de Design e Experiência do Usuário (UX/UI)
+
+Define a interface e como o usuário interagirá com as regras estabelecidas.
+
+* **Design System:** Guia de estilo contendo paleta de cores institucional, tipografia (Inter), iconografia e o tom de voz das mensagens (profissional e assertivo).
+* **Prototipagem (Wireframes de Alta Fidelidade):** Desenho estrutural das telas (Login, Onboarding, Dashboard do Militar, Painel do Coordenador e Modal de Aprovação).
+
+### 4. Fase de Arquitetura e Especificação Técnica
+
+O "blue-print" para a construção no Supabase e Vercel.
+
+* **Arquitetura de Sistemas:** Definição da stack (React/Vite 5 + Supabase) e do fluxo de comunicação via Edge Functions.
+* **Modelagem de Dados e Segurança:** Planejamento do esquema PostgreSQL, incluindo a lógica de **Row Level Security (RLS)** e as **Triggers** para automação do Número de Ordem.
+* **Especificação de Fluxos Otimizados:** Mapeamento do processo de "Troca Inteligente" e do "Fast-Track" de agendamento.
+
+---
+
+### Resumo de Documentos Criados
+
+| Ordem | Documento | Status | Objetivo Principal |
+| --- | --- | --- | --- |
+| 1 | Project Charter | Finalizado | Alinhamento de expectativas e metas. |
+| 2 | SRS e Regras de Negócio | Finalizado | Descrição detalhada do comportamento. |
+| 3 | Matriz RTM | Finalizado | Garantia de qualidade e rastreio. |
+| 4 | Design System | Finalizado | Consistência visual e identidade. |
+| 5 | Wireframes / Telas | Finalizado | Visualização da jornada do usuário. |
+| 6 | Specs Técnicas | Finalizado | Guia para implementação do backend/frontend. |
+
+---
+
+### Próximos Passos Operacionais
+
+Agora que a documentação está organizada e os requisitos estão maduros, o projeto está pronto para sair do papel.
+
+**Gostaria que eu iniciasse a geração do Script SQL Completo para a criação do banco de dados no Supabase (incluindo tabelas, triggers e RLS) ou prefere que eu elabore o Plano de Sprint detalhado para as próximas 4 semanas de desenvolvimento?**
