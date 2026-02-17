@@ -1,13 +1,7 @@
-// Minimal supabase wrapper placeholder for skeleton. Replace with real client usage.
-export const supabase = {
-  from: (_: string) => ({ select: () => Promise.resolve([]) }),
-};
-
-export default supabase;
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
-// No Vite, usamos import.meta.env de forma direta e limpa
+// Carrega credenciais de Vite (import.meta.env)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as
   | string
@@ -18,12 +12,9 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+export default supabase;
 
-// (table helper defined at end)
-
-/**
- * Tipagem para o retorno do RPC de agendamento
- */
+/** Tipagens e helpers auxiliares **/
 export interface BookingResponse {
   success: boolean;
   booking_id: string | null;
@@ -31,10 +22,6 @@ export interface BookingResponse {
   error?: string | null;
 }
 
-/**
- * Confirmar agendamento via RPC (Backend-First)
- * Esta função delega a lógica de reservas ao Postgres e normaliza o resultado
- */
 export async function confirmarAgendamentoRPC(
   userId: string,
   sessionId: string,
@@ -65,29 +52,18 @@ export async function confirmarAgendamentoRPC(
   };
 }
 
-/**
- * Helpers de Autenticação
- */
 export const signIn = (email: string, password: string) =>
   supabase.auth.signInWithPassword({ email, password });
 
 export const signUp = (email: string, password: string) =>
   supabase.auth.signUp({ email, password });
 
-/**
- * Upsert Profile com proteção de segurança
- * Recebe um payload compatível com Database.public.Tables.profiles.Insert
- */
 export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Row"]>,
 ) {
   return supabase.from("profiles").upsert(profile).select().maybeSingle();
 }
 
-/**
- * Helper tipado para `supabase.from()`
- * Uso: `table('sessions').select('*')`
- */
 export function table<Table extends keyof Database["public"]["Tables"]>(
   name: Table,
 ) {

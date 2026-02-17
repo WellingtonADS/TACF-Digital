@@ -34,4 +34,7 @@ REQ-02	Sazonalidade	O sistema opera em campanhas (Fev-Mai e Set-Nov). Fora desse
 REQ-03	Segurança de Dados	Um militar não pode ver quem mais está agendado no mesmo dia (Privacidade/LGPD). Apenas o Admin vê a lista nominal.	Crítica
 REQ-04	Fluxo de Troca	O militar não pode alterar a data sozinho após confirmada. Deve solicitar troca para aprovação do Coordenador (Auditabilidade).	Alta
 REQ-05	Gestão de Sessão	O Coordenador deve inserir nomes dos Aplicadores (Sgt X, Ten Y) no dia para constar na impressão.	Média
-REQ-06	Acesso PWA	O sistema deve funcionar em dispositivos móveis (Android/iOS) e web.	Alta
+REQ-06	Notificações	O sistema deve enviar e-mails de confirmação, cancelamento e troca para os militares.	Média
+REQ-07	Interface Intuitiva	O sistema deve ser fácil de usar, com um processo de agendamento simples e claro.	Média
+REQ-08	Relatórios	O Admin deve ter acesso a relatórios de agendamento para análise de demanda e capacidade.	Baixa
+REQ-

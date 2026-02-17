@@ -113,3 +113,8 @@ NOTES.local.md
 # Local development notes and TODOs
 .env
 
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
