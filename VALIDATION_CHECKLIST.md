@@ -10,7 +10,7 @@
 
 ## 🧪 Próximas Validações Recomendadas
 
-- [ ] Executar `yarn test:e2e` — Testes end-to-end (Playwright)
+- [ ] Executar `yarn test:e2e` — Testes end-to-end (Playwright) (REMOVED in this branch)
 - [ ] Executar `yarn test` — Testes unitários (Vitest)
 - [ ] Manual testing — Fluxos críticos (Login, Booking, Admin)
 - [ ] Code review com time — Mudanças de arquitetura

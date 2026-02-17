@@ -22,6 +22,7 @@ Este arquivo orienta agentes de IA para trabalhar com o repositório TACF Digita
 - Lint: `yarn lint`
 - Unit tests: `yarn test` (Vitest)
 - E2E: `yarn test:e2e` (Playwright)
+- E2E: Playwright removed in this branch; reintroduce via PR if needed
 - DB scripts: `yarn db:apply`
 
 ## Convenções de projeto (importante)
@@ -29,6 +30,7 @@ Este arquivo orienta agentes de IA para trabalhar com o repositório TACF Digita
 - Estado preferencialmente local; não introduza Redux/Context sem discussão.
 - Não valide regras de domínio (capacidade, quórum, número de ordem) no frontend — essa lógica vive no Postgres/RPCs.
 - Não adicione dependências fora do stack aprovado (React/TS/Vite/Tailwind/jsPDF/Supabase/Playwright/Vitest).
+- Não adicione dependências fora do stack aprovado (React/TS/Vite/Tailwind/jsPDF/Supabase/Vitest). Playwright é opcional e removido nesta branch.
 
 ## Integrações e pontos de atenção
 

@@ -30,9 +30,9 @@ yarn test
 
 # Com coverage
 
-### Testes E2E (Playwright)
+### Testes E2E
 
-yarn test:e2e
+E2E tests (Playwright) were removed from this branch. See `testUI.md` for guidance on reintroducing E2E tests if needed.
 ## 📝 Convenções e Padrões
 
 - Prefira interfaces para objetos públicos
@@ -93,7 +93,7 @@ yarn dev
 - `yarn lint` — ESLint
 - `yarn type-check` — `npx tsc --noEmit`
 - `yarn test` — Vitest
-- `yarn test:e2e` — Playwright
+- E2E testing — Playwright (removed in this branch)
 - `yarn db:apply` — aplicar migrações Supabase
 
 ## **Boas práticas e convenções**
