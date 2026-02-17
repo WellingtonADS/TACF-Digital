@@ -11,7 +11,6 @@ Baseado no documento oficial do Hospital da Aeronáutica de Canoas (HACO).
 | REQ-03 | Segurança de Dados  | Um militar não pode ver quem mais está agendado no mesmo dia (Privacidade/LGPD). Apenas o Admin vê a lista nominal.             | Crítica     |
 | REQ-04 | Fluxo de Troca      | O militar não pode alterar a data sozinho após confirmada. Deve solicitar troca para aprovação do Coordenador (Auditabilidade). | Alta        |
 | REQ-05 | Gestão de Sessão    | O Coordenador deve inserir nomes dos Aplicadores (Sgt X, Ten Y) no dia para constar na impressão.                               | Média       |
-| REQ-06 | Acesso PWA          | O sistema deve ser instalável via QR Code e funcionar em dispositivos móveis (Android/iOS).                                     | Alta        |
 
 ---
 
@@ -21,11 +20,10 @@ Baseado no documento oficial do Hospital da Aeronáutica de Canoas (HACO).
 
 ```mermaid
 graph TD
-    User((Militar)) -->|Acessa PWA| Front[React + Vite + Tailwind]
+    User((Militar)) -->|Acessa web responsivo| Front[React + Vite + Tailwind]
     Admin((Coordenador)) -->|Acessa Admin| Front
 
     subgraph "Frontend (Vercel)"
-        Front -->|Instalação| PWA[Service Worker]
         Front -->|Gera PDF| PDFLib[jsPDF]
     end
 
@@ -43,16 +41,38 @@ graph TD
 
 ### Stack Tecnológica Definida
 
-- **Frontend**: React 19, TypeScript 5.9, Vite, TailwindCSS v4, Lucide Icons
+- **Frontend**: React 18, TypeScript 5.9, Vite, TailwindCSS v4, Lucide Icons
 - **Backend**: Supabase (BaaS)
 - **Banco de Dados**: PostgreSQL 15+
 - **Hospedagem**: Vercel (Front) + Supabase Cloud (Back)
 - **CI/CD**: GitHub Actions
 - **Bibliotecas Especiais**:
-  - `jspdf` + `jspdf-autotable` - Geração de PDF
-  - `vite-plugin-pwa` - Suporte a Progressive Web App
+- `jspdf` + `jspdf-autotable` - Geração de PDF
+  - Design responsivo: abordagens mobile-first e testes em dispositivos
+
+- **CI/CD**: GitHub Actions (lint, typecheck, build, testes)
+- **Bibliotecas Especiais**:
+  - `jspdf` + `jspdf-autotable` — geração de PDFs (listas de chamada)
+  - Design responsivo: abordagens mobile-first e testes em dispositivos
 
 ---
+
+## Build, Test e CI
+
+- **TypeScript strict:** o projeto deve usar `strict: true` no `tsconfig.json`. Como verificação automática, a pipeline deve rodar `npx tsc --noEmit`.
+- **Comandos mínimos em CI:**
+
+```
+yarn lint
+npx tsc --noEmit
+yarn test
+yarn build
+```
+
+- **Jobs sugeridos (GitHub Actions):** `lint`, `typecheck`, `test`, `build` — todos obrigatórios antes do merge de PR.
+- **Auditoria de dependências (opcional):** `yarn audit`/`npm audit` para capturar vulnerabilidades conhecidas.
+
+- **Regras para alterações em `supabase/`:** quaisquer mudanças em `supabase/migrations`, `supabase/policies` ou `supabase/rpc` devem ser acompanhadas por uma _issue_ descrevendo a motivação, incluir migration SQL versionada em `supabase/migrations/` e requerer revisão explícita do coordenador (HACO) antes do merge (ver AGENTS.md para processo).
 
 ## 3. Modelagem de Banco de Dados (ER Diagram)
 
@@ -183,17 +203,17 @@ Para organizar o desenvolvimento e o ensino posterior, dividiremos em 3 fases:
   - Função `generateCallList.ts`
   - Formato: Data, Turno, Aplicadores, Lista (SARAM + Nome)
   - Download automático
-- [ ] PWA (Progressive Web App)
-  - Configuração do `vite-plugin-pwa`
-  - Manifest.json (ícones, nome, cores)
-  - Service Worker para cache
-  - QR Code para instalação
+- [ ] Web responsivo
+- Implementação mobile-first e testes em dispositivos
+- Meta tags e ícones para integração com navegadores (não PWA)
+- Estratégias de cache e performance (HTTP caching, CDN)
+- QR Code para acesso rápido (opcional)
 - [ ] Testes e Deploy
   - Testes E2E com Playwright (opcional)
   - Deploy no Vercel
   - Configuração de domínio (se aplicável)
 
-**Entregável**: Sistema completo em produção, instalável via PWA
+**Entregável**: Sistema completo em produção, responsivo para web (não PWA)
 
 ---
 
@@ -235,13 +255,13 @@ flowchart TD
 
 ## 6. Matriz de Riscos
 
-| Risco                         | Probabilidade | Impacto | Mitigação                                   |
-| ----------------------------- | ------------- | ------- | ------------------------------------------- |
-| Race condition em agendamento | Média         | Alto    | Usar transações SQL via Supabase RPC        |
-| Militar vê lista de outros    | Baixa         | Crítico | RLS rigoroso + Code review obrigatório      |
-| Supabase fora do ar           | Baixa         | Alto    | Monitoramento + Fallback em cache local     |
-| PWA não instala em iOS        | Média         | Médio   | Testes em Safari + Documentação alternativa |
-| Capacidade de 21 excedida     | Média         | Médio   | CHECK constraint no DB + validação no front |
+| Risco                                | Probabilidade | Impacto | Mitigação                                      |
+| ------------------------------------ | ------------- | ------- | ---------------------------------------------- |
+| Race condition em agendamento        | Média         | Alto    | Usar transações SQL via Supabase RPC           |
+| Militar vê lista de outros           | Baixa         | Crítico | RLS rigoroso + Code review obrigatório         |
+| Supabase fora do ar                  | Baixa         | Alto    | Monitoramento + Fallback em cache local        |
+| Compatibilidade mobile e navegadores | Média         | Médio   | Testes em múltiplos navegadores e dispositivos |
+| Capacidade de 21 excedida            | Média         | Médio   | CHECK constraint no DB + validação no front    |
 
 ---
 
@@ -262,13 +282,12 @@ Para considerar uma funcionalidade concluída:
 ## 8. Referências e Links Úteis
 
 - [Supabase Auth Documentation](https://supabase.com/docs/guides/auth)
-- [Vite PWA Plugin](https://vite-pwa-org.netlify.app/)
 - [jsPDF Documentation](https://github.com/parallax/jsPDF)
 - [Row Level Security (RLS)](https://supabase.com/docs/guides/auth/row-level-security)
-- [React 19 Release Notes](https://react.dev/blog/2024/04/25/react-19)
+- [React 18 Release Notes](https://react.dev/blog/2024/04/25/react-18-release-notes)
 
 ---
 
-**Última atualização**: 14 de janeiro de 2026  
-**Responsável**: Equipe TACF Digital  
+**Última atualização**: 17 de fevereiro de 2026
+**Responsável**: Equipe TACF Digital
 **Stakeholder**: Hospital da Aeronáutica de Canoas (HACO)

@@ -1,17 +1,13 @@
 import type { ReactNode } from "react";
 import Sidebar from "./Sidebar";
-import Topbar from "./Topbar";
 
 type Props = { children?: ReactNode };
 
 export const Layout = ({ children }: Props) => {
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark flex">
       <Sidebar />
-      <div className="flex-1 min-h-screen">
-        <Topbar />
-        <main className="p-6">{children}</main>
-      </div>
+      <main className="flex-1 ml-64 p-8">{children}</main>
     </div>
   );
 };
