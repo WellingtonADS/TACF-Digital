@@ -31,7 +31,8 @@ describe.skipIf(!svc || !anon)("useAuth real-flow (integration)", () => {
         email_confirm: true,
       });
     expect(createErr).toBeNull();
-    const uid = (created as any)?.id;
+    // supabase admin.createUser may return shape { user: { id } } or { id }
+    const uid = (created as any)?.user?.id ?? (created as any)?.id ?? null;
     expect(uid).toBeTruthy();
 
     // sign in via anon client

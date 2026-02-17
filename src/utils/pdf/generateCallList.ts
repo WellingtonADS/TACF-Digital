@@ -36,13 +36,31 @@ export async function generateCallList(
   doc.text(`Aplicadores: ${session.applicators.join(", ")}`, 40, 100);
 
   // Table headers
-  const docAny = doc as unknown as { autoTable: (opts: unknown) => void };
-  docAny.autoTable({
-    startY: 120,
-    head: [["Nº Ordem", "Posto/Graduação", "Nome Completo"]],
-    body: bookings.map((b) => [b.order_number, b.rank, b.full_name]),
-    styles: { fontSize: 10 },
-  });
+  const docAny = doc as unknown as { autoTable?: (opts: unknown) => void };
+  if (typeof docAny.autoTable === "function") {
+    docAny.autoTable({
+      startY: 120,
+      head: [["Nº Ordem", "Posto/Graduação", "Nome Completo"]],
+      body: bookings.map((b) => [b.order_number, b.rank, b.full_name]),
+      styles: { fontSize: 10 },
+    });
+  } else {
+    // Fallback mínimo quando jspdf-autotable não estiver disponível (ambiente de teste)
+    const startY = 120;
+    const rowHeight = 16;
+    // cabeçalho
+    doc.setFontSize(10);
+    doc.text("Nº Ordem", 40, startY);
+    doc.text("Posto/Graduação", 120, startY);
+    doc.text("Nome Completo", 300, startY);
+    // linhas
+    bookings.forEach((b, i) => {
+      const y = startY + (i + 1) * rowHeight;
+      doc.text(String(b.order_number), 40, y);
+      doc.text(String(b.rank), 120, y);
+      doc.text(String(b.full_name), 300, y);
+    });
+  }
 
   if (download) {
     doc.save(title);

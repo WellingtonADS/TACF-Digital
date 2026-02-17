@@ -68,7 +68,10 @@ export default function ComprovanteTicket({ booking }: Props) {
   const isPendingSwap = booking.status === "pending_swap";
 
   return (
-    <div className="w-full max-w-4xl mx-auto my-4 font-inter">
+    <div
+      className="w-full max-w-4xl mx-auto my-4 font-inter"
+      data-testid="comprovante-ticket"
+    >
       {/* Ticket Container */}
       <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col md:flex-row min-h-[400px]">
         {/* Lado Esquerdo: Informações do Militar (Azul) */}
@@ -93,6 +96,7 @@ export default function ComprovanteTicket({ booking }: Props) {
             </div>
 
             <div
+              data-testid="booking-status"
               className={`px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wide ${
                 isPendingSwap
                   ? "bg-orange-500/20 text-orange-200 border-orange-500/30"
@@ -151,7 +155,10 @@ export default function ComprovanteTicket({ booking }: Props) {
               <p className="text-[10px] text-blue-400 uppercase">
                 ID do Agendamento
               </p>
-              <p className="font-mono text-sm tracking-widest opacity-80">
+              <p
+                className="font-mono text-sm tracking-widest opacity-80"
+                data-testid="booking-id"
+              >
                 {booking.id.slice(0, 8).toUpperCase()}
               </p>
             </div>
@@ -168,7 +175,10 @@ export default function ComprovanteTicket({ booking }: Props) {
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-4">
               Scan para Acesso
             </p>
-            <div className="bg-white p-3 rounded-2xl border-2 border-slate-100 mx-auto">
+            <div
+              className="bg-white p-3 rounded-2xl border-2 border-slate-100 mx-auto"
+              data-testid="qr-code"
+            >
               <QRCode value={qrPayload} size={140} className="w-full h-auto" />
             </div>
             <p className="mt-4 text-[10px] text-slate-400 leading-tight px-4">
@@ -179,6 +189,7 @@ export default function ComprovanteTicket({ booking }: Props) {
           {/* Botões de Ação */}
           <div className="w-full space-y-2 mt-6">
             <Button
+              data-testid="download-pdf-button"
               onClick={handleDownload}
               isLoading={downloading}
               variant="outline"
@@ -188,6 +199,7 @@ export default function ComprovanteTicket({ booking }: Props) {
             </Button>
 
             <Button
+              data-testid="request-swap-button"
               onClick={() => setSwapModalOpen(true)}
               disabled={isPendingSwap}
               variant="ghost"

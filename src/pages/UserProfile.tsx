@@ -216,10 +216,14 @@ export default function UserProfile() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="full_name"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       Nome Completo
                     </label>
                     <input
+                      id="full_name"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all uppercase"
                       type="text"
                       value={formData.full_name}
@@ -230,10 +234,14 @@ export default function UserProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="email"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       E-mail Institucional
                     </label>
                     <input
+                      id="email"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
                       type="email"
                       value={formData.email}
@@ -243,10 +251,14 @@ export default function UserProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="phone_number"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       Telefone / WhatsApp
                     </label>
                     <input
+                      id="phone_number"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
                       type="tel"
                       value={formData.phone_number}
@@ -272,10 +284,14 @@ export default function UserProfile() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="saram"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       SARAM
                     </label>
                     <input
+                      id="saram"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
                       type="text"
                       value={formData.saram}
@@ -286,10 +302,14 @@ export default function UserProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="rank"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       Posto / Graduação
                     </label>
                     <select
+                      id="rank"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
                       value={formData.rank}
                       onChange={(e) =>
@@ -306,10 +326,14 @@ export default function UserProfile() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label
+                      htmlFor="sector"
+                      className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                    >
                       OM de Origem
                     </label>
                     <input
+                      id="sector"
                       className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all uppercase"
                       type="text"
                       value={formData.sector}

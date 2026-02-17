@@ -24,15 +24,40 @@ const anon =
 describe.skipIf(!svc || !anon)("useBooking real-flow (integration)", () => {
   test("can create session and booking entries via service role and verify via anon", async () => {
     const test_run_id = `e2e-${randomUUID()}`;
-    // create a session
+
+    function hashToNumber(s: string) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) {
+        h = (h << 5) - h + s.charCodeAt(i);
+        h |= 0;
+      }
+      return Math.abs(h);
+    }
+
+    const hash = hashToNumber(test_run_id);
+    const offsetDays = hash % 14; // spread across two weeks
+    const target = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+    const date = `${target.getFullYear()}-${String(
+      target.getMonth() + 1,
+    ).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
+    const periods = ["morning", "afternoon"];
+    const period = periods[hash % periods.length];
+
+    // create or upsert a session using date+period conflict so parallel runs don't fail
     const { data: session, error: sessErr } = await svc!
       .from("sessions")
-      .insert({
-        title: "E2E Booking Session for hook test",
-        starts_at: new Date().toISOString(),
-        capacity: 3,
-        metadata: { test_run_id },
-      })
+      .upsert(
+        {
+          title: "E2E Booking Session for hook test",
+          date,
+          period,
+          starts_at: new Date().toISOString(),
+          capacity: 8,
+          max_capacity: 8,
+          metadata: { test_run_id },
+        },
+        { onConflict: ["date", "period"] },
+      )
       .select()
       .maybeSingle();
 
@@ -43,12 +68,18 @@ describe.skipIf(!svc || !anon)("useBooking real-flow (integration)", () => {
     // create a profile/user via admin
     const email = `e2e.booking.${Date.now()}@example.com`;
     const password = "P@ssw0rd1";
-    const { data: u } = await svc!.auth.admin.createUser({
+    const createRes = await svc!.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     });
-    const userId = (u as any)?.id;
+    const u = (createRes as any) ?? {};
+    const userId =
+      u?.data?.id ??
+      u?.data?.user?.id ??
+      u?.user?.id ??
+      u?.id ??
+      u?.data?.[0]?.id;
     expect(userId).toBeTruthy();
 
     // attempt to create a booking via service role (if table allows)

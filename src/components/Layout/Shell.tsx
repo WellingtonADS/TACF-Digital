@@ -161,11 +161,11 @@ export default function Shell({
       </Sidebar>
 
       {/* Main Content */}
+      {/** Evita estilo inline: usa classes Tailwind condicionais para margin-left */}
       <div
-        className="transition-all duration-300"
-        style={{
-          marginLeft: sidebarOpen ? (sidebarCollapsed ? "80px" : "256px") : "0",
-        }}
+        className={`transition-all duration-300 ${
+          sidebarOpen ? (sidebarCollapsed ? "ml-[80px]" : "ml-[256px]") : "ml-0"
+        }`}
       >
         <TopNav profile={profile} adminEnabled={adminEnabled} />
 

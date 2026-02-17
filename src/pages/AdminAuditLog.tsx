@@ -153,6 +153,7 @@ export default function AdminAuditLog() {
       <Card className="border border-slate-200 shadow-sm" padding="md">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <Input
+            aria-label="Buscar por usuário"
             placeholder="Buscar por usuario"
             value={filters.userQuery}
             onChange={(e) =>
@@ -164,6 +165,7 @@ export default function AdminAuditLog() {
             icon={<Search size={16} />}
           />
           <select
+            aria-label="Filtrar por ação"
             value={filters.action}
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, action: e.target.value }))
@@ -177,6 +179,7 @@ export default function AdminAuditLog() {
             ))}
           </select>
           <input
+            aria-label="Data inicial"
             type="date"
             value={filters.startDate}
             onChange={(e) =>
@@ -185,6 +188,7 @@ export default function AdminAuditLog() {
             className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700"
           />
           <input
+            aria-label="Data final"
             type="date"
             value={filters.endDate}
             onChange={(e) =>
