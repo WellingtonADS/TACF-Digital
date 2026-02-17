@@ -43,7 +43,7 @@ graph TD
 
 ### Stack Tecnológica Definida
 
-- **Frontend**: React 19, TypeScript 5.9, Vite, TailwindCSS v4, Lucide Icons
+- **Frontend**: React 1, TypeScript 5.9, Vite, TailwindCSS v4, Lucide Icons
 - **Backend**: Supabase (BaaS)
 - **Banco de Dados**: PostgreSQL 15+
 - **Hospedagem**: Vercel (Front) + Supabase Cloud (Back)
