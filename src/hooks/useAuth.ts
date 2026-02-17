@@ -1,3 +1,9 @@
+export const useAuth = () => {
+  // placeholder hook for refactor skeleton
+  return { user: null, isLoading: false };
+};
+
+export default useAuth;
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { useCallback, useEffect, useState } from "react";

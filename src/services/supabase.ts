@@ -1,3 +1,9 @@
+// Minimal supabase wrapper placeholder for skeleton. Replace with real client usage.
+export const supabase = {
+  from: (_: string) => ({ select: () => Promise.resolve([]) }),
+};
+
+export default supabase;
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
