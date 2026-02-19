@@ -1,5 +1,6 @@
 import AuthLayout from "@/components/AuthLayout";
 import { signIn, signUp, upsertProfile } from "@/services/supabase";
+import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -27,7 +28,12 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { error: signUpError } = await signUp(email, password);
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        // show friendly message immediately and stop the flow
+        toast.error(getAuthErrorMessage(signUpError, "Erro ao criar conta."));
+        setLoading(false);
+        return;
+      }
 
       const { error: signInError, data } = (await signIn(
         email,
@@ -53,8 +59,7 @@ export default function RegisterPage() {
       toast.success("Conta criada e autenticada.");
       navigate("/app");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || "Erro ao criar conta.");
+      toast.error(getAuthErrorMessage(err, "Erro ao criar conta."));
     } finally {
       setLoading(false);
     }

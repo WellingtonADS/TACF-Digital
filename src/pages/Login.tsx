@@ -1,11 +1,13 @@
 import AuthLayout from "@/components/AuthLayout";
 import { supabase } from "@/services/supabase";
+import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,8 +31,12 @@ export default function Login() {
       setAutoLoginFailed(false);
       toast.success("Login automático realizado com sucesso.");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || "Falha ao tentar login automático. Tente novamente.");
+      toast.error(
+        getAuthErrorMessage(
+          err,
+          "Falha ao tentar login automático. Tente novamente.",
+        ),
+      );
     } finally {
       setRetryingAutoLogin(false);
     }
@@ -74,8 +80,8 @@ export default function Login() {
             setAutoLoginFailed(true);
             return;
           }
-
           toast.success("Conta criada e autenticada. Redirecionando...");
+          navigate("/app");
         } catch (e) {
           if (import.meta.env.DEV) console.warn("Auto-login failed:", e);
           toast.error(
@@ -90,16 +96,23 @@ export default function Login() {
           email: formData.email,
           password: formData.password,
         });
-        if (error) throw error;
+        if (error) {
+          // show friendly message immediately instead of relying on outer catch
+          toast.error(getAuthErrorMessage(error, "Erro na autenticação."));
+          setIsLoading(false);
+          return;
+        }
+        navigate("/app");
       }
     } catch (err: unknown) {
       if (import.meta.env.DEV) console.error(err);
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || "Erro na autenticação.");
+      toast.error(getAuthErrorMessage(err, "Erro na autenticação."));
     } finally {
       setIsLoading(false);
     }
   };
+
+  // using shared helper from src/utils/getAuthErrorMessage.ts
 
   return (
     <AuthLayout>

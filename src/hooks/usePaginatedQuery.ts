@@ -29,7 +29,7 @@ export default function usePaginatedQuery<T = any>(
       } as any);
 
       if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error(error);
         setLoading(false);
         return;

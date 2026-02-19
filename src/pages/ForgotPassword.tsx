@@ -1,5 +1,6 @@
 import AuthLayout from "@/components/AuthLayout";
 import { supabase } from "@/services/supabase";
+import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { AlertCircle, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -55,8 +56,9 @@ export default function ForgotPasswordPage() {
       );
       navigate("/login");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || "Erro ao solicitar recuperação de senha.");
+      toast.error(
+        getAuthErrorMessage(err, "Erro ao solicitar recuperação de senha."),
+      );
     } finally {
       setLoading(false);
     }

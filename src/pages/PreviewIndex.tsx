@@ -12,7 +12,7 @@ export default function PreviewIndex() {
       path: "/preview/appointment-confirmation",
     },
     { label: "Digital Ticket (preview)", path: "/preview/digital-ticket" },
-    { label: "User Profiles (preview)", path: "/preview/user-profiles" },
+    { label: "Perfil (preview)", path: "/preview/perfil" },
     { label: "Results History (preview)", path: "/preview/results-history" },
   ];
 
@@ -21,7 +21,7 @@ export default function PreviewIndex() {
     { label: "Confirmação (app)", path: "/app/agendamentos/confirmacao" },
     { label: "Ticket (app)", path: "/app/ticket" },
     { label: "Resultados (app)", path: "/app/resultados" },
-    { label: "User Profiles (app)", path: "/app/user-profiles" },
+    { label: "User Profiles (app)", path: "/app/perfil" },
   ];
 
   return (
