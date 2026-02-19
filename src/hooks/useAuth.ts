@@ -1,11 +1,12 @@
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import type { User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
 
 export default function useAuth() {
-  const [user, setUser] = useState<unknown | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

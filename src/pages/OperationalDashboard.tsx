@@ -1,4 +1,5 @@
 import useAuth from "@/hooks/useAuth";
+import type { Database } from "@/types/database.types";
 import { isAfter, parseISO } from "date-fns";
 import {
   Award,
@@ -14,15 +15,15 @@ import Layout from "../layout/Layout";
 
 export const OperationalDashboard = () => {
   const { user, profile, loading } = useAuth();
+  const typedProfile = profile as
+    | Database["public"]["Tables"]["profiles"]["Row"]
+    | null;
 
   const displayName =
-    (profile as any)?.full_name ||
-    (profile as any)?.name ||
-    (user as any)?.email ||
-    "Usuário";
+    typedProfile?.full_name || typedProfile?.name || user?.email || "Usuário";
 
   // derive status from inspsau_valid_until when available (client-side fallback only)
-  const inspsau = (profile as any)?.inspsau_valid_until;
+  const inspsau = typedProfile?.inspsau_valid_until;
   let statusLabel = "Inapto";
   let statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
 

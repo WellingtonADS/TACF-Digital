@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import supabase, { upsertProfile } from "../services/supabase";
 
@@ -42,35 +43,40 @@ export default function UserProfilesManagement() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id ?? null;
 
-      let res: any;
+      const profileSelect =
+        'id, full_name, saram, email, phone, rank, om, age, "group", last_inspection, inspsau_valid_until';
+
+      let data: Profile | null = null;
+      let error: Error | null = null;
+
       if (userId) {
-        res = await supabase
+        const result = await supabase
           .from("profiles")
-          .select(
-            `id, full_name, saram, email, phone, rank, om, age, "group", last_inspection, inspsau_valid_until`,
-          )
+          .select(profileSelect)
           .eq("id", userId)
           .maybeSingle();
+
+        data = (result.data as Profile | null) ?? null;
+        error = result.error;
       } else {
         // fallback to first profile in DB (preview/dev)
-        res = await supabase
+        const result = await supabase
           .from("profiles")
-          .select(
-            `id, full_name, saram, email, phone, rank, om, age, "group", last_inspection, inspsau_valid_until`,
-          )
+          .select(profileSelect)
           .limit(1)
           .maybeSingle();
+
+        data = (result.data as Profile | null) ?? null;
+        error = result.error;
       }
 
-      if (res.error) {
-         
-        console.error(res.error);
+      if (error) {
+        console.error(error);
         setProfile(null);
       } else {
-        setProfile((res.data as Profile) || null);
+        setProfile(data ?? null);
       }
     } catch (err) {
-       
       console.error(err);
       setProfile(null);
     }
@@ -82,7 +88,7 @@ export default function UserProfilesManagement() {
     setProfile((p) => (p ? { ...p, [key]: value } : p));
   }
 
-  async function handleSave(e?: React.FormEvent) {
+  async function handleSave(e?: FormEvent) {
     if (e) e.preventDefault();
     if (!profile) return;
     // basic validation
@@ -101,7 +107,7 @@ export default function UserProfilesManagement() {
         rank: profile.rank,
         om: profile.om,
         saram: profile.saram,
-      } as any);
+      });
 
       if (error) {
         toast.error("Erro ao salvar: " + error.message);
@@ -109,8 +115,7 @@ export default function UserProfilesManagement() {
         toast.success("Alterações salvas com sucesso.");
         setProfile((data as Profile) ?? profile);
       }
-    } catch (err: any) {
-       
+    } catch (err: unknown) {
       console.error(err);
       toast.error("Erro ao salvar o perfil.");
     } finally {

@@ -14,9 +14,15 @@ export const NotificationCard = ({
   children,
 }: Props) => {
   const base = "p-3 rounded-lg shadow-sm";
+  const variants: Record<NonNullable<Props["variant"]>, string> = {
+    info: "bg-white",
+    success: "bg-emerald-50",
+    warning: "bg-amber-50",
+    error: "bg-rose-50",
+  };
 
   return (
-    <div className={`${base} bg-white`}>
+    <div className={`${base} ${variants[variant]}`}>
       {title && <div className="font-semibold mb-1">{title}</div>}
       <div className="text-sm">{message}</div>
       {children}
