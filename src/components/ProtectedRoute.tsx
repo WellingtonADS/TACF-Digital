@@ -22,8 +22,9 @@ export default function ProtectedRoute({
         if (!mounted) return;
         setAuthenticated(false);
       } finally {
-        if (!mounted) return;
-        setChecking(false);
+        if (mounted) {
+          setChecking(false);
+        }
       }
     })();
 

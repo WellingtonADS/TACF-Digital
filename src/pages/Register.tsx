@@ -35,10 +35,7 @@ export default function RegisterPage() {
         return;
       }
 
-      const { error: signInError, data } = (await signIn(
-        email,
-        password,
-      )) as any;
+      const { error: signInError, data } = await signIn(email, password);
       if (signInError) {
         toast.success("Conta criada. Verifique seu e-mail para confirmar.");
         navigate("/login");

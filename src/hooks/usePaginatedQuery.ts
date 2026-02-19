@@ -7,7 +7,14 @@ type PaginatedResult<T> = {
   has_more?: boolean;
 };
 
-export default function usePaginatedQuery<T = any>(
+type PaginatedRpcParams = {
+  p_limit: number;
+  p_cursor: string | null;
+  p_from: string | null;
+  p_to: string | null;
+};
+
+export default function usePaginatedQuery<T = unknown>(
   rpcName: string,
   opts?: { limit?: number; from?: string | null; to?: string | null },
 ) {
@@ -21,15 +28,18 @@ export default function usePaginatedQuery<T = any>(
     if (!hasMore) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc<PaginatedResult<T>>(rpcName, {
+      const params: PaginatedRpcParams = {
         p_limit: limit,
         p_cursor: cursor,
         p_from: opts?.from ?? null,
         p_to: opts?.to ?? null,
-      } as any);
+      };
+
+      const { data, error } = await supabase.rpc<PaginatedResult<T>>(rpcName, {
+        ...params,
+      });
 
       if (error) {
-         
         console.error(error);
         setLoading(false);
         return;

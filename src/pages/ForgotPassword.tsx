@@ -2,11 +2,21 @@ import AuthLayout from "@/components/AuthLayout";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { AlertCircle, ArrowLeft, KeyRound, Mail } from "lucide-react";
-import React, { useState } from "react";
+import type { ChangeEventHandler, ComponentType, FormEvent } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 // using shared AuthLayout to match Login page image, typography and theme
+
+type InputFieldProps = {
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: ChangeEventHandler<HTMLInputElement>;
+};
 
 const InputField = ({
   label,
@@ -15,7 +25,7 @@ const InputField = ({
   placeholder,
   value,
   onChange,
-}: any) => (
+}: InputFieldProps) => (
   <div className="space-y-2">
     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
       {label}
@@ -40,7 +50,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email) {
       toast.error("Informe o e-mail institucional.");
@@ -87,7 +97,7 @@ export default function ForgotPasswordPage() {
             icon={Mail}
             placeholder="usuario@fab.mil.br"
             value={email}
-            onChange={(e: any) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <button
             disabled={loading}

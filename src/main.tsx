@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -47,7 +48,7 @@ const PreviewIndex = React.lazy(() => import("./pages/PreviewIndex"));
 if (import.meta.env.DEV && typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => {
     // keep noise but still visible; helps identify real regressions
-     
+
     console.warn(
       "Unhandled promise rejection:",
       (e as PromiseRejectionEvent).reason,
@@ -55,7 +56,6 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
   });
 
   window.addEventListener("error", (e) => {
-     
     console.warn(
       "Global error caught:",
       (e as ErrorEvent).error ?? (e as ErrorEvent).message,
