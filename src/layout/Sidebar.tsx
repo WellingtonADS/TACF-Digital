@@ -1,3 +1,4 @@
+import useAuth from "@/hooks/useAuth";
 import {
   Calendar,
   FileText,
@@ -6,7 +7,7 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -46,7 +47,7 @@ export const Sidebar = () => {
                 import("../pages/ResultsHistory");
               if (item.path === "/app/agendamentos")
                 import("../pages/Scheduling");
-              if (item.path === "/app/user-profiles")
+              if (item.path === "/app/perfil")
                 import("../pages/UserProfilesManagement");
             }}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -62,13 +63,35 @@ export const Sidebar = () => {
       </nav>
 
       <div className="p-4 mt-auto">
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm font-bold uppercase tracking-wider border border-red-500/20">
-          <LogOut size={20} />
-          Sair
-        </button>
+        <LogoutButton />
       </div>
     </aside>
   );
 };
 
 export default Sidebar;
+
+function LogoutButton() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handle = async () => {
+    try {
+      await signOut();
+    } finally {
+      // ensure user lands on login regardless of signOut outcome
+      navigate("/login");
+    }
+  };
+
+  return (
+    <button
+      onClick={handle}
+      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm font-bold uppercase tracking-wider border border-red-500/20"
+      type="button"
+    >
+      <LogOut size={20} />
+      Sair
+    </button>
+  );
+}

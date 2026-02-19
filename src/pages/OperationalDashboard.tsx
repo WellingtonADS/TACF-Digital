@@ -1,3 +1,5 @@
+import useAuth from "@/hooks/useAuth";
+import { isAfter, parseISO } from "date-fns";
 import {
   Award,
   CalendarPlus,
@@ -11,6 +13,35 @@ import {
 import Layout from "../layout/Layout";
 
 export const OperationalDashboard = () => {
+  const { user, profile, loading } = useAuth();
+
+  const displayName =
+    (profile as any)?.full_name ||
+    (profile as any)?.name ||
+    (user as any)?.email ||
+    "Usuário";
+
+  // derive status from inspsau_valid_until when available (client-side fallback only)
+  const inspsau = (profile as any)?.inspsau_valid_until;
+  let statusLabel = "Inapto";
+  let statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
+
+  if (inspsau) {
+    try {
+      const date = typeof inspsau === "string" ? parseISO(inspsau) : inspsau;
+      if (isAfter(date, new Date())) {
+        statusLabel = "Apto";
+        statusColor =
+          "text-emerald-300 bg-emerald-500/20 border-emerald-500/30";
+      } else {
+        statusLabel = "Inapto";
+        statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
+      }
+    } catch {
+      statusLabel = "Inapto";
+    }
+  }
+
   const actionCards = [
     {
       icon: CalendarPlus,
@@ -57,27 +88,28 @@ export const OperationalDashboard = () => {
       {/* Greeting Card */}
       <section className="mb-8">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-10 text-white shadow-2xl shadow-primary/20">
-          {/* Abstract Pattern Background */}
           <div
             className="absolute inset-0 opacity-10 pointer-events-none bg-cover bg-center"
             style={{
               backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDurxoPOc3Gb_jppt_qbvSWXqBih_aeg1LoSiESxVH3iJGYCSoMaA9waLCd3MIT1EZ3FClUucmFoCyljmJkdLQYTPHfTNTpKHEYR_pax-Ze2Qan-F67pJLx0cCAAupmkCGWWM26S2qOhmzQi4Npm5BOwlMbb-oV9gyz5pQCblYHEOq2VLi6huOJgg8oNkSH9oop3-LoOVdgnr-fj24xfHvreAzGNpbVbN0mw9sq_DvUSA2yZuWRo7v1IRQUBXNlVa7p1PuHRcSx2Er5')",
+                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDurxoPOc3Gb_jppt_qbvSWXqBih_aeg1LoSiESxVH3iJGYCSoMaA9waLCd3MIT1EZ3FClUucmFoCyljmJkdLQYTPHfTNTpKHEYR_pax-Ze2Qan-F67pJLx0cCAAupmkCGWWM26S2qOhmzQi4Npm5BOwlMbb-oV9gyz5pQCblYHEOq2VLi6huOJgg8oNkSH9oop3-LoOVdgnr-fj24xfHvreAzGNpbVbN0mw9sq_DvUSA2yZuWRo7p1PuHRcSx2Er5')",
             }}
           />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
-                Olá, Tenente Silva
+                Olá, {displayName}
               </h2>
               <p className="text-white/80 mt-2 text-lg font-normal">
                 Seja bem-vindo ao portal de agendamento do HACO
               </p>
               {/* Status Chip */}
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+              <div
+                className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${statusColor}`}
+              >
                 <CheckCircle size={18} />
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  Status: Ativo / Apto
+                  Status: {loading ? "Carregando" : statusLabel}
                 </span>
               </div>
             </div>

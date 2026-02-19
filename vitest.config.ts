@@ -18,19 +18,18 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: "src/setupTests.ts",
+    setupFiles: "tests/setupTests.ts",
     include: [
+      "tests/**/*.test.{ts,tsx}",
+      "tests/**/*.spec.{ts,tsx}",
       "src/**/*.test.{ts,tsx}",
-      "src/**/__tests__/**/*.test.{ts,tsx}",
-      "src/**/__tests__/**/*.spec.{ts,tsx}",
       "src/**/*.spec.{ts,tsx}",
     ],
     // Integration tests that touch external services can be slow and should run
     // sequentially to avoid race conditions. These defaults keep unit tests
     // fast while providing safer defaults for integration runs.
     // Run-time overrides (CI) can change these values if desired.
-    threads: false,
     isolate: true,
-    timeout: 60_000,
+    exclude: ["tests/e2e/**", "tests/playwright/**", "**/*.pw.*"],
   },
 });

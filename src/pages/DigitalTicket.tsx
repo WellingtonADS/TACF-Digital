@@ -88,7 +88,7 @@ export default function DigitalTicket({
       doc.save(`comprovante-${ticket.saram}-${ticket.code}.pdf`);
     } catch (err) {
       // fallback: abrir diálogo de impressão
-      // eslint-disable-next-line no-console
+       
       console.error(err);
       window.print();
     }

@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AutoRedirect from "./components/AutoRedirect";
+import ProtectedRoute from "./components/ProtectedRoute";
 import "./index.css";
 const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
 const Login = React.lazy(() => import("./pages/Login"));
@@ -42,6 +43,25 @@ const UserProfilesManagement = React.lazy(
   () => import("./pages/UserProfilesManagement"),
 );
 const PreviewIndex = React.lazy(() => import("./pages/PreviewIndex"));
+// Global dev-only handlers to reduce noisy uncaught errors in the console
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (e) => {
+    // keep noise but still visible; helps identify real regressions
+     
+    console.warn(
+      "Unhandled promise rejection:",
+      (e as PromiseRejectionEvent).reason,
+    );
+  });
+
+  window.addEventListener("error", (e) => {
+     
+    console.warn(
+      "Global error caught:",
+      (e as ErrorEvent).error ?? (e as ErrorEvent).message,
+    );
+  });
+}
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -121,7 +141,7 @@ createRoot(document.getElementById("root")!).render(
           }
         />
         <Route
-          path="/preview/user-profiles"
+          path="/preview/perfil"
           element={
             <Suspense fallback={<div className="p-6">Carregando...</div>}>
               <UserProfilesManagementPreview />
@@ -169,7 +189,7 @@ createRoot(document.getElementById("root")!).render(
           }
         />
         <Route
-          path="/app/user-profiles"
+          path="/app/perfil"
           element={
             <Suspense fallback={<div className="p-6">Carregando...</div>}>
               <UserProfilesManagement />
@@ -190,17 +210,21 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/*"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <OperationalDashboard />
-            </Suspense>
+            <ProtectedRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <OperationalDashboard />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/*"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <OperationalDashboard />
-            </Suspense>
+            <ProtectedRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <OperationalDashboard />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
       </Routes>

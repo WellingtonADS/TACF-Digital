@@ -63,14 +63,14 @@ export default function UserProfilesManagement() {
       }
 
       if (res.error) {
-        // eslint-disable-next-line no-console
+         
         console.error(res.error);
         setProfile(null);
       } else {
         setProfile((res.data as Profile) || null);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error(err);
       setProfile(null);
     }
@@ -110,7 +110,7 @@ export default function UserProfilesManagement() {
         setProfile((data as Profile) ?? profile);
       }
     } catch (err: any) {
-      // eslint-disable-next-line no-console
+       
       console.error(err);
       toast.error("Erro ao salvar o perfil.");
     } finally {

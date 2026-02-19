@@ -1,9 +1,3 @@
-export const useAuth = () => {
-  // placeholder hook for refactor skeleton
-  return { user: null, isLoading: false };
-};
-
-export default useAuth;
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { useCallback, useEffect, useState } from "react";
@@ -23,7 +17,19 @@ export default function useAuth() {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData?.user?.id;
       if (!uid) {
+        // no logged user; in development allow a preview profile fallback
         setUser(null);
+        if (import.meta.env.MODE !== "production") {
+          const { data: p } = await supabase
+            .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+            .select("*")
+            .limit(1)
+            .maybeSingle();
+
+          setProfile((p as Profile) ?? null);
+          return;
+        }
+
         setProfile(null);
         return;
       }
@@ -36,7 +42,18 @@ export default function useAuth() {
         .eq("id", uid)
         .maybeSingle();
 
-      setProfile((p as Profile) ?? null);
+      if (!p && import.meta.env.MODE !== "production") {
+        // user has no profile in DB — fallback to first profile in dev for easier testing
+        const { data: fallback } = await supabase
+          .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+
+        setProfile((fallback as Profile) ?? null);
+      } else {
+        setProfile((p as Profile) ?? null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
