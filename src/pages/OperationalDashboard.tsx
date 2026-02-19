@@ -1,4 +1,5 @@
 import useAuth from "@/hooks/useAuth";
+import useDashboard from "@/hooks/useDashboard";
 import type { Database } from "@/types/database.types";
 import { isAfter, parseISO } from "date-fns";
 import {
@@ -6,11 +7,11 @@ import {
   CalendarPlus,
   CheckCircle,
   ClipboardList,
-  FileText,
   Info,
   MoreHorizontal,
   Shield,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 
 export const OperationalDashboard = () => {
@@ -43,6 +44,17 @@ export const OperationalDashboard = () => {
     }
   }
 
+  const {
+    bookingsCount,
+    resultsCount,
+    nextSession,
+    latestOrderNumber,
+    notifications: derivedNotifications,
+    loading: dashboardLoading,
+  } = useDashboard();
+
+  const navigate = useNavigate();
+
   const actionCards = [
     {
       icon: CalendarPlus,
@@ -50,6 +62,7 @@ export const OperationalDashboard = () => {
       title: "Marcar TACF",
       iconBg: "bg-blue-50 dark:bg-primary/20",
       iconColor: "text-primary dark:text-blue-400",
+      to: "/app/agendamentos",
     },
     {
       icon: ClipboardList,
@@ -57,6 +70,8 @@ export const OperationalDashboard = () => {
       title: "Histórico",
       iconBg: "bg-blue-50 dark:bg-primary/20",
       iconColor: "text-primary dark:text-blue-400",
+      to: "/app/resultados",
+      count: resultsCount,
     },
     {
       icon: Award,
@@ -64,25 +79,12 @@ export const OperationalDashboard = () => {
       title: "Certificados",
       iconBg: "bg-blue-50 dark:bg-primary/20",
       iconColor: "text-primary dark:text-blue-400",
+      to: "/app/ticket",
+      count: bookingsCount,
     },
   ];
 
-  const notifications = [
-    {
-      icon: Shield,
-      iconColor: "text-amber-500",
-      title: "Inspeção de Saúde",
-      description:
-        "Sua inspeção vence em 45 dias. Verifique os requisitos no HACO.",
-    },
-    {
-      icon: FileText,
-      iconColor: "text-blue-500",
-      title: "Nova ICA 54-2",
-      description:
-        "Publicada nova portaria sobre os índices de aptidão física.",
-    },
-  ];
+  const notifications = derivedNotifications;
 
   return (
     <Layout>
@@ -113,6 +115,21 @@ export const OperationalDashboard = () => {
                   Status: {loading ? "Carregando" : statusLabel}
                 </span>
               </div>
+
+              {/* Bilhete (se disponível) */}
+              {latestOrderNumber && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-sm">
+                    Bilhete: {latestOrderNumber}
+                  </div>
+                  <button
+                    onClick={() => navigate("/app/ticket")}
+                    className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs font-semibold hover:bg-white/20 transition-colors"
+                  >
+                    Abrir Bilhete
+                  </button>
+                </div>
+              )}
             </div>
             <div className="hidden lg:block">
               <div className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center">
@@ -128,6 +145,7 @@ export const OperationalDashboard = () => {
         {actionCards.map((card, index) => (
           <button
             key={index}
+            onClick={() => navigate(card.to ?? "/")}
             className="group bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
           >
             <div
@@ -135,12 +153,21 @@ export const OperationalDashboard = () => {
             >
               <card.icon size={32} />
             </div>
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-1 group-hover:text-primary transition-colors">
-              {card.label}
-            </h3>
-            <p className="text-slate-900 dark:text-white font-semibold text-lg">
-              {card.title}
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-1 group-hover:text-primary transition-colors">
+                  {card.label}
+                </h3>
+                <p className="text-slate-900 dark:text-white font-semibold text-lg">
+                  {card.title}
+                </p>
+              </div>
+              {typeof card.count === "number" && (
+                <div className="ml-auto text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-full">
+                  {card.count}
+                </div>
+              )}
+            </div>
           </button>
         ))}
       </section>
@@ -162,12 +189,38 @@ export const OperationalDashboard = () => {
             <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
               <Info size={24} />
             </div>
-            <p className="text-slate-600 dark:text-slate-400 font-medium">
-              Nenhum agendamento pendente
-            </p>
-            <button className="mt-4 text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline">
-              Ver calendário completo
-            </button>
+            {dashboardLoading ? (
+              <p className="text-slate-600 dark:text-slate-400 font-medium">
+                Carregando...
+              </p>
+            ) : nextSession ? (
+              <div className="text-center">
+                <p className="text-lg font-bold text-slate-900">
+                  {nextSession.date}
+                </p>
+                <p className="text-sm text-slate-500 mt-2">
+                  {(nextSession as unknown as { time?: string }).time ??
+                    `Turno: ${nextSession.period}`}
+                </p>
+                <div className="mt-4">
+                  <a
+                    href="/app/agendamentos"
+                    className="text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline"
+                  >
+                    Ver agendamento
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-slate-600 dark:text-slate-400 font-medium">
+                  Nenhum agendamento pendente
+                </p>
+                <button className="mt-4 text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline">
+                  Ver calendário completo
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -178,20 +231,20 @@ export const OperationalDashboard = () => {
             Avisos Importantes
           </h4>
           <div className="space-y-4">
-            {notifications.map((notification, index) => (
+            {notifications.map((n, idx) => (
               <div
-                key={index}
+                key={idx}
                 className="flex gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
               >
-                <div className={notification.iconColor}>
-                  <notification.icon size={24} />
+                <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                  <Info size={20} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                    {notification.title}
+                  <p className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
+                    {n.title}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                    {notification.description}
+                    {n.description}
                   </p>
                 </div>
               </div>
