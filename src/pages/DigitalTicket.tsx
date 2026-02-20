@@ -1,3 +1,4 @@
+import supabase from "@/services/supabase";
 import { jsPDF } from "jspdf";
 import {
   Calendar,
@@ -8,8 +9,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import QR from "react-qr-code";
+import { useLocation } from "react-router-dom";
 
 type TicketData = {
   name: string;
@@ -31,16 +33,102 @@ const sample: TicketData = {
   confirmed: true,
 };
 
-export default function DigitalTicket({
-  ticket = sample,
-}: {
-  ticket?: TicketData;
-}) {
+type TicketRouteState = {
+  bookingId?: string;
+  orderNumber?: string | null;
+  sessionId?: string;
+};
+
+function formatTicketDate(date: string): string {
+  return new Date(date)
+    .toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+    .replace(".", "")
+    .toUpperCase();
+}
+
+export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
+  const location = useLocation();
+  const routeState = (location.state as TicketRouteState | null) ?? null;
+
+  const [ticketData, setTicketData] = useState<TicketData>(() => ({
+    ...sample,
+    ...ticket,
+    code: routeState?.orderNumber ?? ticket?.code ?? sample.code,
+    confirmed: true,
+  }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFromBooking() {
+      const bookingId = routeState?.bookingId;
+      if (!bookingId) {
+        setTicketData((prev) => ({
+          ...prev,
+          ...ticket,
+          code: routeState?.orderNumber ?? ticket?.code ?? prev.code,
+          confirmed: true,
+        }));
+        return;
+      }
+
+      const { data: bookingData } = await supabase
+        .from("bookings")
+        .select("id, user_id, session_id, order_number, status")
+        .eq("id", bookingId)
+        .maybeSingle();
+
+      if (!bookingData) {
+        return;
+      }
+
+      const [sessionResp, profileResp] = await Promise.all([
+        supabase
+          .from("sessions")
+          .select("id, date, period")
+          .eq("id", bookingData.session_id)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("id, war_name, full_name, saram")
+          .eq("id", bookingData.user_id)
+          .maybeSingle(),
+      ]);
+
+      if (cancelled) return;
+
+      const sessionData = sessionResp.data;
+      const profileData = profileResp.data;
+
+      setTicketData((prev) => ({
+        ...prev,
+        name: profileData?.war_name ?? profileData?.full_name ?? prev.name,
+        saram: profileData?.saram ?? prev.saram,
+        date: sessionData?.date
+          ? formatTicketDate(sessionData.date)
+          : prev.date,
+        time: sessionData?.period ?? prev.time,
+        code: bookingData.order_number ?? routeState?.orderNumber ?? prev.code,
+        confirmed: bookingData.status === "confirmed",
+      }));
+    }
+
+    loadFromBooking();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeState?.bookingId, routeState?.orderNumber, ticket]);
+
   const generatePdf = useCallback(async () => {
     try {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-      const qrDataUrl = await QRCode.toDataURL(ticket.code, {
+      const qrDataUrl = await QRCode.toDataURL(ticketData.code, {
         margin: 0,
         width: 200,
         color: { dark: "#000000", light: "#ffffff" },
@@ -53,52 +141,52 @@ export default function DigitalTicket({
       doc.setFontSize(18);
       doc.text("COMPROVANTE DE AGENDAMENTO", 60, 75);
       doc.setFontSize(11);
-      doc.text(ticket.location, 60, 95);
+      doc.text(ticketData.location, 60, 95);
 
       // Body
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(12);
       doc.text("Militar:", 60, 140);
       doc.setFontSize(16);
-      doc.text(ticket.name, 140, 140);
+      doc.text(ticketData.name, 140, 140);
 
       doc.setFontSize(12);
       doc.text("SARAM:", 60, 170);
       doc.setFontSize(16);
-      doc.text(ticket.saram, 140, 170);
+      doc.text(ticketData.saram, 140, 170);
 
       doc.setFontSize(12);
       doc.text("Data:", 60, 200);
       doc.setFontSize(14);
-      doc.text(`${ticket.date} | ${ticket.time}`, 140, 200);
+      doc.text(`${ticketData.date} | ${ticketData.time}`, 140, 200);
 
       doc.setFontSize(12);
       doc.text("Local:", 60, 230);
       doc.setFontSize(12);
-      doc.text(ticket.location, 140, 230);
+      doc.text(ticketData.location, 140, 230);
 
       // Code and QR
       doc.setFontSize(12);
       doc.text("Código de Validação:", 60, 270);
       doc.setFontSize(14);
-      doc.text(ticket.code, 60, 290);
+      doc.text(ticketData.code, 60, 290);
 
       doc.addImage(qrDataUrl, "PNG", 380, 150, 150, 150);
 
-      doc.save(`comprovante-${ticket.saram}-${ticket.code}.pdf`);
+      doc.save(`comprovante-${ticketData.saram}-${ticketData.code}.pdf`);
     } catch (err) {
       // fallback: abrir diálogo de impressão
-       
+
       console.error(err);
       window.print();
     }
-  }, [ticket]);
+  }, [ticketData]);
 
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
 
-  const qrValue = useMemo(() => ticket.code, [ticket.code]);
+  const qrValue = useMemo(() => ticketData.code, [ticketData.code]);
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark p-6 flex flex-col items-center">
@@ -130,7 +218,7 @@ export default function DigitalTicket({
             <div className="flex items-center gap-2 bg-green-500/20 backdrop-blur-md border border-green-500/30 px-4 py-2 rounded-full">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-xs font-bold uppercase tracking-widest text-green-100">
-                {ticket.confirmed ? "Confirmado" : "Agendado"}
+                {ticketData.confirmed ? "Confirmado" : "Agendado"}
               </span>
             </div>
           </div>
@@ -143,7 +231,7 @@ export default function DigitalTicket({
                 Militar
               </span>
               <p className="text-2xl font-black text-slate-900 dark:text-white">
-                {ticket.name}
+                {ticketData.name}
               </p>
             </div>
 
@@ -152,7 +240,7 @@ export default function DigitalTicket({
                 SARAM
               </span>
               <p className="text-2xl font-mono font-semibold text-slate-900 dark:text-white">
-                {ticket.saram}
+                {ticketData.saram}
               </p>
             </div>
 
@@ -163,7 +251,7 @@ export default function DigitalTicket({
               <div className="flex items-start gap-2">
                 <MapPin className="text-primary" size={18} />
                 <p className="text-lg font-mono font-medium text-slate-700 dark:text-slate-300">
-                  {ticket.location}
+                  {ticketData.location}
                 </p>
               </div>
             </div>
@@ -175,9 +263,9 @@ export default function DigitalTicket({
               <div className="flex items-start gap-2">
                 <Calendar className="text-primary" size={18} />
                 <p className="text-lg font-bold text-slate-900 dark:text-white">
-                  {ticket.date}{" "}
+                  {ticketData.date}{" "}
                   <span className="text-primary font-normal mx-2">|</span>{" "}
-                  {ticket.time}
+                  {ticketData.time}
                 </p>
               </div>
             </div>
@@ -203,7 +291,7 @@ export default function DigitalTicket({
                 Código de Validação
               </span>
               <p className="text-xl font-mono font-bold text-primary tracking-[0.25em]">
-                {ticket.code}
+                {ticketData.code}
               </p>
             </div>
 

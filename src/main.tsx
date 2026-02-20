@@ -25,6 +25,9 @@ const RegisterPreview = React.lazy(
 const ResultsHistoryPreview = React.lazy(
   () => import("./pages/preview/ResultsHistoryPreview"),
 );
+const ClassCreationFormPreview = React.lazy(
+  () => import("./pages/preview/ClassCreationFormPreview"),
+);
 const SchedulingPreview = React.lazy(
   () => import("./pages/preview/SchedulingPreview"),
 );
@@ -43,7 +46,19 @@ const DigitalTicket = React.lazy(() => import("./pages/DigitalTicket"));
 const UserProfilesManagement = React.lazy(
   () => import("./pages/UserProfilesManagement"),
 );
+const PersonnelManagement = React.lazy(
+  () => import("./pages/PersonnelManagement"),
+);
+const ScoreEntry = React.lazy(() => import("./pages/ScoreEntry"));
+const AnalyticsDashboard = React.lazy(
+  () => import("./pages/AnalyticsDashboard"),
+);
+const SystemSettings = React.lazy(() => import("./pages/SystemSettings"));
+const ClassCreationForm = React.lazy(() => import("./pages/ClassCreationForm"));
 const PreviewIndex = React.lazy(() => import("./pages/PreviewIndex"));
+const OmLocationManager = React.lazy(() => import("./pages/OmLocationManager"));
+const OmLocationEditor = React.lazy(() => import("./pages/OmLocationEditor"));
+
 // Global dev-only handlers to reduce noisy uncaught errors in the console
 if (import.meta.env.DEV && typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => {
@@ -157,6 +172,22 @@ createRoot(document.getElementById("root")!).render(
           }
         />
         <Route
+          path="/preview/configuracoes"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <SystemSettings />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/preview/turmas-nova"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <ClassCreationFormPreview />
+            </Suspense>
+          }
+        />
+        <Route
           path="/app/resultados"
           element={
             <Suspense fallback={<div className="p-6">Carregando...</div>}>
@@ -181,6 +212,14 @@ createRoot(document.getElementById("root")!).render(
           }
         />
         <Route
+          path="/app/turmas/nova"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <ClassCreationForm />
+            </Suspense>
+          }
+        />
+        <Route
           path="/app/ticket"
           element={
             <Suspense fallback={<div className="p-6">Carregando...</div>}>
@@ -193,6 +232,54 @@ createRoot(document.getElementById("root")!).render(
           element={
             <Suspense fallback={<div className="p-6">Carregando...</div>}>
               <UserProfilesManagement />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/efetivo"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <PersonnelManagement />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/om-locations"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <OmLocationManager />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/om/:id"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <OmLocationEditor />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/lancamento-indices"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <ScoreEntry />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/analytics"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <AnalyticsDashboard />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/app/configuracoes"
+          element={
+            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <SystemSettings />
             </Suspense>
           }
         />

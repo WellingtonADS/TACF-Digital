@@ -1,4 +1,5 @@
-import supabase from "@/services/supabase";
+import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
+import type { Database } from "@/types/database.types";
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -9,63 +10,120 @@ import Layout from "../layout/Layout";
 export const AppointmentConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  type LocationState = { bookingId?: string };
+  type LocationState = { bookingId?: string; sessionId?: string };
+
+  type BookingPreview = Pick<
+    Database["public"]["Tables"]["bookings"]["Row"],
+    | "id"
+    | "user_id"
+    | "session_id"
+    | "status"
+    | "test_date"
+    | "order_number"
+    | "score"
+    | "result_details"
+  >;
+
+  type SessionPreview = Pick<
+    Database["public"]["Tables"]["sessions"]["Row"],
+    "id" | "date" | "period" | "max_capacity"
+  >;
+
+  type ProfilePreview = Pick<
+    Database["public"]["Tables"]["profiles"]["Row"],
+    "id" | "full_name" | "war_name" | "saram" | "rank" | "sector"
+  >;
+
   const bookingIdFromState = (location.state as LocationState)?.bookingId;
+  const sessionIdFromState = (location.state as LocationState)?.sessionId;
   const urlParams = new URLSearchParams(location.search);
   const bookingIdFromQuery = urlParams.get("bookingId");
+  const sessionIdFromQuery = urlParams.get("sessionId");
+
   const bookingId = bookingIdFromState ?? bookingIdFromQuery ?? null;
+  const sessionIdInput = sessionIdFromState ?? sessionIdFromQuery ?? null;
 
   const [loading, setLoading] = useState(false);
-  const [booking, setBooking] = useState<
-    | import("@/types/database.types").Database["public"]["Tables"]["bookings"]["Row"]
-    | null
-  >(null);
-  const [session, setSession] = useState<
-    | import("@/types/database.types").Database["public"]["Tables"]["sessions"]["Row"]
-    | null
-  >(null);
-  const [profile, setProfile] = useState<
-    | import("@/types/database.types").Database["public"]["Tables"]["profiles"]["Row"]
-    | null
-  >(null);
+  const [confirming, setConfirming] = useState(false);
+  const [booking, setBooking] = useState<BookingPreview | null>(null);
+  const [session, setSession] = useState<SessionPreview | null>(null);
+  const [profile, setProfile] = useState<ProfilePreview | null>(null);
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(
+    sessionIdInput,
+  );
 
   useEffect(() => {
-    async function fetchBooking() {
-      if (!bookingId) return;
+    async function fetchData() {
+      if (!bookingId && !sessionIdInput) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        const { data: bData, error: bErr } = await supabase
-          .from("bookings")
-          .select(
-            "id, user_id, session_id, test_date, order_number, score, result_details",
-          )
-          .eq("id", bookingId)
-          .maybeSingle();
+        let localBooking: BookingPreview | null = null;
+        let localSessionId = sessionIdInput;
+        let localUserId: string | null = null;
 
-        if (bErr || !bData) {
+        if (bookingId) {
+          const { data: bData, error: bErr } = await supabase
+            .from("bookings")
+            .select(
+              "id, user_id, session_id, status, test_date, order_number, score, result_details",
+            )
+            .eq("id", bookingId)
+            .maybeSingle<BookingPreview>();
+
+          if (bErr || !bData) {
+            setBooking(null);
+            setSession(null);
+            setProfile(null);
+            setResolvedSessionId(sessionIdInput);
+            return;
+          }
+
+          localBooking = bData;
+          localSessionId = bData.session_id;
+          localUserId = bData.user_id;
+          setBooking(bData);
+        } else {
           setBooking(null);
-          setSession(null);
-          setProfile(null);
-          return;
         }
 
-        setBooking(bData);
+        if (localSessionId) {
+          const { data: sData } = await supabase
+            .from("sessions")
+            .select("id, date, period, max_capacity")
+            .eq("id", localSessionId)
+            .maybeSingle<SessionPreview>();
 
-        const { data: sData } = await supabase
-          .from("sessions")
-          .select("id, date, period, max_capacity")
-          .eq("id", bData.session_id)
-          .maybeSingle();
+          setSession(sData ?? null);
+          setResolvedSessionId(sData?.id ?? localSessionId);
+        } else {
+          setSession(null);
+          setResolvedSessionId(null);
+        }
 
-        setSession(sData ?? null);
+        if (!localUserId) {
+          const userResp = await supabase.auth.getUser();
+          localUserId = userResp.data.user?.id ?? null;
+        }
 
-        const { data: pData } = await supabase
-          .from("profiles")
-          .select("id, full_name, war_name, saram, rank, sector")
-          .eq("id", bData.user_id)
-          .maybeSingle();
+        if (localUserId) {
+          const { data: pData } = await supabase
+            .from("profiles")
+            .select("id, full_name, war_name, saram, rank, sector")
+            .eq("id", localUserId)
+            .maybeSingle<ProfilePreview>();
 
-        setProfile(pData ?? null);
+          setProfile(pData ?? null);
+        } else {
+          setProfile(null);
+        }
+
+        if (!localBooking) {
+          setBooking(null);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -73,19 +131,55 @@ export const AppointmentConfirmation = () => {
       }
     }
 
-    fetchBooking();
-  }, [bookingId]);
+    fetchData();
+  }, [bookingId, sessionIdInput]);
 
   function handleBack() {
     navigate(-1);
   }
 
-  function handleConfirm() {
-    toast.success("Agendamento confirmado. Bilhete gerado.");
-    navigate("/app");
+  async function handleConfirm() {
+    if (!resolvedSessionId) {
+      toast.error("Sessão inválida para confirmação.");
+      return;
+    }
+
+    setConfirming(true);
+    try {
+      const userResp = await supabase.auth.getUser();
+      const userId = userResp.data.user?.id;
+
+      if (!userId) {
+        toast.error("Usuário não autenticado.");
+        return;
+      }
+
+      const result = await confirmarAgendamentoRPC(userId, resolvedSessionId);
+
+      if (!result.success || !result.booking_id) {
+        toast.error(
+          result.error ?? "Não foi possível confirmar o agendamento.",
+        );
+        return;
+      }
+
+      toast.success("Agendamento confirmado com sucesso.");
+      navigate("/app/ticket", {
+        state: {
+          bookingId: result.booking_id,
+          orderNumber: result.order_number ?? null,
+          sessionId: resolvedSessionId,
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao confirmar.";
+      toast.error(msg);
+    } finally {
+      setConfirming(false);
+    }
   }
 
-  if (!bookingId) {
+  if (!bookingId && !sessionIdInput) {
     return (
       <Layout>
         <div className="p-6 max-w-2xl mx-auto">Agendamento não encontrado.</div>
@@ -217,10 +311,11 @@ export const AppointmentConfirmation = () => {
               <button
                 onClick={handleConfirm}
                 onMouseEnter={() => import("./DigitalTicket")}
+                disabled={loading || confirming || !resolvedSessionId}
                 className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-lg transition-all flex items-center justify-center gap-3"
               >
                 <span className="text-sm font-bold uppercase tracking-widest">
-                  Confirmar Agendamento
+                  {confirming ? "Confirmando..." : "Confirmar Agendamento"}
                 </span>
                 <CheckCircle size={18} />
               </button>

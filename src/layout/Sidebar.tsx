@@ -1,11 +1,17 @@
 import useAuth from "@/hooks/useAuth";
 import {
   Calendar,
+  ChartColumn,
+  ClipboardPen,
   FileText,
   LayoutDashboard,
   LogOut,
+  MapPin,
+  PlusCircle,
+  Settings,
   Shield,
   User,
+  Users,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -15,6 +21,20 @@ export const Sidebar = () => {
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/app" },
     { icon: Calendar, label: "Agendamentos", path: "/app/agendamentos" },
+    { icon: PlusCircle, label: "Nova Turma", path: "/app/turmas/nova" },
+    { icon: Users, label: "Efetivo", path: "/app/efetivo" },
+    { icon: MapPin, label: "OMs / Locais", path: "/app/om-locations" },
+    {
+      icon: ClipboardPen,
+      label: "Lançar Índices",
+      path: "/app/lancamento-indices",
+    },
+    {
+      icon: ChartColumn,
+      label: "Analytics",
+      path: "/app/analytics",
+    },
+    { icon: Settings, label: "Configurações", path: "/app/configuracoes" },
     { icon: User, label: "Perfil", path: "/app/perfil" },
     { icon: FileText, label: "Resultados", path: "/app/resultados" },
   ];
@@ -55,6 +75,16 @@ export const Sidebar = () => {
                 import("../pages/ResultsHistory");
               if (item.path === "/app/agendamentos")
                 import("../pages/Scheduling");
+              if (item.path === "/app/turmas/nova")
+                import("../pages/ClassCreationForm");
+              if (item.path === "/app/efetivo")
+                import("../pages/PersonnelManagement");
+              if (item.path === "/app/lancamento-indices")
+                import("../pages/ScoreEntry");
+              if (item.path === "/app/analytics")
+                import("../pages/AnalyticsDashboard");
+              if (item.path === "/app/configuracoes")
+                import("../pages/SystemSettings");
               if (item.path === "/app/perfil")
                 import("../pages/UserProfilesManagement");
             }}

@@ -21,6 +21,8 @@ Frontend em React + Supabase para gerenciamento de agendamentos e listas de cham
 5. **Banco de Dados / RLS:** não altere `supabase/` (schemas, policies, migrations) sem aprovação humana do coordenador; regras de domínio devem residir no backend (RPCs).
 6. **Validações:** prefira criar/usar RPCs em `supabase/rpc/` ao invés de mover validações críticas para o cliente.
 
+
+
 ## 🧪 Estratégia de Testes
 
 - Todo código novo deve incluir testes unitários (Vitest). Cobertura mínima para funcionalidades novas.
