@@ -135,7 +135,7 @@ export default function Login() {
               id="email"
               type="email"
               required
-              placeholder="E-mail institucional"
+              placeholder="Ex.: joao.silva@fab.mil.br"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
@@ -149,7 +149,7 @@ export default function Login() {
               id="password"
               type="password"
               required
-              placeholder="Senha"
+              placeholder="Digite sua senha"
               value={formData.password}
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
@@ -164,7 +164,7 @@ export default function Login() {
                 id="confirmPassword"
                 type="password"
                 required
-                placeholder="Confirmar Senha"
+                placeholder="Confirme sua senha"
                 value={formData.confirmPassword}
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })

@@ -19,7 +19,15 @@ export const Sidebar = () => {
     { icon: FileText, label: "Resultados", path: "/app/resultados" },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === "/app") {
+      return location.pathname === "/app" || location.pathname === "/app/";
+    }
+
+    return (
+      location.pathname === path || location.pathname.startsWith(`${path}/`)
+    );
+  };
 
   return (
     <aside className="w-64 bg-primary text-white flex flex-col fixed h-full z-50">

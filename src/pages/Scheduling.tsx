@@ -1,3 +1,5 @@
+import useBooking from "@/hooks/useBooking";
+import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import {
   Calendar,
   Check,
@@ -9,15 +11,71 @@ import {
   HelpCircle,
   MapPin,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import Layout from "../layout/Layout";
 
 export const Scheduling = () => {
   const navigate = useNavigate();
 
-  function handleContinue() {
-    navigate("/app/agendamentos/confirmacao");
+  const [viewDate, setViewDate] = useState(() => new Date());
+  const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+  const endOfMonth = new Date(
+    viewDate.getFullYear(),
+    viewDate.getMonth() + 1,
+    0,
+  );
+  const startStr = startOfMonth.toISOString().split("T")[0];
+  const endStr = endOfMonth.toISOString().split("T")[0];
+
+  const { sessions, loading, refresh } = useSessions(startStr, endStr);
+  const { book, isLoading: bookingLoading } = useBooking();
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+
+  const sessionsByDate = useMemo(() => {
+    const map: Record<string, SessionAvailability[]> = {};
+    (sessions ?? []).forEach((s) => {
+      const key = s.date as string;
+      map[key] = map[key] ?? [];
+      map[key].push(s);
+    });
+    return map;
+  }, [sessions]);
+
+  // pick first available date
+  useMemo(() => {
+    if (!selectedDate && sessions && sessions.length > 0) {
+      setSelectedDate(sessions[0].date as string);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
+
+  function handleSelectSession(sessionId: string) {
+    setSelectedSession(sessionId);
   }
+
+  async function handleBook() {
+    if (!selectedSession) {
+      toast.error("Selecione um horário antes de continuar.");
+      return;
+    }
+
+    const res = await book(selectedSession);
+    if (res.success) {
+      toast.success("Agendamento confirmado.");
+      navigate("/app/agendamentos/confirmacao", {
+        state: { bookingId: res.booking_id },
+      });
+    } else {
+      toast.error(res.error ?? "Erro ao agendar.");
+      await refresh();
+    }
+  }
+
+  const daysInMonth = endOfMonth.getDate();
 
   return (
     <Layout>
@@ -75,13 +133,40 @@ export const Scheduling = () => {
                 <h3 className="text-xl font-bold text-slate-900">
                   Calendário de Testes
                 </h3>
-                <p className="text-sm text-slate-400">Outubro 2023</p>
+                <p className="text-sm text-slate-400">
+                  {viewDate.toLocaleString("pt-BR", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
               </div>
               <div className="flex gap-2">
-                <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors">
+                <button
+                  onClick={() =>
+                    setViewDate(
+                      new Date(
+                        viewDate.getFullYear(),
+                        viewDate.getMonth() - 1,
+                        1,
+                      ),
+                    )
+                  }
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+                >
                   <ChevronLeft size={18} />
                 </button>
-                <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors">
+                <button
+                  onClick={() =>
+                    setViewDate(
+                      new Date(
+                        viewDate.getFullYear(),
+                        viewDate.getMonth() + 1,
+                        1,
+                      ),
+                    )
+                  }
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+                >
                   <ChevronRight size={18} />
                 </button>
               </div>
@@ -99,14 +184,29 @@ export const Scheduling = () => {
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-3">
-                {/* Simplified days layout - placeholders */}
-                {Array.from({ length: 28 }).map((_, i) => {
+              {loading ? (
+                <div className="grid grid-cols-7 gap-3">
+                  {Array.from({ length: Math.min(daysInMonth, 28) }).map((_, i) => (
+                    <div key={i} className="aspect-square bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-7 gap-3">
+                {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
-                  const isDisabled = [1, 2, 3, 4, 5, 11, 12].includes(day);
-                  const isSelected = day === 6;
-                  const hasDot = [8, 14, 17].includes(day);
-                  if (isDisabled)
+                  const dateObj = new Date(
+                    viewDate.getFullYear(),
+                    viewDate.getMonth(),
+                    day,
+                  );
+                  const dateKey = dateObj.toISOString().split("T")[0];
+                  const hasSessions =
+                    (sessionsByDate[dateKey] || []).length > 0;
+                  const isSelected = selectedDate === dateKey;
+                  const isPast =
+                    dateObj < new Date(new Date().setHours(0, 0, 0, 0));
+
+                  if (isPast) {
                     return (
                       <div
                         key={i}
@@ -115,14 +215,18 @@ export const Scheduling = () => {
                         {day}
                       </div>
                     );
+                  }
+
                   return (
                     <button
                       key={i}
-                      className={`aspect-square rounded-xl flex items-center justify-center font-medium ${isSelected ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "text-slate-700 hover:bg-slate-50 transition-all"}`}
+                      onClick={() => hasSessions && setSelectedDate(dateKey)}
+                      className={`aspect-square relative rounded-xl flex items-center justify-center font-medium ${isSelected ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : hasSessions ? "text-slate-700 hover:bg-slate-50 transition-all" : "text-slate-300"}`}
+                      disabled={!hasSessions}
                     >
                       {day}
-                      {hasDot && (
-                        <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary"></span>
+                      {hasSessions && (
+                        <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
                       )}
                     </button>
                   );
@@ -151,7 +255,15 @@ export const Scheduling = () => {
                 <p className="text-[10px] font-bold tracking-[0.2em] opacity-80 mb-1 uppercase">
                   Detalhes da Sessão
                 </p>
-                <h3 className="text-xl font-bold">06 de Outubro, 2023</h3>
+                <h3 className="text-xl font-bold">
+                  {selectedDate
+                    ? new Date(selectedDate).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "Selecione uma data"}
+                </h3>
               </div>
 
               <div className="p-6 space-y-6">
@@ -176,51 +288,57 @@ export const Scheduling = () => {
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                     Horários Disponíveis
                   </p>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-primary bg-primary/5">
-                      <div className="flex items-center gap-3">
-                        <Clock size={18} className="text-primary" />
-                        <span className="font-bold text-slate-900">07:30</span>
-                      </div>
-                      <div className="px-3 py-1 bg-military-green text-[10px] font-bold text-white rounded-full uppercase">
-                        Vagas: 12/40
-                      </div>
-                    </button>
-
-                    <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200">
-                      <div className="flex items-center gap-3">
-                        <Clock size={18} className="text-slate-400" />
-                        <span className="font-semibold text-slate-600">
-                          08:30
-                        </span>
-                      </div>
-                      <div className="px-3 py-1 bg-military-green text-[10px] font-bold text-white rounded-full uppercase">
-                        Vagas: 28/40
-                      </div>
-                    </button>
-
-                    <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 cursor-not-allowed opacity-70">
-                      <div className="flex items-center gap-3">
-                        <Clock size={18} className="text-slate-300" />
-                        <span className="font-semibold text-slate-400">
-                          09:30
-                        </span>
-                      </div>
-                      <div className="px-3 py-1 bg-military-red text-[10px] font-bold text-white rounded-full uppercase">
-                        Vagas Esgotadas
-                      </div>
-                    </button>
-                  </div>
+                  {loading ? (<PageSkeleton rows={3} />) : (!selectedDate ? (
+                    <div className="text-sm text-slate-500">
+                      Selecione uma data no calendário à esquerda.
+                    </div>
+                  ) : sessionsByDate[selectedDate]?.length === 0 ? (
+                    <div className="text-sm text-slate-500">
+                      Nenhuma sessão disponível nesta data.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {sessionsByDate[selectedDate].map((s) => (
+                        <button
+                          key={s.session_id}
+                          onClick={() => handleSelectSession(s.session_id)}
+                          disabled={s.available_count <= 0}
+                          className={`w-full flex items-center justify-between p-4 rounded-xl border ${selectedSession === s.session_id ? "border-2 border-primary bg-primary/5" : "border-slate-100"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Clock
+                              size={18}
+                              className={
+                                s.available_count > 0
+                                  ? "text-primary"
+                                  : "text-slate-300"
+                              }
+                            />
+                            <span className="font-semibold text-slate-700">
+                              {s.period}
+                            </span>
+                          </div>
+                          <div
+                            className={`px-3 py-1 text-[10px] font-bold text-white rounded-full uppercase ${s.available_count > 0 ? "bg-military-green" : "bg-military-red"}`}
+                          >
+                            {s.available_count > 0
+                              ? `Vagas: ${s.available_count}/${s.max_capacity}`
+                              : "Vagas Esgotadas"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             <button
-              onClick={handleContinue}
-              onMouseEnter={() => import("./AppointmentConfirmation")}
-              className="w-full bg-primary hover:bg-primary/90 text-white py-5 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"
+              onClick={handleBook}
+              disabled={!selectedSession || bookingLoading}
+              className="w-full bg-primary hover:bg-primary/90 text-white py-5 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              CONTINUAR PARA CONFIRMAÇÃO
+              {bookingLoading ? "Agendando..." : "CONTINUAR PARA CONFIRMAÇÃO"}
               <ChevronRight size={18} />
             </button>
 

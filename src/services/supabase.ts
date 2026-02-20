@@ -55,8 +55,16 @@ export async function confirmarAgendamentoRPC(
 export const signIn = (email: string, password: string) =>
   supabase.auth.signInWithPassword({ email, password });
 
-export const signUp = (email: string, password: string) =>
-  supabase.auth.signUp({ email, password });
+export const signUp = (
+  email: string,
+  password: string,
+  metadata?: Record<string, string>,
+) =>
+  supabase.auth.signUp({
+    email,
+    password,
+    options: metadata ? { data: metadata } : undefined,
+  });
 
 export async function upsertProfile(
   profile: Partial<Database["public"]["Tables"]["profiles"]["Row"]>,

@@ -14,6 +14,7 @@ type InputFieldProps = {
   icon: ComponentType<{ size?: number }>;
   type?: string;
   placeholder?: string;
+  required?: boolean;
   value: string;
   onChange: ChangeEventHandler<HTMLInputElement>;
 };
@@ -23,6 +24,7 @@ const InputField = ({
   icon: Icon,
   type = "text",
   placeholder,
+  required = false,
   value,
   onChange,
 }: InputFieldProps) => (
@@ -37,6 +39,7 @@ const InputField = ({
       <input
         type={type}
         placeholder={placeholder}
+        required={required}
         value={value}
         onChange={onChange}
         className="w-full pl-11 pr-4 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
@@ -95,7 +98,8 @@ export default function ForgotPasswordPage() {
           <InputField
             label="E-mail Institucional"
             icon={Mail}
-            placeholder="usuario@fab.mil.br"
+            placeholder="Ex.: joao.silva@fab.mil.br"
+            required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
