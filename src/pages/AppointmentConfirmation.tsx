@@ -16,9 +16,18 @@ export const AppointmentConfirmation = () => {
   const bookingId = bookingIdFromState ?? bookingIdFromQuery ?? null;
 
   const [loading, setLoading] = useState(false);
-  const [booking, setBooking] = useState<import("@/types/database.types").Database['public']['Tables']['bookings']['Row'] | null>(null);
-  const [session, setSession] = useState<import("@/types/database.types").Database['public']['Tables']['sessions']['Row'] | null>(null);
-  const [profile, setProfile] = useState<import("@/types/database.types").Database['public']['Tables']['profiles']['Row'] | null>(null);
+  const [booking, setBooking] = useState<
+    | import("@/types/database.types").Database["public"]["Tables"]["bookings"]["Row"]
+    | null
+  >(null);
+  const [session, setSession] = useState<
+    | import("@/types/database.types").Database["public"]["Tables"]["sessions"]["Row"]
+    | null
+  >(null);
+  const [profile, setProfile] = useState<
+    | import("@/types/database.types").Database["public"]["Tables"]["profiles"]["Row"]
+    | null
+  >(null);
 
   useEffect(() => {
     async function fetchBooking() {
