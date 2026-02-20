@@ -1,4 +1,3 @@
-import useBooking from "@/hooks/useBooking";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import {
   Calendar,
@@ -14,6 +13,7 @@ import {
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import PageSkeleton from "../components/PageSkeleton";
 import Layout from "../layout/Layout";
 
 export const Scheduling = () => {
@@ -29,8 +29,7 @@ export const Scheduling = () => {
   const startStr = startOfMonth.toISOString().split("T")[0];
   const endStr = endOfMonth.toISOString().split("T")[0];
 
-  const { sessions, loading, refresh } = useSessions(startStr, endStr);
-  const { book, isLoading: bookingLoading } = useBooking();
+  const { sessions, loading } = useSessions(startStr, endStr);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -57,22 +56,15 @@ export const Scheduling = () => {
     setSelectedSession(sessionId);
   }
 
-  async function handleBook() {
+  function handleBook() {
     if (!selectedSession) {
       toast.error("Selecione um horário antes de continuar.");
       return;
     }
 
-    const res = await book(selectedSession);
-    if (res.success) {
-      toast.success("Agendamento confirmado.");
-      navigate("/app/agendamentos/confirmacao", {
-        state: { bookingId: res.booking_id },
-      });
-    } else {
-      toast.error(res.error ?? "Erro ao agendar.");
-      await refresh();
-    }
+    navigate("/app/agendamentos/confirmacao", {
+      state: { sessionId: selectedSession },
+    });
   }
 
   const daysInMonth = endOfMonth.getDate();
@@ -186,52 +178,58 @@ export const Scheduling = () => {
 
               {loading ? (
                 <div className="grid grid-cols-7 gap-3">
-                  {Array.from({ length: Math.min(daysInMonth, 28) }).map((_, i) => (
-                    <div key={i} className="aspect-square bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
-                  ))}
+                  {Array.from({ length: Math.min(daysInMonth, 28) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-square bg-slate-100 dark:bg-slate-800 rounded animate-pulse"
+                      />
+                    ),
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-7 gap-3">
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const dateObj = new Date(
-                    viewDate.getFullYear(),
-                    viewDate.getMonth(),
-                    day,
-                  );
-                  const dateKey = dateObj.toISOString().split("T")[0];
-                  const hasSessions =
-                    (sessionsByDate[dateKey] || []).length > 0;
-                  const isSelected = selectedDate === dateKey;
-                  const isPast =
-                    dateObj < new Date(new Date().setHours(0, 0, 0, 0));
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateObj = new Date(
+                      viewDate.getFullYear(),
+                      viewDate.getMonth(),
+                      day,
+                    );
+                    const dateKey = dateObj.toISOString().split("T")[0];
+                    const hasSessions =
+                      (sessionsByDate[dateKey] || []).length > 0;
+                    const isSelected = selectedDate === dateKey;
+                    const isPast =
+                      dateObj < new Date(new Date().setHours(0, 0, 0, 0));
 
-                  if (isPast) {
+                    if (isPast) {
+                      return (
+                        <div
+                          key={i}
+                          className="aspect-square flex items-center justify-center text-slate-300"
+                        >
+                          {day}
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div
+                      <button
                         key={i}
-                        className="aspect-square flex items-center justify-center text-slate-300"
+                        onClick={() => hasSessions && setSelectedDate(dateKey)}
+                        className={`aspect-square relative rounded-xl flex items-center justify-center font-medium ${isSelected ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : hasSessions ? "text-slate-700 hover:bg-slate-50 transition-all" : "text-slate-300"}`}
+                        disabled={!hasSessions}
                       >
                         {day}
-                      </div>
+                        {hasSessions && (
+                          <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
+                        )}
+                      </button>
                     );
-                  }
-
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => hasSessions && setSelectedDate(dateKey)}
-                      className={`aspect-square relative rounded-xl flex items-center justify-center font-medium ${isSelected ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : hasSessions ? "text-slate-700 hover:bg-slate-50 transition-all" : "text-slate-300"}`}
-                      disabled={!hasSessions}
-                    >
-                      {day}
-                      {hasSessions && (
-                        <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="p-6 bg-slate-50 flex gap-6 items-center justify-center border-t border-slate-100">
@@ -288,7 +286,9 @@ export const Scheduling = () => {
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                     Horários Disponíveis
                   </p>
-                  {loading ? (<PageSkeleton rows={3} />) : (!selectedDate ? (
+                  {loading ? (
+                    <PageSkeleton rows={3} />
+                  ) : !selectedDate ? (
                     <div className="text-sm text-slate-500">
                       Selecione uma data no calendário à esquerda.
                     </div>
@@ -335,10 +335,10 @@ export const Scheduling = () => {
 
             <button
               onClick={handleBook}
-              disabled={!selectedSession || bookingLoading}
+              disabled={!selectedSession}
               className="w-full bg-primary hover:bg-primary/90 text-white py-5 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              {bookingLoading ? "Agendando..." : "CONTINUAR PARA CONFIRMAÇÃO"}
+              CONTINUAR PARA CONFIRMAÇÃO
               <ChevronRight size={18} />
             </button>
 

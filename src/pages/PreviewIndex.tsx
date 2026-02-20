@@ -11,17 +11,23 @@ export default function PreviewIndex() {
       label: "Appointment Confirmation (preview)",
       path: "/preview/appointment-confirmation",
     },
+    { label: "Nova Turma (preview)", path: "/preview/turmas-nova" },
     { label: "Digital Ticket (preview)", path: "/preview/digital-ticket" },
     { label: "Perfil (preview)", path: "/preview/perfil" },
+    { label: "Efetivo (preview)", path: "/preview/efetivo" },
     { label: "Results History (preview)", path: "/preview/results-history" },
+    { label: "Configurações (preview)", path: "/preview/configuracoes" },
   ];
 
   const quick = [
     { label: "Agendamentos (app)", path: "/app/agendamentos" },
+    { label: "Analytics (app)", path: "/app/analytics" },
+    { label: "Nova Turma (app)", path: "/app/turmas/nova" },
     { label: "Confirmação (app)", path: "/app/agendamentos/confirmacao" },
     { label: "Ticket (app)", path: "/app/ticket" },
     { label: "Resultados (app)", path: "/app/resultados" },
     { label: "User Profiles (app)", path: "/app/perfil" },
+    { label: "Configurações (app)", path: "/app/configuracoes" },
   ];
 
   return (

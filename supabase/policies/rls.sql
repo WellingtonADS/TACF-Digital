@@ -14,6 +14,7 @@ ALTER TABLE public.access_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.access_profile_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- profiles: Users can select their own profile, admins can select all
@@ -229,6 +230,54 @@ DROP POLICY IF EXISTS audit_logs_admin_read ON public.audit_logs;
 CREATE POLICY audit_logs_admin_read
   ON public.audit_logs
   FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+-- =========================================================================
+-- locations: public select, admin-only mutations
+-- =========================================================================
+DROP POLICY IF EXISTS locations_select_public ON public.locations;
+CREATE POLICY locations_select_public
+  ON public.locations
+  FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS locations_insert_admin_only ON public.locations;
+CREATE POLICY locations_insert_admin_only
+  ON public.locations
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+DROP POLICY IF EXISTS locations_update_admin_only ON public.locations;
+CREATE POLICY locations_update_admin_only
+  ON public.locations
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );
+
+DROP POLICY IF EXISTS locations_delete_admin_only ON public.locations;
+CREATE POLICY locations_delete_admin_only
+  ON public.locations
+  FOR DELETE
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
