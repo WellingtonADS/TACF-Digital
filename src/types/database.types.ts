@@ -12,28 +12,49 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          saram?: string | null;
           full_name?: string | null;
-          name?: string | null;
-          inspsau_valid_until?: string | null;
+          rank?: string | null;
+          role: "user" | "admin" | "coordinator";
+          semester?: "1" | "2" | null;
+          phone_number?: string | null;
           email?: string | null;
+          active: boolean;
+          war_name?: string | null;
+          sector?: string | null;
+          metadata?: Json | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
         Insert: {
           id?: string;
+          saram?: string | null;
           full_name?: string | null;
-          name?: string | null;
-          inspsau_valid_until?: string | null;
+          rank?: string | null;
+          role?: "user" | "admin" | "coordinator";
+          semester?: "1" | "2" | null;
+          phone_number?: string | null;
           email?: string | null;
+          active?: boolean;
+          war_name?: string | null;
+          sector?: string | null;
+          metadata?: Json | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
         Update: {
           id?: string;
+          saram?: string | null;
           full_name?: string | null;
-          name?: string | null;
-          inspsau_valid_until?: string | null;
+          rank?: string | null;
+          role?: "user" | "admin" | "coordinator";
+          semester?: "1" | "2" | null;
+          phone_number?: string | null;
           email?: string | null;
+          active?: boolean;
+          war_name?: string | null;
+          sector?: string | null;
+          metadata?: Json | null;
           created_at?: string | null;
           updated_at?: string | null;
         };

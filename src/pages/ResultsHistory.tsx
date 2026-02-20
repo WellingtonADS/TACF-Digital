@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
+import Layout from "../layout/Layout";
 
 type Result = {
   id: string;
@@ -26,12 +27,12 @@ export default function ResultsHistory() {
   }, []);
 
   return (
-    <div className="p-6 min-h-screen bg-background-light dark:bg-background-dark">
+    <Layout>
       <div className="max-w-6xl mx-auto">
-        <Breadcrumbs items={["Resultados", "Histórico"]} />
+        <Breadcrumbs items={["Resultados"]} />
 
         <header className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Histórico de Resultados</h1>
+          <h1 className="text-2xl font-bold">Meus Resultados</h1>
         </header>
 
         <section className="bg-white dark:bg-slate-900 rounded-xl shadow p-4">
@@ -40,7 +41,6 @@ export default function ResultsHistory() {
               <thead>
                 <tr className="text-left text-xs text-slate-500 uppercase">
                   <th className="px-3 py-2">Data do Teste</th>
-                  <th className="px-3 py-2">Militar</th>
                   <th className="px-3 py-2">SARAM</th>
                   <th className="px-3 py-2">Resultado</th>
                   <th className="px-3 py-2">Registrado em</th>
@@ -56,17 +56,16 @@ export default function ResultsHistory() {
                 ) : items.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="px-3 py-6 text-center text-slate-500"
                     >
-                      Nenhum resultado encontrado.
+                      Você ainda não possui resultados registrados.
                     </td>
                   </tr>
                 ) : (
                   items.map((r) => (
                     <tr key={r.id} className="border-t">
                       <td className="px-3 py-3">{r.test_date ?? "-"}</td>
-                      <td className="px-3 py-3">{r.full_name ?? "-"}</td>
                       <td className="px-3 py-3 font-mono">{r.saram ?? "-"}</td>
                       <td className="px-3 py-3">{r.score ?? "-"}</td>
                       <td className="px-3 py-3">{r.created_at ?? "-"}</td>
@@ -92,6 +91,6 @@ export default function ResultsHistory() {
           </div>
         </section>
       </div>
-    </div>
+    </Layout>
   );
 }

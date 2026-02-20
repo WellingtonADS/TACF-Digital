@@ -1,5 +1,5 @@
 import AuthLayout from "@/components/AuthLayout";
-import { signIn, signUp, upsertProfile } from "@/services/supabase";
+import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
 import React, { useState } from "react";
@@ -9,15 +9,21 @@ import { toast } from "sonner";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
-  const [saram, setSaram] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !saram || !email || !password) {
+    const normalizedName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedName || !normalizedEmail || !password) {
       toast.error("Preencha todos os campos.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast.error("Informe um e-mail válido.");
       return;
     }
     if (password.length < 8) {
@@ -27,7 +33,9 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const { error: signUpError } = await signUp(email, password);
+      const { error: signUpError } = await signUp(normalizedEmail, password, {
+        full_name: normalizedName,
+      });
       if (signUpError) {
         // show friendly message immediately and stop the flow
         toast.error(getAuthErrorMessage(signUpError, "Erro ao criar conta."));
@@ -35,26 +43,20 @@ export default function RegisterPage() {
         return;
       }
 
-      const { error: signInError, data } = await signIn(email, password);
+      const { error: signInError, data } = await signIn(
+        normalizedEmail,
+        password,
+      );
       if (signInError) {
         toast.success("Conta criada. Verifique seu e-mail para confirmar.");
         navigate("/login");
         return;
       }
 
-      const userId = data?.user?.id;
-      if (userId) {
-        await upsertProfile({
-          id: userId,
-          full_name: fullName,
-          saram,
-          email,
-          active: true,
-        });
-      }
+      void data;
 
-      toast.success("Conta criada e autenticada.");
-      navigate("/app");
+      toast.success("Conta criada. Complete seu perfil para continuar.");
+      navigate("/app/perfil");
     } catch (err: unknown) {
       toast.error(getAuthErrorMessage(err, "Erro ao criar conta."));
     } finally {
@@ -78,11 +80,15 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <p className="text-xs text-slate-500">
+            Campos com <span className="font-bold">*</span> são obrigatórios.
+          </p>
+
           <div className="space-y-1">
             <input
               type="text"
               required
-              placeholder="Nome Completo"
+              placeholder="Ex.: João da Silva"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
@@ -91,20 +97,9 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <input
-              type="text"
-              required
-              placeholder="SARAM (7 dígitos)"
-              value={saram}
-              onChange={(e) => setSaram(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <input
               type="email"
               required
-              placeholder="E-mail institucional"
+              placeholder="Ex.: joao.silva@fab.mil.br"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
@@ -115,7 +110,7 @@ export default function RegisterPage() {
             <input
               type="password"
               required
-              placeholder="Senha (mínimo 8 caracteres)"
+              placeholder="Ex.: senha com mínimo de 8 caracteres"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"

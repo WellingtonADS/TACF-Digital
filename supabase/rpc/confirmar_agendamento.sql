@@ -24,11 +24,11 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Read the semester stored in the booking (set by book_session)
+  -- Read the semester stored in the booking (set by book_session via calendar/session date)
   SELECT semester::text INTO v_semester FROM public.bookings WHERE id = r.booking_id;
   IF v_semester IS NULL THEN
-    -- fallback to profile semester
-    SELECT semester::text INTO v_semester FROM public.profiles WHERE id = p_user_id;
+    RETURN QUERY SELECT false::boolean, r.booking_id::uuid, 'booking semester missing'::text, NULL::text;
+    RETURN;
   END IF;
 
   -- Generate next order number (safe with row locking)

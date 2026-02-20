@@ -12,9 +12,10 @@ DECLARE
   v_booking_id uuid;
   v_semester semester_type;
   v_existing_semester_bookings integer;
+  v_session_date date;
 BEGIN
   -- Lock the session row to serialize concurrent checks
-  SELECT max_capacity INTO v_max
+  SELECT max_capacity, date INTO v_max, v_session_date
   FROM public.sessions
   WHERE id = p_session_id
   FOR UPDATE;
@@ -30,11 +31,11 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Determine user's role/active status and semester
+  -- Determine user's role/active status
   DECLARE v_role user_role;
   DECLARE v_active boolean;
 
-  SELECT role, active, semester INTO v_role, v_active, v_semester FROM public.profiles WHERE id = p_user_id;
+  SELECT role, active INTO v_role, v_active FROM public.profiles WHERE id = p_user_id;
 
   IF v_active IS FALSE THEN
     RETURN QUERY SELECT false::boolean, NULL::uuid, 'profile inactive'::text;
@@ -47,10 +48,16 @@ BEGIN
     RETURN;
   END IF;
 
-  IF v_semester IS NULL THEN
-    RETURN QUERY SELECT false::boolean, NULL::uuid, 'user semester unknown'::text;
+  IF v_session_date IS NULL THEN
+    RETURN QUERY SELECT false::boolean, NULL::uuid, 'session date unknown'::text;
     RETURN;
   END IF;
+
+  -- Semester is defined by session calendar date
+  v_semester := CASE
+    WHEN EXTRACT(MONTH FROM v_session_date) <= 6 THEN '1'::semester_type
+    ELSE '2'::semester_type
+  END;
 
   SELECT COUNT(*) INTO v_existing_semester_bookings
   FROM public.bookings b
