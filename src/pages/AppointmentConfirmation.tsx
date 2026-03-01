@@ -100,11 +100,11 @@ export const AppointmentConfirmation = () => {
             .maybeSingle();
 
           if (sData) {
-            const locArr = sData.location as
+            const locRaw = sData.location as
               | { name?: string | null; address?: string | null }[]
               | { name?: string | null; address?: string | null }
               | null;
-            const loc = Array.isArray(locArr) ? locArr[0] : locArr;
+            const loc = Array.isArray(locRaw) ? locRaw[0] : locRaw;
             const enriched: SessionPreview = {
               id: sData.id,
               date: sData.date,

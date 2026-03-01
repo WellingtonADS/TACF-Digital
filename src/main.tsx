@@ -35,6 +35,7 @@ const SystemSettings = React.lazy(() => import("./pages/SystemSettings"));
 const ClassCreationForm = React.lazy(() => import("./pages/ClassCreationForm"));
 const OmLocationManager = React.lazy(() => import("./pages/OmLocationManager"));
 const OmLocationEditor = React.lazy(() => import("./pages/OmLocationEditor"));
+const OmScheduleEditor = React.lazy(() => import("./pages/OmScheduleEditor"));
 const ReschedulingManagement = React.lazy(
   () => import("./pages/ReschedulingManagement"),
 );
@@ -233,6 +234,16 @@ createRoot(document.getElementById("root")!).render(
             <AdminRoute>
               <Suspense fallback={<div className="p-6">Carregando...</div>}>
                 <OmLocationEditor />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/om/:id/schedules"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <OmScheduleEditor />
               </Suspense>
             </AdminRoute>
           }

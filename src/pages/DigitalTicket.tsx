@@ -11,8 +11,9 @@ import {
 import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QR from "react-qr-code";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PageSkeleton from "../components/PageSkeleton";
+import Layout from "../layout/Layout";
 
 type TicketData = {
   name: string;
@@ -43,74 +44,107 @@ function formatTicketDate(date: string): string {
 
 export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const routeState = (location.state as TicketRouteState | null) ?? null;
 
   const [ticketData, setTicketData] = useState<TicketData | null>(
     ticket ?? null,
   );
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadFromBooking() {
-      const bookingId = routeState?.bookingId;
-      if (!bookingId) {
-        if (ticket) {
+      setLoading(true);
+      try {
+        const bookingId = routeState?.bookingId;
+
+        // Se não há bookingId e há ticket prop, usa o ticket prop
+        if (!bookingId && ticket) {
           setTicketData({
             ...ticket,
             code: routeState?.orderNumber ?? ticket.code,
             confirmed: true,
           });
+          return;
         }
-        // sem bookingId e sem ticket prop → mantém null (skeleton)
-        return;
+
+        let resolvedBookingId = bookingId;
+
+        // Sem bookingId no state → tenta carregar o último agendamento do usuário
+        if (!resolvedBookingId) {
+          const { data: userData } = await supabase.auth.getUser();
+          const uid = userData?.user?.id;
+          if (!uid) return;
+
+          const { data: latestBooking } = await supabase
+            .from("bookings")
+            .select("id, order_number")
+            .eq("user_id", uid)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!latestBooking) return; // nenhum agendamento encontrado
+          resolvedBookingId = latestBooking.id;
+        }
+
+        const { data: bookingData } = await supabase
+          .from("bookings")
+          .select("id, user_id, session_id, order_number, status")
+          .eq("id", resolvedBookingId)
+          .maybeSingle();
+
+        if (!bookingData || cancelled) return;
+
+        const [sessionResp, profileResp] = await Promise.all([
+          supabase
+            .from("sessions")
+            .select("id, date, period, location:locations(name)")
+            .eq("id", bookingData.session_id)
+            .maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("id, war_name, full_name, saram")
+            .eq("id", bookingData.user_id)
+            .maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        const sessionData = sessionResp.data;
+        const profileData = profileResp.data;
+
+        const locRaw = sessionData?.location as
+          | { name?: string | null }[]
+          | { name?: string | null }
+          | null
+          | undefined;
+        const locName = Array.isArray(locRaw)
+          ? (locRaw[0]?.name ?? null)
+          : (locRaw?.name ?? null);
+
+        setTicketData((prev) => ({
+          ...(prev ?? {}),
+          name:
+            profileData?.war_name ?? profileData?.full_name ?? prev?.name ?? "",
+          saram: profileData?.saram ?? prev?.saram ?? "",
+          location: locName ?? prev?.location ?? "",
+          date: sessionData?.date
+            ? formatTicketDate(sessionData.date)
+            : (prev?.date ?? ""),
+          time: sessionData?.period ?? prev?.time ?? "",
+          code:
+            bookingData.order_number ??
+            routeState?.orderNumber ??
+            prev?.code ??
+            "",
+          confirmed: bookingData.status === "confirmed",
+        }));
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const { data: bookingData } = await supabase
-        .from("bookings")
-        .select("id, user_id, session_id, order_number, status")
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      if (!bookingData) {
-        return;
-      }
-
-      const [sessionResp, profileResp] = await Promise.all([
-        supabase
-          .from("sessions")
-          .select("id, date, period")
-          .eq("id", bookingData.session_id)
-          .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("id, war_name, full_name, saram")
-          .eq("id", bookingData.user_id)
-          .maybeSingle(),
-      ]);
-
-      if (cancelled) return;
-
-      const sessionData = sessionResp.data;
-      const profileData = profileResp.data;
-
-      setTicketData((prev) => ({
-        ...(prev ?? {}),
-        name:
-          profileData?.war_name ?? profileData?.full_name ?? prev?.name ?? "",
-        saram: profileData?.saram ?? prev?.saram ?? "",
-        location: prev?.location ?? "",
-        date: sessionData?.date
-          ? formatTicketDate(sessionData.date)
-          : (prev?.date ?? ""),
-        time: sessionData?.period ?? prev?.time ?? "",
-        code:
-          bookingData.order_number ??
-          routeState?.orderNumber ??
-          prev?.code ??
-          "",
-        confirmed: bookingData.status === "confirmed",
-      }));
     }
 
     loadFromBooking();
@@ -185,8 +219,37 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
 
   const qrValue = useMemo(() => ticketData?.code ?? "", [ticketData]);
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="p-8 max-w-2xl mx-auto">
+          <PageSkeleton rows={8} />
+        </div>
+      </Layout>
+    );
+  }
+
   if (!ticketData) {
-    return <PageSkeleton />;
+    return (
+      <Layout>
+        <div className="p-8 max-w-2xl mx-auto text-center space-y-4">
+          <ShieldCheck className="mx-auto text-slate-300" size={48} />
+          <h2 className="text-xl font-bold text-slate-700">
+            Sem agendamento encontrado
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Você ainda não possui um agendamento confirmado. Acesse a área de
+            agendamentos para reservar uma sessão.
+          </p>
+          <button
+            onClick={() => navigate("/app/agendamentos")}
+            className="mt-4 px-6 py-3 bg-primary text-white rounded-lg font-bold text-sm"
+          >
+            Ir para Agendamentos
+          </button>
+        </div>
+      </Layout>
+    );
   }
 
   return (

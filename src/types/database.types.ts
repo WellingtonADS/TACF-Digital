@@ -251,6 +251,7 @@ export interface Database {
           date: string;
           period: string;
           max_capacity?: number | null;
+          location_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -259,6 +260,7 @@ export interface Database {
           date: string;
           period: string;
           max_capacity?: number | null;
+          location_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -267,6 +269,7 @@ export interface Database {
           date?: string;
           period?: string;
           max_capacity?: number | null;
+          location_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -309,6 +312,38 @@ export interface Database {
           updated_at?: string | null;
         };
       };
+      location_schedules: {
+        Row: {
+          id: string;
+          location_id: string;
+          day_of_week: number;
+          period: "morning" | "afternoon";
+          start_time: string;
+          end_time?: string | null;
+          is_active: boolean;
+          created_at?: string | null;
+        };
+        Insert: {
+          id?: string;
+          location_id: string;
+          day_of_week: number;
+          period: "morning" | "afternoon";
+          start_time?: string;
+          end_time?: string | null;
+          is_active?: boolean;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          location_id?: string;
+          day_of_week?: number;
+          period?: "morning" | "afternoon";
+          start_time?: string;
+          end_time?: string | null;
+          is_active?: boolean;
+          created_at?: string | null;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -320,3 +355,5 @@ export interface Database {
 }
 
 export type Location = Database["public"]["Tables"]["locations"]["Row"];
+export type LocationSchedule =
+  Database["public"]["Tables"]["location_schedules"]["Row"];

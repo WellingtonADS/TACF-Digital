@@ -1,6 +1,6 @@
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
@@ -86,18 +86,54 @@ export default function useAuth() {
     }
   }, []);
 
+  // Carrega o perfil sem chamar getUser() — usado no onAuthStateChange
+  // para evitar o loop infinito (getUser() dispara novo evento de auth no Supabase v2)
+  const loadProfileFromSession = useCallback(
+    async (session: Session | null) => {
+      const uid = session?.user?.id;
+      if (!uid) {
+        setUser(null);
+        setProfile(null);
+        try {
+          if (typeof window !== "undefined")
+            sessionStorage.removeItem("tacf_profile");
+        } catch {}
+        return;
+      }
+
+      setUser(session!.user as User);
+
+      const { data: p } = await supabase
+        .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+        .select("*")
+        .eq("id", uid)
+        .maybeSingle();
+
+      const val = (p as Profile) ?? null;
+      setProfile(val);
+      try {
+        if (typeof window !== "undefined")
+          sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+      } catch {}
+    },
+    [],
+  );
+
   useEffect(() => {
     load();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      // reload on auth change
-      load();
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        // Usa a sessão do evento diretamente — NÃO chama getUser() aqui para
+        // evitar loop infinito: getUser() → dispara novo onAuthStateChange no Supabase v2
+        loadProfileFromSession(session);
+      },
+    );
     return () => {
       // unsubscribe
       // @ts-expect-error listener typing in supabase-js
       listener?.subscription?.unsubscribe?.();
     };
-  }, [load]);
+  }, [load, loadProfileFromSession]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
