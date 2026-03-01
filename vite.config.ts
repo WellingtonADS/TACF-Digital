@@ -7,7 +7,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
+    port: 5173,
     strictPort: true,
+    watch: {
+      // ignore .env changes to avoid automatic server restarts on env edits
+      ignored: ["**/.env", "**/.env.*"],
+    },
   },
   resolve: {
     alias: {

@@ -2,38 +2,13 @@
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AdminRoute from "./components/AdminRoute";
 import AutoRedirect from "./components/AutoRedirect";
-import ProtectedRoute from "./components/ProtectedRoute";
+import UserRoute from "./components/UserRoute";
 import "./index.css";
 const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
 const Login = React.lazy(() => import("./pages/Login"));
 const RegisterPage = React.lazy(() => import("./pages/Register"));
-const AppointmentConfirmationPreview = React.lazy(
-  () => import("./pages/preview/AppointmentConfirmationPreview"),
-);
-const DigitalTicketPreview = React.lazy(
-  () => import("./pages/preview/DigitalTicketPreview"),
-);
-const ForgotPreview = React.lazy(() => import("./pages/preview/ForgotPreview"));
-const LoginPreview = React.lazy(() => import("./pages/preview/LoginPreview"));
-const OperationalPreview = React.lazy(
-  () => import("./pages/preview/OperationalPreview"),
-);
-const RegisterPreview = React.lazy(
-  () => import("./pages/preview/RegisterPreview"),
-);
-const ResultsHistoryPreview = React.lazy(
-  () => import("./pages/preview/ResultsHistoryPreview"),
-);
-const ClassCreationFormPreview = React.lazy(
-  () => import("./pages/preview/ClassCreationFormPreview"),
-);
-const SchedulingPreview = React.lazy(
-  () => import("./pages/preview/SchedulingPreview"),
-);
-const UserProfilesManagementPreview = React.lazy(
-  () => import("./pages/preview/UserProfilesManagementPreview"),
-);
 const OperationalDashboard = React.lazy(
   () => import("./pages/OperationalDashboard"),
 );
@@ -46,6 +21,9 @@ const DigitalTicket = React.lazy(() => import("./pages/DigitalTicket"));
 const UserProfilesManagement = React.lazy(
   () => import("./pages/UserProfilesManagement"),
 );
+const AccessProfilesManagement = React.lazy(
+  () => import("./pages/AccessProfilesManagement"),
+);
 const PersonnelManagement = React.lazy(
   () => import("./pages/PersonnelManagement"),
 );
@@ -55,9 +33,22 @@ const AnalyticsDashboard = React.lazy(
 );
 const SystemSettings = React.lazy(() => import("./pages/SystemSettings"));
 const ClassCreationForm = React.lazy(() => import("./pages/ClassCreationForm"));
-const PreviewIndex = React.lazy(() => import("./pages/PreviewIndex"));
 const OmLocationManager = React.lazy(() => import("./pages/OmLocationManager"));
 const OmLocationEditor = React.lazy(() => import("./pages/OmLocationEditor"));
+const ReschedulingManagement = React.lazy(
+  () => import("./pages/ReschedulingManagement"),
+);
+const AuditLog = React.lazy(() => import("./pages/AuditLog"));
+const Documents = React.lazy(() => import("./pages/Documents"));
+const AppealRequest = React.lazy(() => import("./pages/AppealRequest"));
+
+const ReschedulingNotification = React.lazy(
+  () => import("./pages/ReschedulingNotification"),
+);
+const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
+const SessionsManagement = React.lazy(
+  () => import("./pages/SessionsManagement"),
+);
 
 // Global dev-only handlers to reduce noisy uncaught errors in the console
 if (import.meta.env.DEV && typeof window !== "undefined") {
@@ -106,212 +97,226 @@ createRoot(document.getElementById("root")!).render(
             </Suspense>
           }
         />
-        {/* Preview routes for quick layout checks (no auth) */}
-        <Route
-          path="/preview"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <PreviewIndex />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/login"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <LoginPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/register"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <RegisterPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/operational"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <OperationalPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/appointment-confirmation"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <AppointmentConfirmationPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/digital-ticket"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <DigitalTicketPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/perfil"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <UserProfilesManagementPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/results-history"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <ResultsHistoryPreview />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/configuracoes"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <SystemSettings />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/preview/turmas-nova"
-          element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <ClassCreationFormPreview />
-            </Suspense>
-          }
-        />
         <Route
           path="/app/resultados"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <ResultsHistory />
-            </Suspense>
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <ResultsHistory />
+              </Suspense>
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/app/documentos"
+          element={
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <Documents />
+              </Suspense>
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/app/recurso"
+          element={
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AppealRequest />
+              </Suspense>
+            </UserRoute>
           }
         />
         <Route
           path="/app/agendamentos"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <Scheduling />
-            </Suspense>
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <Scheduling />
+              </Suspense>
+            </UserRoute>
           }
         />
         <Route
           path="/app/agendamentos/confirmacao"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <AppointmentConfirmation />
-            </Suspense>
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AppointmentConfirmation />
+              </Suspense>
+            </UserRoute>
           }
         />
         <Route
           path="/app/turmas/nova"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <ClassCreationForm />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <ClassCreationForm />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/ticket"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <DigitalTicket />
-            </Suspense>
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <DigitalTicket />
+              </Suspense>
+            </UserRoute>
           }
         />
         <Route
           path="/app/perfil"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <UserProfilesManagement />
-            </Suspense>
+            <UserRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <UserProfilesManagement />
+              </Suspense>
+            </UserRoute>
           }
         />
         <Route
           path="/app/efetivo"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <PersonnelManagement />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <PersonnelManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/reagendamentos"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <ReschedulingManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/reagendamentos/notificacao"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <ReschedulingNotification />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/auditoria"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AuditLog />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/om-locations"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <OmLocationManager />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <OmLocationManager />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/om/:id"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <OmLocationEditor />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <OmLocationEditor />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/lancamento-indices"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <ScoreEntry />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <ScoreEntry />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/analytics"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <AnalyticsDashboard />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AnalyticsDashboard />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
           path="/app/configuracoes"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <SystemSettings />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <SystemSettings />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route
-          path="/app/perfil"
+          path="/app/configuracoes/perfis"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
-              <UserProfilesManagement />
-            </Suspense>
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AccessProfilesManagement />
+              </Suspense>
+            </AdminRoute>
           }
         />
-        <Route path="/preview/scheduling" element={<SchedulingPreview />} />
-        <Route path="/preview/forgot" element={<ForgotPreview />} />
+        {/* admin entry points */}
+        <Route
+          path="/app/admin"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <AdminDashboard />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/turmas"
+          element={
+            <AdminRoute>
+              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+                <SessionsManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
         <Route path="/" element={<AutoRedirect />} />
         <Route
           path="/app/*"
           element={
-            <ProtectedRoute>
+            <UserRoute>
               <Suspense fallback={<div className="p-6">Carregando...</div>}>
                 <OperationalDashboard />
               </Suspense>
-            </ProtectedRoute>
+            </UserRoute>
           }
         />
         <Route
           path="/*"
           element={
-            <ProtectedRoute>
+            <UserRoute>
               <Suspense fallback={<div className="p-6">Carregando...</div>}>
                 <OperationalDashboard />
               </Suspense>
-            </ProtectedRoute>
+            </UserRoute>
           }
         />
       </Routes>

@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   BarChart3,
   CalendarDays,
-  CheckCircle2,
   Download,
   Filter,
   LineChart,
@@ -317,9 +316,7 @@ export default function AnalyticsDashboard() {
     return clampPercent((scoredBookings.length / totalEvaluations) * 100);
   }, [scoredBookings.length, totalEvaluations]);
 
-  const radialCircumference = 2 * Math.PI * 40;
-  const radialOffset =
-    radialCircumference - (fitnessIndexPercent / 100) * radialCircumference;
+  const showMetrics = !loading;
 
   if (authLoading) {
     return (
@@ -350,37 +347,38 @@ export default function AnalyticsDashboard() {
 
   return (
     <Layout>
-      <header className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center md:justify-between">
+      {/* header */}
+      <header className="flex justify-between items-center mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+          <h2 className="text-3xl font-bold text-primary dark:text-white">
             Relatórios Consolidados
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Visão geral do desempenho físico e prontidão operacional.
+          </h2>
+          <p className="text-slate-500 mt-1">
+            Desempenho físico e prontidão operacional por período.
           </p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/60">
-          <div className="flex items-center gap-2 border-r border-slate-200 px-3 py-2 dark:border-slate-700">
-            <CalendarDays size={16} className="text-slate-400" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-4 py-2 text-sm">
+            <CalendarDays size={14} className="text-slate-400" />
             <input
               type="date"
               value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              className="bg-transparent text-sm outline-none"
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-transparent text-slate-700 dark:text-slate-300 outline-none"
+              aria-label="Data inicial"
             />
-            <span className="text-xs text-slate-400">até</span>
+            <span className="text-slate-400">→</span>
             <input
               type="date"
               value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-              className="bg-transparent text-sm outline-none"
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-transparent text-slate-700 dark:text-slate-300 outline-none"
+              aria-label="Data final"
             />
           </div>
-
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
           >
             <Download size={14} />
             Exportar
@@ -388,139 +386,127 @@ export default function AnalyticsDashboard() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border-b-4 border-military-green/40 bg-white p-6 shadow-xl dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                Índice de Aptidão Geral
-              </p>
-              <h3 className="mt-1 text-4xl font-extrabold text-slate-900 dark:text-white">
-                {fitnessIndexPercent.toFixed(1)}%
-              </h3>
-              <p className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-military-green">
-                <TrendingUp size={14} />
-                {aptCount} aptos em {scoredBookings.length} avaliações
-              </p>
-            </div>
-
-            <div className="relative h-24 w-24">
-              <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  className="stroke-slate-200 dark:stroke-slate-700"
-                  strokeWidth="8"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  className="stroke-military-green"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={radialCircumference}
-                  strokeDashoffset={radialOffset}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center text-military-green">
-                <CheckCircle2 size={20} />
-              </div>
-            </div>
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
+          <div>
+            <p className="text-slate-400 text-sm font-medium mb-1">
+              Índice de Aptidão
+            </p>
+            <h3
+              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
+            >
+              {showMetrics ? `${fitnessIndexPercent.toFixed(1)}%` : "—"}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {showMetrics
+                ? `${aptCount} aptos · ${scoredBookings.length} avaliados`
+                : ""}
+            </p>
           </div>
-        </article>
-
-        <article className="rounded-2xl border-b-4 border-primary/40 bg-white p-6 shadow-xl dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                Total de Avaliações
-              </p>
-              <h3 className="mt-1 text-4xl font-extrabold text-slate-900 dark:text-white">
-                {totalEvaluations}
-              </h3>
-            </div>
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <CheckCircle2 size={18} />
-            </div>
+          <div className="w-14 h-14 bg-military-green/10 rounded-2xl flex items-center justify-center text-military-green">
+            <TrendingUp size={28} />
           </div>
-          <p className="mt-3 text-xs text-slate-400">Período filtrado atual</p>
-          <p className="mt-1 text-xs font-semibold text-primary/80">
-            {scheduleCompletionPercent.toFixed(0)}% com nota lançada
-          </p>
-        </article>
+        </div>
 
-        <article className="rounded-2xl border-b-4 border-primary/30 bg-white p-6 shadow-xl dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                Média de Notas (TAF)
-              </p>
-              <h3 className="mt-1 text-4xl font-extrabold text-slate-900 dark:text-white">
-                {averageScore.toFixed(1)}
-              </h3>
-            </div>
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <BarChart3 size={18} />
-            </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+          <div>
+            <p className="text-slate-400 text-sm font-medium mb-1">
+              Total de Avaliações
+            </p>
+            <h3
+              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
+            >
+              {showMetrics ? totalEvaluations : "—"}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {showMetrics
+                ? `${scheduleCompletionPercent.toFixed(0)}% com nota lançada`
+                : ""}
+            </p>
           </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${clampPercent((averageScore / 10) * 100)}%` }}
-            />
+          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <BarChart3 size={28} />
           </div>
-        </article>
+        </div>
 
-        <article className="rounded-2xl border-b-4 border-red-500/40 bg-white p-6 shadow-xl dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                Inaptidões Críticas
-              </p>
-              <h3 className="mt-1 text-4xl font-extrabold text-red-600">
-                {criticalInaptCount}
-              </h3>
-            </div>
-            <div className="rounded-lg bg-red-500/10 p-2 text-red-500">
-              <AlertTriangle size={18} />
-            </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-primary/30">
+          <div>
+            <p className="text-slate-400 text-sm font-medium mb-1">Média TAF</p>
+            <h3
+              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
+            >
+              {showMetrics ? averageScore.toFixed(1) : "—"}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">nota máxima: 10</p>
           </div>
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-red-500/80">
-            Atenção necessária
-          </p>
-        </article>
-      </section>
-
-      <section className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <article className="rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900">
-          <div className="mb-8 flex items-center justify-between">
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white">
-              Desempenho por Unidade/Setor
-            </h4>
-            <button type="button" className="text-sm font-bold text-primary">
-              Ver detalhes
-            </button>
+          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <LineChart size={28} />
           </div>
+        </div>
 
-          <div className="space-y-5">
-            {units.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Sem dados de unidade para o período.
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-red-500/30">
+          <div>
+            <p className="text-slate-400 text-sm font-medium mb-1">
+              Inaptidões
+            </p>
+            <h3
+              className={`text-3xl font-bold text-red-500 ${loading ? "animate-pulse" : ""}`}
+            >
+              {showMetrics ? criticalInaptCount : "—"}
+            </h3>
+            <p className="text-xs text-red-400 mt-1 font-semibold">
+              Atenção necessária
+            </p>
+          </div>
+          <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500">
+            <AlertTriangle size={28} />
+          </div>
+        </div>
+      </div>
+
+      {/* charts */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-10">
+        {/* por unidade */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Desempenho por Unidade
+            </h3>
+            <span className="text-xs text-slate-400">% de aptidão</span>
+          </div>
+          <div className="space-y-4">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse space-y-1.5">
+                  <div className="h-3 w-32 rounded bg-slate-100 dark:bg-slate-700" />
+                  <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
+                </div>
+              ))
+            ) : units.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400">
+                Sem dados de unidade no período.
               </p>
             ) : (
               units.map((unit) => (
-                <div key={unit.unit} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span className="truncate pr-4">{unit.unit}</span>
-                    <span>{unit.percent.toFixed(0)}%</span>
+                <div key={unit.unit}>
+                  <div className="flex justify-between text-xs font-semibold mb-1.5">
+                    <span className="truncate pr-4 text-slate-600 dark:text-slate-300">
+                      {unit.unit}
+                    </span>
+                    <span className="text-slate-800 dark:text-white">
+                      {unit.percent.toFixed(0)}%
+                    </span>
                   </div>
-                  <div className="h-5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-primary"
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        unit.percent >= 80
+                          ? "bg-military-green"
+                          : unit.percent >= 60
+                            ? "bg-military-gold"
+                            : "bg-red-400"
+                      }`}
                       style={{ width: `${unit.percent}%` }}
                     />
                   </div>
@@ -528,174 +514,196 @@ export default function AnalyticsDashboard() {
               ))
             )}
           </div>
-        </article>
+        </div>
 
-        <article className="rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900">
-          <div className="mb-8 flex items-center justify-between">
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+        {/* evolução mensal */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
               Evolução de Aptidão
-            </h4>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <LineChart size={14} />
-              Série mensal
-            </div>
+            </h3>
+            <span className="text-xs text-slate-400">série mensal</span>
           </div>
-
-          <div className="h-[250px] w-full">
-            {trend.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+          <div className="h-[200px] w-full">
+            {loading ? (
+              <div className="h-full w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+            ) : trend.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
                 Sem dados no período.
               </div>
             ) : (
               <svg
                 className="h-full w-full"
-                viewBox="0 0 500 220"
+                viewBox="0 0 500 200"
                 preserveAspectRatio="none"
               >
+                {[25, 50, 75].map((v) => (
+                  <line
+                    key={v}
+                    x1="0"
+                    y1={200 - v * 2}
+                    x2="500"
+                    y2={200 - v * 2}
+                    stroke="currentColor"
+                    strokeWidth="0.5"
+                    className="text-slate-200 dark:text-slate-700"
+                    strokeDasharray="4,6"
+                  />
+                ))}
                 <line
                   x1="0"
                   y1="200"
                   x2="500"
                   y2="200"
-                  className="stroke-slate-200 dark:stroke-slate-700"
+                  stroke="currentColor"
                   strokeWidth="1"
+                  className="text-slate-200 dark:text-slate-700"
                 />
+                {linePoints && (
+                  <polygon
+                    points={`0,200 ${linePoints} 500,200`}
+                    fill="currentColor"
+                    className="text-primary/10"
+                  />
+                )}
                 <polyline
                   fill="none"
                   stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
                   className="text-primary"
-                  strokeWidth="4"
                   points={linePoints}
                 />
                 {trend.map((point, index) => {
                   const x =
-                    trend.length === 1 ? 0 : (index / (trend.length - 1)) * 500;
+                    trend.length === 1
+                      ? 250
+                      : (index / (trend.length - 1)) * 500;
                   const y = 200 - point.percent * 2;
                   return (
                     <circle
                       key={point.key}
                       cx={x}
                       cy={y}
-                      r={4.5}
-                      className="fill-primary"
+                      r="4"
+                      fill="currentColor"
+                      className="text-primary"
                     />
                   );
                 })}
               </svg>
             )}
           </div>
-
           <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-slate-400">
             {trend.map((point) => (
               <span key={point.key}>{point.label}</span>
             ))}
           </div>
-        </article>
-      </section>
+        </div>
+      </div>
 
-      <section className="mt-8 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-slate-700">
-          <h4 className="text-lg font-bold text-slate-900 dark:text-white">
-            Militares com Revalidação Pendente
-          </h4>
-          <div className="flex items-center gap-2">
+      {/* tabela de revalidação */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <ShieldAlert size={16} className="text-amber-500" />
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Revalidação Pendente
+            </h3>
+          </div>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+              aria-label="Filtrar"
+              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
             >
               <Filter size={14} />
             </button>
             <button
               type="button"
-              className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+              aria-label="Buscar"
+              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
             >
               <Search size={14} />
             </button>
           </div>
         </div>
-
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-slate-50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:bg-slate-900/50">
-                <th className="px-6 py-4">Prioridade</th>
-                <th className="px-6 py-4">Militar</th>
-                <th className="px-6 py-4">Unidade</th>
-                <th className="px-6 py-4">Data de Expiração</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Ações</th>
+              <tr className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                <th className="px-6 py-3">Prioridade</th>
+                <th className="px-6 py-3">Militar</th>
+                <th className="px-6 py-3">Unidade</th>
+                <th className="px-6 py-3">Expiração</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3 text-right">Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {loading ? (
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-8 text-center text-slate-500"
+                    className="px-6 py-10 text-center text-slate-400"
                   >
-                    Carregando dados...
+                    Carregando dados…
                   </td>
                 </tr>
               ) : pendingRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-8 text-center text-slate-500"
+                    className="px-6 py-10 text-center text-slate-400"
                   >
-                    Nenhuma revalidação pendente no período.
+                    Nenhuma revalidação pendente.
                   </td>
                 </tr>
               ) : (
                 pendingRows.map((row) => {
-                  const priorityClass =
+                  const badgeClass =
                     row.priority === "ALTA"
-                      ? "bg-red-500/10 text-red-600 border-red-500/20"
+                      ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       : row.priority === "MÉDIA"
-                        ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                        : "bg-blue-500/10 text-blue-600 border-blue-500/20";
-
+                        ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+                        : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
                   const statusClass =
                     row.status === "Expirado"
-                      ? "text-red-600"
+                      ? "text-red-500 font-bold"
                       : row.status === "Pendente"
-                        ? "text-amber-600"
-                        : "text-blue-600";
-
+                        ? "text-amber-500 font-bold"
+                        : "text-sky-500";
                   return (
                     <tr
                       key={row.id}
-                      className="hover:bg-slate-50/60 dark:hover:bg-white/5"
+                      className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${priorityClass}`}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}
                         >
                           {row.priority}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-slate-900 dark:text-white">
-                            {row.militaryName}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            ID: {row.identity}
-                          </p>
-                        </div>
+                        <p className="font-semibold text-slate-800 dark:text-white">
+                          {row.militaryName}
+                        </p>
+                        <p className="text-xs text-slate-400">{row.identity}</p>
                       </td>
-                      <td className="px-6 py-4 font-medium">{row.unit}</td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                        {row.unit}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
                         {row.expiration}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`font-semibold ${statusClass}`}>
-                          {row.status}
-                        </span>
+                        <span className={statusClass}>{row.status}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
                           type="button"
-                          className="font-bold text-primary hover:underline"
+                          className="text-xs font-bold text-primary hover:underline"
                         >
                           Notificar
                         </button>
@@ -707,7 +715,7 @@ export default function AnalyticsDashboard() {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </Layout>
   );
 }

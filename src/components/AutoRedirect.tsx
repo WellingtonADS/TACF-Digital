@@ -1,8 +1,10 @@
+import useAuth from "@/hooks/useAuth";
 import { supabase } from "@/services/supabase";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 export default function AutoRedirect() {
+  const { profile } = useAuth();
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
 
@@ -38,6 +40,15 @@ export default function AutoRedirect() {
   }, []);
 
   if (checking) return null;
-  if (authenticated) return <Navigate to="/app" replace />;
+
+  if (authenticated) {
+    // redirect based on role fetched from profile
+    const role = profile?.role;
+    if (role === "admin" || role === "coordinator") {
+      return <Navigate to="/app/admin" replace />;
+    }
+    return <Navigate to="/app" replace />;
+  }
+
   return <Navigate to="/login" replace />;
 }

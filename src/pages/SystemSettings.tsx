@@ -4,6 +4,7 @@ import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 type SystemSettingsRow = Database["public"]["Tables"]["system_settings"]["Row"];
@@ -20,6 +21,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 export default function SystemSettings() {
+  const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
   const canView = profile?.role === "admin";
   const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
@@ -306,7 +308,19 @@ export default function SystemSettings() {
           </div>
         );
       case "profiles":
-        return <p>Perfis de Acesso (em breve)</p>;
+        return (
+          <div className="py-6">
+            <p className="mb-4">
+              A gestão de Perfis de Acesso agora possui tela dedicada.
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => navigate("/app/configuracoes/perfis")}
+            >
+              Ir para Gestão de Perfis de Acesso
+            </Button>
+          </div>
+        );
       case "audit":
         return (
           <div>

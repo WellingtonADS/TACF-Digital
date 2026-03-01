@@ -1,5 +1,7 @@
+import RescheduleDrawer from "@/components/RescheduleDrawer";
 import useAuth from "@/hooks/useAuth";
 import useDashboard from "@/hooks/useDashboard";
+import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { isAfter, parseISO } from "date-fns";
 import {
@@ -7,10 +9,12 @@ import {
   CalendarPlus,
   CheckCircle,
   ClipboardList,
+  FileText,
   Info,
   MoreHorizontal,
   Shield,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 
@@ -53,6 +57,42 @@ export const OperationalDashboard = () => {
     loading: dashboardLoading,
   } = useDashboard();
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
+  const [pendingSwap, setPendingSwap] = useState(false);
+
+  // check booking and pending swap when nextSession changes
+  useEffect(() => {
+    async function checkPending() {
+      setPendingSwap(false);
+      setDrawerBookingId(null);
+      if (!nextSession || !user?.id) return;
+      try {
+        // find booking id for this session
+        const { data: bookingData } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("session_id", nextSession.id)
+          .eq("status", "confirmed")
+          .maybeSingle();
+        const bid = bookingData?.id;
+        if (bid) {
+          setDrawerBookingId(bid);
+          const { data: swapData } = await supabase
+            .from("swap_requests")
+            .select("id")
+            .eq("booking_id", bid)
+            .eq("status", "pending");
+          setPendingSwap(Array.isArray(swapData) && swapData.length > 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    checkPending();
+  }, [nextSession, user]);
+
   const navigate = useNavigate();
 
   const actionCards = [
@@ -82,6 +122,14 @@ export const OperationalDashboard = () => {
       to: "/app/ticket",
       count: bookingsCount,
     },
+    {
+      icon: FileText,
+      label: "Documentação",
+      title: "Manuais e Normas",
+      iconBg: "bg-blue-50 dark:bg-primary/20",
+      iconColor: "text-primary dark:text-blue-400",
+      to: "/app/documentos",
+    },
   ];
 
   const notifications = derivedNotifications;
@@ -91,13 +139,7 @@ export const OperationalDashboard = () => {
       {/* Greeting Card */}
       <section className="mb-8">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-10 text-white shadow-2xl shadow-primary/20">
-          <div
-            className="absolute inset-0 opacity-10 pointer-events-none bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDurxoPOc3Gb_jppt_qbvSWXqBih_aeg1LoSiESxVH3iJGYCSoMaA9waLCd3MIT1EZ3FClUucmFoCyljmJkdLQYTPHfTNTpKHEYR_pax-Ze2Qan-F67pJLx0cCAAupmkCGWWM26S2qOhmzQi4Npm5BOwlMbb-oV9gyz5pQCblYHEOq2VLi6huOJgg8oNkSH9oop3-LoOVdgnr-fj24xfHvreAzGNpbVbN0mw9sq_DvUSA2yZuWRo7p1PuHRcSx2Er5')",
-            }}
-          />
+          <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
@@ -141,7 +183,7 @@ export const OperationalDashboard = () => {
       </section>
 
       {/* Action Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {actionCards.map((card, index) => (
           <button
             key={index}
@@ -171,6 +213,15 @@ export const OperationalDashboard = () => {
           </button>
         ))}
       </section>
+
+      {/* Drawer for rescheduling */}
+      <RescheduleDrawer
+        open={drawerOpen}
+        bookingId={drawerBookingId ?? ""}
+        currentDate={nextSession?.date ?? ""}
+        onClose={() => setDrawerOpen(false)}
+        onSuccess={() => setPendingSwap(true)}
+      />
 
       {/* Bottom Section: Status & Notifications */}
       <section className="flex flex-col xl:flex-row gap-6">
@@ -202,13 +253,26 @@ export const OperationalDashboard = () => {
                   {(nextSession as unknown as { time?: string }).time ??
                     `Turno: ${nextSession.period}`}
                 </p>
-                <div className="mt-4">
+                <div className="mt-4 space-y-2">
                   <a
                     href="/app/agendamentos"
                     className="text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline"
                   >
                     Ver agendamento
                   </a>
+                  {drawerBookingId && (
+                    <button
+                      onClick={() => setDrawerOpen(true)}
+                      className="text-sm font-bold text-primary dark:text-blue-400 hover:underline"
+                    >
+                      Solicitar Reagendamento
+                    </button>
+                  )}
+                  {pendingSwap && (
+                    <div className="text-xs text-amber-600 font-semibold">
+                      Reagendamento Pendente
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

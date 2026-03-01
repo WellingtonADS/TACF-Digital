@@ -150,6 +150,22 @@ CREATE TABLE IF NOT EXISTS public.swap_requests (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- ----------------------------------------------------------------------------
+-- Locations / Military Organizations (OM)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.locations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name text NOT NULL,
+    address text NOT NULL,
+    max_capacity integer NOT NULL DEFAULT 0,
+    status text NOT NULL DEFAULT 'active', -- active | maintenance | inactive
+    facilities text[] DEFAULT ARRAY[]::text[],
+    metadata jsonb,
+    created_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at timestamptz NULL DEFAULT now(),
+    updated_at timestamptz NULL DEFAULT now()
+);
+
 -- Indexes for performance (created only if not present)
 DO $$
 BEGIN

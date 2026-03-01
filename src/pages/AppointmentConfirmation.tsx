@@ -27,7 +27,7 @@ export const AppointmentConfirmation = () => {
   type SessionPreview = Pick<
     Database["public"]["Tables"]["sessions"]["Row"],
     "id" | "date" | "period" | "max_capacity"
-  >;
+  > & { location_name?: string | null; location_address?: string | null };
 
   type ProfilePreview = Pick<
     Database["public"]["Tables"]["profiles"]["Row"],
@@ -93,12 +93,32 @@ export const AppointmentConfirmation = () => {
         if (localSessionId) {
           const { data: sData } = await supabase
             .from("sessions")
-            .select("id, date, period, max_capacity")
+            .select(
+              "id, date, period, max_capacity, location:locations(name, address)",
+            )
             .eq("id", localSessionId)
-            .maybeSingle<SessionPreview>();
+            .maybeSingle();
 
-          setSession(sData ?? null);
-          setResolvedSessionId(sData?.id ?? localSessionId);
+          if (sData) {
+            const locArr = sData.location as
+              | { name?: string | null; address?: string | null }[]
+              | { name?: string | null; address?: string | null }
+              | null;
+            const loc = Array.isArray(locArr) ? locArr[0] : locArr;
+            const enriched: SessionPreview = {
+              id: sData.id,
+              date: sData.date,
+              period: sData.period,
+              max_capacity: sData.max_capacity,
+              location_name: loc?.name ?? null,
+              location_address: loc?.address ?? null,
+            };
+            setSession(enriched);
+            setResolvedSessionId(sData.id);
+          } else {
+            setSession(null);
+            setResolvedSessionId(localSessionId);
+          }
         } else {
           setSession(null);
           setResolvedSessionId(null);
@@ -195,6 +215,36 @@ export const AppointmentConfirmation = () => {
             <h2 className="text-3xl font-bold text-slate-900 mb-6">
               Revisar Agendamento
             </h2>
+
+            {/* Stepper — etapa 2 ativa */}
+            <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-bold">
+                  <CheckCircle size={16} />
+                </div>
+                <span className="text-sm font-semibold text-emerald-600">
+                  Seleção
+                </span>
+              </div>
+              <div className="h-px w-12 bg-emerald-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                  2
+                </div>
+                <span className="text-sm font-bold text-primary">
+                  Confirmação
+                </span>
+              </div>
+              <div className="h-px w-12 bg-slate-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center text-sm font-bold">
+                  3
+                </div>
+                <span className="text-sm font-semibold text-slate-400">
+                  Finalizado
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 relative">
@@ -234,11 +284,13 @@ export const AppointmentConfirmation = () => {
                       </div>
                       <div>
                         <p className="text-lg font-semibold text-slate-900">
-                          Grupamento de Apoio de Canoas (GPAC)
+                          {session?.location_name ?? "Local não informado"}
                         </p>
-                        <p className="text-sm text-slate-500 mt-1">
-                          Canoas, RS - Vila Militar
-                        </p>
+                        {session?.location_address && (
+                          <p className="text-sm text-slate-500 mt-1">
+                            {session.location_address}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </section>

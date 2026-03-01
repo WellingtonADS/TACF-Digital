@@ -12,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 type SessionRow = Pick<
@@ -50,8 +51,14 @@ export default function ScoreEntry() {
   const role = profile?.role;
   const canManage = role === "admin" || role === "coordinator";
 
+  const location = useLocation();
+  const stateSessionId = (location.state as { sessionId?: string } | null)
+    ?.sessionId;
+
   const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(
+    stateSessionId ?? "",
+  );
   const [rows, setRows] = useState<ScoreEntryRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [scoreInput, setScoreInput] = useState<string>("");
@@ -76,7 +83,11 @@ export default function ScoreEntry() {
         setSessions(typed);
 
         if (typed.length > 0) {
-          setSelectedSessionId(typed[0].id);
+          if (stateSessionId && typed.some((s) => s.id === stateSessionId)) {
+            setSelectedSessionId(stateSessionId);
+          } else {
+            setSelectedSessionId(typed[0].id);
+          }
         }
       } catch (error) {
         console.error(error);
@@ -331,12 +342,16 @@ export default function ScoreEntry() {
 
             <div className="p-5">
               <div className="mb-4 flex items-center justify-between">
-                <h1 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <label
+                  htmlFor="session-select"
+                  className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                >
                   Seleção de Turma
-                </h1>
+                </label>
               </div>
 
               <select
+                id="session-select"
                 value={selectedSessionId}
                 onChange={(event) => setSelectedSessionId(event.target.value)}
                 className="mb-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"

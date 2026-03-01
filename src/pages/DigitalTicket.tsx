@@ -12,6 +12,7 @@ import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QR from "react-qr-code";
 import { useLocation } from "react-router-dom";
+import PageSkeleton from "../components/PageSkeleton";
 
 type TicketData = {
   name: string;
@@ -21,16 +22,6 @@ type TicketData = {
   time: string;
   code: string;
   confirmed?: boolean;
-};
-
-const sample: TicketData = {
-  name: "1T SILVA",
-  saram: "7654321",
-  location: "HACO - Pista de Atletismo",
-  date: "25 OUT 2023",
-  time: "08:30",
-  code: "A87-X29-KB1",
-  confirmed: true,
 };
 
 type TicketRouteState = {
@@ -54,12 +45,9 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   const location = useLocation();
   const routeState = (location.state as TicketRouteState | null) ?? null;
 
-  const [ticketData, setTicketData] = useState<TicketData>(() => ({
-    ...sample,
-    ...ticket,
-    code: routeState?.orderNumber ?? ticket?.code ?? sample.code,
-    confirmed: true,
-  }));
+  const [ticketData, setTicketData] = useState<TicketData | null>(
+    ticket ?? null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -67,12 +55,14 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
     async function loadFromBooking() {
       const bookingId = routeState?.bookingId;
       if (!bookingId) {
-        setTicketData((prev) => ({
-          ...prev,
-          ...ticket,
-          code: routeState?.orderNumber ?? ticket?.code ?? prev.code,
-          confirmed: true,
-        }));
+        if (ticket) {
+          setTicketData({
+            ...ticket,
+            code: routeState?.orderNumber ?? ticket.code,
+            confirmed: true,
+          });
+        }
+        // sem bookingId e sem ticket prop → mantém null (skeleton)
         return;
       }
 
@@ -105,14 +95,20 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
       const profileData = profileResp.data;
 
       setTicketData((prev) => ({
-        ...prev,
-        name: profileData?.war_name ?? profileData?.full_name ?? prev.name,
-        saram: profileData?.saram ?? prev.saram,
+        ...(prev ?? {}),
+        name:
+          profileData?.war_name ?? profileData?.full_name ?? prev?.name ?? "",
+        saram: profileData?.saram ?? prev?.saram ?? "",
+        location: prev?.location ?? "",
         date: sessionData?.date
           ? formatTicketDate(sessionData.date)
-          : prev.date,
-        time: sessionData?.period ?? prev.time,
-        code: bookingData.order_number ?? routeState?.orderNumber ?? prev.code,
+          : (prev?.date ?? ""),
+        time: sessionData?.period ?? prev?.time ?? "",
+        code:
+          bookingData.order_number ??
+          routeState?.orderNumber ??
+          prev?.code ??
+          "",
         confirmed: bookingData.status === "confirmed",
       }));
     }
@@ -125,6 +121,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   }, [routeState?.bookingId, routeState?.orderNumber, ticket]);
 
   const generatePdf = useCallback(async () => {
+    if (!ticketData) return;
     try {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -186,7 +183,11 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
     window.print();
   }, []);
 
-  const qrValue = useMemo(() => ticketData.code, [ticketData.code]);
+  const qrValue = useMemo(() => ticketData?.code ?? "", [ticketData]);
+
+  if (!ticketData) {
+    return <PageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark p-6 flex flex-col items-center">
