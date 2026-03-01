@@ -39,9 +39,14 @@ const STATUS_CONFIG = {
 export default function OmLocationEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { locations, create, update, loading, error } = useLocations();
+  const { locations, create, update, loading, error, fetch } = useLocations();
 
   const isNew = id === "new";
+
+  // Garante que as locations estejam carregadas ao editar diretamente pela URL
+  useEffect(() => {
+    if (!isNew) fetch({ limit: 100 });
+  }, [isNew, fetch]);
   const [data, setData] = useState<
     Omit<Location, "id" | "created_at" | "updated_at">
   >({
@@ -165,7 +170,6 @@ export default function OmLocationEditor() {
         <div className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
           <form className="flex flex-col" onSubmit={handleSubmit}>
             <div className="space-y-10 p-8 md:p-12">
-
               {/* Identificação */}
               <section className="space-y-5">
                 <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">

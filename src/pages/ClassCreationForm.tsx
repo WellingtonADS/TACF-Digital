@@ -1,15 +1,21 @@
+import useLocations from "@/hooks/useLocations";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "lucide-react";
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+type DateMode = "single" | "week" | "month";
+
 type FormState = {
   className: string;
-  location: string;
+  location_id: string;
+  dateMode: DateMode;
   date: string;
+  weekValue: string;
+  monthValue: string;
   startTime: string;
   maxCapacity: number;
   allowWaitlist: boolean;
@@ -18,13 +24,85 @@ type FormState = {
 
 const INITIAL_STATE: FormState = {
   className: "",
-  location: "",
+  location_id: "",
+  dateMode: "single",
   date: "",
+  weekValue: "",
+  monthValue: "",
   startTime: "",
   maxCapacity: 8,
   allowWaitlist: false,
   notes: "",
 };
+
+// ─── Helpers de calendário ───────────────────────────────────────────────────
+
+const PT_MONTHS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isWeekend(dateStr: string): boolean {
+  const dow = new Date(dateStr + "T12:00:00").getDay();
+  return dow === 0 || dow === 6;
+}
+
+function getWeekDates(weekValue: string): string[] {
+  const match = weekValue.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return [];
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  const jan4 = new Date(year, 0, 4);
+  const dow = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return toDateStr(d);
+  });
+}
+
+/** Retorna todos os dias úteis (seg–sex) de um mês no formato YYYY-MM. */
+function getMonthWeekdays(monthValue: string): string[] {
+  const match = monthValue.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return [];
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const result: string[] = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const date = new Date(year, month, d);
+    const dow = date.getDay();
+    if (dow !== 0 && dow !== 6) result.push(toDateStr(date));
+  }
+  return result;
+}
+
+function fmtDateChip(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
 
 function derivePeriod(startTime: string): "morning" | "afternoon" {
   const [hoursRaw] = startTime.split(":");
@@ -36,6 +114,15 @@ export default function ClassCreationForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
+  const {
+    locations,
+    fetch: fetchLocations,
+    loading: loadingLocations,
+  } = useLocations();
+
+  useEffect(() => {
+    fetchLocations({ status: "active", limit: 100 });
+  }, [fetchLocations]);
 
   const isValidCapacity = useMemo(
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
@@ -49,8 +136,35 @@ export default function ClassCreationForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.date || !form.startTime) {
-      toast.error("Informe a data e o horário da turma.");
+    let datesToCreate: string[];
+
+    if (form.dateMode === "single") {
+      if (!form.date) {
+        toast.error("Informe a data do teste.");
+        return;
+      }
+      if (isWeekend(form.date)) {
+        toast.error("Sábados e domingos não estão disponíveis.");
+        return;
+      }
+      datesToCreate = [form.date];
+    } else if (form.dateMode === "week") {
+      if (!form.weekValue) {
+        toast.error("Selecione uma semana.");
+        return;
+      }
+      datesToCreate = getWeekDates(form.weekValue);
+    } else {
+      const days = getMonthWeekdays(form.monthValue);
+      if (days.length === 0) {
+        toast.error("Selecione um mês válido.");
+        return;
+      }
+      datesToCreate = days;
+    }
+
+    if (!form.startTime) {
+      toast.error("Informe o horário de início.");
       return;
     }
 
@@ -62,12 +176,14 @@ export default function ClassCreationForm() {
     setSaving(true);
     try {
       const period = derivePeriod(form.startTime);
-
-      const { error } = await supabase.from("sessions").insert({
-        date: form.date,
+      const rows = datesToCreate.map((date) => ({
+        date,
         period,
         max_capacity: form.maxCapacity,
-      });
+        ...(form.location_id ? { location_id: form.location_id } : {}),
+      }));
+
+      const { error } = await supabase.from("sessions").insert(rows);
 
       if (error) {
         if (error.code === "23505") {
@@ -78,7 +194,12 @@ export default function ClassCreationForm() {
         return;
       }
 
-      toast.success("Turma publicada com sucesso.");
+      const count = datesToCreate.length;
+      toast.success(
+        count === 1
+          ? "Turma publicada com sucesso."
+          : `${count} turmas publicadas com sucesso.`,
+      );
       navigate("/app/agendamentos");
     } catch (error) {
       console.error(error);
@@ -140,22 +261,24 @@ export default function ClassCreationForm() {
                       Local do Teste
                     </label>
                     <select
-                      value={form.location}
+                      value={form.location_id}
                       onChange={(event) =>
-                        updateField("location", event.target.value)
+                        updateField("location_id", event.target.value)
                       }
-                      className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      disabled={loadingLocations}
+                      className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
                     >
-                      <option value="">Selecione um local</option>
-                      <option value="HACO">
-                        HACO - Hospital de Aeronáutica de Canoas
+                      <option value="">
+                        {loadingLocations
+                          ? "Carregando locais..."
+                          : "Selecione um local"}
                       </option>
-                      <option value="HAAF">
-                        HAAF - Hospital de Aeronáutica dos Afonsos
-                      </option>
-                      <option value="HFASP">
-                        HFASP - Hospital de Força Aérea de São Paulo
-                      </option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.name}
+                          {loc.address ? ` — ${loc.address}` : ""}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -169,41 +292,150 @@ export default function ClassCreationForm() {
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Data do Teste
-                    </label>
+                {/* Seletor de modo */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Data do Teste
+                  </label>
+                  <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800">
+                    {(
+                      [
+                        { mode: "single", label: "Um dia" },
+                        { mode: "week", label: "Uma semana" },
+                        { mode: "month", label: "Um mês" },
+                      ] as { mode: DateMode; label: string }[]
+                    ).map(({ mode, label }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => updateField("dateMode", mode)}
+                        className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                          form.dateMode === mode
+                            ? "bg-white text-primary shadow-sm dark:bg-slate-900 dark:text-primary"
+                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Um dia */}
+                {form.dateMode === "single" && (
+                  <div className="space-y-1.5">
+                    <input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v && isWeekend(v)) {
+                          toast.error(
+                            "Sábados e domingos não estão disponíveis.",
+                          );
+                          updateField("date", "");
+                        } else {
+                          updateField("date", v);
+                        }
+                      }}
+                      className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      Sábados e domingos são bloqueados automaticamente.
+                    </p>
+                  </div>
+                )}
+
+                {/* Uma semana */}
+                {form.dateMode === "week" && (
+                  <div className="space-y-3">
+                    <input
+                      type="week"
+                      value={form.weekValue}
+                      onChange={(e) => updateField("weekValue", e.target.value)}
+                      className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                    />
+                    {form.weekValue && (
+                      <div className="flex flex-wrap gap-2">
+                        {getWeekDates(form.weekValue).map((d) => (
+                          <span
+                            key={d}
+                            className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary"
+                          >
+                            {fmtDateChip(d)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-slate-400">
+                      Cria uma turma por dia (seg–sex) para a semana
+                      selecionada.
+                    </p>
+                  </div>
+                )}
+
+                {/* Um mês inteiro */}
+                {form.dateMode === "month" &&
+                  (() => {
+                    const days = getMonthWeekdays(form.monthValue);
+                    return (
+                      <div className="space-y-3">
+                        <input
+                          type="month"
+                          value={form.monthValue}
+                          onChange={(e) =>
+                            updateField("monthValue", e.target.value)
+                          }
+                          className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                        />
+                        {form.monthValue && (
+                          <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:bg-primary/10">
+                            <CalendarDays
+                              size={18}
+                              className="shrink-0 text-primary"
+                            />
+                            <p className="text-sm text-slate-700 dark:text-slate-300">
+                              <span className="font-bold text-primary">
+                                {days.length} turmas
+                              </span>{" "}
+                              serão criadas (
+                              {
+                                PT_MONTHS[
+                                  Number(form.monthValue.split("-")[1]) - 1
+                                ]
+                              }{" "}
+                              {form.monthValue.split("-")[0]}), seg–sex, sem
+                              fins de semana.
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-slate-400">
+                          Cria uma turma por dia útil (seg–sex) do mês
+                          selecionado.
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                {/* Horário de Início */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Horário de Início
+                  </label>
+                  <div className="relative max-w-xs">
+                    <Clock3
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
                     <input
                       required
-                      value={form.date}
+                      value={form.startTime}
                       onChange={(event) =>
-                        updateField("date", event.target.value)
+                        updateField("startTime", event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
-                      type="date"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      type="time"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Horário de Início
-                    </label>
-                    <div className="relative">
-                      <Clock3
-                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                        size={16}
-                      />
-                      <input
-                        required
-                        value={form.startTime}
-                        onChange={(event) =>
-                          updateField("startTime", event.target.value)
-                        }
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
-                        type="time"
-                      />
-                    </div>
                   </div>
                 </div>
               </section>

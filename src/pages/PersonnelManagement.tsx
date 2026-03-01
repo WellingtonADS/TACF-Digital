@@ -3,13 +3,21 @@ import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { format } from "date-fns";
 import {
+  Award,
+  Calendar,
   Download,
   Edit,
+  FileText,
+  Loader2,
+  Mail,
+  Phone,
   Search,
+  Shield,
   TrendingUp,
   UserCircle2,
   Users,
   View,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -86,6 +94,27 @@ function dateLabel(value: string | null) {
   return format(parsed, "dd/MM/yyyy");
 }
 
+type UserDetail = {
+  id: string;
+  full_name: string | null;
+  war_name: string | null;
+  rank: string | null;
+  sector: string | null;
+  saram: string | null;
+  email: string | null;
+  phone_number: string | null;
+  role: string | null;
+  active: boolean;
+  birth_date: string | null;
+  physical_group: string | null;
+  inspsau_valid_until: string | null;
+  inspsau_last_inspection: string | null;
+  created_at: string | null;
+  lastTestDate: string | null;
+  lastScore: number | null;
+  status: PersonnelRow["status"];
+};
+
 export default function PersonnelManagement() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
@@ -95,6 +124,67 @@ export default function PersonnelManagement() {
     useState<(typeof RANK_OPTIONS)[number]>("Todos");
   const [statusFilter, setStatusFilter] =
     useState<(typeof STATUS_OPTIONS)[number]>("Todos");
+
+  // Drawer de detalhe
+  const [selectedUser, setSelectedUser] = useState<PersonnelRow | null>(null);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  async function openProfile(row: PersonnelRow) {
+    setSelectedUser(row);
+    setUserDetail(null);
+    setLoadingDetail(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, war_name, rank, sector, saram, email, phone_number, role, active, birth_date, physical_group, inspsau_valid_until, inspsau_last_inspection, created_at",
+        )
+        .eq("id", row.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) {
+        setUserDetail({
+          ...(data as typeof data & Record<string, unknown>),
+          active: Boolean((data as { active?: boolean }).active),
+          full_name: (data as { full_name?: string | null }).full_name ?? null,
+          war_name: (data as { war_name?: string | null }).war_name ?? null,
+          rank: (data as { rank?: string | null }).rank ?? null,
+          sector: (data as { sector?: string | null }).sector ?? null,
+          saram: (data as { saram?: string | null }).saram ?? null,
+          email: (data as { email?: string | null }).email ?? null,
+          phone_number:
+            (data as { phone_number?: string | null }).phone_number ?? null,
+          role: (data as { role?: string | null }).role ?? null,
+          birth_date:
+            (data as { birth_date?: string | null }).birth_date ?? null,
+          physical_group:
+            (data as { physical_group?: string | null }).physical_group ?? null,
+          inspsau_valid_until:
+            (data as { inspsau_valid_until?: string | null })
+              .inspsau_valid_until ?? null,
+          inspsau_last_inspection:
+            (data as { inspsau_last_inspection?: string | null })
+              .inspsau_last_inspection ?? null,
+          created_at:
+            (data as { created_at?: string | null }).created_at ?? null,
+          lastTestDate: row.lastTestDate,
+          lastScore: row.lastScore,
+          status: row.status,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
+
+  function closeDrawer() {
+    setSelectedUser(null);
+    setUserDetail(null);
+  }
 
   useEffect(() => {
     async function loadPersonnel() {
@@ -427,15 +517,19 @@ export default function PersonnelManagement() {
                             <div className="flex justify-end gap-2">
                               <button
                                 type="button"
-                                onClick={() => navigate("/app/perfil")}
+                                onClick={() => openProfile(row)}
                                 className="p-2 text-slate-400 transition-colors hover:text-primary"
+                                title="Ver perfil"
                               >
                                 <View size={18} />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => navigate("/app/perfil")}
+                                onClick={() =>
+                                  navigate(`/app/efetivo/${row.id}/editar`)
+                                }
                                 className="p-2 text-slate-400 transition-colors hover:text-primary"
+                                title="Editar"
                               >
                                 <Edit size={18} />
                               </button>
@@ -560,6 +654,209 @@ export default function PersonnelManagement() {
           </aside>
         </div>
       </div>
+
+      {/* ── Drawer de perfil ───────────────────────────────────────── */}
+      {selectedUser && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={closeDrawer}
+          />
+
+          {/* Painel */}
+          <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900">
+            {/* Header do drawer */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {initialsFromName(selectedUser.fullName)}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white">
+                    {selectedUser.fullName}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {selectedUser.rank ?? "Sem posto"} ·{" "}
+                    {selectedUser.warName ?? "--"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-20 text-slate-400">
+                  <Loader2 size={28} className="animate-spin" />
+                </div>
+              ) : userDetail ? (
+                <div className="space-y-6">
+                  {/* Status badge */}
+                  <div className="flex items-center gap-2">
+                    {(
+                      [
+                        ["APTO", "bg-emerald-100 text-emerald-700"],
+                        ["INAPTO", "bg-red-100 text-red-700"],
+                        ["VENCIDO", "bg-amber-100 text-amber-700"],
+                      ] as [PersonnelRow["status"], string][]
+                    ).map(([s, cls]) =>
+                      userDetail.status === s ? (
+                        <span
+                          key={s}
+                          className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}
+                        >
+                          {s}
+                        </span>
+                      ) : null,
+                    )}
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        userDetail.active
+                          ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {userDetail.active ? "Conta ativa" : "Conta inativa"}
+                    </span>
+                  </div>
+
+                  {/* Dados pessoais */}
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <Shield size={13} /> Identificação
+                    </h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">SARAM</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.saram ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Posto/Graduação</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.rank ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Nome de Guerra</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.war_name ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Setor</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.sector ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Grupo Físico</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.physical_group ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Data de Nascimento</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {dateLabel(userDetail.birth_date)}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  {/* Contacto */}
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <Mail size={13} /> Contato
+                    </h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="flex items-center gap-1.5 text-slate-500">
+                          <Mail size={12} /> E-mail
+                        </dt>
+                        <dd className="truncate font-semibold text-slate-900 dark:text-white">
+                          {userDetail.email ?? "--"}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="flex items-center gap-1.5 text-slate-500">
+                          <Phone size={12} /> Telefone
+                        </dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.phone_number ?? "--"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  {/* INSPSAU */}
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <Award size={13} /> Inspeção de Saúde (INSPSAU)
+                    </h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Última Inspeção</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {dateLabel(userDetail.inspsau_last_inspection)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Válida até</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {dateLabel(userDetail.inspsau_valid_until)}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  {/* TACF */}
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <FileText size={13} /> Último Teste TACF
+                    </h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Data</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {dateLabel(userDetail.lastTestDate)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Score</dt>
+                        <dd className="font-semibold text-slate-900 dark:text-white">
+                          {userDetail.lastScore !== null
+                            ? userDetail.lastScore
+                            : "--"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  {/* Cadastro */}
+                  <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <Calendar size={11} />
+                    Cadastrado em {dateLabel(userDetail.created_at)}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-center text-sm text-slate-400">
+                  Sem dados para exibir.
+                </p>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </Layout>
   );
 }

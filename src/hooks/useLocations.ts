@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import supabase from "../services/supabase";
 import type { Location } from "../types/database.types";
 
@@ -56,6 +56,19 @@ export default function useLocations(): UseLocationsResult {
     }
   }, []);
 
+  // Recarrega quando houver alterações de locations em outras abas/componentes
+  useEffect(() => {
+    const onChange = () => {
+      void fetch();
+    };
+    window.addEventListener("locations:changed", onChange as EventListener);
+    return () =>
+      window.removeEventListener(
+        "locations:changed",
+        onChange as EventListener,
+      );
+  }, [fetch]);
+
   const create = useCallback(
     async (data: Omit<Location, "id" | "created_at" | "updated_at">) => {
       setLoading(true);
@@ -70,7 +83,13 @@ export default function useLocations(): UseLocationsResult {
           p_metadata: data.metadata,
         });
         if (error) throw error;
-        return result as Location;
+        const loc = result as Location;
+        try {
+          window.dispatchEvent(
+            new CustomEvent("locations:changed", { detail: { id: loc?.id } }),
+          );
+        } catch {}
+        return loc;
       } catch (err: unknown) {
         console.error("useLocations create error", err);
         const msg = err instanceof Error ? err.message : String(err);
@@ -97,7 +116,13 @@ export default function useLocations(): UseLocationsResult {
         p_metadata: data.metadata,
       });
       if (error) throw error;
-      return result as Location;
+      const loc = result as Location;
+      try {
+        window.dispatchEvent(
+          new CustomEvent("locations:changed", { detail: { id: loc?.id } }),
+        );
+      } catch {}
+      return loc as Location;
     } catch (err: unknown) {
       console.error("useLocations update error", err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -114,6 +139,11 @@ export default function useLocations(): UseLocationsResult {
     try {
       const { error } = await supabase.rpc("delete_location", { p_id: id });
       if (error) throw error;
+      try {
+        window.dispatchEvent(
+          new CustomEvent("locations:changed", { detail: { id } }),
+        );
+      } catch {}
     } catch (err: unknown) {
       console.error("useLocations delete error", err);
       const msg = err instanceof Error ? err.message : String(err);
