@@ -1,5 +1,6 @@
 import { supabase } from "@/services/supabase";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import useAuth from "./useAuth";
 
 type SessionInfo = {
@@ -51,75 +52,99 @@ export default function useDashboard() {
       setLoading(true);
       try {
         /* try single RPC first to minimize round-trips */
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "get_user_dashboard_summary",
-        );
+        const { data: rpcData, error: rpcError } = await supabase.rpc<
+          DashboardPayload[]
+        >("get_user_dashboard_summary");
         if (!rpcError && rpcData) {
-          const payload = (
-            Array.isArray(rpcData) ? rpcData[0] : rpcData
-          ) as DashboardPayload;
-          setBookingsCount(Number(payload?.bookings_count ?? 0));
-          setResultsCount(Number(payload?.results_count ?? 0));
-          if (payload?.next_session) {
-            setNextSession({
-              id: payload.next_session.session_id,
-              date: payload.next_session.date,
-              period: payload.next_session.period,
-              max_capacity: payload.next_session.max_capacity ?? null,
-            });
-          } else {
-            setNextSession(null);
-          }
+          const payloadCandidate = Array.isArray(rpcData)
+            ? rpcData[0]
+            : (rpcData as unknown as DashboardPayload);
 
-          setLatestOrderNumber(payload?.latest_order_number ?? null);
+          const isValid = (p: any): p is DashboardPayload => {
+            if (!p || typeof p !== "object") return false;
+            // basic structural checks: counts are present (may be null) and next_session if present is an object
+            const okCounts = true; // counts may be absent depending on RPC, accept and validate later
+            const okNext =
+              !("next_session" in p) || typeof p.next_session === "object";
+            return okCounts && okNext;
+          };
 
-          const notes: NotificationItem[] = [];
-          const inspsau = (
-            profile as { inspsau_valid_until?: string | null } | null
-          )?.inspsau_valid_until;
-          if (inspsau) {
-            const d = new Date(typeof inspsau === "string" ? inspsau : inspsau);
-            const now = new Date();
-            const days = Math.ceil(
-              (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          if (!isValid(payloadCandidate)) {
+            console.warn(
+              "get_user_dashboard_summary RPC returned unexpected shape",
+              { sample: payloadCandidate },
             );
-            if (days <= 0)
-              notes.push({
-                title: "Inspeção de Saúde vencida",
-                description:
-                  "Sua INSPSAU está vencida — procure a OM para atualizar.",
-                level: "warning",
+            toast.error(
+              "Resposta inesperada do servidor ao carregar o resumo do dashboard.",
+            );
+            // fallthrough to manual queries below
+          } else {
+            const payload = payloadCandidate as DashboardPayload;
+            setBookingsCount(Number(payload?.bookings_count ?? 0));
+            setResultsCount(Number(payload?.results_count ?? 0));
+            if (payload?.next_session) {
+              setNextSession({
+                id: payload.next_session.session_id,
+                date: payload.next_session.date,
+                period: payload.next_session.period,
+                max_capacity: payload.next_session.max_capacity ?? null,
               });
-            else if (days <= 45)
+            } else {
+              setNextSession(null);
+            }
+
+            setLatestOrderNumber(payload?.latest_order_number ?? null);
+
+            const notes: NotificationItem[] = [];
+            const inspsau = (
+              profile as { inspsau_valid_until?: string | null } | null
+            )?.inspsau_valid_until;
+            if (inspsau) {
+              const d = new Date(
+                typeof inspsau === "string" ? inspsau : inspsau,
+              );
+              const now = new Date();
+              const days = Math.ceil(
+                (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+              );
+              if (days <= 0)
+                notes.push({
+                  title: "Inspeção de Saúde vencida",
+                  description:
+                    "Sua INSPSAU está vencida — procure a OM para atualizar.",
+                  level: "warning",
+                });
+              else if (days <= 45)
+                notes.push({
+                  title: "Inspeção de Saúde próxima",
+                  description: `Sua INSPSAU vence em ${days} dias.`,
+                  level: "info",
+                });
+            }
+
+            if (payload?.next_session)
               notes.push({
-                title: "Inspeção de Saúde próxima",
-                description: `Sua INSPSAU vence em ${days} dias.`,
+                title: "Próximo Agendamento",
+                description: `Você tem agendamento em ${payload.next_session.date} (${payload.next_session.period}).`,
                 level: "info",
               });
+            else if (Number(payload?.bookings_count ?? 0) === 0)
+              notes.push({
+                title: "Sem agendamentos",
+                description: "Você ainda não tem agendamento confirmado.",
+                level: "info",
+              });
+
+            if (payload?.latest_order_number)
+              notes.unshift({
+                title: "Bilhete disponível",
+                description: `Código: ${payload.latest_order_number}`,
+              });
+
+            setNotifications(notes);
+            setLoading(false);
+            return;
           }
-
-          if (payload?.next_session)
-            notes.push({
-              title: "Próximo Agendamento",
-              description: `Você tem agendamento em ${payload.next_session.date} (${payload.next_session.period}).`,
-              level: "info",
-            });
-          else if (Number(payload?.bookings_count ?? 0) === 0)
-            notes.push({
-              title: "Sem agendamentos",
-              description: "Você ainda não tem agendamento confirmado.",
-              level: "info",
-            });
-
-          if (payload?.latest_order_number)
-            notes.unshift({
-              title: "Bilhete disponível",
-              description: `Código: ${payload.latest_order_number}`,
-            });
-
-          setNotifications(notes);
-          setLoading(false);
-          return;
         }
 
         const uid =

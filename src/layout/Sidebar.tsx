@@ -1,13 +1,13 @@
 import useAuth from "@/hooks/useAuth";
 import {
+  BarChart2,
   Calendar,
-  ChartColumn,
+  ClipboardList,
   ClipboardPen,
   FileText,
   LayoutDashboard,
   LogOut,
   MapPin,
-  PlusCircle,
   Settings,
   Shield,
   User,
@@ -15,57 +15,65 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+const userNav = [
+  { icon: LayoutDashboard, label: "Dashboard (Visão Geral)", path: "/app" },
+  {
+    icon: Calendar,
+    label: "Agendamentos / Avaliações",
+    path: "/app/agendamentos",
+  },
+  { icon: FileText, label: "Documentos / Relatórios", path: "/app/documentos" },
+  { icon: ClipboardList, label: "Histórico", path: "/app/resultados" },
+  { icon: User, label: "Meu Perfil", path: "/app/perfil" },
+];
+
+/** Nav do contexto admin — espelha o design do stitch */
+const adminNav = [
+  { icon: LayoutDashboard, label: "Visão Geral", path: "/app/admin" },
+  { icon: Users, label: "Gerenciar Turmas", path: "/app/turmas" },
+  { icon: Users, label: "Efetivo", path: "/app/efetivo" },
+  { icon: MapPin, label: "OMs / Locais", path: "/app/om-locations" },
+  {
+    icon: ClipboardPen,
+    label: "Lançar Índices",
+    path: "/app/lancamento-indices",
+  },
+  { icon: BarChart2, label: "Relatórios", path: "/app/analytics" },
+  { icon: Settings, label: "Configurações", path: "/app/configuracoes" },
+  { icon: Shield, label: "Logs de Auditoria", path: "/app/auditoria" },
+];
+
 export const Sidebar = () => {
   const location = useLocation();
+  const { profile } = useAuth();
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/app" },
-    { icon: Calendar, label: "Agendamentos", path: "/app/agendamentos" },
-    { icon: PlusCircle, label: "Nova Turma", path: "/app/turmas/nova" },
-    { icon: Users, label: "Efetivo", path: "/app/efetivo" },
-    { icon: MapPin, label: "OMs / Locais", path: "/app/om-locations" },
-    {
-      icon: ClipboardPen,
-      label: "Lançar Índices",
-      path: "/app/lancamento-indices",
-    },
-    {
-      icon: ChartColumn,
-      label: "Analytics",
-      path: "/app/analytics",
-    },
-    { icon: Settings, label: "Configurações", path: "/app/configuracoes" },
-    { icon: User, label: "Perfil", path: "/app/perfil" },
-    { icon: FileText, label: "Resultados", path: "/app/resultados" },
-  ];
+  const isAdmin = profile?.role === "admin" || profile?.role === "coordinator";
+  const navItems = isAdmin ? adminNav : userNav;
 
   const isActive = (path: string) => {
     if (path === "/app") {
       return location.pathname === "/app" || location.pathname === "/app/";
     }
-
     return (
       location.pathname === path || location.pathname.startsWith(`${path}/`)
     );
   };
 
   return (
-    <aside className="w-64 bg-primary text-white flex flex-col fixed h-full z-50">
-      <div className="p-6 flex items-center gap-3">
-        <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
+    <aside className="w-72 bg-primary text-white flex flex-col fixed h-full z-50">
+      <div className="p-8 flex items-center gap-3">
+        <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
           <Shield className="text-white" size={24} />
         </div>
         <div>
-          <h1 className="text-sm font-bold tracking-tight uppercase leading-none">
-            TACF-Digital
-          </h1>
+          <h1 className="text-xl font-bold leading-none">TACF-Digital</h1>
           <p className="text-[10px] text-white/60 font-medium tracking-widest mt-1">
             FORÇA AÉREA BRASILEIRA
           </p>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 mt-2 px-4 space-y-1">
         {navItems.map((item) => (
           <Link
             key={item.path}
@@ -75,8 +83,9 @@ export const Sidebar = () => {
                 import("../pages/ResultsHistory");
               if (item.path === "/app/agendamentos")
                 import("../pages/Scheduling");
-              if (item.path === "/app/turmas/nova")
-                import("../pages/ClassCreationForm");
+              if (item.path === "/app/turmas")
+                import("../pages/AdminDashboard");
+              if (item.path === "/app/admin") import("../pages/AdminDashboard");
               if (item.path === "/app/efetivo")
                 import("../pages/PersonnelManagement");
               if (item.path === "/app/lancamento-indices")
@@ -87,11 +96,16 @@ export const Sidebar = () => {
                 import("../pages/SystemSettings");
               if (item.path === "/app/perfil")
                 import("../pages/UserProfilesManagement");
+              if (item.path === "/app/om-locations")
+                import("../pages/OmLocationManager");
+              if (item.path === "/app/reagendamentos")
+                import("../pages/ReschedulingManagement");
+              if (item.path === "/app/auditoria") import("../pages/AuditLog");
             }}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+            className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
               isActive(item.path)
-                ? "bg-white/10 text-white"
-                : "text-white/70 hover:bg-white/5 hover:text-white"
+                ? "bg-white/10 text-white border-l-4 border-white pl-3"
+                : "text-white/70 hover:bg-white/5 hover:text-white border-l-4 border-transparent pl-3"
             }`}
           >
             <item.icon size={20} />
@@ -100,7 +114,30 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="p-4 mt-auto">
+      <div className="p-4 mt-auto border-t border-white/10 space-y-3">
+        {profile && (
+          <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-white">
+                {(profile.war_name ?? profile.full_name ?? "?")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </span>
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold truncate">
+                {profile.war_name ?? profile.full_name ?? "—"}
+              </p>
+              <p className="text-xs text-white/50 truncate capitalize">
+                {profile.role === "admin"
+                  ? "Administrador"
+                  : profile.role === "coordinator"
+                    ? "Coordenador"
+                    : "Usuário"}
+              </p>
+            </div>
+          </div>
+        )}
         <LogoutButton />
       </div>
     </aside>

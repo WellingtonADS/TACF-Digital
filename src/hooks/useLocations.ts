@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import supabase from "../services/supabase";
-import { Location } from "../types/database.types";
+import type { Location } from "../types/database.types";
 
 interface FetchParams {
   search?: string;

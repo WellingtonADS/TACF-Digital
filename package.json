@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "db:apply": "node scripts/db/applyMigrations.cjs",
+    "db:seed": "node scripts/db/applyMigrations.cjs --seed",
+    "db:check": "node scripts/db/runRpcChecks.cjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

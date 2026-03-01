@@ -7,7 +7,16 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
 
 export default function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile>(null);
+  // hydrate profile from sessionStorage to reduce UI flicker on navigation
+  const [profile, setProfile] = useState<Profile>(() => {
+    try {
+      if (typeof window === "undefined") return null;
+      const raw = sessionStorage.getItem("tacf_profile");
+      return raw ? (JSON.parse(raw) as Profile) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +36,12 @@ export default function useAuth() {
             .limit(1)
             .maybeSingle();
 
-          setProfile((p as Profile) ?? null);
+          const val = (p as Profile) ?? null;
+          setProfile(val);
+          try {
+            if (typeof window !== "undefined")
+              sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+          } catch {}
           return;
         }
 
@@ -51,9 +65,19 @@ export default function useAuth() {
           .limit(1)
           .maybeSingle();
 
-        setProfile((fallback as Profile) ?? null);
+        const val = (fallback as Profile) ?? null;
+        setProfile(val);
+        try {
+          if (typeof window !== "undefined")
+            sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+        } catch {}
       } else {
-        setProfile((p as Profile) ?? null);
+        const val = (p as Profile) ?? null;
+        setProfile(val);
+        try {
+          if (typeof window !== "undefined")
+            sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+        } catch {}
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -79,6 +103,10 @@ export default function useAuth() {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    try {
+      if (typeof window !== "undefined")
+        sessionStorage.removeItem("tacf_profile");
+    } catch {}
   }, []);
 
   const updateProfile = useCallback(async (payload: Partial<Profile>) => {
@@ -86,6 +114,11 @@ export default function useAuth() {
       const up = await upsertProfile(
         payload as unknown as Database["public"]["Tables"]["profiles"]["Insert"],
       );
+      try {
+        const val = up?.data ?? null;
+        if (typeof window !== "undefined")
+          sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+      } catch {}
       return up;
     } catch {
       return null;

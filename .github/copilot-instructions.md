@@ -1,7 +1,14 @@
+Sempre evite resposta longas na janela de contexto, use documentos MarkDown, txt, csv, etc..
+
 ```instructions
 # TACF Digital — Instruções para agentes (resumido)
 
 Este arquivo orienta agentes de IA para trabalhar com o repositório TACF Digital.
+
+Planejar a criação/refatoração mantendo as conexões do projeto com o banco de dados, pesquise o que já existe em src, só gere algo novo se for extremamente preciso. não gerar testes sem ser solicitado. Sempre com refinamento visual final para aproximar ainda mais do conceito do projeto
+D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaAdmin.md
+D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
+
 
 ## Code Style
 

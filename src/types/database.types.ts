@@ -28,7 +28,6 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          saram?: string | null;
           full_name?: string | null;
           rank?: string | null;
           role?: "user" | "admin" | "coordinator";
@@ -319,3 +318,5 @@ export interface Database {
     };
   };
 }
+
+export type Location = Database["public"]["Tables"]["locations"]["Row"];
