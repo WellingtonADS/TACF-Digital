@@ -173,6 +173,20 @@ describe("AppointmentConfirmation", () => {
     });
   });
 
+  it("botão voltar leva para agendamentos", async () => {
+    renderPage({
+      pathname: "/app/agendamentos/confirmacao",
+      state: { sessionId: "session-1" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/1T SILVA/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Voltar e Editar/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/app/agendamentos");
+  });
+
   it("carrega booking legado via bookingId e mostra número do bilhete", async () => {
     renderPage("/app/agendamentos/confirmacao?bookingId=booking-1");
 

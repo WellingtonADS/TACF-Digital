@@ -11,6 +11,7 @@ import {
   MapPin,
   Settings,
   Shield,
+  Ticket,
   User,
   Users,
   X,
@@ -25,6 +26,7 @@ const userNav = [
     path: "/app/agendamentos",
   },
   { icon: FileText, label: "Documentos / Relatórios", path: "/app/documentos" },
+  { icon: Ticket, label: "Bilhete Digital", path: "/app/ticket" },
   { icon: ClipboardList, label: "Histórico", path: "/app/resultados" },
   { icon: User, label: "Meu Perfil", path: "/app/perfil" },
 ];

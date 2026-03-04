@@ -1,6 +1,9 @@
-import supabase from "@/services/supabase";
+import type { TicketData } from "@/hooks/useTicket";
+import useTicket from "@/hooks/useTicket";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { jsPDF } from "jspdf";
 import {
+  ArrowLeft,
   Calendar,
   Download,
   Info,
@@ -9,150 +12,20 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import QR from "react-qr-code";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
 import Layout from "../layout/Layout";
 
-type TicketData = {
-  name: string;
-  saram: string;
-  location: string;
-  date: string;
-  time: string;
-  code: string;
-  confirmed?: boolean;
-};
-
-type TicketRouteState = {
-  bookingId?: string;
-  orderNumber?: string | null;
-  sessionId?: string;
-};
-
-function formatTicketDate(date: string): string {
-  return new Date(date)
-    .toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-    .replace(".", "")
-    .toUpperCase();
-}
+// no longer need formatTicketDate or route state types; they live in the hook
 
 export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
-  const location = useLocation();
   const navigate = useNavigate();
-  const routeState = (location.state as TicketRouteState | null) ?? null;
 
-  const [ticketData, setTicketData] = useState<TicketData | null>(
-    ticket ?? null,
-  );
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFromBooking() {
-      setLoading(true);
-      try {
-        const bookingId = routeState?.bookingId;
-
-        // Se não há bookingId e há ticket prop, usa o ticket prop
-        if (!bookingId && ticket) {
-          setTicketData({
-            ...ticket,
-            code: routeState?.orderNumber ?? ticket.code,
-            confirmed: true,
-          });
-          return;
-        }
-
-        let resolvedBookingId = bookingId;
-
-        // Sem bookingId no state → tenta carregar o último agendamento do usuário
-        if (!resolvedBookingId) {
-          const { data: userData } = await supabase.auth.getUser();
-          const uid = userData?.user?.id;
-          if (!uid) return;
-
-          const { data: latestBooking } = await supabase
-            .from("bookings")
-            .select("id, order_number")
-            .eq("user_id", uid)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (!latestBooking) return; // nenhum agendamento encontrado
-          resolvedBookingId = latestBooking.id;
-        }
-
-        const { data: bookingData } = await supabase
-          .from("bookings")
-          .select("id, user_id, session_id, order_number, status")
-          .eq("id", resolvedBookingId)
-          .maybeSingle();
-
-        if (!bookingData || cancelled) return;
-
-        const [sessionResp, profileResp] = await Promise.all([
-          supabase
-            .from("sessions")
-            .select("id, date, period, location:locations(name)")
-            .eq("id", bookingData.session_id)
-            .maybeSingle(),
-          supabase
-            .from("profiles")
-            .select("id, war_name, full_name, saram")
-            .eq("id", bookingData.user_id)
-            .maybeSingle(),
-        ]);
-
-        if (cancelled) return;
-
-        const sessionData = sessionResp.data;
-        const profileData = profileResp.data;
-
-        const locRaw = sessionData?.location as
-          | { name?: string | null }[]
-          | { name?: string | null }
-          | null
-          | undefined;
-        const locName = Array.isArray(locRaw)
-          ? (locRaw[0]?.name ?? null)
-          : (locRaw?.name ?? null);
-
-        setTicketData((prev) => ({
-          ...(prev ?? {}),
-          name:
-            profileData?.war_name ?? profileData?.full_name ?? prev?.name ?? "",
-          saram: profileData?.saram ?? prev?.saram ?? "",
-          location: locName ?? prev?.location ?? "",
-          date: sessionData?.date
-            ? formatTicketDate(sessionData.date)
-            : (prev?.date ?? ""),
-          time: sessionData?.period ?? prev?.time ?? "",
-          code:
-            bookingData.order_number ??
-            routeState?.orderNumber ??
-            prev?.code ??
-            "",
-          confirmed: bookingData.status === "confirmed",
-        }));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadFromBooking();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [routeState?.bookingId, routeState?.orderNumber, ticket]);
+  // centralizamos o carregamento em um hook reaproveitável
+  const { ticket: ticketData, loading } = useTicket(ticket);
 
   const generatePdf = useCallback(async () => {
     if (!ticketData) return;
@@ -219,6 +92,10 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
 
   const qrValue = useMemo(() => ticketData?.code ?? "", [ticketData]);
 
+  function goToAppointments() {
+    navigate("/app/agendamentos");
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -232,21 +109,35 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   if (!ticketData) {
     return (
       <Layout>
-        <div className="p-8 max-w-2xl mx-auto text-center space-y-4">
-          <ShieldCheck className="mx-auto text-slate-300" size={48} />
-          <h2 className="text-xl font-bold text-slate-700">
-            Sem agendamento encontrado
-          </h2>
-          <p className="text-slate-500 text-sm">
-            Você ainda não possui um agendamento confirmado. Acesse a área de
-            agendamentos para reservar uma sessão.
-          </p>
-          <button
-            onClick={() => navigate("/app/agendamentos")}
-            className="mt-4 px-6 py-3 bg-primary text-white rounded-lg font-bold text-sm"
-          >
-            Ir para Agendamentos
-          </button>
+        <div className="p-6 max-w-2xl mx-auto">
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              onClick={goToAppointments}
+              className="flex items-center gap-2 text-primary font-bold text-sm"
+            >
+              <ArrowLeft size={16} />
+              Meus Agendamentos
+            </button>
+          </div>
+          <Breadcrumbs items={["Agendamentos", "Bilhete Digital"]} />
+
+          <div className="mt-8 text-center space-y-4">
+            <ShieldCheck className="mx-auto text-slate-300" size={48} />
+            <h2 className="text-xl font-bold text-slate-700">
+              Sem agendamento encontrado
+            </h2>
+            <p className="text-slate-500 text-sm">
+              Você ainda não possui um agendamento confirmado. Acesse a área de
+              agendamentos para reservar uma sessão.
+            </p>
+            <button
+              onClick={() => navigate("/app/agendamentos")}
+              onMouseEnter={() => prefetchRoute("/app/agendamentos")}
+              className="mt-4 px-6 py-3 bg-primary text-white rounded-lg font-bold text-sm"
+            >
+              Ir para Agendamentos
+            </button>
+          </div>
         </div>
       </Layout>
     );
@@ -254,16 +145,29 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark p-6 flex flex-col items-center">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-[color:var(--primary,#1c385f)] rounded-lg flex items-center justify-center text-white">
-          <ShieldCheck size={20} />
+      <div className="w-full max-w-2xl flex flex-col print:hidden">
+        <div className="mb-6 flex items-center justify-between">
+          <button
+            onClick={goToAppointments}
+            onMouseEnter={() => prefetchRoute("/app/agendamentos")}
+            className="flex items-center gap-2 text-primary font-bold text-sm print:hidden"
+          >
+            <ArrowLeft size={16} />
+            Meus Agendamentos
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[color:var(--primary,#1c385f)] rounded-lg flex items-center justify-center text-white">
+              <ShieldCheck size={20} />
+            </div>
+            <h1 className="text-xl font-bold text-primary tracking-tight">
+              TACF-Digital
+            </h1>
+          </div>
         </div>
-        <h1 className="text-xl font-bold text-primary tracking-tight">
-          TACF-Digital
-        </h1>
+        <Breadcrumbs items={["Agendamentos", "Bilhete Digital"]} />
       </div>
 
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden ticket-container">
+      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden ticket-container print:bg-white print:shadow-none">
         <div className="bg-primary px-8 py-8 text-white relative">
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
@@ -370,24 +274,24 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
+      <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-2xl print:hidden">
         <button
           onClick={handlePrint}
-          className="flex-1 flex items-center justify-center gap-2 border-2 border-primary/20 text-primary font-bold py-3 px-6 rounded-xl"
+          className="flex-1 flex items-center justify-center gap-2 border-2 border-primary/20 text-primary font-bold py-3 px-6 rounded-xl print:hidden"
         >
           <Printer size={18} />
           IMPRIMIR
         </button>
         <button
           onClick={generatePdf}
-          className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 px-6 rounded-xl shadow-lg"
+          className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 px-6 rounded-xl shadow-lg print:hidden"
         >
           <Download size={18} />
           SALVAR COMO PDF
         </button>
       </div>
 
-      <div className="mt-6 text-center text-slate-500 text-sm">
+      <div className="mt-6 text-center text-slate-500 text-sm print:hidden">
         Dúvidas ou problemas com o agendamento?{" "}
         <a href="#" className="text-primary hover:underline">
           Contate o suporte TACF

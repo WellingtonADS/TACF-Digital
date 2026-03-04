@@ -231,6 +231,63 @@
   }
 }
 
+/* --------------------------------------------------------------------------
+   estilos auxiliares para o bilhete digital (bordas recortadas, linha
+   perfurada) e regras de impressão.
+   Os nomes de classe já aparecem no componente; aqui definimos a lógica
+   visual sem poluir o JSX.
+*/
+@layer components {
+  .ticket-container {
+    position: relative;
+  }
+
+  .ticket-cutout-left,
+  .ticket-cutout-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2rem;
+    background: inherit;
+  }
+  .ticket-cutout-left {
+    left: -1rem;
+    clip-path: circle(1rem at right center);
+  }
+  .ticket-cutout-right {
+    right: -1rem;
+    clip-path: circle(1rem at left center);
+  }
+
+  .perforated-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    transform: translateX(-50%);
+    background-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 50%,
+      currentColor 50%,
+      currentColor 100%
+    );
+    background-size: 1px 8px;
+  }
+
+  /* regras de impressão comuns */
+  @media print {
+    body {
+      @apply bg-white text-black;
+    }
+    .no-print,
+    .print\:hidden {
+      display: none !important;
+    }
+  }
+}
+
 /* Dark mode support (future) */
 @media (prefers-color-scheme: dark) {
   @layer base {

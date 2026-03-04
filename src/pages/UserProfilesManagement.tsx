@@ -200,10 +200,10 @@ export default function UserProfilesManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
         <Breadcrumbs items={["Perfil"]} />
 
-        <header className="mb-8 flex justify-between items-end">
+        <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
               Gerenciamento de Perfil
@@ -212,7 +212,7 @@ export default function UserProfilesManagement() {
               Atualize suas informações pessoais e militares para o TACF.
             </p>
           </div>
-          <div className="text-sm text-slate-400 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="w-full sm:w-auto text-xs sm:text-sm text-slate-400 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
             Último acesso: {lastAccess}
           </div>
         </header>
@@ -451,12 +451,12 @@ export default function UserProfilesManagement() {
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
+                  <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
                     <ShieldCheck className="w-5 h-5 text-primary dark:text-blue-400" />
                     <h4 className="font-bold text-slate-900 dark:text-white tracking-wider">
                       SAÚDE
                     </h4>
-                    <span className="ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold uppercase">
+                    <span className="sm:ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold uppercase">
                       Apenas Visualização
                     </span>
                   </div>
@@ -515,7 +515,7 @@ export default function UserProfilesManagement() {
                     </div>
                     <button
                       type="button"
-                      className="px-6 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest"
+                      className="w-full md:w-auto px-6 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest"
                     >
                       Alterar Senha
                     </button>

@@ -21,11 +21,12 @@ function renderSidebar(path = "/app") {
 }
 
 describe("Sidebar — navegação user", () => {
-  it("exibe os 5 itens de navegação do usuário", () => {
+  it("exibe os itens de navegação do usuário, incluindo bilhete digital", () => {
     renderSidebar();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Agendamentos")).toBeInTheDocument();
     expect(screen.getByText("Documentos")).toBeInTheDocument();
+    expect(screen.getByText("Bilhete Digital")).toBeInTheDocument();
     expect(screen.getByText("Histórico")).toBeInTheDocument();
     expect(screen.getByText("Meu Perfil")).toBeInTheDocument();
   });
@@ -54,6 +55,12 @@ describe("Sidebar — navegação user", () => {
     renderSidebar();
     const link = screen.getByRole("link", { name: /documento/i });
     expect(link).toHaveAttribute("href", "/app/documentos");
+  });
+
+  it("link Bilhete Digital aponta para /app/ticket", () => {
+    renderSidebar();
+    const link = screen.getByRole("link", { name: /bilhete digital/i });
+    expect(link).toHaveAttribute("href", "/app/ticket");
   });
 
   it("link Histórico aponta para /app/resultados", () => {

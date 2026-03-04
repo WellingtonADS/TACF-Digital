@@ -16,6 +16,7 @@ import PageSkeleton from "../components/PageSkeleton";
 import RescheduleDrawer from "../components/RescheduleDrawer";
 import useDashboard from "../hooks/useDashboard";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
+import useResponsive from "../hooks/useResponsive";
 import Layout from "../layout/Layout";
 
 type Result = {
@@ -52,6 +53,9 @@ function StatusBadge({ status }: { status: Result["result_status"] }) {
 }
 
 export default function ResultsHistory() {
+  const { isMobile, isTablet } = useResponsive();
+  const isCompactViewport = isMobile || isTablet;
+
   const { items, loading, hasMore, fetchPage } = usePaginatedQuery<Result>(
     "get_results_history",
     { limit: 25 },
@@ -109,10 +113,10 @@ export default function ResultsHistory() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
         <Breadcrumbs items={["Histórico"]} />
 
-        <header className="flex items-center justify-between mb-8">
+        <header className="mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
               Histórico de Avaliações
@@ -234,51 +238,131 @@ export default function ResultsHistory() {
 
         {/* Table */}
         <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-800">
-          <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="border-b border-slate-50 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/50 sm:p-6">
             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <ClipboardList size={20} className="text-primary" />
               Registros de Avaliações
             </h3>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/30">
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    Data
-                  </th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    Local de Avaliação
-                  </th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    Média / Conceito
-                  </th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-center">
-                    Resultado
-                  </th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-right">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {items.length === 0 && loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6">
-                      <PageSkeleton rows={6} />
-                    </td>
+          {items.length === 0 && loading ? (
+            <div className="px-3 py-6">
+              <PageSkeleton rows={6} />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-12 text-center text-slate-500 sm:px-6">
+              Você ainda não possui resultados registrados.
+            </div>
+          ) : isCompactViewport ? (
+            <div className="grid grid-cols-1 gap-3 p-4 sm:p-6">
+              {items.map((r) => {
+                const isFuture = r.test_date
+                  ? isAfter(parseISO(r.test_date), new Date())
+                  : false;
+                const dateLabel = r.test_date
+                  ? new Date(r.test_date)
+                      .toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                      .replace(".", "")
+                      .toUpperCase()
+                  : "-";
+
+                return (
+                  <article
+                    key={r.id}
+                    className={`rounded-xl border p-4 ${
+                      isFuture
+                        ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900 dark:bg-emerald-900/10"
+                        : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40"
+                    }`}
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                          Data
+                        </p>
+                        <p className="text-sm font-bold uppercase text-slate-900 dark:text-white">
+                          {dateLabel}
+                        </p>
+                      </div>
+                      <StatusBadge status={r.result_status ?? null} />
+                    </div>
+
+                    <div className="mb-3 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <MapPin size={14} className="text-slate-400" />
+                      <span className="font-medium uppercase">
+                        {r.location ?? "-"}
+                      </span>
+                    </div>
+
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        Média / Conceito
+                      </p>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">
+                        {r.score ?? "--"}
+                        {r.concept && (
+                          <span className="ml-1 text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                            {r.concept}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                      <a
+                        href={`/app/recurso?result=${r.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
+                      >
+                        Visualizar Detalhes
+                        <ExternalLink size={13} />
+                      </a>
+                      {isFuture && (
+                        <button
+                          onClick={() => {
+                            setDrawerBookingId(r.id);
+                            setDrawerCurrentDate(r.test_date ?? "");
+                            setDrawerOpen(true);
+                          }}
+                          className="text-xs font-bold text-amber-600 hover:underline"
+                        >
+                          Reagendar
+                          {pendingSwaps.has(r.id) && (
+                            <span className="ml-1 text-[10px]">(Pendente)</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/30">
+                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                      Data
+                    </th>
+                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                      Local de Avaliação
+                    </th>
+                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                      Média / Conceito
+                    </th>
+                    <th className="border-b border-slate-100 px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                      Resultado
+                    </th>
+                    <th className="border-b border-slate-100 px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                      Ações
+                    </th>
                   </tr>
-                ) : items.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-12 text-center text-slate-500"
-                    >
-                      Você ainda não possui resultados registrados.
-                    </td>
-                  </tr>
-                ) : (
-                  items.map((r) => {
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {items.map((r) => {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
@@ -301,12 +385,12 @@ export default function ResultsHistory() {
                             : ""
                         }`}
                       >
-                        <td className="px-6 py-5">
+                        <td className="px-4 py-5 sm:px-6">
                           <span className="text-sm font-bold text-slate-900 dark:text-white uppercase">
                             {dateLabel}
                           </span>
                         </td>
-                        <td className="px-6 py-5">
+                        <td className="px-4 py-5 sm:px-6">
                           <div className="flex items-center gap-2">
                             <MapPin size={14} className="text-slate-400" />
                             <span className="text-sm text-slate-600 dark:text-slate-300 font-medium uppercase">
@@ -314,7 +398,7 @@ export default function ResultsHistory() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
+                        <td className="px-4 py-5 sm:px-6">
                           <span className="text-sm font-black text-slate-900 dark:text-white">
                             {r.score ?? "--"}
                           </span>
@@ -324,14 +408,14 @@ export default function ResultsHistory() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-4 py-5 text-center sm:px-6">
                           <StatusBadge status={r.result_status ?? null} />
                         </td>
-                        <td className="px-6 py-5 text-right">
-                          <div className="flex items-center justify-end gap-3">
+                        <td className="px-4 py-5 text-right sm:px-6">
+                          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                             <a
                               href={`/app/recurso?result=${r.id}`}
-                              className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter"
+                              className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
                             >
                               Visualizar Detalhes
                               <ExternalLink size={13} />
@@ -357,18 +441,18 @@ export default function ResultsHistory() {
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-semibold text-slate-500 uppercase tracking-widest">
+          <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <span>{items.length > 0 ? `${items.length} registro(s)` : ""}</span>
             {hasMore && (
               <button
                 onClick={() => fetchPage()}
-                className="flex items-center gap-1 hover:text-primary transition-colors"
+                className="flex items-center gap-1 self-start transition-colors hover:text-primary sm:self-auto"
                 disabled={loading}
               >
                 {loading ? "Carregando..." : "Carregar mais"}

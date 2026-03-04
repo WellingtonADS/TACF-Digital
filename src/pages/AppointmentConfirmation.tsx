@@ -159,7 +159,8 @@ export const AppointmentConfirmation = () => {
   }, [bookingId, sessionIdInput]);
 
   function handleBack() {
-    navigate(-1);
+    // Always return to the agendamentos list instead of relying on history
+    navigate("/app/agendamentos");
   }
 
   async function handleConfirm() {
