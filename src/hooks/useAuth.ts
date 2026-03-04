@@ -31,7 +31,7 @@ export default function useAuth() {
         setUser(null);
         if (import.meta.env.MODE !== "production") {
           const { data: p } = await supabase
-            .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+            .from("profiles")
             .select("*")
             .limit(1)
             .maybeSingle();
@@ -41,7 +41,9 @@ export default function useAuth() {
           try {
             if (typeof window !== "undefined")
               sessionStorage.setItem("tacf_profile", JSON.stringify(val));
-          } catch {}
+          } catch (_: unknown) {
+            /* sessionStorage can throw in restricted contexts */
+          }
           return;
         }
 
@@ -52,7 +54,7 @@ export default function useAuth() {
       setUser(userData?.user ?? null);
 
       const { data: p } = await supabase
-        .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+        .from("profiles")
         .select("*")
         .eq("id", uid)
         .maybeSingle();
@@ -60,7 +62,7 @@ export default function useAuth() {
       if (!p && import.meta.env.MODE !== "production") {
         // user has no profile in DB — fallback to first profile in dev for easier testing
         const { data: fallback } = await supabase
-          .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+          .from("profiles")
           .select("*")
           .limit(1)
           .maybeSingle();
@@ -70,14 +72,18 @@ export default function useAuth() {
         try {
           if (typeof window !== "undefined")
             sessionStorage.setItem("tacf_profile", JSON.stringify(val));
-        } catch {}
+        } catch (_: unknown) {
+          /* sessionStorage can throw in restricted contexts */
+        }
       } else {
         const val = (p as Profile) ?? null;
         setProfile(val);
         try {
           if (typeof window !== "undefined")
             sessionStorage.setItem("tacf_profile", JSON.stringify(val));
-        } catch {}
+        } catch (_: unknown) {
+          /* sessionStorage can throw in restricted contexts */
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -97,14 +103,16 @@ export default function useAuth() {
         try {
           if (typeof window !== "undefined")
             sessionStorage.removeItem("tacf_profile");
-        } catch {}
+        } catch (_: unknown) {
+          /* sessionStorage can throw in restricted contexts */
+        }
         return;
       }
 
       setUser(session!.user as User);
 
       const { data: p } = await supabase
-        .from<Database["public"]["Tables"]["profiles"]["Row"]>("profiles")
+        .from("profiles")
         .select("*")
         .eq("id", uid)
         .maybeSingle();
@@ -114,7 +122,9 @@ export default function useAuth() {
       try {
         if (typeof window !== "undefined")
           sessionStorage.setItem("tacf_profile", JSON.stringify(val));
-      } catch {}
+      } catch (_: unknown) {
+        /* sessionStorage can throw in restricted contexts */
+      }
     },
     [],
   );
@@ -130,8 +140,7 @@ export default function useAuth() {
     );
     return () => {
       // unsubscribe
-      // @ts-expect-error listener typing in supabase-js
-      listener?.subscription?.unsubscribe?.();
+      listener?.subscription?.unsubscribe();
     };
   }, [load, loadProfileFromSession]);
 
@@ -142,7 +151,9 @@ export default function useAuth() {
     try {
       if (typeof window !== "undefined")
         sessionStorage.removeItem("tacf_profile");
-    } catch {}
+    } catch (_: unknown) {
+      /* sessionStorage can throw in restricted contexts */
+    }
   }, []);
 
   const updateProfile = useCallback(async (payload: Partial<Profile>) => {
@@ -154,7 +165,9 @@ export default function useAuth() {
         const val = up?.data ?? null;
         if (typeof window !== "undefined")
           sessionStorage.setItem("tacf_profile", JSON.stringify(val));
-      } catch {}
+      } catch (_: unknown) {
+        /* sessionStorage can throw in restricted contexts */
+      }
       return up;
     } catch {
       return null;

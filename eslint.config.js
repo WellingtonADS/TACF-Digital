@@ -6,7 +6,14 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "node_modules", ".tmp", "public", "build"]),
+  globalIgnores([
+    "dist",
+    "node_modules",
+    ".tmp",
+    "public",
+    "build",
+    "scripts/**",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
@@ -18,6 +25,16 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
   // Config for non-production code: e2e, scripts, migrations — relax some strict TS rules.
@@ -48,7 +65,7 @@ export default defineConfig([
   },
   // Specific relax for JS scripts that use CommonJS (require)
   {
-    files: ["scripts/**/*.js"],
+    files: ["scripts/**/*.{js,cjs,mjs}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,

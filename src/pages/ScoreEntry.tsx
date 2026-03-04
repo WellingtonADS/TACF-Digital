@@ -3,13 +3,13 @@ import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import {
-  ArrowRight,
   CheckCircle2,
   ListChecks,
   Search,
   ShieldAlert,
-  Trophy,
   User,
+  UserCheck,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -22,13 +22,15 @@ type SessionRow = Pick<
 
 type BookingRow = Pick<
   Database["public"]["Tables"]["bookings"]["Row"],
-  "id" | "session_id" | "user_id" | "score"
+  "id" | "session_id" | "user_id" | "result_details"
 >;
 
 type ProfileRow = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
   "id" | "full_name" | "war_name" | "saram" | "rank"
 >;
+
+type AptStatus = "apto" | "inapto";
 
 type ScoreEntryRow = {
   bookingId: string;
@@ -37,7 +39,7 @@ type ScoreEntryRow = {
   warName: string | null;
   saram: string | null;
   rank: string | null;
-  score: number | null;
+  aptStatus: AptStatus | null;
 };
 
 function periodLabel(period: string) {
@@ -61,7 +63,7 @@ export default function ScoreEntry() {
   );
   const [rows, setRows] = useState<ScoreEntryRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [scoreInput, setScoreInput] = useState<string>("");
+  const [aptStatus, setAptStatus] = useState<AptStatus | "">("apto");
   const [query, setQuery] = useState<string>("");
   const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
   const [loadingRows, setLoadingRows] = useState<boolean>(false);
@@ -101,14 +103,14 @@ export default function ScoreEntry() {
     if (canManage) {
       loadSessions();
     }
-  }, [canManage]);
+  }, [canManage, stateSessionId]);
 
   useEffect(() => {
     async function loadSessionRows() {
       if (!selectedSessionId) {
         setRows([]);
         setSelectedUserId("");
-        setScoreInput("");
+        setAptStatus("apto");
         return;
       }
 
@@ -116,7 +118,7 @@ export default function ScoreEntry() {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from("bookings")
-          .select("id, session_id, user_id, score")
+          .select("id, session_id, user_id, result_details")
           .eq("session_id", selectedSessionId)
           .order("created_at", { ascending: true });
 
@@ -130,7 +132,7 @@ export default function ScoreEntry() {
         if (userIds.length === 0) {
           setRows([]);
           setSelectedUserId("");
-          setScoreInput("");
+          setAptStatus("apto");
           return;
         }
 
@@ -154,28 +156,32 @@ export default function ScoreEntry() {
             warName: p?.war_name ?? null,
             saram: p?.saram ?? null,
             rank: p?.rank ?? null,
-            score: booking.score ?? null,
+            aptStatus:
+              booking.result_details === "apto" ||
+              booking.result_details === "inapto"
+                ? (booking.result_details as AptStatus)
+                : null,
           } satisfies ScoreEntryRow;
         });
 
         setRows(mapped);
 
-        const firstPending = mapped.find((item) => item.score === null);
+        const firstPending = mapped.find((item) => item.aptStatus === null);
         const fallback = mapped[0];
         const selected = firstPending ?? fallback;
 
         if (selected) {
           setSelectedUserId(selected.userId);
-          setScoreInput(selected.score === null ? "" : String(selected.score));
+          setAptStatus(selected.aptStatus ?? "apto");
         } else {
           setSelectedUserId("");
-          setScoreInput("");
+          setAptStatus("apto");
         }
       } catch (error) {
         console.error(error);
         setRows([]);
         setSelectedUserId("");
-        setScoreInput("");
+        setAptStatus("apto");
         toast.error("Não foi possível carregar os militares da turma.");
       } finally {
         setLoadingRows(false);
@@ -211,19 +217,17 @@ export default function ScoreEntry() {
   );
 
   const launchedCount = useMemo(
-    () => rows.filter((row) => row.score !== null).length,
+    () => rows.filter((row) => row.aptStatus !== null).length,
     [rows],
   );
 
-  async function saveScore(goToNext: boolean) {
+  async function saveStatus() {
     if (!selectedRow) {
-      toast.error("Selecione um militar para lançar a nota.");
+      toast.error("Selecione um militar para lançar o resultado.");
       return;
     }
-
-    const parsedScore = Number(scoreInput);
-    if (!Number.isFinite(parsedScore)) {
-      toast.error("Informe uma nota válida.");
+    if (!aptStatus) {
+      toast.error("Selecione Apto ou Inapto.");
       return;
     }
 
@@ -231,44 +235,50 @@ export default function ScoreEntry() {
     try {
       const { error } = await supabase
         .from("bookings")
-        .update({ score: parsedScore })
+        .update({ result_details: aptStatus })
         .eq("id", selectedRow.bookingId);
 
       if (error) throw error;
 
       const updatedRows = rows.map((row) =>
         row.bookingId === selectedRow.bookingId
-          ? { ...row, score: parsedScore }
+          ? { ...row, aptStatus: aptStatus as AptStatus }
           : row,
       );
 
       setRows(updatedRows);
+      toast.success(
+        `${aptStatus === "apto" ? "Apto" : "Inapto"} salvo com sucesso.`,
+      );
 
-      toast.success("Nota salva com sucesso.");
-
-      if (goToNext) {
-        const currentIndex = updatedRows.findIndex(
-          (row) => row.bookingId === selectedRow.bookingId,
-        );
-        const next = updatedRows
+      // Avança automaticamente para o próximo pendente, se houver
+      const currentIndex = updatedRows.findIndex(
+        (row) => row.bookingId === selectedRow.bookingId,
+      );
+      const next =
+        updatedRows
           .slice(currentIndex + 1)
-          .find((row) => row.score === null);
+          .find((row) => row.aptStatus === null) ??
+        updatedRows
+          .slice(0, currentIndex)
+          .find((row) => row.aptStatus === null);
 
-        if (next) {
-          setSelectedUserId(next.userId);
-          setScoreInput(next.score === null ? "" : String(next.score));
-        }
+      if (next) {
+        setSelectedUserId(next.userId);
+        setAptStatus(next.aptStatus ?? "apto");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar nota.");
+      toast.error("Erro ao salvar resultado.");
     } finally {
       setSaving(false);
     }
   }
 
-  function clearFields() {
-    setScoreInput("");
+  function cancelEdit() {
+    if (selectedRow) {
+      setAptStatus(selectedRow.aptStatus ?? "apto");
+    }
   }
 
   if (authLoading) {
@@ -326,7 +336,7 @@ export default function ScoreEntry() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
         <aside className="xl:col-span-4">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-200 bg-primary/5 px-5 py-4 dark:border-slate-800 dark:bg-primary/10">
@@ -395,7 +405,7 @@ export default function ScoreEntry() {
 
                 {filteredRows.map((row) => {
                   const active = selectedUserId === row.userId;
-                  const launched = row.score !== null;
+                  const launched = row.aptStatus !== null;
 
                   return (
                     <button
@@ -403,9 +413,7 @@ export default function ScoreEntry() {
                       type="button"
                       onClick={() => {
                         setSelectedUserId(row.userId);
-                        setScoreInput(
-                          row.score === null ? "" : String(row.score),
-                        );
+                        setAptStatus(row.aptStatus ?? "apto");
                       }}
                       className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
                         active
@@ -425,11 +433,17 @@ export default function ScoreEntry() {
                         <span
                           className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
                             launched
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                              ? row.aptStatus === "apto"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                           }`}
                         >
-                          {launched ? "Lançado" : "Pendente"}
+                          {launched
+                            ? row.aptStatus === "apto"
+                              ? "Apto"
+                              : "Inapto"
+                            : "Pendente"}
                         </span>
                       </div>
                     </button>
@@ -461,77 +475,103 @@ export default function ScoreEntry() {
                   </div>
                 </header>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
                   <div>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      <Trophy size={14} className="text-primary" />
-                      Nota Final
+                    <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <UserCheck size={14} className="text-primary" />
+                      Resultado
                     </label>
-                    <div className="relative max-w-md">
-                      <input
-                        type="number"
-                        value={scoreInput}
-                        onChange={(event) => setScoreInput(event.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 pr-14 text-3xl font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                        placeholder="0"
-                        step="0.1"
-                      />
-                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-                        pts
-                      </span>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setAptStatus("apto")}
+                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
+                          aptStatus === "apto"
+                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
+                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-emerald-300"
+                        }`}
+                      >
+                        <CheckCircle2 size={20} />
+                        Apto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAptStatus("inapto")}
+                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
+                          aptStatus === "inapto"
+                            ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-red-300"
+                        }`}
+                      >
+                        <XCircle size={20} />
+                        Inapto
+                      </button>
                     </div>
                   </div>
 
-                  <aside className="rounded-xl border border-primary/15 bg-primary/5 p-5 text-center dark:bg-primary/10">
-                    <p className="text-xs font-bold uppercase tracking-widest text-primary/70">
-                      Resultado Parcial
+                  <aside
+                    className={`rounded-xl border p-5 text-center transition-colors ${
+                      aptStatus === "apto"
+                        ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20"
+                        : aptStatus === "inapto"
+                          ? "border-red-200 bg-red-50 dark:bg-red-900/20"
+                          : "border-primary/15 bg-primary/5 dark:bg-primary/10"
+                    }`}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      Resultado Atual
                     </p>
-                    <p className="mt-3 text-5xl font-black text-primary">
-                      {scoreInput.trim() === "" ? "-" : scoreInput}
+                    <div className="mt-4 flex items-center justify-center">
+                      {aptStatus === "apto" ? (
+                        <CheckCircle2 size={48} className="text-emerald-500" />
+                      ) : aptStatus === "inapto" ? (
+                        <XCircle size={48} className="text-red-500" />
+                      ) : (
+                        <span className="text-3xl font-black text-slate-300">
+                          —
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className={`mt-2 text-lg font-black ${
+                        aptStatus === "apto"
+                          ? "text-emerald-600"
+                          : aptStatus === "inapto"
+                            ? "text-red-600"
+                            : "text-slate-400"
+                      }`}
+                    >
+                      {aptStatus === "apto"
+                        ? "APTO"
+                        : aptStatus === "inapto"
+                          ? "INAPTO"
+                          : "—"}
                     </p>
-                    <div className="mt-5 flex items-center justify-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
                       <ListChecks size={14} />
-                      Lançamento manual da nota final
+                      Lançamento de resultado
                     </div>
                   </aside>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+                <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-800">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-slate-500 transition-colors hover:text-primary"
+                    disabled={saving}
+                    onClick={cancelEdit}
+                    className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving || !aptStatus}
+                    onClick={saveStatus}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
                   >
                     <CheckCircle2 size={16} />
-                    Finalizar lançamentos
+                    {saving ? "Salvando..." : "Salvar"}
                   </button>
-
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={clearFields}
-                      className="rounded-lg border border-primary/20 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
-                    >
-                      Limpar campo
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => saveScore(false)}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-60 dark:bg-slate-700"
-                    >
-                      <CheckCircle2 size={16} />
-                      Salvar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => saveScore(true)}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-                    >
-                      Salvar e próximo
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
                 </div>
               </>
             )}
@@ -541,7 +581,7 @@ export default function ScoreEntry() {
             <div className="flex items-center gap-2">
               <User size={14} className="text-primary" />
               {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}
-              com nota lançada
+              com resultado lançado
             </div>
           </div>
         </section>

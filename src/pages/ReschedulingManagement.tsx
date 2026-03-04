@@ -86,14 +86,14 @@ export default function ReschedulingManagement() {
 
         setRows(
           bookings.map((b) => {
-            const profile = profilesByUser.get(b.user_id) ?? {};
+            const profile = profilesByUser.get(b.user_id);
             return {
               ...b,
               originalDate: sessionsById.get(b.session_id) ?? null,
               newDate: b.test_date ?? null,
-              fullName: profile.full_name,
-              warName: profile.war_name,
-              saram: profile.saram,
+              fullName: profile?.full_name ?? "",
+              warName: profile?.war_name ?? "",
+              saram: profile?.saram ?? "",
             };
           }),
         );
@@ -141,28 +141,28 @@ export default function ReschedulingManagement() {
 
   return (
     <Layout>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4">
           <div className="bg-primary p-2 rounded-lg">
             <span className="material-icons text-white">event_repeat</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
+          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
             Gestão de Solicitações de Reagendamento
           </h1>
         </div>
         {/* TODO: user avatar/details reuse from other headers */}
       </header>
 
-      <main className="max-w-[1440px] mx-auto p-8 space-y-8">
+      <main className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-6 md:space-y-8">
         {/* summary bar */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-3 flex items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
-            <div className="flex-1 flex gap-2">
+          <div className="md:col-span-3 flex flex-col lg:flex-row lg:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
+            <div className="flex-1 flex flex-wrap gap-2">
               {(["pendentes", "aprovados", "recusados"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setStatusFilter(t)}
-                  className={`px-6 py-2 font-bold rounded-lg text-sm ${
+                  className={`px-4 sm:px-6 py-2 font-bold rounded-lg text-sm ${
                     statusFilter === t
                       ? "bg-primary text-white"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
@@ -172,7 +172,7 @@ export default function ReschedulingManagement() {
                 </button>
               ))}
             </div>
-            <div className="relative w-80">
+            <div className="relative w-full lg:w-80">
               <Search
                 className="absolute left-3 top-2.5 text-slate-400"
                 size={16}
@@ -191,7 +191,7 @@ export default function ReschedulingManagement() {
               SOLICITAÇÕES {statusFilter.toUpperCase()}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-3xl font-black text-slate-900 dark:text-white">
+              <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-white">
                 {visibleRows.length}
               </span>
               <span className="material-icons text-amber-500">
@@ -204,7 +204,7 @@ export default function ReschedulingManagement() {
         {/* table */}
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[980px] text-left border-collapse">
               <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500">
@@ -318,7 +318,7 @@ export default function ReschedulingManagement() {
 
         {/* justification popover */}
         {selected && (
-          <div className="fixed bottom-8 right-8 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-primary ring-4 ring-primary/5 p-5 animate-in fade-in slide-in-from-bottom-4">
+          <div className="fixed bottom-4 left-4 right-4 sm:bottom-8 sm:left-auto sm:right-8 sm:w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-primary ring-4 ring-primary/5 p-5 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
               <span className="text-[10px] font-black text-primary uppercase tracking-widest">
                 Justificativa Selecionada

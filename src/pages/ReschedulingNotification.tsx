@@ -71,13 +71,13 @@ export default function ReschedulingNotification() {
           <div className="bg-primary p-2 rounded-lg">
             <span className="material-icons text-white">notifications</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
+          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
             Notificações de Reagendamento
           </h1>
         </div>
       </header>
 
-      <main className="max-w-[1100px] mx-auto p-8 space-y-6">
+      <main className="max-w-[1100px] mx-auto p-4 md:p-8 space-y-4 md:space-y-6">
         {first ? (
           <article className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 p-6">
             <div className="flex items-start gap-4">

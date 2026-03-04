@@ -1,4 +1,5 @@
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import {
   Calendar,
   Check,
@@ -73,7 +74,7 @@ export const Scheduling = () => {
     <Layout>
       <main>
         <div className="mb-8">
-          <h2 className="text-3xl font-extrabold text-slate-900 mb-2">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 mb-2">
             Novo Agendamento
           </h2>
           <p className="text-slate-500 text-sm">
@@ -335,6 +336,9 @@ export const Scheduling = () => {
 
             <button
               onClick={handleBook}
+              onMouseEnter={() =>
+                prefetchRoute("/app/agendamentos/confirmacao")
+              }
               disabled={!selectedSession}
               className="w-full bg-primary hover:bg-primary/90 text-white py-5 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60"
             >

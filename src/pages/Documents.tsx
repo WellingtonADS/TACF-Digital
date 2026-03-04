@@ -57,7 +57,7 @@ export default function Documents() {
         <Breadcrumbs items={["Documentos"]} />
 
         <header className="mb-10">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
             Documentos e Normas
           </h1>
           <p className="text-slate-500 mt-1">
@@ -131,7 +131,7 @@ export default function Documents() {
 
           <div
             onClick={() => navigate("/app/ticket")}
-            className="group cursor-pointer bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-8 text-white flex items-center justify-between hover:opacity-95 transition-opacity shadow-xl shadow-primary/20"
+            className="group cursor-pointer bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-4 md:p-8 text-white flex items-center justify-between hover:opacity-95 transition-opacity shadow-xl shadow-primary/20"
           >
             <div className="flex items-center gap-5">
               <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">

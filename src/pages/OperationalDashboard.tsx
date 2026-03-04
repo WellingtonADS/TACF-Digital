@@ -1,8 +1,8 @@
 import RescheduleDrawer from "@/components/RescheduleDrawer";
-import useAuth from "@/hooks/useAuth";
 import useDashboard from "@/hooks/useDashboard";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { isAfter, parseISO } from "date-fns";
 import {
   Award,
@@ -19,16 +19,31 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 
 export const OperationalDashboard = () => {
-  const { user, profile, loading } = useAuth();
+  const {
+    user,
+    profile,
+    loading,
+    bookingsCount,
+    resultsCount,
+    nextSession,
+    latestOrderNumber,
+    notifications: derivedNotifications,
+    loading: dashboardLoading,
+  } = useDashboard();
+
   const typedProfile = profile as
     | Database["public"]["Tables"]["profiles"]["Row"]
     | null;
 
   const displayName =
-    typedProfile?.full_name || typedProfile?.name || user?.email || "Usuário";
+    typedProfile?.full_name ||
+    typedProfile?.war_name ||
+    user?.email ||
+    "Usuário";
 
   // derive status from inspsau_valid_until when available (client-side fallback only)
-  const inspsau = typedProfile?.inspsau_valid_until;
+  const inspsau = (typedProfile as unknown as Record<string, unknown>)
+    ?.inspsau_valid_until as string | null | undefined;
   let statusLabel = "Inapto";
   let statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
 
@@ -47,15 +62,6 @@ export const OperationalDashboard = () => {
       statusLabel = "Inapto";
     }
   }
-
-  const {
-    bookingsCount,
-    resultsCount,
-    nextSession,
-    latestOrderNumber,
-    notifications: derivedNotifications,
-    loading: dashboardLoading,
-  } = useDashboard();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
@@ -138,14 +144,14 @@ export const OperationalDashboard = () => {
     <Layout>
       {/* Greeting Card */}
       <section className="mb-8">
-        <div className="relative overflow-hidden bg-primary rounded-3xl p-10 text-white shadow-2xl shadow-primary/20">
+        <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
                 Olá, {displayName}
               </h2>
-              <p className="text-white/80 mt-2 text-lg font-normal">
+              <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                 Seja bem-vindo ao portal de agendamento do HACO
               </p>
               {/* Status Chip */}
@@ -188,12 +194,16 @@ export const OperationalDashboard = () => {
           <button
             key={index}
             onClick={() => navigate(card.to ?? "/")}
-            className="group bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
+            onMouseEnter={() => {
+              if (card.to) prefetchRoute(card.to);
+            }}
+            className="group bg-white dark:bg-slate-900 p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
           >
             <div
-              className={`h-14 w-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-6 ${card.iconColor} group-hover:bg-primary group-hover:text-white transition-colors`}
+              className={`h-10 w-10 md:h-14 md:w-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-3 md:mb-6 ${card.iconColor} group-hover:bg-primary group-hover:text-white transition-colors`}
             >
-              <card.icon size={32} />
+              <card.icon size={20} className="md:hidden" />
+              <card.icon size={32} className="hidden md:block" />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -226,7 +236,7 @@ export const OperationalDashboard = () => {
       {/* Bottom Section: Status & Notifications */}
       <section className="flex flex-col xl:flex-row gap-6">
         {/* Status Card */}
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-lg">
+        <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl p-4 md:p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <CalendarPlus className="text-primary" size={20} />
@@ -236,7 +246,7 @@ export const OperationalDashboard = () => {
             </div>
             <MoreHorizontal className="text-slate-300" size={20} />
           </div>
-          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
+          <div className="flex flex-col items-center justify-center py-6 md:py-10 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
             <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
               <Info size={24} />
             </div>
@@ -289,7 +299,7 @@ export const OperationalDashboard = () => {
         </div>
 
         {/* Info Section */}
-        <div className="w-full xl:w-96 bg-primary/5 dark:bg-slate-800/30 rounded-3xl p-8 border border-primary/10 dark:border-slate-700">
+        <div className="w-full xl:w-96 bg-primary/5 dark:bg-slate-800/30 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10 dark:border-slate-700">
           <h4 className="text-sm font-bold uppercase tracking-widest text-primary dark:text-blue-400 mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes

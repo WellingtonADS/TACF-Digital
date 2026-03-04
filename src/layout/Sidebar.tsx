@@ -1,4 +1,5 @@
 import useAuth from "@/hooks/useAuth";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import {
   BarChart2,
   Calendar,
@@ -12,6 +13,7 @@ import {
   Shield,
   User,
   Users,
+  X,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -43,7 +45,17 @@ const adminNav = [
   { icon: Shield, label: "Logs de Auditoria", path: "/app/auditoria" },
 ];
 
-export const Sidebar = () => {
+type SidebarProps = {
+  isOpen?: boolean;
+  onClose?: () => void;
+  isDesktop?: boolean;
+};
+
+export const Sidebar = ({
+  isOpen = false,
+  onClose,
+  isDesktop = false,
+}: SidebarProps) => {
   const location = useLocation();
   const { profile } = useAuth();
 
@@ -59,18 +71,35 @@ export const Sidebar = () => {
     );
   };
 
+  const translateClass = isDesktop
+    ? "translate-x-0"
+    : isOpen
+      ? "translate-x-0"
+      : "-translate-x-full";
+
   return (
-    <aside className="w-72 bg-primary text-white flex flex-col fixed h-full z-50">
+    <aside
+      className={`w-64 lg:w-72 bg-primary text-white flex flex-col fixed h-full z-50 transition-transform duration-300 shadow-lg md:shadow-none ${translateClass}`}
+    >
       <div className="p-8 flex items-center gap-3">
         <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
           <Shield className="text-white" size={24} />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold leading-none">TACF-Digital</h1>
           <p className="text-[10px] text-white/60 font-medium tracking-widest mt-1">
             FORÇA AÉREA BRASILEIRA
           </p>
         </div>
+        {/* Botão fechar — visível apenas no mobile */}
+        <button
+          onClick={onClose}
+          className="md:hidden p-1 rounded-lg hover:bg-white/10 transition-colors"
+          aria-label="Fechar menu"
+          type="button"
+        >
+          <X size={20} className="text-white/70" />
+        </button>
       </div>
 
       <nav className="flex-1 mt-2 px-4 space-y-1">
@@ -78,30 +107,8 @@ export const Sidebar = () => {
           <Link
             key={item.path}
             to={item.path}
-            onMouseEnter={() => {
-              if (item.path === "/app/resultados")
-                import("../pages/ResultsHistory");
-              if (item.path === "/app/agendamentos")
-                import("../pages/Scheduling");
-              if (item.path === "/app/turmas")
-                import("../pages/AdminDashboard");
-              if (item.path === "/app/admin") import("../pages/AdminDashboard");
-              if (item.path === "/app/efetivo")
-                import("../pages/PersonnelManagement");
-              if (item.path === "/app/lancamento-indices")
-                import("../pages/ScoreEntry");
-              if (item.path === "/app/analytics")
-                import("../pages/AnalyticsDashboard");
-              if (item.path === "/app/configuracoes")
-                import("../pages/SystemSettings");
-              if (item.path === "/app/perfil")
-                import("../pages/UserProfilesManagement");
-              if (item.path === "/app/om-locations")
-                import("../pages/OmLocationManager");
-              if (item.path === "/app/reagendamentos")
-                import("../pages/ReschedulingManagement");
-              if (item.path === "/app/auditoria") import("../pages/AuditLog");
-            }}
+            onClick={onClose}
+            onMouseEnter={() => prefetchRoute(item.path)}
             className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
               isActive(item.path)
                 ? "bg-white/10 text-white border-l-4 border-white pl-3"

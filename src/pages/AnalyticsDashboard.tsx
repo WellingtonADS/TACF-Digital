@@ -5,59 +5,85 @@ import type { Database } from "@/types/database.types";
 import {
   addDays,
   addYears,
+  endOfMonth,
   endOfYear,
   format,
   isBefore,
+  startOfMonth,
   startOfYear,
+  subMonths,
 } from "date-fns";
 import {
   AlertTriangle,
   BarChart3,
   CalendarDays,
+  ChevronDown,
   Download,
+  FileText,
   Filter,
   LineChart,
   Search,
   ShieldAlert,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type ProfileRow = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "full_name" | "saram" | "sector" | "active"
+  "id" | "full_name" | "war_name" | "saram" | "rank" | "sector" | "active"
 >;
 
 type BookingRow = Pick<
   Database["public"]["Tables"]["bookings"]["Row"],
-  "id" | "user_id" | "score" | "test_date" | "created_at" | "status"
+  | "id"
+  | "user_id"
+  | "score"
+  | "test_date"
+  | "created_at"
+  | "status"
+  | "result_details"
 >;
 
 type UnitMetric = {
   unit: string;
   total: number;
   apt: number;
+  inapt: number;
+  pending: number;
   percent: number;
 };
 
 type TrendPoint = {
   key: string;
   label: string;
+  apt: number;
+  inapt: number;
+  total: number;
   percent: number;
 };
 
 type PendingRow = {
   id: string;
-  priority: "ALTA" | "MÉDIA" | "BAIXA";
+  priority: "ALTA" | "MEDIA" | "BAIXA";
   militaryName: string;
+  warName: string | null;
   identity: string;
+  rank: string | null;
   unit: string;
   expiration: string;
   status: "Expirado" | "Pendente" | "Agendado";
+  lastResult: "apto" | "inapto" | null;
 };
 
-const APT_SCORE_THRESHOLD = 6;
+type ReportTab = "overview" | "pending" | "units" | "export";
+type DatePreset = "month" | "quarter" | "year" | "custom";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getReferenceDate(booking: BookingRow) {
   return booking.test_date ?? booking.created_at ?? null;
 }
@@ -67,24 +93,89 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value));
 }
 
-function priorityOrder(priority: PendingRow["priority"]) {
-  if (priority === "ALTA") return 0;
-  if (priority === "MÉDIA") return 1;
-  return 2;
+function priorityOrder(p: PendingRow["priority"]) {
+  return p === "ALTA" ? 0 : p === "MEDIA" ? 1 : 2;
 }
+
+function downloadCSV(filename: string, rows: string[][], headers: string[]) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [
+    headers.map(esc).join(","),
+    ...rows.map((r) => r.map(esc).join(",")),
+  ];
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function presetRange(preset: DatePreset): { from: string; to: string } {
+  const now = new Date();
+  switch (preset) {
+    case "month":
+      return {
+        from: format(startOfMonth(now), "yyyy-MM-dd"),
+        to: format(endOfMonth(now), "yyyy-MM-dd"),
+      };
+    case "quarter": {
+      const start = subMonths(startOfMonth(now), 2);
+      return {
+        from: format(start, "yyyy-MM-dd"),
+        to: format(endOfMonth(now), "yyyy-MM-dd"),
+      };
+    }
+    case "year":
+      return {
+        from: format(startOfYear(now), "yyyy-MM-dd"),
+        to: format(endOfYear(now), "yyyy-MM-dd"),
+      };
+    default:
+      return {
+        from: format(startOfYear(now), "yyyy-MM-dd"),
+        to: format(endOfYear(now), "yyyy-MM-dd"),
+      };
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsDashboard() {
   const { profile, loading: authLoading } = useAuth();
   const canManage =
     profile?.role === "admin" || profile?.role === "coordinator";
 
-  const yearStart = format(startOfYear(new Date()), "yyyy-MM-dd");
-  const yearEnd = format(endOfYear(new Date()), "yyyy-MM-dd");
+  // Date state
+  const [datePreset, setDatePreset] = useState<DatePreset>("year");
+  const initialRange = presetRange("year");
+  const [fromDate, setFromDate] = useState<string>(initialRange.from);
+  const [toDate, setToDate] = useState<string>(initialRange.to);
 
-  const [fromDate, setFromDate] = useState<string>(yearStart);
-  const [toDate, setToDate] = useState<string>(yearEnd);
+  function applyPreset(preset: DatePreset) {
+    setDatePreset(preset);
+    if (preset !== "custom") {
+      const r = presetRange(preset);
+      setFromDate(r.from);
+      setToDate(r.to);
+    }
+  }
+
+  // UI state
+  const [activeTab, setActiveTab] = useState<ReportTab>("overview");
+  const [pendingQuery, setPendingQuery] = useState<string>("");
+  const [filterUnit, setFilterUnit] = useState<string>("");
+  const [filterRank, setFilterRank] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Data state
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -98,165 +189,191 @@ export default function AnalyticsDashboard() {
         const [
           { data: profileData, error: profileError },
           { data: bookingData, error: bookingError },
+          { data: allBookingData, error: allBookingError },
         ] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id, full_name, saram, sector, active"),
+            .select("id, full_name, war_name, saram, rank, sector, active"),
           supabase
             .from("bookings")
-            .select("id, user_id, score, test_date, created_at, status")
+            .select(
+              "id, user_id, score, test_date, created_at, status, result_details",
+            )
             .eq("status", "confirmed")
             .gte("created_at", fromTs)
             .lte("created_at", toTs),
+          supabase
+            .from("bookings")
+            .select(
+              "id, user_id, score, test_date, created_at, status, result_details",
+            )
+            .eq("status", "confirmed")
+            .not("result_details", "is", null)
+            .order("created_at", { ascending: false }),
         ]);
 
         if (profileError) throw profileError;
         if (bookingError) throw bookingError;
+        if (allBookingError) throw allBookingError;
 
         setProfiles((profileData ?? []) as ProfileRow[]);
         setBookings((bookingData ?? []) as BookingRow[]);
+        setAllBookings((allBookingData ?? []) as BookingRow[]);
       } catch (error) {
         console.error(error);
         setProfiles([]);
         setBookings([]);
-        toast.error("Não foi possível carregar os dados analíticos.");
+        setAllBookings([]);
+        toast.error("Nao foi possivel carregar os dados analiticos.");
       } finally {
         setLoading(false);
       }
     }
-
     loadData();
   }, [fromDate, toDate, canManage]);
 
-  const scoredBookings = useMemo(
-    () => bookings.filter((booking) => booking.score !== null),
-    [bookings],
-  );
-
-  const aptCount = useMemo(
-    () =>
-      scoredBookings.filter(
-        (booking) => (booking.score ?? 0) >= APT_SCORE_THRESHOLD,
-      ).length,
-    [scoredBookings],
-  );
-
-  const totalEvaluations = bookings.length;
-  const averageScore = useMemo(() => {
-    if (scoredBookings.length === 0) return 0;
-    const total = scoredBookings.reduce(
-      (sum, booking) => sum + Number(booking.score ?? 0),
-      0,
-    );
-    return total / scoredBookings.length;
-  }, [scoredBookings]);
-
-  const fitnessIndexPercent = useMemo(() => {
-    if (scoredBookings.length === 0) return 0;
-    return clampPercent((aptCount / scoredBookings.length) * 100);
-  }, [aptCount, scoredBookings]);
-
-  const criticalInaptCount = useMemo(
-    () =>
-      scoredBookings.filter(
-        (booking) => Number(booking.score ?? 0) < APT_SCORE_THRESHOLD,
-      ).length,
-    [scoredBookings],
-  );
-
+  // Latest booking per user (all time)
   const latestByUser = useMemo(() => {
     const map = new Map<string, BookingRow>();
-    for (const booking of bookings) {
+    for (const booking of allBookings) {
       const current = map.get(booking.user_id);
       const bookingDate = getReferenceDate(booking);
       const currentDate = current ? getReferenceDate(current) : null;
-
-      if (!current) {
-        map.set(booking.user_id, booking);
-        continue;
-      }
-
-      if (bookingDate && (!currentDate || bookingDate > currentDate)) {
+      if (
+        !current ||
+        (bookingDate && (!currentDate || bookingDate > currentDate))
+      ) {
         map.set(booking.user_id, booking);
       }
     }
     return map;
-  }, [bookings]);
+  }, [allBookings]);
 
-  const units = useMemo<UnitMetric[]>(() => {
-    const map = new Map<string, { total: number; apt: number }>();
+  const activeProfiles = useMemo(
+    () =>
+      profiles.filter(
+        (p) => p.active && p.full_name?.trim() && p.saram?.trim(),
+      ),
+    [profiles],
+  );
 
-    profiles.forEach((item) => {
-      if (!item.active) return;
+  // KPIs based on result_details (latest per military)
+  const kpiApt = useMemo(
+    () =>
+      activeProfiles.filter(
+        (p) => latestByUser.get(p.id)?.result_details === "apto",
+      ).length,
+    [activeProfiles, latestByUser],
+  );
+  const kpiInapt = useMemo(
+    () =>
+      activeProfiles.filter(
+        (p) => latestByUser.get(p.id)?.result_details === "inapto",
+      ).length,
+    [activeProfiles, latestByUser],
+  );
+  const kpiEvaluated = useMemo(
+    () => activeProfiles.filter((p) => latestByUser.has(p.id)).length,
+    [activeProfiles, latestByUser],
+  );
+  const kpiNotEvaluated = useMemo(
+    () => activeProfiles.filter((p) => !latestByUser.has(p.id)).length,
+    [activeProfiles, latestByUser],
+  );
+  const fitnessPercent = useMemo(
+    () => clampPercent(kpiEvaluated > 0 ? (kpiApt / kpiEvaluated) * 100 : 0),
+    [kpiApt, kpiEvaluated],
+  );
 
-      const booking = latestByUser.get(item.id);
-      if (!booking || booking.score === null) return;
+  // Period evaluations for trend
+  const periodEvals = useMemo(
+    () => bookings.filter((b) => b.result_details !== null),
+    [bookings],
+  );
 
-      const unit = item.sector?.trim() || "Não informado";
-      const current = map.get(unit) ?? { total: 0, apt: 0 };
-      current.total += 1;
-      if (Number(booking.score) >= APT_SCORE_THRESHOLD) current.apt += 1;
-      map.set(unit, current);
-    });
-
-    return Array.from(map.entries())
-      .map(([unit, metric]) => ({
-        unit,
-        total: metric.total,
-        apt: metric.apt,
-        percent: clampPercent((metric.apt / metric.total) * 100),
-      }))
-      .sort((a, b) => b.percent - a.percent)
-      .slice(0, 6);
-  }, [profiles, latestByUser]);
-
+  // Trend chart
   const trend = useMemo<TrendPoint[]>(() => {
     const start = new Date(`${fromDate}T00:00:00`);
     const end = new Date(`${toDate}T23:59:59`);
     const monthKeys: string[] = [];
     const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-
     while (isBefore(cursor, addDays(end, 1))) {
       monthKeys.push(format(cursor, "yyyy-MM"));
       cursor.setMonth(cursor.getMonth() + 1);
     }
-
-    const bucket = new Map<string, { total: number; apt: number }>();
-    monthKeys.forEach((key) => bucket.set(key, { total: 0, apt: 0 }));
-
-    scoredBookings.forEach((booking) => {
-      const ref = getReferenceDate(booking);
+    const bucket = new Map<
+      string,
+      { apt: number; inapt: number; total: number }
+    >();
+    monthKeys.forEach((k) => bucket.set(k, { apt: 0, inapt: 0, total: 0 }));
+    periodEvals.forEach((b) => {
+      const ref = getReferenceDate(b);
       if (!ref) return;
       const key = format(new Date(ref), "yyyy-MM");
-      const current = bucket.get(key);
-      if (!current) return;
-      current.total += 1;
-      if (Number(booking.score) >= APT_SCORE_THRESHOLD) current.apt += 1;
-      bucket.set(key, current);
+      const cur = bucket.get(key);
+      if (!cur) return;
+      cur.total += 1;
+      if (b.result_details === "apto") cur.apt += 1;
+      if (b.result_details === "inapto") cur.inapt += 1;
+      bucket.set(key, cur);
     });
-
     return monthKeys.map((key) => {
-      const metric = bucket.get(key) ?? { total: 0, apt: 0 };
-      const percent =
-        metric.total > 0 ? clampPercent((metric.apt / metric.total) * 100) : 0;
+      const m = bucket.get(key) ?? { apt: 0, inapt: 0, total: 0 };
+      const percent = m.total > 0 ? clampPercent((m.apt / m.total) * 100) : 0;
       const [year, month] = key.split("-");
       const date = new Date(Number(year), Number(month) - 1, 1);
-      return {
-        key,
-        label: format(date, "MMM"),
-        percent,
-      };
+      return { key, label: format(date, "MMM"), percent, ...m };
     });
-  }, [fromDate, toDate, scoredBookings]);
+  }, [fromDate, toDate, periodEvals]);
 
+  const linePoints = useMemo(() => {
+    if (trend.length === 0) return "";
+    if (trend.length === 1) return `0,${200 - trend[0].percent * 2}`;
+    return trend
+      .map(
+        (pt, i) => `${(i / (trend.length - 1)) * 500},${200 - pt.percent * 2}`,
+      )
+      .join(" ");
+  }, [trend]);
+
+  // Unit metrics
+  const units = useMemo<UnitMetric[]>(() => {
+    const map = new Map<
+      string,
+      { total: number; apt: number; inapt: number }
+    >();
+    activeProfiles.forEach((item) => {
+      const booking = latestByUser.get(item.id);
+      const unit = item.sector?.trim() || "--";
+      const cur = map.get(unit) ?? { total: 0, apt: 0, inapt: 0 };
+      cur.total += 1;
+      if (booking?.result_details === "apto") cur.apt += 1;
+      if (booking?.result_details === "inapto") cur.inapt += 1;
+      map.set(unit, cur);
+    });
+    return Array.from(map.entries())
+      .map(([unit, m]) => ({
+        unit,
+        total: m.total,
+        apt: m.apt,
+        inapt: m.inapt,
+        pending: m.total - m.apt - m.inapt,
+        percent: clampPercent(m.total > 0 ? (m.apt / m.total) * 100 : 0),
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [activeProfiles, latestByUser]);
+
+  // Pending rows
   const pendingRows = useMemo<PendingRow[]>(() => {
     const now = new Date();
+    const q = pendingQuery.trim().toLowerCase();
 
-    const rows = profiles
-      .filter((item) => item.active)
+    return activeProfiles
       .map((item) => {
         const latest = latestByUser.get(item.id);
-        const latestDateRaw = latest ? getReferenceDate(latest) : null;
+        const latestDateRaw = latest
+          ? (latest.test_date ?? latest.created_at ?? null)
+          : null;
         const latestDate = latestDateRaw ? new Date(latestDateRaw) : null;
         const expirationDate = latestDate ? addYears(latestDate, 1) : null;
 
@@ -264,7 +381,7 @@ export default function AnalyticsDashboard() {
           ? "Pendente"
           : isBefore(expirationDate, now)
             ? "Expirado"
-            : isBefore(expirationDate, addDays(now, 30))
+            : isBefore(expirationDate, addDays(now, 60))
               ? "Pendente"
               : "Agendado";
 
@@ -272,51 +389,179 @@ export default function AnalyticsDashboard() {
           status === "Expirado"
             ? "ALTA"
             : status === "Pendente"
-              ? "MÉDIA"
+              ? "MEDIA"
               : "BAIXA";
 
         return {
           id: item.id,
           priority,
           militaryName: item.full_name ?? "Sem nome",
+          warName: item.war_name ?? null,
           identity: item.saram ?? "--",
-          unit: item.sector ?? "Não informado",
+          rank: item.rank ?? null,
+          unit: item.sector?.trim() || "--",
           expiration: expirationDate
             ? format(expirationDate, "dd/MM/yyyy")
             : "--",
           status,
+          lastResult:
+            latest?.result_details === "apto" ||
+            latest?.result_details === "inapto"
+              ? (latest.result_details as "apto" | "inapto")
+              : null,
         } satisfies PendingRow;
       })
+      .filter((row) => row.status !== "Agendado")
+      .filter(
+        (row) =>
+          !filterUnit ||
+          row.unit.toLowerCase().includes(filterUnit.toLowerCase()),
+      )
+      .filter(
+        (row) =>
+          !filterRank ||
+          (row.rank ?? "").toLowerCase().includes(filterRank.toLowerCase()),
+      )
+      .filter((row) => !filterStatus || row.status === filterStatus)
+      .filter((row) => {
+        if (!q) return true;
+        return (
+          (row.warName ?? row.militaryName).toLowerCase().includes(q) ||
+          row.identity.toLowerCase().includes(q) ||
+          row.unit.toLowerCase().includes(q)
+        );
+      })
       .sort((a, b) => {
-        const priorityDiff =
-          priorityOrder(a.priority) - priorityOrder(b.priority);
-        if (priorityDiff !== 0) return priorityDiff;
-        return a.militaryName.localeCompare(b.militaryName);
-      })
-      .slice(0, 12);
+        const diff = priorityOrder(a.priority) - priorityOrder(b.priority);
+        return diff !== 0 ? diff : a.militaryName.localeCompare(b.militaryName);
+      });
+  }, [
+    activeProfiles,
+    latestByUser,
+    pendingQuery,
+    filterUnit,
+    filterRank,
+    filterStatus,
+  ]);
 
-    return rows;
-  }, [profiles, latestByUser]);
+  const unitOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          activeProfiles.map((p) => p.sector?.trim() || "--").filter(Boolean),
+        ),
+      ].sort(),
+    [activeProfiles],
+  );
+  const rankOptions = useMemo(
+    () =>
+      [
+        ...new Set(activeProfiles.map((p) => p.rank).filter(Boolean)),
+      ].sort() as string[],
+    [activeProfiles],
+  );
 
-  const linePoints = useMemo(() => {
-    if (trend.length === 0) return "";
-    if (trend.length === 1) return `0,${200 - trend[0].percent * 2}`;
+  // CSV exports
+  function exportPendingCSV() {
+    const headers = [
+      "Prioridade",
+      "Nome de Guerra",
+      "Nome Completo",
+      "SARAM",
+      "Graduacao",
+      "Unidade",
+      "Ultimo Resultado",
+      "Validade",
+      "Status",
+    ];
+    const rows = pendingRows.map((r) => [
+      r.priority,
+      r.warName ?? r.militaryName,
+      r.militaryName,
+      r.identity,
+      r.rank ?? "--",
+      r.unit,
+      r.lastResult ?? "sem avaliacao",
+      r.expiration,
+      r.status,
+    ]);
+    downloadCSV(
+      `revalidacao_pendente_${format(new Date(), "yyyy-MM-dd")}.csv`,
+      rows,
+      headers,
+    );
+    toast.success("Relatorio exportado com sucesso.");
+  }
 
-    return trend
-      .map((point, index) => {
-        const x = (index / (trend.length - 1)) * 500;
-        const y = 200 - point.percent * 2;
-        return `${x},${y}`;
-      })
-      .join(" ");
-  }, [trend]);
+  function exportUnitsCSV() {
+    const headers = [
+      "Unidade",
+      "Total",
+      "Aptos",
+      "Inaptos",
+      "Pendentes",
+      "% Aptidao",
+    ];
+    const rows = units.map((u) => [
+      u.unit,
+      String(u.total),
+      String(u.apt),
+      String(u.inapt),
+      String(u.pending),
+      `${u.percent.toFixed(1)}%`,
+    ]);
+    downloadCSV(
+      `desempenho_por_unidade_${format(new Date(), "yyyy-MM-dd")}.csv`,
+      rows,
+      headers,
+    );
+    toast.success("Relatorio de unidades exportado.");
+  }
 
-  const scheduleCompletionPercent = useMemo(() => {
-    if (totalEvaluations === 0) return 0;
-    return clampPercent((scoredBookings.length / totalEvaluations) * 100);
-  }, [scoredBookings.length, totalEvaluations]);
-
-  const showMetrics = !loading;
+  function exportFullCSV() {
+    const now = new Date();
+    const headers = [
+      "Nome de Guerra",
+      "Nome Completo",
+      "SARAM",
+      "Graduacao",
+      "Unidade",
+      "Ultimo Resultado",
+      "Validade",
+      "Status",
+    ];
+    const rows = activeProfiles.map((p) => {
+      const latest = latestByUser.get(p.id);
+      const latestDateRaw = latest
+        ? (latest.test_date ?? latest.created_at ?? null)
+        : null;
+      const latestDate = latestDateRaw ? new Date(latestDateRaw) : null;
+      const expiration = latestDate ? addYears(latestDate, 1) : null;
+      const status = !expiration
+        ? "Pendente"
+        : isBefore(expiration, now)
+          ? "Expirado"
+          : isBefore(expiration, addDays(now, 60))
+            ? "Pendente"
+            : "Regular";
+      return [
+        p.war_name ?? p.full_name ?? "--",
+        p.full_name ?? "--",
+        p.saram ?? "--",
+        p.rank ?? "--",
+        p.sector?.trim() || "--",
+        latest?.result_details ?? "sem avaliacao",
+        expiration ? format(expiration, "dd/MM/yyyy") : "--",
+        status,
+      ];
+    });
+    downloadCSV(
+      `efetivo_completo_${format(new Date(), "yyyy-MM-dd")}.csv`,
+      rows,
+      headers,
+    );
+    toast.success("Relatorio completo exportado.");
+  }
 
   if (authLoading) {
     return (
@@ -335,7 +580,7 @@ export default function AnalyticsDashboard() {
             <div>
               <h1 className="text-lg font-bold">Acesso restrito</h1>
               <p className="mt-1 text-sm">
-                Esta área de analytics está disponível apenas para
+                Esta area de analytics esta disponivel apenas para
                 administradores e coordenadores.
               </p>
             </div>
@@ -347,375 +592,764 @@ export default function AnalyticsDashboard() {
 
   return (
     <Layout>
-      {/* header */}
-      <header className="flex justify-between items-center mb-10">
-        <div>
-          <h2 className="text-3xl font-bold text-primary dark:text-white">
-            Relatórios Consolidados
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Desempenho físico e prontidão operacional por período.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-4 py-2 text-sm">
-            <CalendarDays size={14} className="text-slate-400" />
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="bg-transparent text-slate-700 dark:text-slate-300 outline-none"
-              aria-label="Data inicial"
-            />
-            <span className="text-slate-400">→</span>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="bg-transparent text-slate-700 dark:text-slate-300 outline-none"
-              aria-label="Data final"
-            />
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 bg-primary hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
-          >
-            <Download size={14} />
-            Exportar
-          </button>
-        </div>
-      </header>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Índice de Aptidão
-            </p>
-            <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {showMetrics ? `${fitnessIndexPercent.toFixed(1)}%` : "—"}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              {showMetrics
-                ? `${aptCount} aptos · ${scoredBookings.length} avaliados`
-                : ""}
-            </p>
-          </div>
-          <div className="w-14 h-14 bg-military-green/10 rounded-2xl flex items-center justify-center text-military-green">
-            <TrendingUp size={28} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Total de Avaliações
-            </p>
-            <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {showMetrics ? totalEvaluations : "—"}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              {showMetrics
-                ? `${scheduleCompletionPercent.toFixed(0)}% com nota lançada`
-                : ""}
-            </p>
-          </div>
-          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <BarChart3 size={28} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-primary/30">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">Média TAF</p>
-            <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${loading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {showMetrics ? averageScore.toFixed(1) : "—"}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">nota máxima: 10</p>
-          </div>
-          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <LineChart size={28} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-red-500/30">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Inaptidões
-            </p>
-            <h3
-              className={`text-3xl font-bold text-red-500 ${loading ? "animate-pulse" : ""}`}
-            >
-              {showMetrics ? criticalInaptCount : "—"}
-            </h3>
-            <p className="text-xs text-red-400 mt-1 font-semibold">
-              Atenção necessária
-            </p>
-          </div>
-          <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500">
-            <AlertTriangle size={28} />
-          </div>
-        </div>
-      </div>
-
-      {/* charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-10">
-        {/* por unidade */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Desempenho por Unidade
-            </h3>
-            <span className="text-xs text-slate-400">% de aptidão</span>
-          </div>
-          <div className="space-y-4">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse space-y-1.5">
-                  <div className="h-3 w-32 rounded bg-slate-100 dark:bg-slate-700" />
-                  <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
-                </div>
-              ))
-            ) : units.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">
-                Sem dados de unidade no período.
+      <div className="mx-auto w-full max-w-[1400px]">
+        {/* Page header */}
+        <header className="mb-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-primary dark:text-white">
+                Relatorios Consolidados
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Desempenho fisico e prontidao operacional.
               </p>
-            ) : (
-              units.map((unit) => (
-                <div key={unit.unit}>
-                  <div className="flex justify-between text-xs font-semibold mb-1.5">
-                    <span className="truncate pr-4 text-slate-600 dark:text-slate-300">
-                      {unit.unit}
+            </div>
+            <div className="grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+              {(["month", "quarter", "year", "custom"] as DatePreset[]).map(
+                (p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className={`rounded-lg px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold transition-colors text-center ${
+                      datePreset === p
+                        ? "bg-primary text-white"
+                        : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600"
+                    }`}
+                  >
+                    <span className="sm:hidden">
+                      {p === "month"
+                        ? "Mês"
+                        : p === "quarter"
+                          ? "Trim."
+                          : p === "year"
+                            ? "Ano"
+                            : "Custom"}
                     </span>
-                    <span className="text-slate-800 dark:text-white">
-                      {unit.percent.toFixed(0)}%
+                    <span className="hidden sm:inline">
+                      {p === "month"
+                        ? "Este mes"
+                        : p === "quarter"
+                          ? "Trimestre"
+                          : p === "year"
+                            ? "Este ano"
+                            : "Personalizado"}
                     </span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        unit.percent >= 80
-                          ? "bg-military-green"
-                          : unit.percent >= 60
-                            ? "bg-military-gold"
-                            : "bg-red-400"
-                      }`}
-                      style={{ width: `${unit.percent}%` }}
-                    />
-                  </div>
+                  </button>
+                ),
+              )}
+              {datePreset === "custom" && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800">
+                  <CalendarDays size={12} className="text-slate-400" />
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                  />
+                  <span className="text-slate-400">—</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                  />
                 </div>
-              ))
-            )}
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* evolução mensal */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Evolução de Aptidão
-            </h3>
-            <span className="text-xs text-slate-400">série mensal</span>
-          </div>
-          <div className="h-[200px] w-full">
-            {loading ? (
-              <div className="h-full w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
-            ) : trend.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                Sem dados no período.
-              </div>
-            ) : (
-              <svg
-                className="h-full w-full"
-                viewBox="0 0 500 200"
-                preserveAspectRatio="none"
+          {/* Tabs */}
+          <div className="mt-5 flex gap-0 border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
+            {[
+              {
+                id: "overview" as ReportTab,
+                label: "Visao Geral",
+                icon: BarChart3,
+                badge: undefined as number | undefined,
+              },
+              {
+                id: "pending" as ReportTab,
+                label: "Revalidacao Pendente",
+                icon: ShieldAlert,
+                badge: pendingRows.length,
+              },
+              {
+                id: "units" as ReportTab,
+                label: "Por Unidade",
+                icon: Users,
+                badge: undefined as number | undefined,
+              },
+              {
+                id: "export" as ReportTab,
+                label: "Exportar",
+                icon: Download,
+                badge: undefined as number | undefined,
+              },
+            ].map(({ id, label, icon: Icon, badge }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`flex flex-shrink-0 items-center gap-1 sm:gap-1.5 border-b-2 px-2 sm:px-4 pb-3 pt-1 text-[11px] sm:text-sm font-semibold transition-colors ${
+                  activeTab === id
+                    ? "border-primary text-primary dark:border-white dark:text-white"
+                    : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                }`}
               >
-                {[25, 50, 75].map((v) => (
-                  <line
-                    key={v}
-                    x1="0"
-                    y1={200 - v * 2}
-                    x2="500"
-                    y2={200 - v * 2}
-                    stroke="currentColor"
-                    strokeWidth="0.5"
-                    className="text-slate-200 dark:text-slate-700"
-                    strokeDasharray="4,6"
-                  />
-                ))}
-                <line
-                  x1="0"
-                  y1="200"
-                  x2="500"
-                  y2="200"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  className="text-slate-200 dark:text-slate-700"
-                />
-                {linePoints && (
-                  <polygon
-                    points={`0,200 ${linePoints} 500,200`}
-                    fill="currentColor"
-                    className="text-primary/10"
-                  />
+                <Icon size={13} />
+                <span className="sm:hidden">
+                  {id === "overview"
+                    ? "Geral"
+                    : id === "pending"
+                      ? "Pendente"
+                      : id === "units"
+                        ? "Unidades"
+                        : "Export"}
+                </span>
+                <span className="hidden sm:inline">{label}</span>
+                {badge !== undefined && badge > 0 && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    {badge}
+                  </span>
                 )}
-                <polyline
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinejoin="round"
-                  className="text-primary"
-                  points={linePoints}
-                />
-                {trend.map((point, index) => {
-                  const x =
-                    trend.length === 1
-                      ? 250
-                      : (index / (trend.length - 1)) * 500;
-                  const y = 200 - point.percent * 2;
-                  return (
-                    <circle
-                      key={point.key}
-                      cx={x}
-                      cy={y}
-                      r="4"
-                      fill="currentColor"
-                      className="text-primary"
-                    />
-                  );
-                })}
-              </svg>
-            )}
-          </div>
-          <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-slate-400">
-            {trend.map((point) => (
-              <span key={point.key}>{point.label}</span>
+              </button>
             ))}
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* tabela de revalidação */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <ShieldAlert size={16} className="text-amber-500" />
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Revalidação Pendente
-            </h3>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Filtrar"
-              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
-            >
-              <Filter size={14} />
-            </button>
-            <button
-              type="button"
-              aria-label="Buscar"
-              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
-            >
-              <Search size={14} />
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-700">
-                <th className="px-6 py-3">Prioridade</th>
-                <th className="px-6 py-3">Militar</th>
-                <th className="px-6 py-3">Unidade</th>
-                <th className="px-6 py-3">Expiração</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-10 text-center text-slate-400"
-                  >
-                    Carregando dados…
-                  </td>
-                </tr>
-              ) : pendingRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-10 text-center text-slate-400"
-                  >
-                    Nenhuma revalidação pendente.
-                  </td>
-                </tr>
-              ) : (
-                pendingRows.map((row) => {
-                  const badgeClass =
-                    row.priority === "ALTA"
-                      ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
-                      : row.priority === "MÉDIA"
-                        ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
-                        : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
-                  const statusClass =
-                    row.status === "Expirado"
-                      ? "text-red-500 font-bold"
-                      : row.status === "Pendente"
-                        ? "text-amber-500 font-bold"
-                        : "text-sky-500";
-                  return (
-                    <tr
-                      key={row.id}
-                      className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+        {/* Tab: Visao Geral */}
+        {activeTab === "overview" && (
+          <>
+            <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              <KpiCard
+                label="Indice de Aptidao"
+                value={loading ? null : `${fitnessPercent.toFixed(1)}%`}
+                sub={
+                  loading ? "" : `${kpiApt} aptos - ${kpiEvaluated} avaliados`
+                }
+                icon={<TrendingUp size={22} />}
+                accent="success"
+              />
+              <KpiCard
+                label="Efetivo Ativo"
+                value={loading ? null : String(activeProfiles.length)}
+                sub={loading ? "" : `${kpiNotEvaluated} sem avaliacao`}
+                icon={<Users size={22} />}
+                accent="primary"
+              />
+              <KpiCard
+                label="Avaliacoes no Periodo"
+                value={loading ? null : String(periodEvals.length)}
+                sub={loading ? "" : `${bookings.length} agendamentos`}
+                icon={<LineChart size={22} />}
+                accent="secondary"
+              />
+              <KpiCard
+                label="Inaptidoes Atuais"
+                value={loading ? null : String(kpiInapt)}
+                sub="ultimo resultado registrado"
+                icon={<AlertTriangle size={22} />}
+                accent="error"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <SectionTitle>Aptidao por Unidade</SectionTitle>
+                <div className="mt-4 space-y-4">
+                  {loading ? (
+                    <Skeleton rows={4} />
+                  ) : units.length === 0 ? (
+                    <Empty text="Sem dados de unidade." />
+                  ) : (
+                    units.slice(0, 6).map((u) => (
+                      <div key={u.unit}>
+                        <div className="mb-1.5 flex justify-between text-xs font-semibold">
+                          <span className="truncate pr-4 text-slate-600 dark:text-slate-300">
+                            {u.unit}
+                          </span>
+                          <span className="text-slate-800 dark:text-white">
+                            {u.percent.toFixed(0)}%{" "}
+                            <span className="font-normal text-slate-400">
+                              ({u.apt}/{u.total})
+                            </span>
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                            style={{ width: `${u.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <SectionTitle>Evolucao de Aptidao</SectionTitle>
+                <div className="mt-4 h-[180px] w-full">
+                  {loading ? (
+                    <div className="h-full w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+                  ) : trend.length === 0 ? (
+                    <Empty text="Sem dados no periodo." />
+                  ) : (
+                    <svg
+                      className="h-full w-full"
+                      viewBox="0 0 500 200"
+                      preserveAspectRatio="none"
                     >
-                      <td className="px-6 py-4">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}
-                        >
-                          {row.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-800 dark:text-white">
-                          {row.militaryName}
-                        </p>
-                        <p className="text-xs text-slate-400">{row.identity}</p>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                        {row.unit}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
-                        {row.expiration}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={statusClass}>{row.status}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          className="text-xs font-bold text-primary hover:underline"
-                        >
-                          Notificar
-                        </button>
+                      {[25, 50, 75].map((v) => (
+                        <line
+                          key={v}
+                          x1="0"
+                          y1={200 - v * 2}
+                          x2="500"
+                          y2={200 - v * 2}
+                          stroke="currentColor"
+                          strokeWidth="0.5"
+                          className="text-slate-200 dark:text-slate-700"
+                          strokeDasharray="4,6"
+                        />
+                      ))}
+                      {linePoints && (
+                        <polygon
+                          points={`0,200 ${linePoints} 500,200`}
+                          fill="currentColor"
+                          className="text-primary/10"
+                        />
+                      )}
+                      <polyline
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinejoin="round"
+                        className="text-primary"
+                        points={linePoints}
+                      />
+                      {trend.map((pt, i) => {
+                        const x =
+                          trend.length === 1
+                            ? 250
+                            : (i / (trend.length - 1)) * 500;
+                        return (
+                          <circle
+                            key={pt.key}
+                            cx={x}
+                            cy={200 - pt.percent * 2}
+                            r="4"
+                            fill="currentColor"
+                            className="text-primary"
+                          />
+                        );
+                      })}
+                    </svg>
+                  )}
+                </div>
+                <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-slate-400">
+                  {trend.map((pt) => (
+                    <span key={pt.key}>{pt.label}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Tab: Revalidacao Pendente */}
+        {activeTab === "pending" && (
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <ShieldAlert size={15} className="text-amber-500" />
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                  Revalidacao Pendente
+                </span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                  {pendingRows.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+                <div className="relative w-full sm:w-auto">
+                  <Search
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={13}
+                  />
+                  <input
+                    value={pendingQuery}
+                    onChange={(e) => setPendingQuery(e.target.value)}
+                    placeholder="Buscar nome ou SARAM..."
+                    className="w-full sm:w-auto rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-3 text-xs dark:border-slate-700 dark:bg-slate-800/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400"}`}
+                >
+                  <Filter size={12} />
+                  Filtros
+                  {(filterUnit || filterRank || filterStatus) && (
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      {
+                        [filterUnit, filterRank, filterStatus].filter(Boolean)
+                          .length
+                      }
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={exportPendingCSV}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+                >
+                  <Download size={12} />
+                  CSV
+                </button>
+              </div>
+            </div>
+
+            {showFilters && (
+              <div className="flex flex-wrap items-end gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+                <FilterSelect
+                  label="Unidade"
+                  value={filterUnit}
+                  onChange={setFilterUnit}
+                  options={unitOptions}
+                  placeholder="Todas"
+                />
+                <FilterSelect
+                  label="Graduacao"
+                  value={filterRank}
+                  onChange={setFilterRank}
+                  options={rankOptions}
+                  placeholder="Todas"
+                />
+                <FilterSelect
+                  label="Status"
+                  value={filterStatus}
+                  onChange={setFilterStatus}
+                  options={["Expirado", "Pendente"]}
+                  placeholder="Todos"
+                />
+                {(filterUnit || filterRank || filterStatus) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterUnit("");
+                      setFilterRank("");
+                      setFilterStatus("");
+                    }}
+                    className="mb-0.5 text-xs font-semibold text-red-500 hover:underline"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                    {[
+                      "Prioridade",
+                      "Militar",
+                      "Unidade",
+                      "Ultimo Resultado",
+                      "Validade",
+                      "Status",
+                      "",
+                    ].map((h) => (
+                      <th key={h} className="px-5 py-3">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-5 py-10 text-center text-sm text-slate-400"
+                      >
+                        Carregando dados...
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ) : pendingRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-5 py-10 text-center text-sm text-slate-400"
+                      >
+                        Nenhuma revalidacao pendente.
+                      </td>
+                    </tr>
+                  ) : (
+                    pendingRows.map((row) => {
+                      const pClass =
+                        row.priority === "ALTA"
+                          ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                          : row.priority === "MEDIA"
+                            ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+                            : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
+                      const sClass =
+                        row.status === "Expirado"
+                          ? "text-red-500 font-bold"
+                          : "text-amber-500 font-bold";
+                      const displayPriority =
+                        row.priority === "MEDIA" ? "MEDIA" : row.priority;
+                      return (
+                        <tr
+                          key={row.id}
+                          className="transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+                        >
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${pClass}`}
+                            >
+                              {displayPriority}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <p className="font-semibold text-slate-800 dark:text-white">
+                              {row.warName ?? row.militaryName}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {row.rank ? `${row.rank} · ` : ""}
+                              {row.identity}
+                            </p>
+                          </td>
+                          <td className="px-5 py-3.5 text-sm text-slate-500 dark:text-slate-400">
+                            {row.unit}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {row.lastResult ? (
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${row.lastResult === "apto" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}
+                              >
+                                {row.lastResult}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 font-mono text-xs text-slate-600 dark:text-slate-300">
+                            {row.expiration}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className={sClass}>{row.status}</span>
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-primary hover:underline dark:text-secondary"
+                            >
+                              Notificar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-2 text-xs text-slate-400 dark:border-slate-700">
+              {pendingRows.length} registro(s) exibidos
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Por Unidade */}
+        {activeTab === "units" && (
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Users size={15} className="text-primary" />
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                  Desempenho por Unidade
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={exportUnitsCSV}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+              >
+                <Download size={12} />
+                CSV
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                    {[
+                      "Unidade",
+                      "Total",
+                      "Aptos",
+                      "Inaptos",
+                      "Pendentes",
+                      "% Aptidao",
+                    ].map((h, i) => (
+                      <th
+                        key={h}
+                        className={`px-5 py-3 ${i > 0 && i < 5 ? "text-right" : ""}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-5 py-10 text-center text-sm text-slate-400"
+                      >
+                        Carregando...
+                      </td>
+                    </tr>
+                  ) : units.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-5 py-10 text-center text-sm text-slate-400"
+                      >
+                        Sem dados.
+                      </td>
+                    </tr>
+                  ) : (
+                    units.map((u) => (
+                      <tr
+                        key={u.unit}
+                        className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-white">
+                          {u.unit}
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-slate-600 dark:text-slate-300">
+                          {u.total}
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-semibold text-success">
+                          {u.apt}
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-semibold text-red-500">
+                          {u.inapt}
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-slate-400">
+                          {u.pending}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                                style={{ width: `${u.percent}%` }}
+                              />
+                            </div>
+                            <span className="w-10 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                              {u.percent.toFixed(0)}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Exportar */}
+        {activeTab === "export" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ExportCard
+              title="Revalidacao Pendente"
+              description={`${pendingRows.length} militares com expiracao proxima ou vencida.`}
+              format="CSV"
+              icon={<ShieldAlert size={20} className="text-amber-500" />}
+              onExport={exportPendingCSV}
+            />
+            <ExportCard
+              title="Desempenho por Unidade"
+              description={`${units.length} unidades com resumo de aptos, inaptos e pendentes.`}
+              format="CSV"
+              icon={<BarChart3 size={20} className="text-primary" />}
+              onExport={exportUnitsCSV}
+            />
+            <ExportCard
+              title="Efetivo Completo"
+              description={`${activeProfiles.length} militares ativos com situacao atual.`}
+              format="CSV"
+              icon={<FileText size={20} className="text-success" />}
+              onExport={exportFullCSV}
+            />
+          </div>
+        )}
       </div>
     </Layout>
+  );
+}
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+      {children}
+    </h3>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <p className="py-8 text-center text-sm text-slate-400">{text}</p>;
+}
+
+function Skeleton({ rows }: { rows: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="animate-pulse space-y-1.5">
+          <div className="h-3 w-32 rounded bg-slate-100 dark:bg-slate-700" />
+          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+type AccentColor = "primary" | "secondary" | "success" | "error";
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string | null;
+  sub: string;
+  icon: React.ReactNode;
+  accent: AccentColor;
+}) {
+  const borderMap: Record<AccentColor, string> = {
+    primary: "border-primary/30",
+    secondary: "border-secondary/30",
+    success: "border-success/30",
+    error: "border-red-500/30",
+  };
+  const bgMap: Record<AccentColor, string> = {
+    primary: "bg-primary/10 text-primary",
+    secondary: "bg-secondary/10 text-secondary",
+    success: "bg-success/10 text-success",
+    error: "bg-red-500/10 text-red-500",
+  };
+  return (
+    <div
+      className={`flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border-b-4 bg-white p-3 sm:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)] dark:bg-slate-800 overflow-hidden ${borderMap[accent]}`}
+    >
+      <div className="min-w-0 flex-1 pr-2">
+        <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
+        <p
+          className={`mt-1 text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white ${value === null ? "animate-pulse text-slate-300" : ""}`}
+        >
+          {value ?? "—"}
+        </p>
+        <p className="mt-0.5 text-[11px] text-slate-400 truncate">{sub}</p>
+      </div>
+      <div
+        className={`flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-xl ${bgMap[accent]}`}
+      >
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+        {label}
+      </label>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-7 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+        >
+          <option value="">{placeholder}</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={12}
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ExportCard({
+  title,
+  description,
+  format,
+  icon,
+  onExport,
+}: {
+  title: string;
+  description: string;
+  format: string;
+  icon: React.ReactNode;
+  onExport: () => void;
+}) {
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div>
+        <div className="mb-3 flex items-center gap-3">
+          {icon}
+          <h3 className="font-semibold text-slate-800 dark:text-white">
+            {title}
+          </h3>
+        </div>
+        <p className="text-sm text-slate-400">{description}</p>
+      </div>
+      <div className="mt-5 flex items-center justify-between">
+        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+          {format}
+        </span>
+        <button
+          type="button"
+          onClick={onExport}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-primary/90"
+        >
+          <Download size={12} />
+          Baixar
+        </button>
+      </div>
+    </div>
   );
 }

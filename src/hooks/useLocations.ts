@@ -44,7 +44,6 @@ export default function useLocations(): UseLocationsResult {
         type RpcLocation = Location & { total_count: number };
         const arr = data as RpcLocation[];
         setTotal(arr.length > 0 ? arr[0].total_count : 0);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         setLocations(arr.map(({ total_count: _ignored, ...loc }) => loc));
       }
     } catch (err: unknown) {
@@ -88,7 +87,9 @@ export default function useLocations(): UseLocationsResult {
           window.dispatchEvent(
             new CustomEvent("locations:changed", { detail: { id: loc?.id } }),
           );
-        } catch {}
+        } catch (_: unknown) {
+          /* CustomEvent dispatch may throw in test/restricted environments */
+        }
         return loc;
       } catch (err: unknown) {
         console.error("useLocations create error", err);
@@ -121,7 +122,9 @@ export default function useLocations(): UseLocationsResult {
         window.dispatchEvent(
           new CustomEvent("locations:changed", { detail: { id: loc?.id } }),
         );
-      } catch {}
+      } catch (_: unknown) {
+        /* CustomEvent dispatch may throw in test/restricted environments */
+      }
       return loc as Location;
     } catch (err: unknown) {
       console.error("useLocations update error", err);
@@ -143,7 +146,9 @@ export default function useLocations(): UseLocationsResult {
         window.dispatchEvent(
           new CustomEvent("locations:changed", { detail: { id } }),
         );
-      } catch {}
+      } catch (_: unknown) {
+        /* CustomEvent dispatch may throw in test/restricted environments */
+      }
     } catch (err: unknown) {
       console.error("useLocations delete error", err);
       const msg = err instanceof Error ? err.message : String(err);

@@ -35,9 +35,13 @@ export default function usePaginatedQuery<T = unknown>(
         p_to: opts?.to ?? null,
       };
 
-      const { data, error } = await supabase.rpc<PaginatedResult<T>>(rpcName, {
-        ...params,
-      });
+      const { data: rpcRaw, error } = await supabase.rpc(
+        rpcName as never,
+        {
+          ...params,
+        } as never,
+      );
+      const data = rpcRaw as unknown;
 
       if (error) {
         console.error(error);

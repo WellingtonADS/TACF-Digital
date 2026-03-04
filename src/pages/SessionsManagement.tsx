@@ -1,5 +1,6 @@
+import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar,
@@ -14,23 +15,52 @@ import {
   Search,
   Settings,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 
 type ViewMode = "table" | "cards";
+type StatusFilter = "all" | "open" | "closed" | "concluded";
+
+// Datas fixas para cobrir histórico e futuro no painel admin
+const ADMIN_START = new Date();
+ADMIN_START.setFullYear(ADMIN_START.getFullYear() - 2);
+const ADMIN_END = new Date();
+ADMIN_END.setFullYear(ADMIN_END.getFullYear() + 1);
+const ADMIN_START_STR = ADMIN_START.toISOString().split("T")[0];
+const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 
 export const SessionsManagement = () => {
   const navigate = useNavigate();
-  const { sessions, loading, error, refresh } = useSessions();
+  const { isMobile, isTablet } = useResponsive();
+  const { sessions, loading, error, refresh } = useSessions(
+    ADMIN_START_STR,
+    ADMIN_END_STR,
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">(
-    "all",
+  const isCompactViewport = isMobile || isTablet;
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 1024
+      ? "cards"
+      : "table",
   );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const pageSize = 10;
+  const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
+
+  // timestamp do início do dia atual — primitivo estável como dep
+  const todayTs = useMemo(() => startOfDay(new Date()).getTime(), []);
+
+  const getSessionStatus = useCallback(
+    (session: SessionAvailability): "open" | "closed" | "concluded" => {
+      const sessionDate = startOfDay(parseISO(session.date)).getTime();
+      if (sessionDate <= todayTs) return "concluded";
+      return (session.available_count ?? 0) > 0 ? "open" : "closed";
+    },
+    [todayTs],
+  );
 
   const filteredSessions = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -44,14 +74,11 @@ export const SessionsManagement = () => {
         session.session_id.toLowerCase().includes(term) ||
         session.period.toLowerCase().includes(term) ||
         dateLabel.includes(term);
-      const isOpen = (session.available_count ?? 0) > 0;
-      const matchStatus =
-        statusFilter === "all" ||
-        (statusFilter === "open" && isOpen) ||
-        (statusFilter === "closed" && !isOpen);
+      const status = getSessionStatus(session);
+      const matchStatus = statusFilter === "all" || status === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [sessions, searchTerm, statusFilter]);
+  }, [sessions, searchTerm, statusFilter, getSessionStatus]);
 
   const pageCount = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
   const paginatedSessions = useMemo(() => {
@@ -59,8 +86,15 @@ export const SessionsManagement = () => {
     return filteredSessions.slice(start, start + pageSize);
   }, [filteredSessions, page, pageSize]);
 
-  const openCount = sessions.filter((s) => (s.available_count ?? 0) > 0).length;
-  const closedCount = sessions.length - openCount;
+  const openCount = sessions.filter(
+    (s) => getSessionStatus(s) === "open",
+  ).length;
+  const closedCount = sessions.filter(
+    (s) => getSessionStatus(s) === "closed",
+  ).length;
+  const concludedCount = sessions.filter(
+    (s) => getSessionStatus(s) === "concluded",
+  ).length;
 
   const renderOccupancyBar = (session: SessionAvailability) => {
     const occupied = session.occupied_count;
@@ -79,7 +113,7 @@ export const SessionsManagement = () => {
           ? "text-amber-500"
           : "text-primary";
     return (
-      <div className="w-48">
+      <div className="w-40 sm:w-48">
         <div
           className={`flex justify-between text-[10px] mb-1 font-bold ${textColor}`}
         >
@@ -100,162 +134,184 @@ export const SessionsManagement = () => {
 
   return (
     <Layout>
-      {/* header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-primary dark:text-white">
-            Gerenciar Turmas
-          </h2>
-          <p className="text-slate-500 mt-1 text-sm">
-            Controle operacional das sessões de avaliação física.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate("/app/turmas/nova")}
-          className="flex items-center gap-2 bg-primary hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl shadow font-bold text-sm transition-all hover:scale-105 active:scale-95 self-start sm:self-auto"
-        >
-          <Plus size={16} />
-          Nova Turma
-        </button>
-      </header>
-
-      {/* summary stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6">
+        {/* header */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
-              Total
-            </p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-white mt-0.5">
-              {loading ? "—" : sessions.length}
-            </p>
-          </div>
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-            <Calendar size={20} />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
-              Abertas
-            </p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {loading ? "—" : openCount}
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
+              Gerenciar Turmas
+            </h2>
+            <p className="text-slate-500 mt-1 text-sm">
+              Controle operacional das sessões de avaliação física.
             </p>
           </div>
-          <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <Calendar size={20} />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
-              Fechadas
-            </p>
-            <p className="text-2xl font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-              {loading ? "—" : closedCount}
-            </p>
-          </div>
-          <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center text-slate-500">
-            <Calendar size={20} />
-          </div>
-        </div>
-      </div>
+          <button
+            type="button"
+            onClick={() => navigate("/app/turmas/nova")}
+            className="flex items-center gap-2 bg-primary hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl shadow font-bold text-sm transition-all hover:scale-105 active:scale-95 self-start sm:self-auto"
+          >
+            <Plus size={16} />
+            Nova Turma
+          </button>
+        </header>
 
-      {/* toolbar */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex flex-wrap gap-3 items-center justify-between">
-          {/* search */}
-          <div className="relative flex-1 min-w-52">
-            <input
-              className="pl-10 pr-4 py-2 bg-background-light dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
-              placeholder="Buscar turma, data ou turno..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-            />
-            <Search
-              size={16}
-              className="absolute left-3 top-2.5 text-slate-400"
-            />
+        {/* summary stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 md:p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between min-w-0">
+            <div>
+              <p className="text-[10px] md:text-xs text-slate-400 font-medium uppercase tracking-wider md:tracking-widest">
+                Total
+              </p>
+              <p className="text-lg md:text-2xl font-bold text-slate-800 dark:text-white mt-0.5">
+                {loading ? "—" : sessions.length}
+              </p>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+              <Calendar size={16} className="md:hidden" />
+              <Calendar size={20} className="hidden md:block" />
+            </div>
           </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 md:p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between min-w-0">
+            <div>
+              <p className="text-[10px] md:text-xs text-slate-400 font-medium uppercase tracking-wider md:tracking-widest">
+                Abertas
+              </p>
+              <p className="text-lg md:text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {loading ? "—" : openCount}
+              </p>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <Calendar size={16} className="md:hidden" />
+              <Calendar size={20} className="hidden md:block" />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 md:p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between min-w-0">
+            <div>
+              <p className="text-[10px] md:text-xs text-slate-400 font-medium uppercase tracking-wider md:tracking-widest">
+                Fechadas
+              </p>
+              <p className="text-lg md:text-2xl font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                {loading ? "—" : closedCount}
+              </p>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center text-slate-500">
+              <Calendar size={16} className="md:hidden" />
+              <Calendar size={20} className="hidden md:block" />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 md:p-5 border border-slate-100 dark:border-slate-700 flex items-center justify-between min-w-0">
+            <div>
+              <p className="text-[10px] md:text-xs text-slate-400 font-medium uppercase tracking-wider md:tracking-widest">
+                Concluídas
+              </p>
+              <p className="text-lg md:text-2xl font-bold text-violet-600 dark:text-violet-400 mt-0.5">
+                {loading ? "—" : concludedCount}
+              </p>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-violet-100 dark:bg-violet-900/30 rounded-xl flex items-center justify-center text-violet-600 dark:text-violet-400">
+              <Calendar size={16} className="md:hidden" />
+              <Calendar size={20} className="hidden md:block" />
+            </div>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            {/* status filter */}
-            <div className="flex items-center gap-1 bg-background-light dark:bg-slate-900 rounded-xl p-1">
-              {(["all", "open", "closed"] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter(f);
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    statusFilter === f
-                      ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                  }`}
-                >
-                  {f === "all"
-                    ? "Todas"
-                    : f === "open"
-                      ? "Abertas"
-                      : "Fechadas"}
-                </button>
-              ))}
+        {/* toolbar */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="p-3 md:p-5 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            {/* search */}
+            <div className="relative w-full sm:flex-1 sm:min-w-0">
+              <input
+                className="pl-10 pr-4 py-2 bg-background-light dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
+                placeholder="Buscar turma, data ou turno..."
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+              />
+              <Search
+                size={16}
+                className="absolute left-3 top-2.5 text-slate-400"
+              />
             </div>
 
-            {/* view toggle */}
-            <div className="flex items-center gap-1 bg-background-light dark:bg-slate-900 rounded-xl p-1">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+              {/* status filter */}
+              <div className="flex items-center gap-1 bg-background-light dark:bg-slate-900 rounded-xl p-1 overflow-x-auto no-scrollbar">
+                {(["all", "open", "closed", "concluded"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(f);
+                      setPage(1);
+                    }}
+                    className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+                      statusFilter === f
+                        ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    }`}
+                  >
+                    {f === "all"
+                      ? "Todas"
+                      : f === "open"
+                        ? "Abertas"
+                        : f === "closed"
+                          ? "Fechadas"
+                          : "Concluídas"}
+                  </button>
+                ))}
+              </div>
+
+              {/* view toggle */}
+              {!isCompactViewport && (
+                <div className="flex items-center gap-1 bg-background-light dark:bg-slate-900 rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    aria-label="Modo tabela"
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      viewMode === "table"
+                        ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                        : "text-slate-400 hover:text-slate-700"
+                    }`}
+                  >
+                    <LayoutList size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("cards")}
+                    aria-label="Modo cards"
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      viewMode === "cards"
+                        ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                        : "text-slate-400 hover:text-slate-700"
+                    }`}
+                  >
+                    <LayoutGrid size={16} />
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setViewMode("table")}
-                aria-label="Modo tabela"
-                className={`p-1.5 rounded-lg transition-colors ${
-                  viewMode === "table"
-                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
-                    : "text-slate-400 hover:text-slate-700"
-                }`}
+                className="p-2 bg-background-light dark:bg-slate-900 rounded-xl text-slate-500 hover:bg-slate-200 transition-colors"
+                title="Filtros avançados"
+                aria-label="Filtros avançados"
               >
-                <LayoutList size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("cards")}
-                aria-label="Modo cards"
-                className={`p-1.5 rounded-lg transition-colors ${
-                  viewMode === "cards"
-                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
-                    : "text-slate-400 hover:text-slate-700"
-                }`}
-              >
-                <LayoutGrid size={16} />
+                <Filter size={16} />
               </button>
             </div>
-
-            <button
-              type="button"
-              className="p-2 bg-background-light dark:bg-slate-900 rounded-xl text-slate-500 hover:bg-slate-200 transition-colors"
-              title="Filtros avançados"
-              aria-label="Filtros avançados"
-            >
-              <Filter size={16} />
-            </button>
           </div>
         </div>
-
         {/* content */}
         {loading ? (
           <div className="p-16 text-center text-sm text-slate-400">
             Carregando turmas...
           </div>
         ) : error ? (
-          <div className="p-10 text-center text-sm text-amber-600">
+          <div className="p-5 md:p-10 text-center text-sm text-amber-600">
             {error}
             <button
               type="button"
@@ -270,9 +326,9 @@ export const SessionsManagement = () => {
             <Calendar size={36} className="mx-auto text-slate-300 mb-3" />
             <p className="text-sm text-slate-400">Nenhuma turma encontrada.</p>
           </div>
-        ) : viewMode === "table" ? (
+        ) : activeViewMode === "table" ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full min-w-[900px] text-left">
               <thead className="bg-slate-50 dark:bg-slate-900/50">
                 <tr>
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -297,7 +353,9 @@ export const SessionsManagement = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {paginatedSessions.map((s) => {
-                  const isOpen = (s.available_count ?? 0) > 0;
+                  const status = getSessionStatus(s);
+                  const isOpen = status === "open";
+                  const isConcluded = status === "concluded";
                   return (
                     <tr
                       key={s.session_id}
@@ -329,10 +387,16 @@ export const SessionsManagement = () => {
                           className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
                             isOpen
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
-                              : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
+                              : isConcluded
+                                ? "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800"
+                                : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
                           }`}
                         >
-                          {isOpen ? "ABERTA" : "FECHADA"}
+                          {isOpen
+                            ? "ABERTA"
+                            : isConcluded
+                              ? "CONCLUÍDA"
+                              : "FECHADA"}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-right">
@@ -352,10 +416,12 @@ export const SessionsManagement = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => navigate("/app/agendamentos")}
+                            onClick={() =>
+                              navigate(`/app/turmas/${s.session_id}/editar`)
+                            }
                             className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Editar agendamentos"
-                            aria-label="Editar agendamentos"
+                            title="Editar turma"
+                            aria-label="Editar turma"
                           >
                             <Edit2 size={16} />
                           </button>
@@ -378,9 +444,11 @@ export const SessionsManagement = () => {
           </div>
         ) : (
           /* cards view */
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {paginatedSessions.map((s) => {
-              const isOpen = (s.available_count ?? 0) > 0;
+              const status = getSessionStatus(s);
+              const isOpen = status === "open";
+              const isConcluded = status === "concluded";
               const occupied = s.occupied_count;
               const max = s.max_capacity;
               const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -388,7 +456,11 @@ export const SessionsManagement = () => {
                 <div
                   key={s.session_id}
                   className={`bg-background-light dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-700 border-l-4 ${
-                    isOpen ? "border-l-primary" : "border-l-slate-400"
+                    isOpen
+                      ? "border-l-primary"
+                      : isConcluded
+                        ? "border-l-violet-500"
+                        : "border-l-slate-400"
                   } flex flex-col gap-4`}
                 >
                   <div className="flex items-start justify-between">
@@ -409,10 +481,16 @@ export const SessionsManagement = () => {
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                         isOpen
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
-                          : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
+                          : isConcluded
+                            ? "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800"
+                            : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
                       }`}
                     >
-                      {isOpen ? "ABERTA" : "FECHADA"}
+                      {isOpen
+                        ? "ABERTA"
+                        : isConcluded
+                          ? "CONCLUÍDA"
+                          : "FECHADA"}
                     </span>
                   </div>
 
@@ -451,7 +529,9 @@ export const SessionsManagement = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate("/app/agendamentos")}
+                      onClick={() =>
+                        navigate(`/app/turmas/${s.session_id}/editar`)
+                      }
                       className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-primary bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary/30 transition-colors"
                     >
                       <Edit2 size={13} /> Editar

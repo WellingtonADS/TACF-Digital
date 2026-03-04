@@ -12,6 +12,7 @@ type DateMode = "single" | "week" | "month";
 type FormState = {
   className: string;
   location_id: string;
+  instructor_id: string;
   dateMode: DateMode;
   date: string;
   weekValue: string;
@@ -25,6 +26,7 @@ type FormState = {
 const INITIAL_STATE: FormState = {
   className: "",
   location_id: "",
+  instructor_id: "",
   dateMode: "single",
   date: "",
   weekValue: "",
@@ -114,6 +116,10 @@ export default function ClassCreationForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
+  const [instructors, setInstructors] = useState<
+    { id: string; full_name?: string | null; war_name?: string | null }[]
+  >([]);
+  const [loadingInstructors, setLoadingInstructors] = useState(false);
   const {
     locations,
     fetch: fetchLocations,
@@ -123,6 +129,36 @@ export default function ClassCreationForm() {
   useEffect(() => {
     fetchLocations({ status: "active", limit: 100 });
   }, [fetchLocations]);
+
+  useEffect(() => {
+    async function loadInstructors() {
+      setLoadingInstructors(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, war_name, rank")
+          .eq("role", "coordinator")
+          .eq("active", true)
+          .order("full_name", { ascending: true });
+
+        if (error) throw error;
+        setInstructors(
+          (data ?? []) as {
+            id: string;
+            full_name?: string | null;
+            war_name?: string | null;
+            rank?: string | null;
+          }[],
+        );
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingInstructors(false);
+      }
+    }
+
+    loadInstructors();
+  }, []);
 
   const isValidCapacity = useMemo(
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
@@ -181,6 +217,7 @@ export default function ClassCreationForm() {
         period,
         max_capacity: form.maxCapacity,
         ...(form.location_id ? { location_id: form.location_id } : {}),
+        ...(form.instructor_id ? { applicators: [form.instructor_id] } : {}),
       }));
 
       const { error } = await supabase.from("sessions").insert(rows);
@@ -211,14 +248,14 @@ export default function ClassCreationForm() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-4xl pb-16">
+      <div className="mx-auto w-full max-w-4xl pb-16 px-4 sm:px-6 xl:px-0">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-primary/10 p-2.5">
               <CalendarDays className="text-primary" size={24} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
                 Criar Nova Turma
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -231,7 +268,7 @@ export default function ClassCreationForm() {
 
         <div className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
           <form className="flex flex-col" onSubmit={handleSubmit}>
-            <div className="space-y-10 p-8 md:p-12">
+            <div className="space-y-8 sm:space-y-10 p-5 sm:p-8 md:p-12">
               <section className="space-y-6">
                 <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
                   <AlertCircle className="text-primary/60" size={18} />
@@ -277,6 +314,31 @@ export default function ClassCreationForm() {
                         <option key={loc.id} value={loc.id}>
                           {loc.name}
                           {loc.address ? ` — ${loc.address}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Quem vai aplicar
+                    </label>
+                    <select
+                      value={form.instructor_id}
+                      onChange={(e) =>
+                        updateField("instructor_id", e.target.value)
+                      }
+                      disabled={loadingInstructors}
+                      className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                    >
+                      <option value="">
+                        {loadingInstructors
+                          ? "Carregando instrutores..."
+                          : "Selecione um instrutor"}
+                      </option>
+                      {instructors.map((ins) => (
+                        <option key={ins.id} value={ins.id}>
+                          {ins.full_name ?? ins.war_name ?? ins.id}
                         </option>
                       ))}
                     </select>
@@ -513,10 +575,10 @@ export default function ClassCreationForm() {
               </section>
             </div>
 
-            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-slate-200/50 bg-slate-50 px-8 py-8 md:flex-row md:px-12 dark:border-slate-800 dark:bg-slate-800/30">
+            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-slate-200/50 bg-slate-50 px-5 py-5 sm:px-8 sm:py-8 md:flex-row md:px-12 dark:border-slate-800 dark:bg-slate-800/30">
               <button
                 type="button"
-                onClick={() => navigate("/app/agendamentos")}
+                onClick={() => navigate("/app/turmas")}
                 className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 transition-colors hover:text-slate-900 md:w-auto dark:text-slate-400 dark:hover:text-white"
               >
                 Cancelar

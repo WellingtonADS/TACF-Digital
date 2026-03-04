@@ -69,7 +69,7 @@ export default function OmLocationManager() {
       {/* ── Header ───────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-primary dark:text-white">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
             Gestão de OMs e Locais
           </h2>
           <p className="text-sm text-slate-500 mt-1">

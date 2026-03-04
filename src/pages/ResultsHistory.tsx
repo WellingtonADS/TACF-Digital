@@ -1,5 +1,4 @@
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
 import { isAfter, parseISO } from "date-fns";
 import {
   Award,
@@ -79,9 +78,7 @@ export default function ResultsHistory() {
       }
       try {
         const { data, error } = await supabase
-          .from<
-            Database["public"]["Tables"]["swap_requests"]["Row"]
-          >("swap_requests")
+          .from("swap_requests")
           .select("booking_id")
           .in("booking_id", ids)
           .eq("status", "pending");
@@ -117,7 +114,7 @@ export default function ResultsHistory() {
 
         <header className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
               Histórico de Avaliações
             </h1>
             <p className="text-slate-500 mt-1">
@@ -142,7 +139,7 @@ export default function ResultsHistory() {
               <>
                 <div className="flex items-baseline gap-2">
                   <span
-                    className={`text-4xl font-black ${
+                    className={`text-2xl md:text-4xl font-black ${
                       lastStatus === "apto"
                         ? "text-emerald-600"
                         : lastStatus === "inapto"
@@ -182,7 +179,7 @@ export default function ResultsHistory() {
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900 dark:text-white">
+                  <span className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white">
                     {avgScore ?? "--"}
                   </span>
                   <span className="text-sm font-medium text-slate-400">
@@ -212,7 +209,7 @@ export default function ResultsHistory() {
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900 dark:text-white">
+                  <span className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white">
                     {daysUntilReval !== null ? daysUntilReval : "--"}
                   </span>
                   <span className="text-sm font-medium text-slate-400">
@@ -244,7 +241,7 @@ export default function ResultsHistory() {
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[720px] text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/30">
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">

@@ -52,15 +52,15 @@ export default function useDashboard() {
       setLoading(true);
       try {
         /* try single RPC first to minimize round-trips */
-        const { data: rpcData, error: rpcError } = await supabase.rpc<
-          DashboardPayload[]
-        >("get_user_dashboard_summary");
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          "get_user_dashboard_summary",
+        );
         if (!rpcError && rpcData) {
           const payloadCandidate = Array.isArray(rpcData)
             ? rpcData[0]
             : (rpcData as unknown as DashboardPayload);
 
-          const isValid = (p: any): p is DashboardPayload => {
+          const isValid = (p: unknown): p is DashboardPayload => {
             if (!p || typeof p !== "object") return false;
             // basic structural checks: counts are present (may be null) and next_session if present is an object
             const okCounts = true; // counts may be absent depending on RPC, accept and validate later
@@ -274,6 +274,8 @@ export default function useDashboard() {
   }, [user, profile]);
 
   return {
+    user,
+    profile,
     loading: loading || authLoading,
     bookingsCount,
     resultsCount,

@@ -1,45 +1,18 @@
-import { supabase } from "@/services/supabase";
-import { useEffect, useState } from "react";
+import useAuth from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import PageSkeleton from "./PageSkeleton";
 
 export default function ProtectedRoute({
   children,
 }: {
   children: JSX.Element | null;
 }) {
-  const [checking, setChecking] = useState(true);
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    let mounted = true;
+  if (loading) {
+    return <PageSkeleton rows={6} />;
+  }
 
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (!mounted) return;
-        setAuthenticated(!!data?.user?.id);
-      } catch {
-        if (!mounted) return;
-        setAuthenticated(false);
-      } finally {
-        if (mounted) {
-          setChecking(false);
-        }
-      }
-    })();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      if (mounted) setAuthenticated(!!session?.user?.id);
-    });
-
-    return () => {
-      // @ts-expect-error unsub typing
-      listener?.subscription?.unsubscribe?.();
-      mounted = false;
-    };
-  }, []);
-
-  if (checking) return null;
-  if (!authenticated) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }

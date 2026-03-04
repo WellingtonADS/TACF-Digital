@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
 
-export function useResponsive(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState<boolean>(
-    typeof window !== "undefined" ? window.innerWidth < breakpoint : false,
-  );
+function getBreakpoints() {
+  if (typeof window === "undefined")
+    return { isMobile: false, isTablet: false, isDesktop: true };
+  const w = window.innerWidth;
+  return {
+    isMobile: w < 768,
+    isTablet: w >= 768 && w < 1024,
+    isDesktop: w >= 1024,
+  };
+}
+
+export function useResponsive() {
+  const [state, setState] = useState(getBreakpoints);
 
   useEffect(() => {
     function onResize() {
-      setIsMobile(window.innerWidth < breakpoint);
+      setState(getBreakpoints());
     }
-
     window.addEventListener("resize", onResize);
-    onResize();
     return () => window.removeEventListener("resize", onResize);
-  }, [breakpoint]);
+  }, []);
 
-  return { isMobile };
+  return state;
 }
 
 export default useResponsive;

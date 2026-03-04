@@ -1,4 +1,3 @@
-import type { Database } from "@/types/database.types";
 import supabase, { confirmarAgendamentoRPC } from "./supabase";
 
 export async function getSessions() {
@@ -12,7 +11,7 @@ export async function confirmBooking(userId: string, sessionId: string) {
 
 export async function fetchSwapRequests() {
   const { data, error } = await supabase
-    .from<Database["public"]["Tables"]["bookings"]["Row"]>("bookings")
+    .from("bookings")
     .select("*")
     .not("swap_reason", "is", null);
   if (error) throw error;
@@ -48,10 +47,10 @@ export async function createSwapRequest(params: SwapRequestParams) {
       .upload(fileName, params.attachment);
     if (uploadError) throw uploadError;
 
-    const { publicURL } = supabase.storage
+    const { data: urlData } = supabase.storage
       .from("swap-attachments")
       .getPublicUrl(uploadData.path);
-    attachmentUrl = publicURL;
+    attachmentUrl = urlData.publicUrl;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

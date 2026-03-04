@@ -173,9 +173,9 @@ export const AdminDashboard = () => {
   return (
     <Layout>
       {/* header */}
-      <header className="flex justify-between items-center mb-10">
+      <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-10">
         <div>
-          <h2 className="text-3xl font-bold text-primary dark:text-white">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
             Dashboard Administrativo
           </h2>
           <p className="text-slate-500 mt-1">
@@ -216,70 +216,74 @@ export const AdminDashboard = () => {
       {/* stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {/* Total inscritos */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
             <p className="text-slate-400 text-sm font-medium mb-1">
               Total Inscritos
             </p>
             <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
             >
               {metricsLoading ? "—" : totalInscritos}
             </h3>
           </div>
-          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <Users size={28} />
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <Users size={22} className="md:hidden" />
+            <Users size={28} className="hidden md:block" />
           </div>
         </div>
 
         {/* Aptos mês */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
+        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
           <div>
             <p className="text-slate-400 text-sm font-medium mb-1">
               Aptos (Mês)
             </p>
             <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
             >
               {metricsLoading ? "—" : aptosMonth}
             </h3>
           </div>
-          <div className="w-14 h-14 bg-military-green/10 rounded-2xl flex items-center justify-center text-military-green">
-            <CheckCircle size={28} />
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-military-green/10 rounded-2xl flex items-center justify-center text-military-green">
+            <CheckCircle size={22} className="md:hidden" />
+            <CheckCircle size={28} className="hidden md:block" />
           </div>
         </div>
 
         {/* Pendências */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
+        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
           <div>
             <p className="text-slate-400 text-sm font-medium mb-1">
               Pendências
             </p>
             <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
             >
               {metricsLoading ? "—" : pendencias}
             </h3>
           </div>
-          <div className="w-14 h-14 bg-military-gold/10 rounded-2xl flex items-center justify-center text-military-gold">
-            <AlertTriangle size={28} />
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-military-gold/10 rounded-2xl flex items-center justify-center text-military-gold">
+            <AlertTriangle size={22} className="md:hidden" />
+            <AlertTriangle size={28} className="hidden md:block" />
           </div>
         </div>
 
         {/* Capacidade restante */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
             <p className="text-slate-400 text-sm font-medium mb-1">
               Capacidade Restante
             </p>
             <h3
-              className={`text-3xl font-bold text-slate-800 dark:text-white ${sessionsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${sessionsLoading ? "animate-pulse text-slate-400" : ""}`}
             >
               {sessionsLoading ? "—" : capacidadeRestante}
             </h3>
           </div>
-          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <BarChart2 size={28} />
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <BarChart2 size={22} className="md:hidden" />
+            <BarChart2 size={28} className="hidden md:block" />
           </div>
         </div>
       </div>
@@ -302,7 +306,7 @@ export const AdminDashboard = () => {
               key={action.path}
               type="button"
               onClick={() => navigate(action.path)}
-              className="group flex flex-col items-start gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+              className="group flex flex-col items-start gap-3 bg-white dark:bg-slate-800 p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}

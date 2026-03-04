@@ -26,13 +26,10 @@ export async function confirmarAgendamentoRPC(
   userId: string,
   sessionId: string,
 ): Promise<BookingResponse> {
-  const { data, error } = await supabase.rpc<BookingResponse[]>(
-    "confirmar_agendamento",
-    {
-      p_user_id: userId,
-      p_session_id: sessionId,
-    },
-  );
+  const { data, error } = await supabase.rpc("confirmar_agendamento", {
+    p_user_id: userId,
+    p_session_id: sessionId,
+  });
 
   if (error) {
     return {

@@ -180,9 +180,9 @@ export default function AccessProfilesManagement() {
       {loading ? (
         <div className="p-6">Carregando perfis...</div>
       ) : (
-        <div className="max-w-6xl mx-auto flex gap-8">
+        <div className="max-w-6xl mx-auto flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* sidebar */}
-          <aside className="w-80 flex-shrink-0 flex flex-col gap-4">
+          <aside className="w-full lg:w-80 lg:flex-shrink-0 flex flex-col gap-4">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Perfis Cadastrados
@@ -234,11 +234,11 @@ export default function AccessProfilesManagement() {
           </aside>
 
           {/* main content */}
-          <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-8">
+          <div className="flex-1 flex flex-col gap-6 overflow-y-auto lg:pr-2">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-slate-100 dark:border-slate-700">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="material-icons-outlined text-primary">
                       settings
                     </span>
@@ -258,8 +258,8 @@ export default function AccessProfilesManagement() {
                 )}
               </div>
               {/* permissions table */}
-              <div className="overflow-hidden border border-slate-100 dark:border-slate-700 rounded-xl">
-                <table className="w-full text-left">
+              <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-xl">
+                <table className="w-full min-w-[760px] text-left">
                   <thead className="bg-slate-50 dark:bg-slate-900/50">
                     <tr>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
@@ -282,7 +282,6 @@ export default function AccessProfilesManagement() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {permissions.map((perm) => {
                       const enabled = profilePermissions.has(perm.id);
-                      // split permission name into words and decide column? simple heuristic
                       const name = perm.name;
                       return (
                         <tr

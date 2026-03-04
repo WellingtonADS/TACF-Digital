@@ -23,6 +23,10 @@ export interface Database {
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
+          birth_date?: string | null;
+          physical_group?: string | null;
+          inspsau_valid_until?: string | null;
+          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -38,6 +42,10 @@ export interface Database {
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
+          birth_date?: string | null;
+          physical_group?: string | null;
+          inspsau_valid_until?: string | null;
+          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -54,9 +62,14 @@ export interface Database {
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
+          birth_date?: string | null;
+          physical_group?: string | null;
+          inspsau_valid_until?: string | null;
+          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       system_settings: {
         Row: {
@@ -98,6 +111,7 @@ export interface Database {
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       access_profiles: {
         Row: {
@@ -130,6 +144,7 @@ export interface Database {
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       permissions: {
         Row: {
@@ -150,6 +165,7 @@ export interface Database {
           description?: string | null;
           created_at?: string | null;
         };
+        Relationships: [];
       };
       access_profile_permissions: {
         Row: {
@@ -167,6 +183,7 @@ export interface Database {
           permission_id?: string;
           created_at?: string | null;
         };
+        Relationships: [];
       };
       audit_logs: {
         Row: {
@@ -196,6 +213,7 @@ export interface Database {
           details?: string | null;
           created_at?: string | null;
         };
+        Relationships: [];
       };
 
       bookings: {
@@ -244,6 +262,7 @@ export interface Database {
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       sessions: {
         Row: {
@@ -252,6 +271,9 @@ export interface Database {
           period: string;
           max_capacity?: number | null;
           location_id?: string | null;
+          applicators?: string[] | null;
+          status?: string | null;
+          coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -261,6 +283,9 @@ export interface Database {
           period: string;
           max_capacity?: number | null;
           location_id?: string | null;
+          applicators?: string[] | null;
+          status?: string | null;
+          coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -270,9 +295,13 @@ export interface Database {
           period?: string;
           max_capacity?: number | null;
           location_id?: string | null;
+          applicators?: string[] | null;
+          status?: string | null;
+          coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       locations: {
         Row: {
@@ -311,6 +340,7 @@ export interface Database {
           created_at?: string | null;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       location_schedules: {
         Row: {
@@ -343,10 +373,152 @@ export interface Database {
           is_active?: boolean;
           created_at?: string | null;
         };
+        Relationships: [];
+      };
+      swap_requests: {
+        Row: {
+          id: string;
+          booking_id: string;
+          requested_by: string;
+          new_session_id: string;
+          reason: string;
+          status: "pending" | "approved" | "rejected";
+          processed_by?: string | null;
+          processed_at?: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          requested_by: string;
+          new_session_id: string;
+          reason: string;
+          status?: "pending" | "approved" | "rejected";
+          processed_by?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          requested_by?: string;
+          new_session_id?: string;
+          reason?: string;
+          status?: "pending" | "approved" | "rejected";
+          processed_by?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      book_session: {
+        Args: { p_user_id: string; p_session_id: string };
+        Returns: { success: boolean; booking_id: string; error: string }[];
+      };
+      confirmar_agendamento: {
+        Args: { p_user_id: string; p_session_id: string };
+        Returns: {
+          success: boolean;
+          booking_id: string;
+          error: string;
+          order_number: string;
+        }[];
+      };
+      get_locations: {
+        Args: {
+          p_search_term?: string | null;
+          p_status?: string | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          address: string;
+          max_capacity: number;
+          status: string;
+          facilities: string[] | null;
+          metadata: Json | null;
+          created_by: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+          total_count: number;
+        }[];
+      };
+      create_location: {
+        Args: {
+          p_name: string;
+          p_address: string;
+          p_max_capacity: number;
+          p_status?: string;
+          p_facilities?: string[] | null;
+          p_metadata?: Json | null;
+        };
+        Returns: Database["public"]["Tables"]["locations"]["Row"];
+      };
+      update_location: {
+        Args: {
+          p_id: string;
+          p_name?: string;
+          p_address?: string;
+          p_max_capacity?: number;
+          p_status?: string;
+          p_facilities?: string[] | null;
+          p_metadata?: Json | null;
+        };
+        Returns: Database["public"]["Tables"]["locations"]["Row"];
+      };
+      delete_location: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
+      get_user_dashboard_summary: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
+      get_sessions_availability: {
+        Args: { p_start: string; p_end: string };
+        Returns: {
+          session_id: string;
+          date: string;
+          period: string;
+          max_capacity: number;
+          occupied_count: number;
+          available_count: number;
+        }[];
+      };
+      get_audit_logs: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          action?: string | null;
+          entity?: string | null;
+          user_id?: string | null;
+          user_name?: string | null;
+          details?: string | null;
+          created_at?: string | null;
+        }[];
+      };
+      approve_swap: {
+        Args: { p_request_id: string; p_admin_id: string };
+        Returns: { success: boolean; error: string }[];
+      };
+      get_results_history: {
+        Args: {
+          p_limit: number;
+          p_cursor: string;
+          p_from?: string | null;
+          p_to?: string | null;
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
       session_period: "morning" | "afternoon";
       user_role: "user" | "admin" | "coordinator";

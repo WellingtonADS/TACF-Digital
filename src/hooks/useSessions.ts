@@ -21,34 +21,35 @@ export function useSessions(startDate?: string, endDate?: string) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: rpcError } = await supabase.rpc<
-        SessionAvailability[]
-      >("get_sessions_availability", {
-        p_start: startDate ?? new Date().toISOString().split("T")[0],
-        p_end:
-          endDate ??
-          new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0],
-      });
+      const { data: rpcRaw, error: rpcError } = await supabase.rpc(
+        "get_sessions_availability",
+        {
+          p_start: startDate ?? new Date().toISOString().split("T")[0],
+          p_end:
+            endDate ??
+            new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0],
+        },
+      );
 
       if (rpcError) {
         setError(rpcError.message);
         toast.error(`Erro ao carregar turmas: ${rpcError.message}`);
         setSessions([]);
-      } else if (!Array.isArray(data)) {
+      } else if (!Array.isArray(rpcRaw)) {
         // if RPC returns unexpected shape, log and fallback
         console.warn(
           "get_sessions_availability RPC returned unexpected shape",
           {
-            sample: data,
+            sample: rpcRaw,
           },
         );
         setError("Resposta inesperada do servidor");
         toast.error("Resposta inesperada do servidor ao carregar turmas.");
         setSessions([]);
       } else {
-        setSessions((data as SessionAvailability[]) ?? []);
+        setSessions((rpcRaw as SessionAvailability[]) ?? []);
       }
     } catch (err) {
       setError(String(err));

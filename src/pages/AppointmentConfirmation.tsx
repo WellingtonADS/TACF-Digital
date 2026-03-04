@@ -1,5 +1,6 @@
 import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -90,56 +91,59 @@ export const AppointmentConfirmation = () => {
           setBooking(null);
         }
 
-        if (localSessionId) {
-          const { data: sData } = await supabase
-            .from("sessions")
-            .select(
-              "id, date, period, max_capacity, location:locations(name, address)",
-            )
-            .eq("id", localSessionId)
-            .maybeSingle();
-
-          if (sData) {
-            const locRaw = sData.location as
-              | { name?: string | null; address?: string | null }[]
-              | { name?: string | null; address?: string | null }
-              | null;
-            const loc = Array.isArray(locRaw) ? locRaw[0] : locRaw;
-            const enriched: SessionPreview = {
-              id: sData.id,
-              date: sData.date,
-              period: sData.period,
-              max_capacity: sData.max_capacity,
-              location_name: loc?.name ?? null,
-              location_address: loc?.address ?? null,
-            };
-            setSession(enriched);
-            setResolvedSessionId(sData.id);
-          } else {
-            setSession(null);
-            setResolvedSessionId(localSessionId);
-          }
-        } else {
-          setSession(null);
-          setResolvedSessionId(null);
-        }
-
         if (!localUserId) {
           const userResp = await supabase.auth.getUser();
           localUserId = userResp.data.user?.id ?? null;
         }
 
-        if (localUserId) {
-          const { data: pData } = await supabase
-            .from("profiles")
-            .select("id, full_name, war_name, saram, rank, sector")
-            .eq("id", localUserId)
-            .maybeSingle<ProfilePreview>();
+        const sessionPromise = localSessionId
+          ? supabase
+              .from("sessions")
+              .select(
+                "id, date, period, max_capacity, location:locations(name, address)",
+              )
+              .eq("id", localSessionId)
+              .maybeSingle()
+          : Promise.resolve({ data: null });
 
-          setProfile(pData ?? null);
+        const profilePromise = localUserId
+          ? supabase
+              .from("profiles")
+              .select("id, full_name, war_name, saram, rank, sector")
+              .eq("id", localUserId)
+              .maybeSingle<ProfilePreview>()
+          : Promise.resolve({ data: null });
+
+        const [{ data: sData }, { data: pData }] = await Promise.all([
+          sessionPromise,
+          profilePromise,
+        ]);
+
+        if (sData) {
+          const locRaw = sData.location as
+            | { name?: string | null; address?: string | null }[]
+            | { name?: string | null; address?: string | null }
+            | null;
+          const loc = Array.isArray(locRaw) ? locRaw[0] : locRaw;
+          const enriched: SessionPreview = {
+            id: sData.id,
+            date: sData.date,
+            period: sData.period,
+            max_capacity: sData.max_capacity,
+            location_name: loc?.name ?? null,
+            location_address: loc?.address ?? null,
+          };
+          setSession(enriched);
+          setResolvedSessionId(sData.id);
+        } else if (localSessionId) {
+          setSession(null);
+          setResolvedSessionId(localSessionId);
         } else {
-          setProfile(null);
+          setSession(null);
+          setResolvedSessionId(null);
         }
+
+        setProfile(pData ?? null);
 
         if (!localBooking) {
           setBooking(null);
@@ -362,7 +366,7 @@ export const AppointmentConfirmation = () => {
               </button>
               <button
                 onClick={handleConfirm}
-                onMouseEnter={() => import("./DigitalTicket")}
+                onMouseEnter={() => prefetchRoute("/app/ticket")}
                 disabled={loading || confirming || !resolvedSessionId}
                 className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-lg transition-all flex items-center justify-center gap-3"
               >

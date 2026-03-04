@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 type InputFieldProps = {
   label: string;
-  icon: ComponentType<{ size?: number }>;
+  icon: ComponentType<{ size?: number | string }>;
   type?: string;
   placeholder?: string;
   required?: boolean;

@@ -59,13 +59,12 @@ export default function SystemSettings() {
     if (activeTab === "audit" && canView) {
       const loadLogs = async () => {
         setAuditLoading(true);
-        const { data, error } =
-          await supabase.rpc<AuditLogRow[]>("get_audit_logs");
+        const { data, error } = await supabase.rpc("get_audit_logs");
         if (error) {
           console.error(error);
           toast.error("Erro ao carregar logs de auditoria");
         } else {
-          setAuditLogs(data ?? []);
+          setAuditLogs((data as AuditLogRow[] | null) ?? []);
         }
         setAuditLoading(false);
       };
@@ -138,7 +137,7 @@ export default function SystemSettings() {
                   }
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Capacidade mínima
@@ -220,8 +219,8 @@ export default function SystemSettings() {
       case "evaluation":
         return (
           <div>
-            <div className="flex justify-between items-end mb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex gap-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap gap-4 sm:gap-8">
                 <button className="pb-4 text-sm font-bold tab-active">
                   Masculino
                 </button>
@@ -242,26 +241,26 @@ export default function SystemSettings() {
               Defina os requisitos mínimos de desempenho para cada categoria
               etária.
             </p>
-            <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl mb-10">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl mb-10">
+              <table className="w-full min-w-[480px] text-left border-collapse">
                 <thead>
                   <tr className="bg-primary text-white">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
                       Idade
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-center">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
                       Corrida (Min)
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-center">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
                       Flexão (Rep)
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-center">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
                       Abdominal (Rep)
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
                       Conceito
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-right">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-right">
                       Ações
                     </th>
                   </tr>
@@ -269,18 +268,24 @@ export default function SystemSettings() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {/* sample rows, real data would come from API */}
                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-700 dark:text-slate-300">
                       Até 24 anos
                     </td>
-                    <td className="px-6 py-4 text-center">12:00</td>
-                    <td className="px-6 py-4 text-center">30</td>
-                    <td className="px-6 py-4 text-center">35</td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                      12:00
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                      30
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                      35
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4">
                       <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded">
                         EXCELENTE
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
                       <button className="p-2 text-slate-400 hover:text-primary transition-colors">
                         <span className="material-icons text-xl">edit</span>
                       </button>
@@ -329,7 +334,7 @@ export default function SystemSettings() {
               <p>Carregando...</p>
             ) : (
               <div className="overflow-auto max-h-[400px]">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full min-w-[640px] text-left border-collapse">
                   <thead>
                     <tr className="bg-primary text-white">
                       <th className="px-4 py-2 text-xs font-bold uppercase">
@@ -385,59 +390,79 @@ export default function SystemSettings() {
 
   return (
     <Layout>
-      <div className="max-w-[1440px] mx-auto p-4 lg:p-10">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+      <div className="w-full max-w-[1440px] mx-auto space-y-6">
+        <header className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm p-4 sm:p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold tracking-widest text-primary uppercase">
+              Governança e Segurança
+            </p>
+            <h1 className="mt-1 text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white leading-tight">
               Configurações do Sistema
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">
-              Gerenciamento de parâmetros globais do TACF-Digital (FAB)
+            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
+              Ajuste parâmetros globais, perfis e auditoria de forma
+              centralizada.
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-icons">account_circle</span>
+            <div className="hidden sm:flex flex-col text-right">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                Perfil Atual
+              </span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                {profile?.full_name ?? "Administrador"}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <span className="material-icons text-2xl">account_circle</span>
             </div>
           </div>
         </header>
 
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex min-h-[800px]">
-          <aside className="w-72 border-r border-slate-100 dark:border-slate-800 flex flex-col py-8">
-            <nav className="flex-1 space-y-1">
-              {TABS.map((tab) => {
-                const active = tab.key === activeTab;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center w-full px-8 py-4 transition-colors text-left ${
-                      active
-                        ? "sidebar-active bg-primary/5"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <span className="material-icons mr-3 text-sm">
-                      {tab.icon}
-                    </span>
-                    <span className={active ? "font-bold" : "font-medium"}>
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="px-8 mt-auto pt-8 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-6">
+          <aside className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
+            <div className="p-4 sm:p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                  Seções
+                </p>
+                <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                  ADMIN
+                </span>
+              </div>
+              <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
+                {TABS.map((tab) => {
+                  const active = tab.key === activeTab;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      aria-current={active ? "page" : undefined}
+                      className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
+                        active
+                          ? "bg-primary text-white border-primary shadow-lg shadow-primary/25"
+                          : "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300 hover:bg-primary/5"
+                      }`}
+                    >
+                      <span className="material-icons text-base">
+                        {tab.icon}
+                      </span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="hidden md:flex items-center gap-3 text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4">
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 Sistema Operacional
               </div>
             </div>
           </aside>
 
-          <main className="flex-1 flex flex-col bg-white dark:bg-slate-900">
-            <div className="p-8 flex-1">{renderContent()}</div>
-          </main>
+          <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 min-h-[480px]">
+            <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
+          </section>
         </div>
       </div>
     </Layout>

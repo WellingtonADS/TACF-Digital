@@ -2,10 +2,13 @@
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster } from "sonner";
 import AdminRoute from "./components/AdminRoute";
 import AutoRedirect from "./components/AutoRedirect";
+import PageSkeleton from "./components/PageSkeleton";
 import UserRoute from "./components/UserRoute";
 import "./index.css";
+import { prefetchCriticalRoutes } from "./utils/prefetchRoutes";
 const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
 const Login = React.lazy(() => import("./pages/Login"));
 const RegisterPage = React.lazy(() => import("./pages/Register"));
@@ -27,6 +30,7 @@ const AccessProfilesManagement = React.lazy(
 const PersonnelManagement = React.lazy(
   () => import("./pages/PersonnelManagement"),
 );
+const PersonnelEditor = React.lazy(() => import("./pages/PersonnelEditor"));
 const ScoreEntry = React.lazy(() => import("./pages/ScoreEntry"));
 const AnalyticsDashboard = React.lazy(
   () => import("./pages/AnalyticsDashboard"),
@@ -50,6 +54,16 @@ const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const SessionsManagement = React.lazy(
   () => import("./pages/SessionsManagement"),
 );
+const SessionBookingsManagement = React.lazy(
+  () => import("./pages/SessionBookingsManagement"),
+);
+const SessionEditor = React.lazy(() => import("./pages/SessionEditor"));
+
+const routeFallback = (
+  <div className="p-6">
+    <PageSkeleton rows={6} />
+  </div>
+);
 
 // Global dev-only handlers to reduce noisy uncaught errors in the console
 if (import.meta.env.DEV && typeof window !== "undefined") {
@@ -70,6 +84,10 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
   });
 }
 
+if (typeof window !== "undefined") {
+  prefetchCriticalRoutes();
+}
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -77,7 +95,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/login"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+            <Suspense fallback={routeFallback}>
               <Login />
             </Suspense>
           }
@@ -85,7 +103,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/register"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+            <Suspense fallback={routeFallback}>
               <RegisterPage />
             </Suspense>
           }
@@ -93,7 +111,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/forgot"
           element={
-            <Suspense fallback={<div className="p-6">Carregando...</div>}>
+            <Suspense fallback={routeFallback}>
               <ForgotPasswordPage />
             </Suspense>
           }
@@ -102,7 +120,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/resultados"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <ResultsHistory />
               </Suspense>
             </UserRoute>
@@ -112,7 +130,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/documentos"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <Documents />
               </Suspense>
             </UserRoute>
@@ -122,7 +140,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/recurso"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AppealRequest />
               </Suspense>
             </UserRoute>
@@ -132,7 +150,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/agendamentos"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <Scheduling />
               </Suspense>
             </UserRoute>
@@ -142,7 +160,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/agendamentos/confirmacao"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AppointmentConfirmation />
               </Suspense>
             </UserRoute>
@@ -152,7 +170,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/turmas/nova"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <ClassCreationForm />
               </Suspense>
             </AdminRoute>
@@ -162,7 +180,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/ticket"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <DigitalTicket />
               </Suspense>
             </UserRoute>
@@ -172,7 +190,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/perfil"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <UserProfilesManagement />
               </Suspense>
             </UserRoute>
@@ -182,8 +200,18 @@ createRoot(document.getElementById("root")!).render(
           path="/app/efetivo"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <PersonnelManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/efetivo/:userId/editar"
+          element={
+            <AdminRoute>
+              <Suspense fallback={routeFallback}>
+                <PersonnelEditor />
               </Suspense>
             </AdminRoute>
           }
@@ -192,7 +220,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/reagendamentos"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <ReschedulingManagement />
               </Suspense>
             </AdminRoute>
@@ -202,7 +230,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/reagendamentos/notificacao"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <ReschedulingNotification />
               </Suspense>
             </AdminRoute>
@@ -212,7 +240,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/auditoria"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AuditLog />
               </Suspense>
             </AdminRoute>
@@ -222,7 +250,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/om-locations"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <OmLocationManager />
               </Suspense>
             </AdminRoute>
@@ -232,7 +260,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/om/:id"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <OmLocationEditor />
               </Suspense>
             </AdminRoute>
@@ -242,7 +270,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/om/:id/schedules"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <OmScheduleEditor />
               </Suspense>
             </AdminRoute>
@@ -252,7 +280,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/lancamento-indices"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <ScoreEntry />
               </Suspense>
             </AdminRoute>
@@ -262,7 +290,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/analytics"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AnalyticsDashboard />
               </Suspense>
             </AdminRoute>
@@ -272,7 +300,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/configuracoes"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <SystemSettings />
               </Suspense>
             </AdminRoute>
@@ -282,7 +310,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/configuracoes/perfis"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AccessProfilesManagement />
               </Suspense>
             </AdminRoute>
@@ -293,7 +321,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/admin"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <AdminDashboard />
               </Suspense>
             </AdminRoute>
@@ -303,8 +331,28 @@ createRoot(document.getElementById("root")!).render(
           path="/app/turmas"
           element={
             <AdminRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <SessionsManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/turmas/:sessionId/agendamentos"
+          element={
+            <AdminRoute>
+              <Suspense fallback={routeFallback}>
+                <SessionBookingsManagement />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/turmas/:sessionId/editar"
+          element={
+            <AdminRoute>
+              <Suspense fallback={routeFallback}>
+                <SessionEditor />
               </Suspense>
             </AdminRoute>
           }
@@ -314,7 +362,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/*"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <OperationalDashboard />
               </Suspense>
             </UserRoute>
@@ -324,13 +372,20 @@ createRoot(document.getElementById("root")!).render(
           path="/*"
           element={
             <UserRoute>
-              <Suspense fallback={<div className="p-6">Carregando...</div>}>
+              <Suspense fallback={routeFallback}>
                 <OperationalDashboard />
               </Suspense>
             </UserRoute>
           }
         />
       </Routes>
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        expand
+        duration={4500}
+      />
     </BrowserRouter>
   </React.StrictMode>,
 );

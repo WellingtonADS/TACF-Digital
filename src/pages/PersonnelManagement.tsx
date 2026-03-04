@@ -5,8 +5,9 @@ import { format } from "date-fns";
 import {
   Award,
   Calendar,
+  CheckCircle2,
+  ClipboardList,
   Download,
-  Edit,
   FileText,
   Loader2,
   Mail,
@@ -14,13 +15,16 @@ import {
   Search,
   Shield,
   TrendingUp,
+  UserCheck,
   UserCircle2,
   Users,
+  UserX,
   View,
   X,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type BookingQueryRow = {
@@ -94,6 +98,13 @@ function dateLabel(value: string | null) {
   return format(parsed, "dd/MM/yyyy");
 }
 
+type TestRecord = {
+  id: string;
+  date: string | null;
+  score: number | null;
+  status: string;
+};
+
 type UserDetail = {
   id: string;
   full_name: string | null;
@@ -113,10 +124,10 @@ type UserDetail = {
   lastTestDate: string | null;
   lastScore: number | null;
   status: PersonnelRow["status"];
+  testHistory: TestRecord[];
 };
 
 export default function PersonnelManagement() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
@@ -129,53 +140,142 @@ export default function PersonnelManagement() {
   const [selectedUser, setSelectedUser] = useState<PersonnelRow | null>(null);
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [savingActive, setSavingActive] = useState(false);
+
+  async function handleToggleActive(newActive: boolean) {
+    if (!userDetail || !selectedUser) return;
+    setSavingActive(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ active: newActive })
+        .eq("id", selectedUser.id);
+      if (error) throw error;
+      setUserDetail((prev) => (prev ? { ...prev, active: newActive } : prev));
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === selectedUser.id ? { ...r, active: newActive } : r,
+        ),
+      );
+      toast.success(newActive ? "Militar ativado." : "Militar inativado.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Erro ao salvar: ${msg}`);
+    } finally {
+      setSavingActive(false);
+    }
+  }
 
   async function openProfile(row: PersonnelRow) {
     setSelectedUser(row);
-    setUserDetail(null);
+    // Popula imediatamente com os dados que já temos; o drawer não fica vazio
+    setUserDetail({
+      id: row.id,
+      full_name: row.fullName,
+      war_name: row.warName,
+      rank: row.rank,
+      sector: row.sector,
+      saram: row.saram,
+      email: null,
+      phone_number: null,
+      role: null,
+      active: row.active,
+      birth_date: null,
+      physical_group: null,
+      inspsau_valid_until: null,
+      inspsau_last_inspection: null,
+      created_at: null,
+      lastTestDate: row.lastTestDate,
+      lastScore: row.lastScore,
+      status: row.status,
+      testHistory: [],
+    });
     setLoadingDetail(true);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "id, full_name, war_name, rank, sector, saram, email, phone_number, role, active, birth_date, physical_group, inspsau_valid_until, inspsau_last_inspection, created_at",
-        )
-        .eq("id", row.id)
-        .maybeSingle();
+      const [{ data, error }, { data: bookings, error: bookingError }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select(
+              "id, full_name, war_name, rank, sector, saram, email, phone_number, role, active, created_at",
+            )
+            .eq("id", row.id)
+            .maybeSingle(),
+          supabase
+            .from("bookings")
+            .select("id, test_date, score, status, created_at")
+            .eq("user_id", row.id)
+            .neq("status", "cancelled")
+            .order("test_date", { ascending: false, nullsFirst: false })
+            .limit(10),
+        ]);
 
-      if (error) throw error;
-      if (data) {
-        setUserDetail({
-          ...(data as typeof data & Record<string, unknown>),
-          active: Boolean((data as { active?: boolean }).active),
-          full_name: (data as { full_name?: string | null }).full_name ?? null,
-          war_name: (data as { war_name?: string | null }).war_name ?? null,
-          rank: (data as { rank?: string | null }).rank ?? null,
-          sector: (data as { sector?: string | null }).sector ?? null,
-          saram: (data as { saram?: string | null }).saram ?? null,
-          email: (data as { email?: string | null }).email ?? null,
-          phone_number:
-            (data as { phone_number?: string | null }).phone_number ?? null,
-          role: (data as { role?: string | null }).role ?? null,
-          birth_date:
-            (data as { birth_date?: string | null }).birth_date ?? null,
-          physical_group:
-            (data as { physical_group?: string | null }).physical_group ?? null,
-          inspsau_valid_until:
-            (data as { inspsau_valid_until?: string | null })
-              .inspsau_valid_until ?? null,
-          inspsau_last_inspection:
-            (data as { inspsau_last_inspection?: string | null })
-              .inspsau_last_inspection ?? null,
-          created_at:
-            (data as { created_at?: string | null }).created_at ?? null,
-          lastTestDate: row.lastTestDate,
-          lastScore: row.lastScore,
-          status: row.status,
-        });
+      if (error) {
+        console.warn("[openProfile] profiles query error:", error);
       }
+      if (bookingError) {
+        console.warn("[openProfile] bookings query error:", bookingError);
+      }
+
+      const history: TestRecord[] = (
+        (bookings ?? []) as {
+          id: string;
+          test_date?: string | null;
+          score?: number | null;
+          status: string;
+          created_at?: string | null;
+        }[]
+      ).map((b) => ({
+        id: b.id,
+        date: b.test_date ?? b.created_at ?? null,
+        score: b.score ?? null,
+        status: b.status,
+      }));
+
+      // Mescla com os dados extras do banco, se disponíveis
+      setUserDetail((prev) => ({
+        ...(prev ?? {}),
+        id: row.id,
+        full_name:
+          (data as { full_name?: string | null } | null)?.full_name ??
+          row.fullName,
+        war_name:
+          (data as { war_name?: string | null } | null)?.war_name ??
+          row.warName,
+        rank: (data as { rank?: string | null } | null)?.rank ?? row.rank,
+        sector:
+          (data as { sector?: string | null } | null)?.sector ?? row.sector,
+        saram: (data as { saram?: string | null } | null)?.saram ?? row.saram,
+        email: (data as { email?: string | null } | null)?.email ?? null,
+        phone_number:
+          (data as { phone_number?: string | null } | null)?.phone_number ??
+          null,
+        role: (data as { role?: string | null } | null)?.role ?? null,
+        active:
+          data !== null
+            ? Boolean((data as { active?: boolean }).active)
+            : row.active,
+        birth_date:
+          (data as { birth_date?: string | null } | null)?.birth_date ?? null,
+        physical_group:
+          (data as { physical_group?: string | null } | null)?.physical_group ??
+          null,
+        inspsau_valid_until:
+          (data as { inspsau_valid_until?: string | null } | null)
+            ?.inspsau_valid_until ?? null,
+        inspsau_last_inspection:
+          (data as { inspsau_last_inspection?: string | null } | null)
+            ?.inspsau_last_inspection ?? null,
+        created_at:
+          (data as { created_at?: string | null } | null)?.created_at ?? null,
+        lastTestDate: row.lastTestDate,
+        lastScore: row.lastScore,
+        status: row.status,
+        testHistory: history,
+      }));
     } catch (err) {
-      console.error(err);
+      console.error("[openProfile] unexpected error:", err);
+      // userDetail já foi populado com dados básicos acima; não limpa
     } finally {
       setLoadingDetail(false);
     }
@@ -356,7 +456,7 @@ export default function PersonnelManagement() {
       <div className="w-full">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
               Gestão de Efetivo
             </h1>
             <p className="text-slate-500 text-sm">
@@ -374,7 +474,7 @@ export default function PersonnelManagement() {
         </header>
 
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="relative min-w-[260px] flex-1">
+          <div className="relative w-full min-w-0 md:min-w-[260px] md:flex-1">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               size={16}
@@ -393,7 +493,7 @@ export default function PersonnelManagement() {
             onChange={(event) =>
               setRankFilter(event.target.value as (typeof RANK_OPTIONS)[number])
             }
-            className="rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
+            className="w-full sm:w-auto rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
           >
             <option value="Todos">Posto/Graduação</option>
             {RANK_OPTIONS.filter((item) => item !== "Todos").map((item) => (
@@ -410,7 +510,7 @@ export default function PersonnelManagement() {
                 event.target.value as (typeof STATUS_OPTIONS)[number],
               )
             }
-            className="rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
+            className="w-full sm:w-auto rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
           >
             <option value="Todos">Status de Aptidão</option>
             {STATUS_OPTIONS.filter((item) => item !== "Todos").map((item) => (
@@ -422,99 +522,102 @@ export default function PersonnelManagement() {
         </div>
 
         <div className="grid grid-cols-12 gap-6">
-          <section className="col-span-12 xl:col-span-9">
+          <section className="col-span-12 md:col-span-9">
             <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-              <table className="w-full border-collapse text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/50">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Militar
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
-                      SARAM
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Último Teste
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {loading ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50">
                     <tr>
-                      <td
-                        className="px-6 py-8 text-sm text-slate-500"
-                        colSpan={5}
-                      >
-                        Carregando efetivo...
-                      </td>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Militar
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                        SARAM
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Último Teste
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Ações
+                      </th>
                     </tr>
-                  ) : filteredRows.length === 0 ? (
-                    <tr>
-                      <td
-                        className="px-6 py-8 text-sm text-slate-500"
-                        colSpan={5}
-                      >
-                        Nenhum militar encontrado para os filtros selecionados.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRows.map((row) => {
-                      const statusClass =
-                        row.status === "APTO"
-                          ? "bg-success/10 text-success"
-                          : row.status === "VENCIDO"
-                            ? "bg-error/10 text-error"
-                            : "bg-primary/10 text-primary";
+                  </thead>
 
-                      return (
-                        <tr
-                          key={row.id}
-                          className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30"
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {loading ? (
+                      <tr>
+                        <td
+                          className="px-6 py-8 text-sm text-slate-500"
+                          colSpan={5}
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                {initialsFromName(row.warName || row.fullName)}
-                              </div>
-                              <div>
-                                <div className="font-bold text-slate-900 dark:text-white">
-                                  {row.rank
-                                    ? `${row.rank} ${row.warName || row.fullName}`
-                                    : row.fullName}
+                          Carregando efetivo...
+                        </td>
+                      </tr>
+                    ) : filteredRows.length === 0 ? (
+                      <tr>
+                        <td
+                          className="px-6 py-8 text-sm text-slate-500"
+                          colSpan={5}
+                        >
+                          Nenhum militar encontrado para os filtros
+                          selecionados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRows.map((row) => {
+                        const statusClass =
+                          row.status === "APTO"
+                            ? "bg-success/10 text-success"
+                            : row.status === "VENCIDO"
+                              ? "bg-error/10 text-error"
+                              : "bg-primary/10 text-primary";
+
+                        return (
+                          <tr
+                            key={row.id}
+                            className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                  {initialsFromName(
+                                    row.warName || row.fullName,
+                                  )}
                                 </div>
-                                <div className="text-xs text-slate-500">
-                                  {row.sector || "Sem setor"}
+                                <div>
+                                  <div className="font-bold text-slate-900 dark:text-white">
+                                    {row.rank
+                                      ? `${row.rank} ${row.warName || row.fullName}`
+                                      : row.fullName}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {row.sector || "Sem setor"}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td className="px-6 py-4 text-center font-mono text-sm text-slate-600 dark:text-slate-400">
-                            {row.saram || "--"}
-                          </td>
+                            <td className="px-6 py-4 text-center font-mono text-sm text-slate-600 dark:text-slate-400">
+                              {row.saram || "--"}
+                            </td>
 
-                          <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
-                            {dateLabel(row.lastTestDate)}
-                          </td>
+                            <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
+                              {dateLabel(row.lastTestDate)}
+                            </td>
 
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                              {row.status}
-                            </span>
-                          </td>
+                            <td className="px-6 py-4 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                {row.status}
+                              </span>
+                            </td>
 
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
+                            <td className="px-6 py-4 text-right">
                               <button
                                 type="button"
                                 onClick={() => openProfile(row)}
@@ -523,24 +626,15 @@ export default function PersonnelManagement() {
                               >
                                 <View size={18} />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  navigate(`/app/efetivo/${row.id}/editar`)
-                                }
-                                className="p-2 text-slate-400 transition-colors hover:text-primary"
-                                title="Editar"
-                              >
-                                <Edit size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {/* /overflow-x-auto */}
 
               <div className="flex items-center justify-between bg-slate-50 p-6 dark:bg-slate-800/30">
                 <span className="text-sm font-medium text-slate-500">
@@ -555,7 +649,7 @@ export default function PersonnelManagement() {
             </div>
           </section>
 
-          <aside className="col-span-12 space-y-6 xl:col-span-3">
+          <aside className="col-span-12 space-y-6 md:col-span-3">
             <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
               <h3 className="mb-6 text-lg font-bold text-slate-900 dark:text-white">
                 Aptidão Geral
@@ -570,7 +664,7 @@ export default function PersonnelManagement() {
                     }}
                   />
                   <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white dark:bg-slate-900">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    <span className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
                       {summary.aptoPercent}%
                     </span>
                     <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -629,7 +723,7 @@ export default function PersonnelManagement() {
               <h4 className="text-sm font-medium opacity-80">
                 Testes Realizados
               </h4>
-              <div className="mt-1 text-3xl font-bold">
+              <div className="mt-1 text-xl md:text-3xl font-bold">
                 {summary.testsThisMonth}
               </div>
               <div className="mt-4 flex items-center gap-1 text-xs">
@@ -658,14 +752,14 @@ export default function PersonnelManagement() {
       {/* ── Drawer de perfil ───────────────────────────────────────── */}
       {selectedUser && (
         <>
-          {/* Overlay */}
+          {/* Overlay — acima da sidebar (z-50) */}
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
             onClick={closeDrawer}
           />
 
           {/* Painel */}
-          <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900">
+          <aside className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900">
             {/* Header do drawer */}
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -693,39 +787,66 @@ export default function PersonnelManagement() {
 
             {/* Conteúdo */}
             <div className="flex-1 overflow-y-auto p-6">
-              {loadingDetail ? (
-                <div className="flex items-center justify-center py-20 text-slate-400">
-                  <Loader2 size={28} className="animate-spin" />
-                </div>
-              ) : userDetail ? (
+              {userDetail ? (
                 <div className="space-y-6">
-                  {/* Status badge */}
-                  <div className="flex items-center gap-2">
-                    {(
-                      [
-                        ["APTO", "bg-emerald-100 text-emerald-700"],
-                        ["INAPTO", "bg-red-100 text-red-700"],
-                        ["VENCIDO", "bg-amber-100 text-amber-700"],
-                      ] as [PersonnelRow["status"], string][]
-                    ).map(([s, cls]) =>
-                      userDetail.status === s ? (
-                        <span
-                          key={s}
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}
-                        >
-                          {s}
-                        </span>
-                      ) : null,
-                    )}
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        userDetail.active
-                          ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                          : "bg-red-100 text-red-600"
-                      }`}
-                    >
-                      {userDetail.active ? "Conta ativa" : "Conta inativa"}
-                    </span>
+                  {/* Status badge + toggle ativo/inativo */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(
+                        [
+                          ["APTO", "bg-emerald-100 text-emerald-700"],
+                          ["INAPTO", "bg-red-100 text-red-700"],
+                          ["VENCIDO", "bg-amber-100 text-amber-700"],
+                        ] as [PersonnelRow["status"], string][]
+                      ).map(([s, cls]) =>
+                        userDetail.status === s ? (
+                          <span
+                            key={s}
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}
+                          >
+                            {s}
+                          </span>
+                        ) : null,
+                      )}
+                    </div>
+
+                    {/* Toggle conta ativa/inativa */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={savingActive || userDetail.active}
+                        onClick={() => handleToggleActive(true)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
+                          userDetail.active
+                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
+                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-emerald-300 disabled:opacity-100"
+                        }`}
+                      >
+                        {savingActive && !userDetail.active ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <UserCheck size={13} />
+                        )}
+                        Ativo
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingActive || !userDetail.active}
+                        onClick={() => handleToggleActive(false)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
+                          !userDetail.active
+                            ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-red-300 disabled:opacity-100"
+                        }`}
+                      >
+                        {savingActive && userDetail.active ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <UserX size={13} />
+                        )}
+                        Inativo
+                      </button>
+                    </div>
                   </div>
 
                   {/* Dados pessoais */}
@@ -819,27 +940,74 @@ export default function PersonnelManagement() {
                     </dl>
                   </section>
 
-                  {/* TACF */}
+                  {/* Histórico de testes TACF */}
                   <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
                     <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                      <FileText size={13} /> Último Teste TACF
+                      <ClipboardList size={13} /> Histórico TACF
                     </h3>
-                    <dl className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Data</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
-                          {dateLabel(userDetail.lastTestDate)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Score</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
-                          {userDetail.lastScore !== null
-                            ? userDetail.lastScore
-                            : "--"}
-                        </dd>
-                      </div>
-                    </dl>
+
+                    {userDetail.testHistory.length === 0 ? (
+                      <p className="text-xs text-slate-400 py-1">
+                        Nenhum teste registrado.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {userDetail.testHistory.map((t, idx) => {
+                          const isFirst = idx === 0;
+                          const hasScore = t.score !== null;
+                          const scoreColor =
+                            t.score !== null && t.score >= 70
+                              ? "text-emerald-600"
+                              : t.score !== null
+                                ? "text-red-500"
+                                : "text-slate-400";
+                          return (
+                            <li
+                              key={t.id}
+                              className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+                                isFirst
+                                  ? "bg-primary/5 border border-primary/20"
+                                  : "bg-slate-50 dark:bg-slate-800/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {hasScore ? (
+                                  t.score! >= 70 ? (
+                                    <CheckCircle2
+                                      size={14}
+                                      className="text-emerald-500 shrink-0"
+                                    />
+                                  ) : (
+                                    <XCircle
+                                      size={14}
+                                      className="text-red-400 shrink-0"
+                                    />
+                                  )
+                                ) : (
+                                  <FileText
+                                    size={14}
+                                    className="text-slate-300 shrink-0"
+                                  />
+                                )}
+                                <span className="text-slate-600 dark:text-slate-300">
+                                  {dateLabel(t.date)}
+                                </span>
+                                {isFirst && (
+                                  <span className="text-[10px] font-bold text-primary uppercase">
+                                    Último
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className={`font-bold tabular-nums ${scoreColor}`}
+                              >
+                                {t.score !== null ? t.score : "—"}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </section>
 
                   {/* Cadastro */}
@@ -847,12 +1015,16 @@ export default function PersonnelManagement() {
                     <Calendar size={11} />
                     Cadastrado em {dateLabel(userDetail.created_at)}
                   </p>
+
+                  {/* Indicador de carregamento de dados extras */}
+                  {loadingDetail && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                      <Loader2 size={13} className="animate-spin" />
+                      Carregando informações adicionais...
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-center text-sm text-slate-400">
-                  Sem dados para exibir.
-                </p>
-              )}
+              ) : null}
             </div>
           </aside>
         </>

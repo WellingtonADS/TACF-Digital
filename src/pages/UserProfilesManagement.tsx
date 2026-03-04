@@ -205,7 +205,7 @@ export default function UserProfilesManagement() {
 
         <header className="mb-8 flex justify-between items-end">
           <div>
-            <h2 className="text-3xl font-bold text-primary dark:text-white">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
               Gerenciamento de Perfil
             </h2>
             <p className="text-slate-500 mt-1">
@@ -220,10 +220,10 @@ export default function UserProfilesManagement() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left column: profile summary */}
           <div className="lg:w-72 flex-shrink-0">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 flex flex-col items-center text-center">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 md:p-8 flex flex-col items-center text-center">
               {/* Avatar */}
               <div className="w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20 flex items-center justify-center mb-4">
-                <span className="text-3xl font-black text-primary tracking-tight">
+                <span className="text-xl md:text-3xl font-black text-primary tracking-tight">
                   {(profile?.war_name ?? profile?.full_name ?? "?")
                     .split(" ")
                     .slice(0, 2)
@@ -297,7 +297,7 @@ export default function UserProfilesManagement() {
 
           {/* Right column: form */}
           <div className="flex-1">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-700 p-8 lg:p-10">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-700 p-4 md:p-8 lg:p-10">
               <form className="space-y-10" onSubmit={handleSave}>
                 <p className="text-xs text-slate-500">
                   Campos com <span className="font-bold">*</span> são

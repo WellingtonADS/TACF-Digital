@@ -1,47 +1,15 @@
 import useAuth from "@/hooks/useAuth";
-import { supabase } from "@/services/supabase";
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import PageSkeleton from "./PageSkeleton";
 
 export default function AutoRedirect() {
-  const { profile } = useAuth();
-  const [checking, setChecking] = useState(true);
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { user, profile, loading } = useAuth();
 
-  useEffect(() => {
-    let mounted = true;
+  if (loading) {
+    return <PageSkeleton rows={6} />;
+  }
 
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (!mounted) return;
-        setAuthenticated(!!data?.user?.id);
-      } catch {
-        if (!mounted) return;
-        setAuthenticated(false);
-      } finally {
-        if (mounted) {
-          setChecking(false);
-        }
-      }
-    })();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) setAuthenticated(!!session?.user?.id);
-      },
-    );
-
-    return () => {
-      // @ts-expect-error unsub typing
-      listener?.subscription?.unsubscribe?.();
-      mounted = false;
-    };
-  }, []);
-
-  if (checking) return null;
-
-  if (authenticated) {
+  if (user) {
     // redirect based on role fetched from profile
     const role = profile?.role;
     if (role === "admin" || role === "coordinator") {
