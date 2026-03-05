@@ -22,8 +22,8 @@ type RequestRow = BookingRow & {
 
 const STATUS_LABELS: Record<string, string> = {
   pending_swap: "Pendente",
-  approved: "Aprovado",
-  rejected: "Recusado",
+  confirmed: "Aprovado",
+  cancelled: "Recusado",
 };
 
 export default function ReschedulingManagement() {
@@ -116,14 +116,14 @@ export default function ReschedulingManagement() {
         const target = `${r.fullName ?? ""} ${r.warName ?? ""} ${r.saram ?? ""}`;
         if (!target.toLowerCase().includes(q)) return false;
       }
-      if (statusFilter === "pendentes") return true;
-      if (statusFilter === "aprovados") return r.status === "approved";
-      if (statusFilter === "recusados") return r.status === "rejected";
+      if (statusFilter === "pendentes") return r.status === "pending_swap";
+      if (statusFilter === "aprovados") return r.status === "confirmed";
+      if (statusFilter === "recusados") return r.status === "cancelled";
       return true;
     });
   }, [rows, query, statusFilter]);
 
-  async function changeStatus(id: string, status: "approved" | "rejected") {
+  async function changeStatus(id: string, status: "confirmed" | "cancelled") {
     const { error } = await supabase
       .from("bookings")
       .update({ status })
@@ -280,7 +280,7 @@ export default function ReschedulingManagement() {
                         className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                           r.status === "pending_swap"
                             ? "status-pendente"
-                            : r.status === "approved"
+                            : r.status === "confirmed"
                               ? "status-aprovado"
                               : "status-recusado"
                         }`}
@@ -291,7 +291,7 @@ export default function ReschedulingManagement() {
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
-                          onClick={() => changeStatus(r.id, "approved")}
+                          onClick={() => changeStatus(r.id, "confirmed")}
                           className="flex items-center gap-1 btn-deferir text-white px-4 py-1.5 rounded-lg text-[10px] font-bold hover:brightness-110 transition-all shadow-md"
                         >
                           <span className="material-icons text-xs">
@@ -300,7 +300,7 @@ export default function ReschedulingManagement() {
                           DEFERIR
                         </button>
                         <button
-                          onClick={() => changeStatus(r.id, "rejected")}
+                          onClick={() => changeStatus(r.id, "cancelled")}
                           className="flex items-center gap-1 btn-indeferir border-2 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all"
                         >
                           <span className="material-icons text-xs">cancel</span>

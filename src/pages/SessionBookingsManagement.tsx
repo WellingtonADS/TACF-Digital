@@ -1,12 +1,14 @@
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
+  FileDown,
   Loader2,
   Search,
   UserCheck,
@@ -68,6 +70,7 @@ export default function SessionBookingsManagement() {
   const [bookings, setBookings] = useState<BookingWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -208,6 +211,39 @@ export default function SessionBookingsManagement() {
     }
   }
 
+  async function handleGenerateAttendancePdf() {
+    if (!session) {
+      toast.error("Sessão não carregada para gerar PDF.");
+      return;
+    }
+
+    if (bookings.length === 0) {
+      toast.error("Não há agendamentos para gerar a lista de presença.");
+      return;
+    }
+
+    const startedAt = Date.now();
+    setGeneratingPdf(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      generateAttendanceListPdf({
+        session,
+        bookings,
+      });
+      toast.success("Lista de presença gerada em PDF.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível gerar o PDF da lista de presença.");
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < 500) {
+        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+      }
+      setGeneratingPdf(false);
+    }
+  }
+
   const dateLabel = session
     ? format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
         locale: ptBR,
@@ -257,6 +293,25 @@ export default function SessionBookingsManagement() {
               </p>
             )}
           </div>
+          <button
+            type="button"
+            aria-label="Gerar Lista de Presença"
+            onClick={handleGenerateAttendancePdf}
+            disabled={loading || generatingPdf || bookings.length === 0}
+            className="flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {generatingPdf ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Processando...
+              </>
+            ) : (
+              <>
+                <FileDown size={14} />
+                Gerar Lista de Presença
+              </>
+            )}
+          </button>
         </div>
 
         {/* Filters row */}

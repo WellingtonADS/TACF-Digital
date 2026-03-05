@@ -2,7 +2,7 @@ import AuthLayout from "@/components/AuthLayout";
 import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -12,6 +12,17 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Prevent browser-managed autofill from keeping stale credentials on first paint.
+    const clearTimer = window.setTimeout(() => {
+      setFullName("");
+      setEmail("");
+      setPassword("");
+    }, 0);
+
+    return () => window.clearTimeout(clearTimer);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,17 +90,19 @@ export default function RegisterPage() {
           </h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           <p className="text-xs text-slate-500">
             Campos com <span className="font-bold">*</span> são obrigatórios.
           </p>
 
           <div className="space-y-1">
             <input
+              name="tacf-register-full-name"
               type="text"
               required
               placeholder="Ex.: João da Silva"
               value={fullName}
+              autoComplete="off"
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
@@ -97,10 +110,15 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <input
+              name="tacf-register-email"
               type="email"
               required
               placeholder="Ex.: joao.silva@fab.mil.br"
               value={email}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
@@ -108,10 +126,12 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <input
+              name="tacf-register-password"
               type="password"
               required
               placeholder="Ex.: senha com mínimo de 8 caracteres"
               value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />

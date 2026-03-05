@@ -11,7 +11,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:integration": "vitest run"
+    "test:integration": "vitest run",
+    "test:e2e": "playwright test -c playwright.config.ts",
+    "test:e2e:headed": "playwright test -c playwright.config.ts --headed"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

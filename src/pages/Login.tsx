@@ -2,7 +2,7 @@ import AuthLayout from "@/components/AuthLayout";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -15,6 +15,15 @@ export default function Login() {
     password: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    // Force a post-mount reset to prevent browser-managed autofill from persisting.
+    const clearTimer = window.setTimeout(() => {
+      setFormData({ email: "", password: "", confirmPassword: "" });
+    }, 0);
+
+    return () => window.clearTimeout(clearTimer);
+  }, []);
 
   const [autoLoginFailed, setAutoLoginFailed] = useState(false);
   const [retryingAutoLogin, setRetryingAutoLogin] = useState(false);
@@ -129,14 +138,19 @@ export default function Login() {
           </h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           <div className="space-y-1">
             <input
               id="email"
+              name="tacf-auth-email"
               type="email"
               required
               placeholder="Ex.: joao.silva@fab.mil.br"
               value={formData.email}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
@@ -147,10 +161,12 @@ export default function Login() {
           <div className="space-y-1">
             <input
               id="password"
+              name="tacf-auth-password"
               type="password"
               required
               placeholder="Digite sua senha"
               value={formData.password}
+              autoComplete="new-password"
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
@@ -162,10 +178,12 @@ export default function Login() {
             <div className="space-y-1">
               <input
                 id="confirmPassword"
+                name="tacf-auth-confirm-password"
                 type="password"
                 required
                 placeholder="Confirme sua senha"
                 value={formData.confirmPassword}
+                autoComplete="new-password"
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }

@@ -1,72 +1,54 @@
-1. Barra Lateral de Navegação (Menu Persistente - User)
+# Contexto de Rotas - Perfil Usuario
 
-A barra lateral é o componente fixo que permite a navegação entre os módulos de autogestão do militar:
+Documento consolidado de navegacao para o perfil Usuario (militar) no TACF-Digital.
 
-    Dashboard (Visão Geral): Tela inicial com status em tempo real e avisos.
+## Sidebar (menu persistente)
 
-    Agendamentos / Avaliações: Portal para gerenciar e realizar novas marcações de testes.
+- Dashboard
+- Agendamentos / Avaliacoes
+- Documentos
+- Resultados / Historico
+- Meu Perfil
+- Sair
 
-    Documentos / Relatórios: Central de certificados e normas técnicas (como a ICA 54-2).
+## Rotas de Usuario Principais
 
-    Histórico: Registro completo e cronológico de avaliações anteriores.
+- `/app/agendamentos`: selecao de data, local e horario.
+- `/app/agendamentos/confirmacao`: revisao dos dados e confirmacao do agendamento.
+- `/app/ticket`: comprovante digital (ticket) apos confirmacao.
+- `/app/resultados`: consulta de resultados e desempenho.
+- `/app/documentos`: acesso a documentos e referencias operacionais.
+- `/app/recurso`: abertura de solicitacao de revisao de resultado.
+- `/app/perfil`: dados pessoais/militares e informacoes de saude.
 
-    Meu Perfil: Gestão de dados pessoais, militares e monitoramento de saúde.
+## Fluxos de Uso
 
-    Sair do Sistema (Rodapé): Encerramento seguro da sessão.
+### 1. Monitoramento inicial
 
-2. Rotas de Navegação e Hierarquia de Telas
-A. Central de Controle (Dashboard)
+- O usuario acessa o dashboard para validar status de prontidao.
+- Alertas operacionais (ex.: validade de inspecao) orientam as proximas acoes.
 
-    Dashboard Operacional (Home): Exibe saudação personalizada, status de prontidão (ex: ATIVO / APTO) e alertas críticos, como o vencimento da Inspeção de Saúde (INSPSAU).
+### 2. Novo agendamento TACF
 
-        Atalhos de Ação Rápida:
+- Etapa 1: selecionar local, data e horario em `/app/agendamentos`.
+- Etapa 2: revisar requisitos e confirmar em `/app/agendamentos/confirmacao`.
+- Etapa 3: obter comprovante em `/app/ticket`.
 
-            Marcar TACF: Inicia o processo de agendamento.
+### 3. Acompanhamento de desempenho
 
-            Meus Testes: Atalho direto para o histórico.
+- Consultar resultados e historico em `/app/resultados`.
+- Acessar documentos complementares em `/app/documentos`.
 
-            Resultados: Acesso a certificados oficiais.
+### 4. Excecoes e solicitacoes
 
-            Documentação: Consulta a manuais e portarias.
+- Abrir recurso de resultado em `/app/recurso`.
+- Solicitar reagendamento pelos pontos de entrada da interface (drawer/cartoes), com analise administrativa posterior.
 
-B. Fluxo de Novo Agendamento (Processo em Etapas)
+### 5. Manutencao de perfil
 
-O agendamento segue um fluxo linear e informativo para garantir a conformidade:
+- Atualizar informacoes em `/app/perfil` para manter comunicacao e autorizacoes operacionais consistentes.
 
-    Etapa 1: Seleção de Data e Hora: Escolha do local (ex: Pista de Atletismo - HACO), data no calendário e turnos disponíveis (ex: 07:30 ou 08:30).
+## Observacoes de arquitetura
 
-    Etapa 2: Revisão (Confirmação): Conferência de dados (SARAM, Posto) e visualização de requisitos obrigatórios (Uniforme de TAF e Identidade).
-
-    Etapa 3: Ticket Digital: Geração do comprovante final com Status Confirmado, QR Code e código de validação (ex: A87-X29-KB1).
-
-C. Consulta de Desempenho (Histórico)
-
-    Painel de Histórico: Exibe métricas de resumo como média global (ex: 9.2) e contagem regressiva para a revalidação.
-
-        Tabela de Registros: Lista com data, local, média/conceito (ex: Excelente) e resultado final (Apto/Inapto).
-
-        Ações: Opção para "Visualizar Detalhes" de cada prova específica.
-
-D. Gestão de Identidade (Meu Perfil)
-
-    Gerenciamento de Perfil: Central de dados do militar.
-
-        Dados Militares: Consulta de SARAM, Posto e OM de origem.
-
-        Painel de Saúde: Monitoramento da validade da INSPSAU, essencial para autorização de testes.
-
-        Segurança: Configurações para alteração de senha da conta.
-
-3. Fluxo de Utilização Típico (User Journey)
-
-    Monitorização Inicial: O militar acessa o Dashboard para validar se o seu status está "Apto" e se há alertas sobre o vencimento da sua inspeção de saúde.
-
-    Agendamento de Novo TACF: Ao identificar a necessidade de revalidação, o usuário seleciona data, hora e local, revisa as normas obrigatórias e gera o seu Ticket Digital.
-
-    Acompanhamento de Resultados: Após o teste, o militar consulta o Histórico para verificar a média lançada pela administração e o conceito atingido.
-
-    Casos de Exceção (Recursos e Reagendamentos): * Revisão de Resultado: Se houver discordância no índice, o militar protocola uma solicitação fundamentada na ICA 54-2.
-
-        Reagendamento: Em caso de missões de serviço, o usuário solicita a troca de data, recebendo uma notificação de Deferido/Indeferido após análise administrativa.
-
-    Manutenção de Dados: O usuário garante que os seus contatos no Meu Perfil estão atualizados para receber comunicações do sistema.
+- O frontend guia o fluxo e exibe estados da operacao.
+- Validacoes criticas de dominio devem permanecer no backend/RPC.

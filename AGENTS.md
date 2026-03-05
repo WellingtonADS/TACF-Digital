@@ -1,103 +1,53 @@
-# Diretrizes do Projeto para Agentes AI
+# Project Guidelines
 
+## Code Style
 
-🤖 Agent System Instructions: Developer Persona
+- TypeScript com `strict`; evitar `any` e manter tipagem explícita.
+- Componentes React funcionais com hooks; JSX runtime (sem `import React`).
+- Reutilize padrões existentes antes de criar novos componentes/serviços (DRY/KISS/YAGNI).
+- Use Tailwind e tokens já existentes; não introduza estilo fora do sistema visual atual.
 
-Você é um desenvolvedor focado em eficiência, simplicidade e manutenção de código limpo. Sua operação deve ser guiada estritamente pelos princípios abaixo:
-🎯 Princípios Fundamentais (Core Directives)
-1. DRY (Don't Repeat Yourself)
+## Architecture
 
-    NUNCA repita lógica, métodos ou propriedades já existentes.
+- Frontend: Vite + React 18 + TypeScript.
+- Rotas e guards centralizados em `src/main.tsx` com `ProtectedRoute`, `AdminRoute` e `UserRoute`.
+- Integração Supabase centralizada em `src/services/supabase.ts`.
+- Regras de domínio (reserva, confirmação, disponibilidade, quórum) ficam no banco via RPC em `supabase/rpc/`.
+- Estrutura de banco em `supabase/migrations/` e políticas em `supabase/policies/rls.sql`.
 
-    Defina cada funcionalidade em um único local e reaproveite-a em todo o projeto.
+## Build and Test
 
-    Antes de criar, busque por padrões similares no diretório src/.
+- Instalar dependências: `yarn`
+- Desenvolvimento: `yarn dev`
+- Build: `yarn build`
+- Lint: `yarn lint`
+- Preview: `yarn preview`
+- Verificação de tipos: `npx tsc --noEmit`
+- Banco: `yarn db:apply`, `yarn db:seed`, `yarn db:check`
+- E2E: `yarn test:e2e` ou `yarn test:e2e:headed`
+- Integração: `yarn test:integration`
 
-2. KISS (Keep It Simple, Stupid)
+## Project Conventions
 
-    A simplicidade é o nível mais alto de sofisticação. Evite toda e qualquer complexidade desnecessária.
+- Antes de implementar, pesquise no `src/` e prefira extensão/refatoração de código existente.
+- Não mover validações críticas para frontend; usar RPCs existentes ou criar RPC em `supabase/rpc/`.
+- Não adicionar dependências fora do stack aprovado sem alinhamento do time.
+- Não gerar testes automaticamente, a menos que seja solicitado explicitamente.
 
-    Se uma solução pode ser escrita de forma simples, deve ser escrita de forma simples.
+## Integration Points
 
-3. YAGNI (You Ain't Gonna Need It)
+- Cliente e helpers Supabase: `src/services/supabase.ts`.
+- Fluxos de agendamento e sessões usam chamadas RPC (ex.: `book_session`, `confirmar_agendamento`).
+- Scripts operacionais de banco em `scripts/db/`.
+- Geração de PDF em `src/utils/pdf/generateCallList.ts`.
 
-    Implemente funcionalidades apenas quando houver uma necessidade real e imediata.
+## Security
 
-    Não antecipe cenários futuros ("acho que vou usar depois"). Codifique para o agora.
+- Não expor segredos; usar variáveis de ambiente.
+- Não alterar RLS, migrations ou schema sem revisão humana do coordenador (HACO).
+- Não exibir dados sensíveis sem garantir que a política/RLS cobre o cenário.
 
-🛠️ Protocolo Operacional
-Planejamento e Exploração
+## Agent Workflow
 
-    Investigação Preventiva: Antes de gerar código novo, pesquise exaustivamente o que já existe na pasta src. Só gere arquivos ou funções novas se for estritamente necessário.
-
-    Integridade de Dados: Mantenha e proteja as conexões existentes com o banco de dados. Não altere configurações de infraestrutura sem planejamento prévio.
-
-    Refatoração Planejada: Todo processo de criação ou refatoração deve ser precedido por um plano de ação claro.
-
-Gestão de Contexto
-
-    Respostas Concisas: Evite blocos de texto excessivamente longos na janela de chat.
-
-    Uso de Artefatos: Para documentações, listas de dados ou especificações extensas, utilize arquivos externos (Markdown .md, .txt, .csv, etc.).
-
-Testes e Refinamento
-
-    Testes sob Demanda: Não gere arquivos de teste (unitários, integração, etc.) a menos que seja explicitamente solicitado pelo usuário.
-
-    Polimento Visual: Toda entrega de interface deve passar por um refinamento estético final para garantir alinhamento total com o conceito visual e a identidade do projeto.
-
-📝 Checklists de Entrega
-Critério	Ação do Agente
-Duplicidade	Verifiquei se já existe algo igual no src?
-Simplicidade	Existe um caminho mais simples para este código?
-Utilidade	Esse código será usado imediatamente?
-Visual	O CSS/Estilização está refinado e fiel ao conceito?
-
-    Nota: Se houver conflito entre uma nova implementação e a arquitetura atual, priorize a reutilização de código e a simplicidade.
-
-## 🎯 Objetivo do Projeto
-
-Frontend em React + Supabase para gerenciamento de agendamentos e listas de chamada (ex.: convocações/turnos), com geração de PDFs e regras de domínio aplicadas via RPCs/Postgres.
-
-## 🛠 Tech Stack & Padrões
-
-- **Linguagem:** TypeScript (strict)
-- **Frameworks:** React 18 (Vite), Tailwind CSS, Supabase (Postgres + Auth)
-- **Testes:** Vitest (unit), Playwright (E2E)
-- **Build/cli:** Yarn, Vite
-- **Estilo/arquitetura:** Componentes funcionais e hooks, JSX runtime (não importar `React`), estado preferencialmente local, evitar `any`.
-
-## rules Regras de Ouro
-
-1. **Seja Conciso:** respostas e commits curtos; priorize código claro sobre longas explicações.
-2. **Segurança:** nunca exponha chaves/segredos; não hardcode credenciais. Use variáveis de ambiente (`.env`).
-3. **Tipagem:** mantenha `strict` em TypeScript; evite `any` — prefira tipos explícitos e generics quando necessário.
-4. **Documentação:** adicione JSDoc/Docstrings somente para funções complexas ou regras de negócio importantes.
-5. **Banco de Dados / RLS:** não altere `supabase/` (schemas, policies, migrations) sem aprovação humana do coordenador; regras de domínio devem residir no backend (RPCs).
-6. **Validações:** prefira criar/usar RPCs em `supabase/rpc/` ao invés de mover validações críticas para o cliente.
-
-
-
-## 🧪 Estratégia de Testes
-
-- Todo código novo deve incluir testes unitários (Vitest). Cobertura mínima para funcionalidades novas.
-- Use factories e helpers de teste (mocks) para dependências externas (`src/services/supabase.ts` deve ser mockado em testes unitários).
-- Cenários críticos (fluxos de reserva, emissão de comprovantes, geração de PDFs) devem ter testes E2E com Playwright.
-- Execute linters e tipos antes de abrir PR: `yarn lint` e `npx tsc --noEmit`.
-
-## Integrações e pontos de atenção
-
-- Supabase client e helpers em `src/services/supabase.ts` — revise antes de alterar.
-- Lógica de reserva e quórum vive em RPCs (`supabase/rpc/`) e migrations (`supabase/migrations`).
-- Geração de PDF: `src/utils/pdf/generateCallList.ts` usa `jspdf` + `autotable`.
-
-## Fluxo de trabalho para agentes
-
-1. Fazer mudanças locais e rodar: `yarn && yarn lint && npx tsc --noEmit && yarn test`.
-2. Para alterações no DB: abrir issue, descrever migração, criar migration em `supabase/migrations/` e pedir revisão humana.
-3. Não incluir dependências fora do stack aprovado sem consentimento do time.
-
-## Contatos e revisão humana
-
-- Alterações que toquem RLS, políticas de privacidade, ou regras de domínio: solicitar revisão do coordenador (HACO) antes de merge.
-
+- Fluxo mínimo por mudança: implementar -> `yarn lint` -> `npx tsc --noEmit` -> validação funcional local.
+- Em mudanças de banco, documentar impacto e solicitar revisão humana antes de merge.
