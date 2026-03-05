@@ -1,4 +1,10 @@
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
+import supabase from "@/services/supabase";
+import {
+  fetchBookedDatesForUser,
+  formatDatePtBr,
+  formatSessionPeriod,
+} from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import {
   Calendar,
@@ -20,6 +26,11 @@ import Layout from "../layout/Layout";
 export const Scheduling = () => {
   const navigate = useNavigate();
 
+  type SessionLocation = {
+    name: string | null;
+    address: string | null;
+  };
+
   const [viewDate, setViewDate] = useState(() => new Date());
   const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
   const endOfMonth = new Date(
@@ -34,6 +45,10 @@ export const Scheduling = () => {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [sessionLocation, setSessionLocation] =
+    useState<SessionLocation | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
 
   const sessionsByDate = useMemo(() => {
     const map: Record<string, SessionAvailability[]> = {};
@@ -83,6 +98,68 @@ export const Scheduling = () => {
     selectedDate && sessionsByDate[selectedDate]
       ? sessionsByDate[selectedDate]
       : [];
+
+  const sessionIdForLocation =
+    selectedSession ?? sessionsForSelected[0]?.session_id ?? null;
+
+  useEffect(() => {
+    async function fetchSessionLocation(sessionId: string) {
+      setLocationLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("sessions")
+          .select("location:locations(name, address)")
+          .eq("id", sessionId)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        const locationRaw = data?.location as
+          | { name?: string | null; address?: string | null }
+          | { name?: string | null; address?: string | null }[]
+          | null;
+
+        const location = Array.isArray(locationRaw)
+          ? locationRaw[0]
+          : locationRaw;
+
+        setSessionLocation({
+          name: location?.name ?? null,
+          address: location?.address ?? null,
+        });
+      } catch {
+        setSessionLocation(null);
+      } finally {
+        setLocationLoading(false);
+      }
+    }
+
+    if (!sessionIdForLocation) {
+      setSessionLocation(null);
+      setLocationLoading(false);
+      return;
+    }
+
+    fetchSessionLocation(sessionIdForLocation);
+  }, [sessionIdForLocation]);
+
+  // fetch user's bookings on the visible month range and mark dates as booked
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      const set = await fetchBookedDatesForUser(startStr, endStr);
+      if (mounted) setBookedDates(set);
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [startStr, endStr]);
 
   return (
     <Layout>
@@ -219,6 +296,7 @@ export const Scheduling = () => {
                       const dateKey = dateObj.toISOString().split("T")[0];
                       const hasSessions =
                         (sessionsByDate[dateKey] || []).length > 0;
+                      const isBooked = bookedDates.has(dateKey);
                       const isSelected = selectedDate === dateKey;
                       const isPast =
                         dateObj < new Date(new Date().setHours(0, 0, 0, 0));
@@ -238,7 +316,7 @@ export const Scheduling = () => {
                         <button
                           key={i}
                           onClick={() => {
-                            if (hasSessions) {
+                            if (hasSessions && !isBooked) {
                               setSelectedDate(dateKey);
                               setSelectedSession(null);
                             }
@@ -246,15 +324,20 @@ export const Scheduling = () => {
                           className={`aspect-square relative rounded-xl flex items-center justify-center font-medium transition-all ${
                             isSelected
                               ? "bg-primary text-white shadow-sm ring-2 ring-primary/25"
-                              : hasSessions
-                                ? "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                : "text-slate-300 dark:text-slate-600 bg-slate-50/60 dark:bg-slate-800/40 cursor-not-allowed"
+                              : isBooked
+                                ? "text-amber-700 bg-amber-50/80 cursor-not-allowed"
+                                : hasSessions
+                                  ? "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                  : "text-slate-300 dark:text-slate-600 bg-slate-50/60 dark:bg-slate-800/40 cursor-not-allowed"
                           }`}
-                          disabled={!hasSessions}
+                          disabled={!hasSessions || isBooked}
                         >
                           {day}
-                          {hasSessions && (
+                          {hasSessions && !isBooked && (
                             <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
+                          )}
+                          {isBooked && (
+                            <span className="absolute bottom-2 w-2 h-2 rounded-full bg-amber-400 border border-amber-200" />
                           )}
                         </button>
                       );
@@ -276,6 +359,10 @@ export const Scheduling = () => {
                   <div className="w-3 h-3 rounded-full bg-slate-100 dark:bg-slate-700 opacity-60" />{" "}
                   Indisponível
                 </div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-amber-700">
+                  <div className="w-3 h-3 rounded-full bg-amber-400" /> Já
+                  agendado
+                </div>
               </div>
             </div>
 
@@ -288,11 +375,7 @@ export const Scheduling = () => {
                   </p>
                   <h3 className="text-xl font-bold">
                     {selectedDate
-                      ? new Date(selectedDate).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        })
+                      ? formatDatePtBr(selectedDate)
                       : "Selecione uma data"}
                   </h3>
                 </div>
@@ -307,11 +390,15 @@ export const Scheduling = () => {
                         Localização
                       </p>
                       <p className="text-slate-900 dark:text-white font-semibold">
-                        Pista de Atletismo - HACO
+                        {locationLoading
+                          ? "Carregando local..."
+                          : (sessionLocation?.name ?? "Local não informado")}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Hospital de Aeronáutica de Canoas
-                      </p>
+                      {sessionLocation?.address && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {sessionLocation.address}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -323,7 +410,7 @@ export const Scheduling = () => {
                       <PageSkeleton rows={3} />
                     ) : !selectedDate ? (
                       <div className="text-sm text-slate-500 dark:text-slate-400">
-                        Selecione uma data no calendário à esquerda.
+                        Selecione uma data no calendário.
                       </div>
                     ) : sessionsForSelected.length === 0 ? (
                       <div className="text-sm text-slate-500 dark:text-slate-400">
@@ -352,7 +439,7 @@ export const Scheduling = () => {
                                 }
                               />
                               <span className="font-semibold text-slate-700 dark:text-slate-200">
-                                {s.period}
+                                {formatSessionPeriod(s.period)}
                               </span>
                             </div>
                             <div

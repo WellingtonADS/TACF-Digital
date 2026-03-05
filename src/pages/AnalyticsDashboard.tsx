@@ -604,7 +604,7 @@ export default function AnalyticsDashboard() {
                 Desempenho fisico e prontidao operacional.
               </p>
             </div>
-            <div className="grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+            <div className="grid w-full grid-cols-2 items-center gap-1.5 sm:grid-cols-4 sm:gap-2 md:flex md:w-auto md:flex-wrap">
               {(["month", "quarter", "year", "custom"] as DatePreset[]).map(
                 (p) => (
                   <button
@@ -660,7 +660,7 @@ export default function AnalyticsDashboard() {
           </div>
 
           {/* Tabs */}
-          <div className="mt-5 flex gap-0 border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
+          <div className="mt-5 grid grid-cols-2 gap-0 border-b border-slate-200 dark:border-slate-700 sm:flex sm:overflow-x-auto">
             {[
               {
                 id: "overview" as ReportTab,
@@ -691,7 +691,7 @@ export default function AnalyticsDashboard() {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`flex flex-shrink-0 items-center gap-1 sm:gap-1.5 border-b-2 px-2 sm:px-4 pb-3 pt-1 text-[11px] sm:text-sm font-semibold transition-colors ${
+                className={`flex w-full items-center justify-center gap-1 border-b-2 px-2 pb-3 pt-1 text-[11px] font-semibold transition-colors sm:w-auto sm:flex-shrink-0 sm:justify-start sm:gap-1.5 sm:px-4 sm:text-sm ${
                   activeTab === id
                     ? "border-primary text-primary dark:border-white dark:text-white"
                     : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -871,8 +871,8 @@ export default function AnalyticsDashboard() {
                   {pendingRows.length}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
-                <div className="relative w-full sm:w-auto">
+              <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start md:w-auto md:justify-end">
+                <div className="relative w-full sm:w-auto sm:min-w-[220px]">
                   <Search
                     className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
                     size={13}
@@ -881,7 +881,7 @@ export default function AnalyticsDashboard() {
                     value={pendingQuery}
                     onChange={(e) => setPendingQuery(e.target.value)}
                     placeholder="Buscar nome ou SARAM..."
-                    className="w-full sm:w-auto rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-3 text-xs dark:border-slate-700 dark:bg-slate-800/50"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-3 text-xs dark:border-slate-700 dark:bg-slate-800/50 sm:w-auto"
                   />
                 </div>
                 <button
@@ -912,7 +912,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             {showFilters && (
-              <div className="flex flex-wrap items-end gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="flex flex-col items-stretch gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 dark:border-slate-700 dark:bg-slate-800/40">
                 <FilterSelect
                   label="Unidade"
                   value={filterUnit}
@@ -950,8 +950,83 @@ export default function AnalyticsDashboard() {
               </div>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left text-sm">
+            <div className="space-y-2 px-4 py-3 md:hidden">
+              {loading ? (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  Carregando dados...
+                </p>
+              ) : pendingRows.length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  Nenhuma revalidacao pendente.
+                </p>
+              ) : (
+                pendingRows.map((row) => {
+                  const pClass =
+                    row.priority === "ALTA"
+                      ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                      : row.priority === "MEDIA"
+                        ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+                        : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
+                  const sClass =
+                    row.status === "Expirado"
+                      ? "text-red-500 font-bold"
+                      : "text-amber-500 font-bold";
+
+                  return (
+                    <article
+                      key={row.id}
+                      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${pClass}`}
+                        >
+                          {row.priority}
+                        </span>
+                        <span className={`text-xs ${sClass}`}>
+                          {row.status}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                        {row.warName ?? row.militaryName}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {row.rank ? `${row.rank} · ` : ""}
+                        {row.identity}
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <p className="text-slate-500">Unidade: {row.unit}</p>
+                        <p className="text-slate-500">
+                          Validade: {row.expiration}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between">
+                        {row.lastResult ? (
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${row.lastResult === "apto" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}
+                          >
+                            {row.lastResult}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            Sem resultado
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-primary hover:underline dark:text-secondary"
+                        >
+                          Notificar
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
                     {[
@@ -1083,8 +1158,48 @@ export default function AnalyticsDashboard() {
                 CSV
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+            <div className="space-y-2 px-4 py-3 md:hidden">
+              {loading ? (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  Carregando...
+                </p>
+              ) : units.length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  Sem dados.
+                </p>
+              ) : (
+                units.map((u) => (
+                  <article
+                    key={u.unit}
+                    className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                        {u.unit}
+                      </p>
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                        {u.percent.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                      <p className="text-slate-500">Tot: {u.total}</p>
+                      <p className="text-success">Apt: {u.apt}</p>
+                      <p className="text-red-500">Inapt: {u.inapt}</p>
+                      <p className="text-slate-400">Pend: {u.pending}</p>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                        style={{ width: `${u.percent}%` }}
+                      />
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
                     {[

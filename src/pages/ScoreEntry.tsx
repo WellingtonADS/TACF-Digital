@@ -336,8 +336,8 @@ export default function ScoreEntry() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-        <aside className="xl:col-span-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <aside className="lg:col-span-4">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-200 bg-primary/5 px-5 py-4 dark:border-slate-800 dark:bg-primary/10">
               <div className="flex items-center justify-between">
@@ -454,7 +454,7 @@ export default function ScoreEntry() {
           </div>
         </aside>
 
-        <section className="xl:col-span-8">
+        <section className="lg:col-span-8">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             {!selectedRow ? (
               <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
@@ -475,13 +475,13 @@ export default function ScoreEntry() {
                   </div>
                 </header>
 
-                <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
                   <div>
                     <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       <UserCheck size={14} className="text-primary" />
                       Resultado
                     </label>
-                    <div className="flex gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                       <button
                         type="button"
                         onClick={() => setAptStatus("apto")}
@@ -554,7 +554,7 @@ export default function ScoreEntry() {
                   </aside>
                 </div>
 
-                <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-800">
+                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
                     disabled={saving}

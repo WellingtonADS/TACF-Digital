@@ -203,7 +203,64 @@ export default function ReschedulingManagement() {
 
         {/* table */}
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="space-y-2 p-3 md:hidden">
+            {visibleRows.map((r) => (
+              <article
+                key={r.id}
+                className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+              >
+                <p className="text-sm font-bold uppercase text-slate-900 dark:text-white">
+                  {r.fullName ?? "(desconhecido)"}
+                </p>
+                <p className="mt-1 font-mono text-xs font-semibold text-slate-500">
+                  SARAM: {r.saram ?? "----"}
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                  <p className="text-slate-500">
+                    Data Original: {r.originalDate ?? "--"}
+                  </p>
+                  <p className="text-primary">Nova Data: {r.newDate ?? "--"}</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      r.status === "pending_swap"
+                        ? "status-pendente"
+                        : r.status === "confirmed"
+                          ? "status-aprovado"
+                          : "status-recusado"
+                    }`}
+                  >
+                    {STATUS_LABELS[r.status] ?? r.status}
+                  </span>
+                  <button
+                    onClick={() => setSelected(r)}
+                    className="text-[10px] font-extrabold text-primary hover:underline uppercase tracking-tighter"
+                  >
+                    Ver justificativa
+                  </button>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => changeStatus(r.id, "confirmed")}
+                    className="flex-1 flex items-center justify-center gap-1 btn-deferir text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:brightness-110 transition-all shadow-md"
+                  >
+                    <span className="material-icons text-xs">check_circle</span>
+                    DEFERIR
+                  </button>
+                  <button
+                    onClick={() => changeStatus(r.id, "cancelled")}
+                    className="flex-1 flex items-center justify-center gap-1 btn-indeferir border-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                  >
+                    <span className="material-icons text-xs">cancel</span>
+                    INDEFERIR
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] text-left border-collapse">
               <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <tr>

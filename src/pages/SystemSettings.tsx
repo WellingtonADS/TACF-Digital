@@ -241,58 +241,74 @@ export default function SystemSettings() {
               Defina os requisitos mínimos de desempenho para cada categoria
               etária.
             </p>
-            <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl mb-10">
-              <table className="w-full min-w-[480px] text-left border-collapse">
-                <thead>
-                  <tr className="bg-primary text-white">
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
-                      Idade
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                      Corrida (Min)
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                      Flexão (Rep)
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                      Abdominal (Rep)
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
-                      Conceito
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-right">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {/* sample rows, real data would come from API */}
-                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-700 dark:text-slate-300">
-                      Até 24 anos
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                      12:00
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                      30
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                      35
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded">
-                        EXCELENTE
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-primary transition-colors">
-                        <span className="material-icons text-xl">edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl mb-10">
+              <div className="space-y-2 p-3 md:hidden">
+                <article className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                    Até 24 anos
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                    <p>Corrida: 12:00</p>
+                    <p>Flexão: 30</p>
+                    <p>Abdominal: 35</p>
+                    <p>Conceito: EXCELENTE</p>
+                  </div>
+                </article>
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[480px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-primary text-white">
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
+                        Idade
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
+                        Corrida (Min)
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
+                        Flexão (Rep)
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
+                        Abdominal (Rep)
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
+                        Conceito
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-right">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {/* sample rows, real data would come from API */}
+                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-700 dark:text-slate-300">
+                        Até 24 anos
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                        12:00
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                        30
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                        35
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded">
+                          EXCELENTE
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                        <button className="p-2 text-slate-400 hover:text-primary transition-colors">
+                          <span className="material-icons text-xl">edit</span>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
@@ -333,40 +349,64 @@ export default function SystemSettings() {
             {auditLoading ? (
               <p>Carregando...</p>
             ) : (
-              <div className="overflow-auto max-h-[400px]">
-                <table className="w-full min-w-[640px] text-left border-collapse">
-                  <thead>
-                    <tr className="bg-primary text-white">
-                      <th className="px-4 py-2 text-xs font-bold uppercase">
-                        Ação
-                      </th>
-                      <th className="px-4 py-2 text-xs font-bold uppercase">
-                        Entidade
-                      </th>
-                      <th className="px-4 py-2 text-xs font-bold uppercase">
-                        Usuário
-                      </th>
-                      <th className="px-4 py-2 text-xs font-bold uppercase">
-                        Horário
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {auditLogs.map((log) => (
-                      <tr
-                        key={log.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                      >
-                        <td className="px-4 py-2 text-sm">{log.action}</td>
-                        <td className="px-4 py-2 text-sm">{log.entity}</td>
-                        <td className="px-4 py-2 text-sm">{log.user_name}</td>
-                        <td className="px-4 py-2 text-sm">
-                          {new Date(log.created_at ?? "").toLocaleString()}
-                        </td>
+              <div className="max-h-[400px] overflow-auto">
+                <div className="space-y-2 p-3 md:hidden">
+                  {auditLogs.map((log) => (
+                    <article
+                      key={log.id}
+                      className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <p className="text-xs font-bold uppercase text-slate-400">
+                        {log.action}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        Entidade: {log.entity}
+                      </p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        Usuário: {log.user_name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(log.created_at ?? "").toLocaleString()}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden md:block">
+                  <table className="w-full min-w-[640px] text-left border-collapse">
+                    <thead>
+                      <tr className="bg-primary text-white">
+                        <th className="px-4 py-2 text-xs font-bold uppercase">
+                          Ação
+                        </th>
+                        <th className="px-4 py-2 text-xs font-bold uppercase">
+                          Entidade
+                        </th>
+                        <th className="px-4 py-2 text-xs font-bold uppercase">
+                          Usuário
+                        </th>
+                        <th className="px-4 py-2 text-xs font-bold uppercase">
+                          Horário
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {auditLogs.map((log) => (
+                        <tr
+                          key={log.id}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                        >
+                          <td className="px-4 py-2 text-sm">{log.action}</td>
+                          <td className="px-4 py-2 text-sm">{log.entity}</td>
+                          <td className="px-4 py-2 text-sm">{log.user_name}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {new Date(log.created_at ?? "").toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

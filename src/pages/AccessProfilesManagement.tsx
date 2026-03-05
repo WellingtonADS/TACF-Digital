@@ -258,66 +258,119 @@ export default function AccessProfilesManagement() {
                 )}
               </div>
               {/* permissions table */}
-              <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-xl">
-                <table className="w-full min-w-[760px] text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50">
-                    <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
-                        Módulo
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
-                        Visualizar
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
-                        Criar
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
-                        Editar
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
-                        Excluir
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {permissions.map((perm) => {
-                      const enabled = profilePermissions.has(perm.id);
-                      const name = perm.name;
-                      return (
-                        <tr
-                          key={perm.id}
-                          className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                        >
-                          <td className="px-6 py-5 font-semibold text-slate-700 dark:text-slate-300">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                                <span className="material-icons-outlined text-sm">
-                                  {iconForPermission(name)}
+              <div className="border border-slate-100 dark:border-slate-700 rounded-xl">
+                <div className="space-y-2 p-3 md:hidden">
+                  {permissions.map((perm) => {
+                    const enabled = profilePermissions.has(perm.id);
+                    const name = perm.name;
+
+                    return (
+                      <article
+                        key={perm.id}
+                        className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                      >
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            <span className="material-icons-outlined text-sm">
+                              {iconForPermission(name)}
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            {name}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {["Visualizar", "Criar", "Editar", "Excluir"].map(
+                            (label, idx) => (
+                              <label
+                                key={label}
+                                className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700"
+                              >
+                                <span className="text-slate-500 dark:text-slate-400">
+                                  {label}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                  checked={enabled}
+                                  disabled={!selectedProfileId || loadingPerms}
+                                  onChange={(e) =>
+                                    togglePermission(perm.id, e.target.checked)
+                                  }
+                                  aria-label={`${label} - ${name}`}
+                                  data-col={idx}
+                                />
+                              </label>
+                            ),
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[760px] text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
+                          Módulo
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                          Visualizar
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                          Criar
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                          Editar
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                          Excluir
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {permissions.map((perm) => {
+                        const enabled = profilePermissions.has(perm.id);
+                        const name = perm.name;
+                        return (
+                          <tr
+                            key={perm.id}
+                            className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                          >
+                            <td className="px-6 py-5 font-semibold text-slate-700 dark:text-slate-300">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                                  <span className="material-icons-outlined text-sm">
+                                    {iconForPermission(name)}
+                                  </span>
+                                </div>
+                                <span className="font-semibold text-sm">
+                                  {name}
                                 </span>
                               </div>
-                              <span className="font-semibold text-sm">
-                                {name}
-                              </span>
-                            </div>
-                          </td>
-                          {[1, 2, 3, 4].map((col) => (
-                            <td key={col} className="px-6 py-5 text-center">
-                              <input
-                                type="checkbox"
-                                className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
-                                checked={enabled}
-                                disabled={!selectedProfileId || loadingPerms}
-                                onChange={(e) =>
-                                  togglePermission(perm.id, e.target.checked)
-                                }
-                              />
                             </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            {[1, 2, 3, 4].map((col) => (
+                              <td key={col} className="px-6 py-5 text-center">
+                                <input
+                                  type="checkbox"
+                                  className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
+                                  checked={enabled}
+                                  disabled={!selectedProfileId || loadingPerms}
+                                  onChange={(e) =>
+                                    togglePermission(perm.id, e.target.checked)
+                                  }
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

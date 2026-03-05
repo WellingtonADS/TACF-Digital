@@ -524,7 +524,72 @@ export default function PersonnelManagement() {
         <div className="grid grid-cols-12 gap-6">
           <section className="col-span-12 md:col-span-9">
             <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-              <div className="overflow-x-auto">
+              <div className="space-y-2 p-3 md:hidden">
+                {loading ? (
+                  <p className="px-3 py-6 text-sm text-slate-500">
+                    Carregando efetivo...
+                  </p>
+                ) : filteredRows.length === 0 ? (
+                  <p className="px-3 py-6 text-sm text-slate-500">
+                    Nenhum militar encontrado para os filtros selecionados.
+                  </p>
+                ) : (
+                  filteredRows.map((row) => {
+                    const statusClass =
+                      row.status === "APTO"
+                        ? "bg-success/10 text-success"
+                        : row.status === "VENCIDO"
+                          ? "bg-error/10 text-error"
+                          : "bg-primary/10 text-primary";
+
+                    return (
+                      <article
+                        key={row.id}
+                        className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-900 dark:text-white">
+                              {row.rank
+                                ? `${row.rank} ${row.warName || row.fullName}`
+                                : row.fullName}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {row.sector || "Sem setor"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openProfile(row)}
+                            className="p-2 text-slate-400 transition-colors hover:text-primary"
+                            title="Ver perfil"
+                          >
+                            <View size={18} />
+                          </button>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <p className="text-slate-500">
+                            SARAM: {row.saram || "--"}
+                          </p>
+                          <p className="text-slate-500">
+                            Último Teste: {dateLabel(row.lastTestDate)}
+                          </p>
+                        </div>
+                        <div className="mt-3">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {row.status}
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[760px] border-collapse text-left">
                   <thead className="bg-slate-50 dark:bg-slate-800/50">
                     <tr>

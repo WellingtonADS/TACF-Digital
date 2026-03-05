@@ -362,146 +362,255 @@ export default function SessionBookingsManagement() {
               <p className="text-sm">Nenhum agendamento encontrado.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
-                    <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider w-12">
-                      Nº
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Posto/Grad
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Nome
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Guerra
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      SARAM
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Presença
-                    </th>
-                    <th className="px-4 py-3 text-right font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filtered.map((b) => {
-                    const isUpdating = updating === b.id;
-                    return (
-                      <tr
-                        key={b.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                          {b.order_number ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-medium text-xs whitespace-nowrap">
-                          {b.rank ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-800 dark:text-white font-medium whitespace-nowrap">
-                          {b.full_name ?? (
-                            <span className="text-slate-400 italic">s/n</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {b.war_name ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-500">
-                          {b.saram ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              STATUS_CLASSES[b.status] ??
-                              STATUS_CLASSES["cancelled"]
-                            }`}
-                          >
-                            {STATUS_LABELS[b.status] ?? b.status}
+            <>
+              <div className="space-y-2 p-3 md:hidden">
+                {filtered.map((b) => {
+                  const isUpdating = updating === b.id;
+                  return (
+                    <article
+                      key={b.id}
+                      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">
+                            {b.rank ? `${b.rank} ` : ""}
+                            {b.full_name ?? "s/n"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Guerra: {b.war_name ?? "—"} · SARAM:{" "}
+                            {b.saram ?? "—"}
+                          </p>
+                        </div>
+                        <span className="font-mono text-[10px] text-slate-400">
+                          Nº {b.order_number ?? "—"}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            STATUS_CLASSES[b.status] ??
+                            STATUS_CLASSES["cancelled"]
+                          }`}
+                        >
+                          {STATUS_LABELS[b.status] ?? b.status}
+                        </span>
+                        {b.attendance_confirmed ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={14} />
+                            Presença confirmada
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {b.attendance_confirmed ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                              <CheckCircle2 size={14} />
-                              Sim
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            {isUpdating ? (
-                              <Loader2
-                                size={16}
-                                className="animate-spin text-slate-400"
-                              />
-                            ) : (
-                              <>
-                                {b.status !== "confirmed" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusChange(b.id, "confirmed")
-                                    }
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                                    title="Confirmar agendamento"
-                                  >
-                                    <CheckCircle2 size={15} />
-                                  </button>
-                                )}
-                                {b.status !== "cancelled" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusChange(b.id, "cancelled")
-                                    }
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                    title="Cancelar agendamento"
-                                  >
-                                    <XCircle size={15} />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() =>
-                                    handleToggleAttendance(
-                                      b.id,
-                                      b.attendance_confirmed ?? false,
-                                    )
-                                  }
-                                  className={`p-1.5 rounded-lg transition-colors ${
-                                    b.attendance_confirmed
-                                      ? "text-emerald-500 hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                      : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                                  }`}
-                                  title={
-                                    b.attendance_confirmed
-                                      ? "Remover confirmação de presença"
-                                      : "Confirmar presença"
-                                  }
-                                >
-                                  {b.attendance_confirmed ? (
-                                    <UserX size={15} />
-                                  ) : (
-                                    <UserCheck size={15} />
-                                  )}
-                                </button>
-                              </>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            Sem presença
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-end gap-1">
+                        {isUpdating ? (
+                          <Loader2
+                            size={16}
+                            className="animate-spin text-slate-400"
+                          />
+                        ) : (
+                          <>
+                            {b.status !== "confirmed" && (
+                              <button
+                                onClick={() =>
+                                  handleStatusChange(b.id, "confirmed")
+                                }
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                                title="Confirmar agendamento"
+                              >
+                                <CheckCircle2 size={15} />
+                              </button>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            {b.status !== "cancelled" && (
+                              <button
+                                onClick={() =>
+                                  handleStatusChange(b.id, "cancelled")
+                                }
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                title="Cancelar agendamento"
+                              >
+                                <XCircle size={15} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                handleToggleAttendance(
+                                  b.id,
+                                  b.attendance_confirmed ?? false,
+                                )
+                              }
+                              className={`rounded-lg p-1.5 transition-colors ${
+                                b.attendance_confirmed
+                                  ? "text-emerald-500 hover:bg-slate-100 hover:text-slate-400 dark:hover:bg-slate-800"
+                                  : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                              }`}
+                              title={
+                                b.attendance_confirmed
+                                  ? "Remover confirmação de presença"
+                                  : "Confirmar presença"
+                              }
+                            >
+                              {b.attendance_confirmed ? (
+                                <UserX size={15} />
+                              ) : (
+                                <UserCheck size={15} />
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[920px] text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                      <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider w-12">
+                        Nº
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Posto/Grad
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Nome
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Guerra
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        SARAM
+                      </th>
+                      <th className="px-4 py-3 text-center font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-center font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Presença
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filtered.map((b) => {
+                      const isUpdating = updating === b.id;
+                      return (
+                        <tr
+                          key={b.id}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                            {b.order_number ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-medium text-xs whitespace-nowrap">
+                            {b.rank ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-white font-medium whitespace-nowrap">
+                            {b.full_name ?? (
+                              <span className="text-slate-400 italic">s/n</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {b.war_name ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                            {b.saram ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                STATUS_CLASSES[b.status] ??
+                                STATUS_CLASSES["cancelled"]
+                              }`}
+                            >
+                              {STATUS_LABELS[b.status] ?? b.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {b.attendance_confirmed ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                                <CheckCircle2 size={14} />
+                                Sim
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              {isUpdating ? (
+                                <Loader2
+                                  size={16}
+                                  className="animate-spin text-slate-400"
+                                />
+                              ) : (
+                                <>
+                                  {b.status !== "confirmed" && (
+                                    <button
+                                      onClick={() =>
+                                        handleStatusChange(b.id, "confirmed")
+                                      }
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                                      title="Confirmar agendamento"
+                                    >
+                                      <CheckCircle2 size={15} />
+                                    </button>
+                                  )}
+                                  {b.status !== "cancelled" && (
+                                    <button
+                                      onClick={() =>
+                                        handleStatusChange(b.id, "cancelled")
+                                      }
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                      title="Cancelar agendamento"
+                                    >
+                                      <XCircle size={15} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() =>
+                                      handleToggleAttendance(
+                                        b.id,
+                                        b.attendance_confirmed ?? false,
+                                      )
+                                    }
+                                    className={`p-1.5 rounded-lg transition-colors ${
+                                      b.attendance_confirmed
+                                        ? "text-emerald-500 hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                    }`}
+                                    title={
+                                      b.attendance_confirmed
+                                        ? "Remover confirmação de presença"
+                                        : "Confirmar presença"
+                                    }
+                                  >
+                                    {b.attendance_confirmed ? (
+                                      <UserX size={15} />
+                                    ) : (
+                                      <UserCheck size={15} />
+                                    )}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 

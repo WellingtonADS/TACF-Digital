@@ -144,7 +144,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark p-6 flex flex-col items-center">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark px-3 py-4 sm:p-6 flex flex-col items-center">
       <div className="w-full max-w-2xl flex flex-col print:hidden">
         <div className="mb-6 flex items-center justify-between">
           <button
@@ -167,8 +167,8 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
         <Breadcrumbs items={["Agendamentos", "Bilhete Digital"]} />
       </div>
 
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden ticket-container print:bg-white print:shadow-none">
-        <div className="bg-primary px-8 py-8 text-white relative">
+      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden ticket-container print:bg-white print:shadow-none">
+        <div className="bg-primary px-4 py-6 sm:px-8 sm:py-8 text-white relative">
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -192,13 +192,13 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           </div>
         </div>
 
-        <div className="p-8 md:p-12">
+        <div className="p-4 sm:p-8 md:p-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em]">
                 Militar
               </span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
+              <p className="break-words text-xl font-black text-slate-900 dark:text-white sm:text-2xl">
                 {ticketData.name}
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em]">
                 SARAM
               </span>
-              <p className="text-2xl font-mono font-semibold text-slate-900 dark:text-white">
+              <p className="break-all text-xl font-mono font-semibold text-slate-900 dark:text-white sm:text-2xl">
                 {ticketData.saram}
               </p>
             </div>
@@ -218,7 +218,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               </span>
               <div className="flex items-start gap-2">
                 <MapPin className="text-primary" size={18} />
-                <p className="text-lg font-mono font-medium text-slate-700 dark:text-slate-300">
+                <p className="break-words text-base font-mono font-medium text-slate-700 dark:text-slate-300 sm:text-lg">
                   {ticketData.location}
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               </span>
               <div className="flex items-start gap-2">
                 <Calendar className="text-primary" size={18} />
-                <p className="text-lg font-bold text-slate-900 dark:text-white">
+                <p className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
                   {ticketData.date}{" "}
                   <span className="text-primary font-normal mx-2">|</span>{" "}
                   {ticketData.time}
@@ -246,26 +246,30 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           <div className="ticket-cutout-right dark:bg-background-dark" />
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-8 md:p-12 flex flex-col md:flex-row items-center gap-8">
-          <div className="flex-shrink-0 p-3 bg-white dark:bg-slate-900 border-2 border-primary/10 rounded-2xl shadow-sm">
-            <div className="w-32 h-32 md:w-36 md:h-36 bg-white p-2">
-              <QR value={qrValue} size={128} />
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 sm:p-8 md:p-12 flex flex-col md:flex-row items-center gap-6 sm:gap-8">
+          <div className="flex-shrink-0 rounded-2xl border-2 border-primary/10 bg-white p-3 shadow-sm dark:bg-slate-900">
+            <div className="w-32 md:w-36">
+              <QR
+                value={qrValue}
+                size={256}
+                style={{ width: "100%", height: "auto", display: "block" }}
+              />
             </div>
           </div>
 
           <div className="flex-grow text-center md:text-left">
             <div className="space-y-1 mb-4">
-              <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em]">
+              <span className="text-[10px] font-bold text-primary/70 dark:text-blue-300 uppercase tracking-[0.16em]">
                 Código de Validação
               </span>
-              <p className="text-xl font-mono font-bold text-primary tracking-[0.25em]">
+              <p className="break-all text-lg sm:text-xl font-mono font-bold text-primary dark:text-blue-300 tracking-[0.08em] sm:tracking-[0.2em]">
                 {ticketData.code}
               </p>
             </div>
 
-            <div className="bg-primary/5 dark:bg-primary/20 p-4 rounded-xl inline-flex items-center gap-3">
+            <div className="w-full bg-primary/5 dark:bg-primary/20 p-4 rounded-xl flex items-start gap-3">
               <Info className="text-primary" size={16} />
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-xs">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 Apresente este código ou QR code no acesso à pista. Tenha em
                 mãos sua identidade militar original.
               </p>
