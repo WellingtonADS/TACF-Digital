@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 import { supabase } from "../services/supabase";
 
 export const AdminDashboard = () => {

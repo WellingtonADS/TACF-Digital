@@ -1,4 +1,4 @@
-import Layout from "@/layout/Layout";
+import Layout from "@/components/layout/Layout";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow } from "@/types";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
@@ -227,9 +227,15 @@ export default function SessionBookingsManagement() {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 0));
+      // convert undefined order_number to null for PDF generator
+      const validBookings = bookings.map((b) => ({
+        ...b,
+        order_number: b.order_number ?? null,
+        attendance_confirmed: b.attendance_confirmed ?? null,
+      }));
       generateAttendanceListPdf({
         session,
-        bookings,
+        bookings: validBookings,
       });
       toast.success("Lista de presença gerada em PDF.");
     } catch (error) {

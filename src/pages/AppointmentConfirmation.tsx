@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 export const AppointmentConfirmation = () => {
   const navigate = useNavigate();

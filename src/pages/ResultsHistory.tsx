@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import supabase from "@/services/supabase";
 import { isAfter, parseISO } from "date-fns";
 import {
@@ -17,7 +18,6 @@ import RescheduleDrawer from "../components/RescheduleDrawer";
 import useDashboard from "../hooks/useDashboard";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
 import useResponsive from "../hooks/useResponsive";
-import Layout from "../layout/Layout";
 
 type Result = {
   id: string;
@@ -124,21 +124,22 @@ export default function ResultsHistory() {
     });
   }, [items]);
 
+  // (old deduplication logic removed; rows is used directly)
   // deduplicate rows by id to avoid duplicate React keys
-  const dedupedRows = useMemo(() => {
-    const seen = new Set<string>();
-    const out: (Result & {
-      concept?: string | null;
-      location?: string | null;
-    })[] = [];
-    for (const r of rows) {
-      if (!r || !r.id) continue;
-      if (seen.has(r.id)) continue;
-      seen.add(r.id);
-      out.push(r);
-    }
-    return out;
-  }, [rows]);
+  // const dedupedRows = useMemo(() => {
+  //   const seen = new Set<string>();
+  //   const out: (Result & {
+  //     concept?: string | null;
+  //     location?: string | null;
+  //   })[] = [];
+  //   for (const r of rows) {
+  //     if (!r || !r.id) continue;
+  //     if (seen.has(r.id)) continue;
+  //     seen.add(r.id);
+  //     out.push(r);
+  //   }
+  //   return out;
+  // }, [rows]);
 
   useEffect(() => {
     async function loadPending() {

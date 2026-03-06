@@ -1,122 +1,373 @@
-detalhar os campos específicos de algum desses relatórios ou prefere avançar para a configuração do ambiente de desenvolvimento no VS Code com base no copilot-instructions.md?
+-- ==========================================================
+-- TACF Digital: Esquema de Base de Dados (Revisado)
+-- Stack: PostgreSQL / Supabase
+-- Classificacao: Documento sensivel (seguranca e privacidade)
+-- Data da revisao: 2026-03-06
+-- ==========================================================
+
+-- Objetivo:
+-- 1) Garantir privacidade (LGPD) com RLS.
+-- 2) Evitar overbooking e race condition com funcao transacional.
+-- 3) Manter rastreabilidade com auditoria.
 
 
--- ==========================================
--- TACF-Digital: Esquema de Base de Dados
--- Estaque: PostgreSQL (Supabase)
--- ==========================================
+-- ==========================================================
+-- 1) ENUMS E TIPOS
+-- ==========================================================
 
--- 1. ENUMS E TIPOS CUSTOMIZADOS
-CREATE TYPE user_role AS ENUM ('militar', 'coordenador');
-CREATE TYPE shift_period AS ENUM ('Manhã', 'Tarde');
-CREATE TYPE request_status AS ENUM ('Pendente', 'Aprovado', 'Rejeitado');
+create type user_role as enum ('militar', 'coordenador', 'admin');
+create type shift_period as enum ('morning', 'afternoon');
+create type request_status as enum ('pending', 'approved', 'rejected');
+create type booking_status as enum ('confirmed', 'pending_swap', 'cancelled');
 
--- 2. TABELA DE PERFIS (Vinculada ao auth.users)
-CREATE TABLE public.profiles (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    full_name TEXT NOT NULL,
-    rank TEXT NOT NULL, -- Posto/Graduação
-    gender CHAR(1) CHECK (gender IN ('M', 'F')),
-    role user_role DEFAULT 'militar',
-    organization TEXT DEFAULT 'HACO',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+
+-- ==========================================================
+-- 2) TABELAS PRINCIPAIS
+-- ==========================================================
+
+-- 2.1 Perfis (1:1 com auth.users)
+create table public.profiles (
+    id uuid primary key references auth.users(id) on delete cascade,
+    full_name text not null,
+    rank text not null,
+    gender char(1) check (gender in ('M', 'F')),
+    role user_role not null default 'militar',
+    organization text not null default 'HACO',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
--- 3. TABELA DE TURNOS
-CREATE TABLE public.shifts (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    date DATE NOT NULL,
-    period shift_period NOT NULL,
-    max_capacity INT DEFAULT 21 CHECK (max_capacity <= 21),
-    min_capacity INT DEFAULT 8,
-    applicators TEXT[] DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(date, period)
+-- 2.2 Turnos de sessao
+create table public.shifts (
+    id uuid primary key default gen_random_uuid(),
+    date date not null,
+    period shift_period not null,
+    min_capacity int not null default 8,
+    max_capacity int not null default 21,
+    applicators text[] not null default '{}',
+    is_open boolean not null default true,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint ck_shift_capacity_range check (min_capacity >= 8 and max_capacity <= 21 and min_capacity <= max_capacity),
+    constraint uq_shift_date_period unique (date, period)
 );
 
--- 4. TABELA DE AGENDAMENTOS
-CREATE TABLE public.schedules (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    profile_id UUID REFERENCES public.profiles(id) NOT NULL,
-    shift_id UUID REFERENCES public.shifts(id) NOT NULL,
-    order_number TEXT UNIQUE, -- Gerado via Trigger
-    semester INT NOT NULL CHECK (semester IN (1, 2)),
-    year INT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(profile_id, semester, year) -- Impede duplicidade semestral
+-- 2.3 Contador por ano/semestre para numero de ordem seguro em concorrencia
+create table public.order_counters (
+    year int not null,
+    semester int not null check (semester in (1, 2)),
+    next_val int not null default 1,
+    primary key (year, semester)
 );
 
--- 5. TABELA DE SOLICITAÇÕES DE TROCA
-CREATE TABLE public.change_requests (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    militar_id UUID REFERENCES public.profiles(id) NOT NULL,
-    old_schedule_id UUID REFERENCES public.schedules(id) ON DELETE SET NULL,
-    new_shift_id UUID REFERENCES public.shifts(id) NOT NULL,
-    reason TEXT,
-    coordinator_comment TEXT,
-    status request_status DEFAULT 'Pendente',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+-- 2.4 Agendamentos
+create table public.schedules (
+    id uuid primary key default gen_random_uuid(),
+    profile_id uuid not null references public.profiles(id),
+    shift_id uuid not null references public.shifts(id),
+    order_number text not null unique,
+    semester int not null check (semester in (1, 2)),
+    year int not null,
+    status booking_status not null default 'confirmed',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint uq_profile_semester_year unique (profile_id, semester, year)
 );
 
--- 6. FUNÇÃO: GERAÇÃO AUTOMÁTICA DE NÚMERO DE ORDEM (YYYY-S-XXXX)
-CREATE OR REPLACE FUNCTION fn_generate_order_number()
-RETURNS TRIGGER AS $$
-DECLARE
-    seq_val INT;
-    final_order TEXT;
-BEGIN
-    -- Obter sequência baseada no ano e semestre
-    SELECT COUNT(*) + 1 INTO seq_val 
-    FROM public.schedules 
-    WHERE year = NEW.year AND semester = NEW.semester;
+-- 2.5 Solicitacoes de troca
+create table public.change_requests (
+    id uuid primary key default gen_random_uuid(),
+    militar_id uuid not null references public.profiles(id),
+    old_schedule_id uuid references public.schedules(id) on delete set null,
+    new_shift_id uuid not null references public.shifts(id),
+    reason text,
+    coordinator_comment text,
+    status request_status not null default 'pending',
+    processed_by uuid references public.profiles(id),
+    processed_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
 
-    -- Formatar: 20261-0001
-    final_order := NEW.year::TEXT || NEW.semester::TEXT || '-' || LPAD(seq_val::TEXT, 4, '0');
-    NEW.order_number := final_order;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- 2.6 Auditoria (registro de eventos sensiveis)
+create table public.audit_log (
+    id bigserial primary key,
+    actor_id uuid,
+    action text not null,
+    entity text not null,
+    entity_id text,
+    metadata jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now()
+);
 
-CREATE TRIGGER trg_schedules_order_number
-BEFORE INSERT ON public.schedules
-FOR EACH ROW EXECUTE FUNCTION fn_generate_order_number();
 
--- 7. FUNÇÃO: VALIDAÇÃO DE CAPACIDADE (QUÓRUM)
-CREATE OR REPLACE FUNCTION fn_check_shift_capacity()
-RETURNS TRIGGER AS $$
-DECLARE
-    current_count INT;
-    max_cap INT;
-BEGIN
-    SELECT COUNT(*) INTO current_count FROM public.schedules WHERE shift_id = NEW.shift_id;
-    SELECT max_capacity INTO max_cap FROM public.shifts WHERE id = NEW.shift_id;
+-- ==========================================================
+-- 3) INDICES RECOMENDADOS
+-- ==========================================================
 
-    IF current_count >= max_cap THEN
-        RAISE EXCEPTION 'Capacidade máxima do turno atingida (%).', max_cap;
-    END IF;
+create index idx_profiles_role on public.profiles(role);
+create index idx_shifts_date_period on public.shifts(date, period);
+create index idx_schedules_profile on public.schedules(profile_id);
+create index idx_schedules_shift on public.schedules(shift_id);
+create index idx_schedules_semester_year on public.schedules(semester, year);
+create index idx_change_requests_militar on public.change_requests(militar_id);
+create index idx_change_requests_status on public.change_requests(status);
 
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_check_capacity
-BEFORE INSERT ON public.schedules
-FOR EACH ROW EXECUTE FUNCTION fn_check_shift_capacity();
+-- ==========================================================
+-- 4) FUNCOES CRITICAS (CONCORRENCIA E ORDEM)
+-- ==========================================================
 
--- 8. SEGURANÇA: ROW LEVEL SECURITY (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+-- 4.1 Trigger para updated_at
+create or replace function public.fn_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.updated_at := now();
+    return new;
+end;
+$$;
 
--- Política: Militar vê apenas o próprio perfil/agendamento
-CREATE POLICY "Users can see only their own data" ON public.schedules
-    FOR SELECT USING (auth.uid() = profile_id);
+create trigger trg_profiles_updated_at
+before update on public.profiles
+for each row execute function public.fn_set_updated_at();
 
--- Política: Coordenador vê tudo
-CREATE POLICY "Coordinators have full access" ON public.schedules
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() AND role = 'coordenador'
-        )
-    );
+create trigger trg_shifts_updated_at
+before update on public.shifts
+for each row execute function public.fn_set_updated_at();
+
+create trigger trg_schedules_updated_at
+before update on public.schedules
+for each row execute function public.fn_set_updated_at();
+
+create trigger trg_change_requests_updated_at
+before update on public.change_requests
+for each row execute function public.fn_set_updated_at();
+
+
+-- 4.2 Geracao segura de numero de ordem (evita duplicidade sob concorrencia)
+create or replace function public.fn_next_order_number(p_year int, p_semester int)
+returns text
+language plpgsql
+as $$
+declare
+    v_next int;
+begin
+    insert into public.order_counters(year, semester, next_val)
+    values (p_year, p_semester, 1)
+    on conflict (year, semester) do nothing;
+
+    update public.order_counters
+    set next_val = next_val + 1
+    where year = p_year and semester = p_semester
+    returning next_val - 1 into v_next;
+
+    return p_year::text || p_semester::text || '-' || lpad(v_next::text, 4, '0');
+end;
+$$;
+
+
+-- 4.3 RPC transacional para agendamento (fonte unica de verdade)
+-- Regra: nao inserir direto em schedules pelo frontend.
+create or replace function public.book_shift(
+    p_shift_id uuid,
+    p_year int,
+    p_semester int
+)
+returns public.schedules
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_user uuid := auth.uid();
+    v_shift public.shifts%rowtype;
+    v_count int;
+    v_order text;
+    v_result public.schedules;
+begin
+    if v_user is null then
+        raise exception 'Usuario nao autenticado';
+    end if;
+
+    -- Lock do turno para serializar verificacao de capacidade
+    select *
+      into v_shift
+      from public.shifts
+     where id = p_shift_id
+       and is_open = true
+     for update;
+
+    if not found then
+        raise exception 'Turno inexistente ou fechado';
+    end if;
+
+    -- Verifica duplicidade por ciclo
+    if exists (
+        select 1
+          from public.schedules s
+         where s.profile_id = v_user
+           and s.year = p_year
+           and s.semester = p_semester
+           and s.status in ('confirmed', 'pending_swap')
+    ) then
+        raise exception 'Militar ja possui agendamento ativo neste ciclo';
+    end if;
+
+    select count(*)
+      into v_count
+      from public.schedules s
+     where s.shift_id = p_shift_id
+       and s.status in ('confirmed', 'pending_swap');
+
+    if v_count >= v_shift.max_capacity then
+        raise exception 'Capacidade maxima do turno atingida (%)', v_shift.max_capacity;
+    end if;
+
+    v_order := public.fn_next_order_number(p_year, p_semester);
+
+    insert into public.schedules(profile_id, shift_id, order_number, semester, year, status)
+    values (v_user, p_shift_id, v_order, p_semester, p_year, 'confirmed')
+    returning * into v_result;
+
+    insert into public.audit_log(actor_id, action, entity, entity_id, metadata)
+    values (v_user, 'BOOK_SHIFT', 'schedules', v_result.id::text, jsonb_build_object(
+        'shift_id', p_shift_id,
+        'year', p_year,
+        'semester', p_semester,
+        'order_number', v_order
+    ));
+
+    return v_result;
+end;
+$$;
+
+
+-- ==========================================================
+-- 5) SEGURANCA: RLS E POLICIES
+-- ==========================================================
+
+alter table public.profiles enable row level security;
+alter table public.shifts enable row level security;
+alter table public.schedules enable row level security;
+alter table public.change_requests enable row level security;
+alter table public.audit_log enable row level security;
+
+-- Perfis
+create policy profiles_self_select
+on public.profiles
+for select
+using (id = auth.uid());
+
+create policy profiles_admin_or_coordinator_select
+on public.profiles
+for select
+using (
+    exists (
+        select 1
+        from public.profiles p
+        where p.id = auth.uid()
+          and p.role in ('coordenador', 'admin')
+    )
+);
+
+-- Turnos: leitura ampla, escrita restrita
+create policy shifts_select_authenticated
+on public.shifts
+for select
+to authenticated
+using (true);
+
+create policy shifts_admin_write
+on public.shifts
+for all
+using (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+)
+with check (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+);
+
+-- Agendamentos
+create policy schedules_owner_select
+on public.schedules
+for select
+using (profile_id = auth.uid());
+
+create policy schedules_admin_select
+on public.schedules
+for select
+using (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+);
+
+-- Importante: insercao de agendamento deve ocorrer pela RPC book_shift (SECURITY DEFINER)
+-- Evite policy de insert ampla para reduzir superficie de ataque.
+
+-- Solicitacoes de troca
+create policy change_requests_owner_select
+on public.change_requests
+for select
+using (militar_id = auth.uid());
+
+create policy change_requests_owner_insert
+on public.change_requests
+for insert
+with check (militar_id = auth.uid());
+
+create policy change_requests_admin_manage
+on public.change_requests
+for all
+using (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+)
+with check (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+);
+
+-- Auditoria visivel apenas para coordenador/admin
+create policy audit_admin_select
+on public.audit_log
+for select
+using (
+    exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role in ('coordenador', 'admin')
+    )
+);
+
+
+-- ==========================================================
+-- 6) PERMISSOES RECOMENDADAS
+-- ==========================================================
+
+-- Exemplo de endurecimento de privilegios:
+-- revoke all on public.schedules from authenticated;
+-- grant execute on function public.book_shift(uuid, int, int) to authenticated;
+
+
+-- ==========================================================
+-- 7) OBSERVACOES DE IMPLEMENTACAO
+-- ==========================================================
+
+-- 1. Para ambiente de producao, migrar este conteudo para arquivos versionados em:
+--    supabase/migrations/
+-- 2. Evitar regras criticas no frontend; consumir RPCs via src/services/supabase.ts.
+-- 3. Adicionar testes de permissao (RLS) para militar, coordenador e admin.
+-- 4. Revisar politicas com coordenador HACO antes do merge.

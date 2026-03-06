@@ -11,7 +11,7 @@ import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 const MOTIVOS = [
   "Erro no registro do resultado",

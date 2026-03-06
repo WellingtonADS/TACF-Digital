@@ -1,4 +1,5 @@
 import PasswordInput from "@/components/atomic/PasswordInput";
+import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
@@ -14,7 +15,6 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Layout from "../layout/Layout";
 import supabase, { upsertProfile } from "../services/supabase";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");

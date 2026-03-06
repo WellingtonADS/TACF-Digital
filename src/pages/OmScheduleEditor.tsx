@@ -1,5 +1,5 @@
+import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { LocationSchedule } from "@/types/database.types";
 import {

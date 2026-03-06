@@ -1,5 +1,5 @@
 import useAuth from "@/hooks/useAuth";
-import Layout from "@/layout/Layout";
+import Layout from "@/components/layout/Layout";
 import supabase from "@/services/supabase";
 import type { AccessProfile, Permission } from "@/types";
 import { useEffect, useState } from "react";

@@ -1,4 +1,4 @@
-import Layout from "@/layout/Layout";
+import Layout from "@/components/layout/Layout";
 import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
 import { format } from "date-fns";

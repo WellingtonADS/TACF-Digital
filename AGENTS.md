@@ -1,5 +1,22 @@
 # Project Guidelines
 
+## Objetivo do projeto
+
+O TACF Digital é uma plataforma de agendamento e gestão de sessões voltada para o ambiente militar. O foco é permitir que usuários reservem, confirmem e administrem sessões com regras de quórum, capacidade e cronograma controladas pelo banco de dados. Os agentes devem manter esse propósito em mente ao modificar ou estender o código: a interface é apenas uma camada de apresentação, toda regra de negócio importante vive em RPCs/migrations no Supabase.
+
+## Estrutura de arquivos e prioridades
+
+Para evitar dispersão de código, siga a hierarquia abaixo sempre que adicionar ou alterar arquivos:
+
+1. **`src/pages/`** – cada rota principal tem sua própria página; componentes específicos de página devem ficar aqui.
+2. **`src/components/`** – UI reutilizável agrupada por domínio (`Admin`, `Booking`, `Calendar`, etc.). Antes de criar uma nova pasta, verifique se ela já se encaixa em uma das categorias existentes.
+3. **`src/hooks/`** – hooks customizados que encapsulam lógica de dados ou comportamento compartilhado (por ex. `useBooking`, `useSessions`).
+4. **`src/services/`** – wrappers e clientes externos (Sobresupabase, API, etc.). Evite criar serviços para lógica que pertence ao banco de dados; use RPCs.
+5. **`src/utils/`** – funções utilitárias e geradores (ex.: PDF, formatação de datas). Use quando o código não se encaixa em componentes, hooks ou serviços.
+6. **`supabase/`** – migrations, políticas e RPCs; toda lógica de domínio deve ser colocada aqui, não no frontend.
+
+> 🔁 Ao adicionar arquivos, primeiro verifique se algo existente pode ser reaproveitado para manter o repositório organizado.
+
 ## Code Style
 
 - TypeScript com `strict`; evitar `any` e manter tipagem explícita.

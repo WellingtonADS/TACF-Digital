@@ -1,7 +1,7 @@
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
+import Layout from "@/components/layout/Layout";
 import { getProfileById, updateProfile } from "@/hooks/usePersonnel";
-import Layout from "@/layout/Layout";
 import {
   ArrowLeft,
   Building2,
@@ -128,7 +128,7 @@ export default function PersonnelEditor() {
           <Input
             type="text"
             value={sector}
-            onChange={(e) => setSector(e.target.value)}
+            onChange={(v) => setSector(v)}
             placeholder="Ex: 1º BIS, CMNE, GACC..."
           />
         </div>

@@ -1,5 +1,5 @@
+import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { SessionRow as DBSessionRow } from "@/types";
 import { PT_MONTHS } from "@/utils/ptMonths";
@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import type { Database } from "../types/database.types";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

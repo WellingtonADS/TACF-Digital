@@ -1,28 +1,22 @@
-import type { ReactNode } from "react";
-
-type Props = {
-  children?: ReactNode;
-  onClick?: () => void;
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  icon?: React.ReactNode;
   variant?: string;
-  disabled?: boolean;
-  type?: "button" | "submit" | "reset";
-  className?: string;
-};
+}
 
 export const Button = ({
+  icon,
   children,
-  onClick,
-  disabled,
-  type = "button",
   className,
-}: Props) => {
+  ...props
+}: ButtonProps) => {
   return (
     <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={className ?? "px-3 py-2 rounded bg-sky-600 text-white"}
+      {...props}
+      className={`flex items-center justify-center gap-2 ${
+        className ?? "px-3 py-2 rounded bg-sky-600 text-white"
+      }`}
     >
+      {icon && <span>{icon}</span>}
       {children}
     </button>
   );

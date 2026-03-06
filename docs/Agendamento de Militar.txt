@@ -1,40 +1,68 @@
-Agendamento de Militar:
+Agendamento de Militar — Resumo e Requisitos
 
-    A[Militar acessa calendário] --> B{Tem agendamento ativo?}
-    B -->|Sim| C[Mostra agendamento atual]
-    B -->|Não| D[Seleciona data]
-    D --> E{Turno tem vaga?}
-    E -->|Não| F[Exibe mensagem: Lotado]
-    E -->|Sim| G[Confirma agendamento]
-    G --> H{Sucesso?}
-    H -->|Sim| I[Gera comprovante e envia por e-mal com as informação do agendamento, local e etc]
-    H -->|Não| J[Erro: Outra pessoa ocupou]
-    C --> K[Opção: Solicitar troca]
+1. Visão Geral
 
-Aprovação de Troca (Coordenador)
+O sistema permite que militares agendem sessões por turno (Manhã/Tarde) durante campanhas específicas. Regras de domínio críticas (capacidade, quórum, validações de reserva) devem ser aplicadas no banco via RPCs/migrations; o frontend atua apenas como interface.
 
+2. Fluxos Principais
 
-    A[Coordenador acessa painel] --> B[Lista de solicitações pendentes]
-    B --> C{Há solicitações?}
-    C -->|Não| D[Dashboard vazio]
-    C -->|Sim| E[Visualiza detalhes]
-    E --> F{Aprovar ou Rejeitar?}
-    F -->|Aprovar| G[Cancela agendamento antigo]
-    G --> H[Cria novo agendamento]
-    H --> I[Notifica militar por e-mal com as informação do agendamento, local e etc]
-    F -->|Rejeitar| J[Adiciona motivo Notifica militar por e-mal]
-    J --> I
+2.1 Agendamento (usuário militar)
 
-Folha de Requisitos (Business Requirements Document)
-Baseado no documento oficial do Hospital da Aeronáutica de Canoas (HACO).
+- Militar acessa calendário.
+- Se já houver agendamento ativo, exibe informações e opções (ex.: solicitar troca).
+- Se não houver agendamento, usuário seleciona data e turno.
+- Sistema verifica disponibilidade do turno.
+    - Se não houver vaga: exibe mensagem "Lotado" e sugere alternativas.
+    - Se houver vaga: solicita confirmação ao usuário.
+- Ao confirmar, o sistema tenta criar a reserva via RPC.
+    - Se sucesso: gera comprovante e envia notificação por e-mail com detalhes (data, turno, local, comprovante).
+    - Se falha (conflito concorrente): informa erro e convida a tentar outro horário.
 
-ID	Requisito	Descrição Técnica	Criticidade
-REQ-01	Turnos e Capacidade	O sistema não usa horários fixos, apenas turnos (Manhã/Tarde). Capacidade dinâmica entre 8 e 21 pessoas por turno.	Alta
-REQ-02	Sazonalidade	O sistema opera em campanhas (Fev-Mai e Set-Nov). Fora desses períodos, deve estar fechado ou em modo leitura.	Média
-REQ-03	Segurança de Dados	Um militar não pode ver quem mais está agendado no mesmo dia (Privacidade/LGPD). Apenas o Admin vê a lista nominal.	Crítica
-REQ-04	Fluxo de Troca	O militar não pode alterar a data sozinho após confirmada. Deve solicitar troca para aprovação do Coordenador (Auditabilidade).	Alta
-REQ-05	Gestão de Sessão	O Coordenador deve inserir nomes dos Aplicadores (Sgt X, Ten Y) no dia para constar na impressão.	Média
-REQ-06	Notificações	O sistema deve enviar e-mails de confirmação, cancelamento e troca para os militares.	Média
-REQ-07	Interface Intuitiva	O sistema deve ser fácil de usar, com um processo de agendamento simples e claro.	Média
-REQ-08	Relatórios	O Admin deve ter acesso a relatórios de agendamento para análise de demanda e capacidade.	Baixa
-REQ-
+2.2 Solicitação de Troca (usuário militar)
+
+- Usuário com agendamento confirmado não pode alterar sozinho.
+- Usuário abre solicitação de troca indicando motivo e preferências.
+- Solicitação fica pendente para avaliação do Coordenador.
+
+2.3 Aprovação de Troca (Coordenador)
+
+- Coordenador acessa painel de solicitações pendentes.
+- Para cada solicitação, visualiza detalhes, histórico e justificativa.
+- Ações possíveis: Aprovar ou Rejeitar.
+    - Ao aprovar: sistema cancela o agendamento antigo (seguindo regras de auditoria), cria novo agendamento e notifica o militar por e-mail com detalhes.
+    - Ao rejeitar: Coordenador fornece motivo; sistema registra decisão e notifica o militar por e-mail.
+
+3. Requisitos (Business Requirements Document)
+Baseado nas diretrizes do Hospital da Aeronáutica de Canoas (HACO).
+
+| ID | Requisito | Descrição Técnica | Criticidade |
+|----|-----------|------------------|------------:|
+| REQ-01 | Turnos e Capacidade | Sistema usa turnos (Manhã/Tarde). Capacidade por turno configurável (mín: 8, máx: 21). Controle de concorrência por transação/RPC. | Alta |
+| REQ-02 | Sazonalidade | Agendamento ativo apenas em campanhas (ex.: Fev–Mai, Set–Nov). Fora de campanha, modo leitura/fechado. Cron job ou flag de configuração para abrir/fechar campanhas. | Média |
+| REQ-03 | Privacidade (LGPD) | Militares não veem lista nominal dos demais no mesmo turno/dia. Apenas Admin com permissão vê lista nominal via API protegida e RLS. | Crítica |
+| REQ-04 | Fluxo de Troca | Militar não pode alterar agendamento confirmado; deve abrir solicitação de troca. Trocas aprovadas pelo Coordenador. Todas as ações auditáveis via logs/RPCs. | Alta |
+| REQ-05 | Gestão de Sessão | Coordenador pode inserir nomes dos Aplicadores e observações por sessão; essas informações constam nas impressões e relatórios. | Média |
+| REQ-06 | Notificações | Enviar e-mails em eventos: confirmação, cancelamento, troca aprovada/rejeitada, lembrete. Templates configuráveis e garantia de entrega (retry/queue). | Média |
+| REQ-07 | Interface Intuitiva | Interface simples com pré-checks de disponibilidade, mensagens claras e feedback imediato em erros concorrentes. | Média |
+| REQ-08 | Relatórios | Admin acessa relatórios de agendamento (por período, local, status) e exporta CSV/PDF. | Baixa |
+| REQ-09 | Segurança e Autenticação | Autenticação via Supabase/Auth provider; autorização baseada em perfis (Admin, Coordenador, Militar). Implementar RLS e escopos mínimos nas APIs. | Crítica |
+| REQ-10 | Auditabilidade e Logs | Todas as mudanças de agendamento e decisões de troca devem ser logadas com usuário, timestamp e motivo; armazenar em tabela de auditoria. | Alta |
+| REQ-11 | Consistência e Concorrência | Reservas concorrentes devem ser resolvidas atomically no banco (FOR UPDATE / RPC transaction) para evitar overbooking. | Alta |
+
+4. Restrições e Observações Técnicas
+
+- As regras críticas (quórum, validações, limites) residem em `supabase/rpc/` e `supabase/migrations/`.
+- Não mover validações de domínio sensíveis para o frontend.
+- Usar `src/services/supabase.ts` para chamadas ao backend e centralizar tratamento de erros/retentativas.
+
+5. Exemplo de notificações necessárias
+
+- `CONFIRMACAO_AGENDAMENTO` — enviado ao militar após criação bem-sucedida.
+- `CANCELAMENTO_AGENDAMENTO` — quando um agendamento é cancelado (automático ou por Coordenador).
+- `TROCA_SOLICITADA` — confirmação de recebimento da solicitação.
+- `TROCA_APROVADA` / `TROCA_REJEITADA` — resultado da avaliação do Coordenador.
+
+6. Histórico de Revisões
+
+- 2026-03-06: Revisão completa do documento (conteúdo unificado, tabela de requisitos expandida, fluxos clarificados).
+

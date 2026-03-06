@@ -1,6 +1,6 @@
 import Button from "@/components/atomic/Button";
+import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type {
   AuditLogRow as DBAuditLogRow,

@@ -1,5 +1,5 @@
+import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import Layout from "@/layout/Layout";
 import {
   Building2,
   ChevronLeft,

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 type DocItem = {
   title: string;

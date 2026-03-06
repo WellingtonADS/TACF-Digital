@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { Sidebar } from "../../../src/layout/Sidebar";
+import { Sidebar } from "../../../src/components/layout/Sidebar";
 
 vi.mock("@/hooks/useAuth", () => ({
   __esModule: true,

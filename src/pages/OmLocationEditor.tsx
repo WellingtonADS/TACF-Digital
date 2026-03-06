@@ -1,5 +1,5 @@
+import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import Layout from "@/layout/Layout";
 import type { Location } from "@/types/database.types";
 import {
   ArrowLeft,

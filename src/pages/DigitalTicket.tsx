@@ -17,7 +17,7 @@ import QR from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 // no longer need formatTicketDate or route state types; they live in the hook
 

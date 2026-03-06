@@ -1,4 +1,4 @@
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 export const DashboardContainer = () => {
   return (

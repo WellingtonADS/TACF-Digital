@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import { format, parseISO, startOfDay } from "date-fns";
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../layout/Layout";
 
 type ViewMode = "table" | "cards";
 type StatusFilter = "all" | "open" | "closed" | "concluded";

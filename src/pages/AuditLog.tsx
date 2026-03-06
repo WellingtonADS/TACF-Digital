@@ -1,7 +1,7 @@
 ﻿import Breadcrumbs from "@/components/Breadcrumbs";
+import Layout from "@/components/layout/Layout";
 import PageSkeleton from "@/components/PageSkeleton";
 import useResponsive from "@/hooks/useResponsive";
-import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
 import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import {

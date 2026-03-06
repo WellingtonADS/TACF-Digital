@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 export const OperationalDashboard = () => {
   const {

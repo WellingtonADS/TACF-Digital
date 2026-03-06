@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import supabase from "@/services/supabase";
 import {
@@ -21,7 +22,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "../layout/Layout";
 
 export const Scheduling = () => {
   const navigate = useNavigate();
