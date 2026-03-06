@@ -13,6 +13,8 @@ DECLARE
   v_semester semester_type;
   v_existing_semester_bookings integer;
   v_session_date date;
+  v_role user_role;
+  v_active boolean;
 BEGIN
   -- Lock the session row to serialize concurrent checks
   SELECT max_capacity, date INTO v_max, v_session_date
@@ -32,9 +34,6 @@ BEGIN
   END IF;
 
   -- Determine user's role/active status
-  DECLARE v_role user_role;
-  DECLARE v_active boolean;
-
   SELECT role, active INTO v_role, v_active FROM public.profiles WHERE id = p_user_id;
 
   IF v_active IS FALSE THEN
