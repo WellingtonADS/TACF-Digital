@@ -1,0 +1,44 @@
+Build run: yarn build
+
+Date: 2026-03-06 15:30 (local)
+
+Command output:
+
+src/pages/PersonnelEditor.tsx:89:13 - error TS2322: Type '{ children: string; type: "button"; onClick: () => void | Promise<void>; className: string; icon: Element; }' is not assignable to type 'IntrinsicAttributes & Props'.                  Property 'icon' does not exist on type 'IntrinsicAttributes & Props'.
+
+89             icon={<ArrowLeft size={15} />}
+               ~~~~
+
+src/pages/PersonnelEditor.tsx:131:42 - error TS2339: Property 'target' does not exist on type 'string'.                                                         
+131             onChange={(e) => setSector(e.target.value)}
+                                             ~~~~~~
+
+src/pages/ResultsHistory.tsx:128:9 - error TS6133: 'dedupedRows' is declared but its value is never read.                                                        
+128   const dedupedRows = useMemo(() => {
+            ~~~~~~~~~~~
+
+src/pages/SessionBookingsManagement.tsx:232:9 - error TS2322: Type 'BookingWithProfile[]' is not assignable to type 'AttendanceBooking[]'.                        Type 'BookingWithProfile' is not assignable to type 'AttendanceBooking'.
+    Types of property 'order_number' are incompatible.
+      Type 'string | null | undefined' is not assignable to type 'string | null'.                                                                                       Type 'undefined' is not assignable to type 'string | null'.
+
+232         bookings,
+            ~~~~~~~~
+
+  src/utils/pdf/generateAttendanceList.ts:38:3
+    38   bookings: AttendanceBooking[];
+         ~~~~~~~~
+    The expected type comes from property 'bookings' which is declared here on type 'GenerateAttendanceListInput'
+
+src/pages/SessionEditor.tsx:291:14 - error TS2304: Cannot find name 'Database'. 
+
+291         } as Database["public"]["Tables"]["sessions"]["Update"])
+                 ~~~~~~~
+
+src/pages/SessionEditor.tsx:320:14 - error TS2304: Cannot find name 'Database'. 
+
+320         } as Database["public"]["Tables"]["sessions"]["Update"])
+                 ~~~~~~~
+
+Found 6 errors.
+
+Exit code: 1

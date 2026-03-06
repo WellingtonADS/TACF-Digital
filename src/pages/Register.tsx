@@ -1,3 +1,4 @@
+import PasswordInput from "@/components/atomic/PasswordInput";
 import AuthLayout from "@/components/AuthLayout";
 import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
@@ -125,15 +126,13 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1">
-            <input
+            <PasswordInput
               name="tacf-register-password"
-              type="password"
               required
               placeholder="Ex.: senha com mínimo de 8 caracteres"
               value={password}
               autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
           </div>
 

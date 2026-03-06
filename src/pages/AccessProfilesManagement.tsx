@@ -1,14 +1,11 @@
 import useAuth from "@/hooks/useAuth";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { AccessProfile, Permission } from "@/types";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// reuse the same Role type defined earlier for profiles
-export type AccessProfile =
-  Database["public"]["Tables"]["access_profiles"]["Row"];
-export type Permission = Database["public"]["Tables"]["permissions"]["Row"];
+// types imported from src/types
 
 export default function AccessProfilesManagement() {
   const { profile, loading: authLoading } = useAuth();

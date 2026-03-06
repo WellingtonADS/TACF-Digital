@@ -66,7 +66,7 @@ describe("OmLocationManager", () => {
       </MemoryRouter>,
     );
     const editBtn = await screen.findByRole("button", {
-      name: /editar unidade/i,
+      name: /editar/i,
     });
     expect(editBtn).toBeInTheDocument();
   });

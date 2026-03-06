@@ -1,9 +1,9 @@
 import { supabase, upsertProfile } from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { Profile as DBProfile, Database } from "@/types";
 import type { Session, User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
+type Profile = DBProfile | null;
 
 export default function useAuth() {
   const [user, setUser] = useState<User | null>(null);

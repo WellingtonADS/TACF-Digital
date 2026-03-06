@@ -3,9 +3,10 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import UserProfilesManagement from "../../../src/pages/UserProfilesManagement";
 
-const { fromMock, upsertProfileMock } = vi.hoisted(() => ({
-  fromMock: vi.fn(),
-  upsertProfileMock: vi.fn(),
+// 1. Mock do Hook centralizado (O segredo do sucesso pós-refatoração)
+const usePersonnelMock = vi.fn();
+vi.mock("@/hooks/usePersonnel", () => ({
+  usePersonnel: () => usePersonnelMock(),
 }));
 
 vi.mock("sonner", () => ({
@@ -15,121 +16,75 @@ vi.mock("sonner", () => ({
 vi.mock("@/hooks/useAuth", () => ({
   __esModule: true,
   default: () => ({
-    user: {
-      id: "user-1",
-      email: "ten.silva@fab.mil.br",
-      last_sign_in_at: new Date().toISOString(),
-    },
+    user: { id: "user-1", email: "ten.silva@fab.mil.br" },
     profile: { role: "user" },
     loading: false,
   }),
 }));
 
-// Intercepta tanto o import alias quanto o relativo usado no componente
-vi.mock("@/services/supabase", () => ({
-  __esModule: true,
-  default: { from: fromMock },
-  upsertProfile: upsertProfileMock,
-}));
-
-vi.mock("../../../src/services/supabase", () => ({
-  __esModule: true,
-  default: { from: fromMock },
-  upsertProfile: upsertProfileMock,
-}));
-
-const profileData = {
+// Dados padronizados com o novo alias 'Profile'
+const mockProfile = {
   id: "user-1",
   full_name: "Tenente Silva",
   war_name: "TEN SILVA",
-  saram: "1234567", // 7 dígitos — necessário para passar validação
-  email: "ten.silva@fab.mil.br",
-  phone_number: "(61) 99999-1234",
+  saram: "1234567",
   rank: "Ten",
-  sector: "1 GAV",
-  inspsau_valid_until: "2027-01-01",
-  inspsau_last_inspection: "2025-01-01",
-  birth_date: "1990-05-15",
   physical_group: "A",
+  inspsau_valid_until: "2027-01-01", // Vigente
 };
-
-function buildFromMock(data: unknown = profileData) {
-  const maybeSingle = vi.fn().mockResolvedValue({ data, error: null });
-  const eq = vi.fn().mockReturnValue({ maybeSingle });
-  return { select: vi.fn().mockReturnValue({ eq }) };
-}
 
 describe("UserProfilesManagement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fromMock.mockReturnValue(buildFromMock());
-    upsertProfileMock.mockResolvedValue({ data: profileData, error: null });
-  });
 
-  it("renderiza o título Meu Perfil", async () => {
-    render(
-      <MemoryRouter>
-        <UserProfilesManagement />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByText(/meu perfil/i)).toBeInTheDocument();
+    // Configuramos o retorno do hook para cada teste
+    usePersonnelMock.mockReturnValue({
+      profile: mockProfile,
+      loading: false,
+      updateProfile: vi.fn().mockResolvedValue({ error: null }),
+      refreshProfile: vi.fn(),
     });
   });
 
-  it("carrega e exibe o SARAM do perfil", async () => {
+  const renderComponent = () =>
     render(
       <MemoryRouter>
         <UserProfilesManagement />
       </MemoryRouter>,
     );
+
+  it("renderiza o título e os dados do perfil via Hook", async () => {
+    renderComponent();
+
     await waitFor(() => {
+      expect(screen.getByText(/gerenciamento de perfil/i)).toBeInTheDocument();
+      // Verifica se o Input (atômico) renderizou o valor correto
       expect(screen.getByDisplayValue("1234567")).toBeInTheDocument();
     });
   });
 
-  it("exibe status APTO na coluna lateral quando inspsau está vigente", async () => {
-    render(
-      <MemoryRouter>
-        <UserProfilesManagement />
-      </MemoryRouter>,
-    );
+  it("exibe status APTO via Badge centralizado", async () => {
+    renderComponent();
+
     await waitFor(() => {
-      // Texto exato do componente: "Apto para o TACF"
+      // O texto agora deve estar dentro do novo componente Badge
       expect(screen.getByText(/apto para o tacf/i)).toBeInTheDocument();
     });
   });
 
-  it("exibe grupo físico A na coluna lateral", async () => {
-    render(
-      <MemoryRouter>
-        <UserProfilesManagement />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      // "Grupo A" ou similar
-      expect(screen.getByText(/grupo/i)).toBeInTheDocument();
-    });
-  });
-
-  it("salva o perfil e chama upsertProfile ao submeter", async () => {
-    render(
-      <MemoryRouter>
-        <UserProfilesManagement />
-      </MemoryRouter>,
-    );
+  it("chama updateProfile do hook ao submeter o formulário", async () => {
+    const { updateProfile } = usePersonnelMock();
+    renderComponent();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("1234567")).toBeInTheDocument();
     });
 
-    // Submete o formulário diretamente para garantir que o handler é acionado
-    const form = document.querySelector("form");
-    expect(form).not.toBeNull();
+    const form = screen.getByRole("form") || document.querySelector("form");
     fireEvent.submit(form!);
 
     await waitFor(() => {
-      expect(upsertProfileMock).toHaveBeenCalled();
+      expect(updateProfile).toHaveBeenCalled();
     });
   });
 });

@@ -1,9 +1,10 @@
 import RescheduleDrawer from "@/components/RescheduleDrawer";
 import useDashboard from "@/hooks/useDashboard";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { Profile as DBProfile } from "@/types";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { isAfter, parseISO } from "date-fns";
+import { format, isAfter, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Award,
   CalendarPlus,
@@ -31,9 +32,7 @@ export const OperationalDashboard = () => {
     loading: dashboardLoading,
   } = useDashboard();
 
-  const typedProfile = profile as
-    | Database["public"]["Tables"]["profiles"]["Row"]
-    | null;
+  const typedProfile = profile as DBProfile | null;
 
   const displayName =
     typedProfile?.full_name ||
@@ -66,6 +65,17 @@ export const OperationalDashboard = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
   const [pendingSwap, setPendingSwap] = useState(false);
+
+  function periodToLabel(period?: string | null) {
+    if (!period) return "";
+    const p = String(period).toLowerCase();
+    if (p === "morning" || p === "manhã") return "Manhã";
+    if (p === "afternoon" || p === "tarde") return "Tarde";
+    if (p === "evening" || p === "noite") return "Noite";
+    if (p === "full_day" || p === "full-day" || p === "dia")
+      return "Dia inteiro";
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  }
 
   // check booking and pending swap when nextSession changes
   useEffect(() => {
@@ -246,54 +256,93 @@ export const OperationalDashboard = () => {
             </div>
             <MoreHorizontal className="text-slate-300" size={20} />
           </div>
-          <div className="flex flex-col items-center justify-center py-6 md:py-10 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
-            <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
-              <Info size={24} />
-            </div>
+          <div className="flex flex-col items-center justify-center py-6 md:py-8 rounded-2xl">
             {dashboardLoading ? (
-              <p className="text-slate-600 dark:text-slate-400 font-medium">
-                Carregando...
-              </p>
+              <div className="flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
+                  <Info size={24} />
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 font-medium">
+                  Carregando...
+                </p>
+              </div>
             ) : nextSession ? (
-              <div className="text-center">
-                <p className="text-lg font-bold text-slate-900">
-                  {nextSession.date}
-                </p>
-                <p className="text-sm text-slate-500 mt-2">
-                  {(nextSession as unknown as { time?: string }).time ??
-                    `Turno: ${nextSession.period}`}
-                </p>
-                <div className="mt-4 space-y-2">
-                  <a
-                    href="/app/agendamentos"
-                    className="text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline"
-                  >
-                    Ver agendamento
-                  </a>
-                  {drawerBookingId && (
-                    <button
-                      onClick={() => setDrawerOpen(true)}
-                      className="text-sm font-bold text-primary dark:text-blue-400 hover:underline"
-                    >
-                      Solicitar Reagendamento
-                    </button>
-                  )}
-                  {pendingSwap && (
-                    <div className="text-xs text-amber-600 font-semibold">
-                      Reagendamento Pendente
+              <div className="w-full">
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
+                  <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-slate-100 dark:border-slate-800 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-2xl md:text-3xl font-extrabold text-primary dark:text-white">
+                        {format(parseISO((nextSession as any).date), "dd", {
+                          locale: ptBR,
+                        })}
+                      </div>
+                      <div className="text-xs md:text-sm uppercase text-slate-500">
+                        {format(parseISO((nextSession as any).date), "MMM", {
+                          locale: ptBR,
+                        })}
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="flex-1 text-center md:text-left">
+                    <p className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white">
+                      {format(
+                        parseISO((nextSession as any).date),
+                        "EEEE, dd 'de' MMMM",
+                        { locale: ptBR },
+                      )}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {(nextSession as any).time ??
+                        `Turno: ${periodToLabel((nextSession as any).period)}`}
+                    </p>
+                    {(nextSession as any).location && (
+                      <p className="text-sm text-slate-500 mt-1">
+                        {(nextSession as any).location}
+                      </p>
+                    )}
+
+                    <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-start justify-center gap-3">
+                      <a
+                        href="/app/agendamentos"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-colors"
+                      >
+                        Ver agendamento
+                      </a>
+
+                      {drawerBookingId && (
+                        <button
+                          onClick={() => setDrawerOpen(true)}
+                          className="inline-flex items-center px-4 py-2 border border-primary text-primary rounded-lg font-semibold bg-white/5 hover:bg-white/10 transition-colors"
+                        >
+                          Solicitar Reagendamento
+                        </button>
+                      )}
+
+                      {pendingSwap && (
+                        <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-semibold">
+                          Reagendamento Pendente
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
-              <>
+              <div className="text-center">
+                <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
+                  <Info size={24} />
+                </div>
                 <p className="text-slate-600 dark:text-slate-400 font-medium">
                   Nenhum agendamento pendente
                 </p>
-                <button className="mt-4 text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline">
+                <a
+                  href="/app/agendamentos"
+                  className="mt-4 inline-block text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline"
+                >
                   Ver calendário completo
-                </button>
-              </>
+                </a>
+              </div>
             )}
           </div>
         </div>

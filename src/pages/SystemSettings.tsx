@@ -2,13 +2,16 @@ import Button from "@/components/atomic/Button";
 import useAuth from "@/hooks/useAuth";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type {
+  AuditLogRow as DBAuditLogRow,
+  SystemSettingsRow as DBSystemSettingsRow,
+} from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type SystemSettingsRow = Database["public"]["Tables"]["system_settings"]["Row"];
-type AuditLogRow = Database["public"]["Tables"]["audit_logs"]["Row"];
+type SystemSettingsRow = DBSystemSettingsRow;
+type AuditLogRow = DBAuditLogRow;
 
 const TABS = [
   { key: "general", label: "Geral", icon: "settings" },

@@ -1,7 +1,7 @@
 import useAuth from "@/hooks/useAuth";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
 import {
   addDays,
   addYears,
@@ -33,12 +33,12 @@ import { toast } from "sonner";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
+  DBProfile,
   "id" | "full_name" | "war_name" | "saram" | "rank" | "sector" | "active"
 >;
 
 type BookingRow = Pick<
-  Database["public"]["Tables"]["bookings"]["Row"],
+  DBBookingRow,
   | "id"
   | "user_id"
   | "score"

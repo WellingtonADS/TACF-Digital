@@ -1,7 +1,7 @@
 import PageSkeleton from "@/components/PageSkeleton";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { BookingRow as DBBookingRow } from "@/types";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
  * Line items coming from bookings that requested a swap/reagendamento.
  * We extend with some derived fields to drive the table UI.
  */
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type BookingRow = DBBookingRow;
 
 type RequestRow = BookingRow & {
   originalDate?: string | null;

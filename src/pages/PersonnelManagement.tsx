@@ -1,6 +1,6 @@
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { Profile as DBProfile } from "@/types";
 import { format } from "date-fns";
 import {
   Award,
@@ -26,7 +26,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ProfileRow = DBProfile;
 type BookingQueryRow = {
   user_id: string;
   test_date: string | null;

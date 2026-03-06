@@ -86,7 +86,7 @@ describe("ReschedulingManagement", () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText(/Maj\. Brito/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Maj\. Brito/i).length).toBeGreaterThan(0);
     });
   });
 

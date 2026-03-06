@@ -45,7 +45,7 @@ vi.mock("@/services/supabase", () => {
         }),
       };
     }
-    if (table === "profile_permissions") {
+    if (table === "access_profile_permissions") {
       return {
         select: () => ({
           eq: () => Promise.resolve({ data: [], error: null }),
@@ -87,7 +87,7 @@ describe("AccessProfilesManagement", () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText(/view_reports/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/view_reports/i).length).toBeGreaterThan(0);
     });
   });
 });

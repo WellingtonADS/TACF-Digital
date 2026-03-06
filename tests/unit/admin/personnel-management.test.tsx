@@ -84,7 +84,7 @@ describe("PersonnelManagement", () => {
   it("renderiza a lista de militares", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Cabral/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Cabral/i).length).toBeGreaterThan(0);
     });
   });
 

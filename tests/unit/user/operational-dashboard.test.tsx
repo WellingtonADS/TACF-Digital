@@ -21,6 +21,12 @@ vi.mock("@/services/supabase", () => ({
 vi.mock("@/hooks/useDashboard", () => ({
   __esModule: true,
   default: () => ({
+    user: { id: "user-1", email: "mil@fab.mil.br" },
+    profile: {
+      full_name: "TEN SILVA",
+      role: "user",
+      inspsau_valid_until: "2028-01-01",
+    },
     bookingsCount: 2,
     resultsCount: 5,
     nextSession: null,

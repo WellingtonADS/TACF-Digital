@@ -1,4 +1,7 @@
 import AuthLayout from "@/components/AuthLayout";
+import { Button } from "@/components/atomic/Button";
+import { Input } from "@/components/atomic/Input";
+import PasswordInput from "@/components/atomic/PasswordInput";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { Loader2, Plane } from "lucide-react";
@@ -140,7 +143,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           <div className="space-y-1">
-            <input
+            <Input
               id="email"
               name="tacf-auth-email"
               type="email"
@@ -148,21 +151,14 @@ export default function Login() {
               placeholder="Ex.: joao.silva@fab.mil.br"
               value={formData.email}
               autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setFormData({ ...formData, email: v })}
             />
           </div>
 
           <div className="space-y-1">
-            <input
+            <PasswordInput
               id="password"
               name="tacf-auth-password"
-              type="password"
               required
               placeholder="Digite sua senha"
               value={formData.password}
@@ -170,16 +166,14 @@ export default function Login() {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
           </div>
 
           {isSignUp && (
             <div className="space-y-1">
-              <input
+              <PasswordInput
                 id="confirmPassword"
                 name="tacf-auth-confirm-password"
-                type="password"
                 required
                 placeholder="Confirme sua senha"
                 value={formData.confirmPassword}
@@ -187,12 +181,11 @@ export default function Login() {
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
-                className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={isLoading}
             className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
@@ -202,7 +195,7 @@ export default function Login() {
             ) : (
               "ENTRAR"
             )}
-          </button>
+          </Button>
 
           <div className="flex justify-end pt-2">
             <Link

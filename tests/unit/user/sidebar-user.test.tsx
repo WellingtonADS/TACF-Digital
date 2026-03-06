@@ -23,9 +23,9 @@ function renderSidebar(path = "/app") {
 describe("Sidebar — navegação user", () => {
   it("exibe os itens de navegação do usuário, incluindo bilhete digital", () => {
     renderSidebar();
-    expect(screen.getByText("Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Agendamentos")).toBeInTheDocument();
-    expect(screen.getByText("Documentos")).toBeInTheDocument();
+    expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agendamentos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Documentos/i)).toBeInTheDocument();
     expect(screen.getByText("Bilhete Digital")).toBeInTheDocument();
     expect(screen.getByText("Histórico")).toBeInTheDocument();
     expect(screen.getByText("Meu Perfil")).toBeInTheDocument();

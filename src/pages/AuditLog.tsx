@@ -3,7 +3,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import useResponsive from "@/hooks/useResponsive";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -23,7 +23,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type AuditLogRow = Database["public"]["Tables"]["audit_logs"]["Row"];
+type AuditLogRow = DBAuditLogRow;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

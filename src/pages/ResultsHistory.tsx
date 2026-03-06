@@ -10,7 +10,7 @@ import {
   MapPin,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
 import RescheduleDrawer from "../components/RescheduleDrawer";
@@ -73,9 +73,76 @@ export default function ResultsHistory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  type RawRow = Result & {
+    result_details?: unknown;
+    concept?: string | null;
+    location?: string | null;
+  };
+
+  const rows = useMemo(() => {
+    return items.map((r) => {
+      // attempt to normalize result_details which can be JSONB or text
+      let detail: Record<string, unknown> | null = null;
+      try {
+        const raw = (r as RawRow).result_details;
+        if (typeof raw === "string") {
+          try {
+            detail = JSON.parse(raw) as Record<string, unknown>;
+          } catch (_err) {
+            detail = null;
+          }
+        } else if (raw && typeof raw === "object") {
+          detail = raw as Record<string, unknown>;
+        }
+      } catch (_e) {
+        detail = null;
+      }
+
+      const detailObj = detail;
+
+      const concept =
+        detailObj && typeof detailObj["concept"] === "string"
+          ? (detailObj["concept"] as string)
+          : ((r as RawRow).concept ?? null);
+
+      const location =
+        detailObj && typeof detailObj["location"] === "string"
+          ? (detailObj["location"] as string)
+          : ((r as RawRow).location ?? null);
+
+      const result_status =
+        detailObj && typeof detailObj["result_status"] === "string"
+          ? (detailObj["result_status"] as Result["result_status"])
+          : (((r as RawRow).result_status as Result["result_status"]) ?? null);
+
+      return {
+        ...r,
+        concept,
+        location,
+        result_status,
+      } as Result & { concept?: string | null; location?: string | null };
+    });
+  }, [items]);
+
+  // deduplicate rows by id to avoid duplicate React keys
+  const dedupedRows = useMemo(() => {
+    const seen = new Set<string>();
+    const out: (Result & {
+      concept?: string | null;
+      location?: string | null;
+    })[] = [];
+    for (const r of rows) {
+      if (!r || !r.id) continue;
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      out.push(r);
+    }
+    return out;
+  }, [rows]);
+
   useEffect(() => {
     async function loadPending() {
-      const ids = items.map((r) => r.id);
+      const ids = rows.map((r) => r.id);
       if (ids.length === 0) {
         setPendingSwaps(new Set());
         return;
@@ -95,12 +162,19 @@ export default function ResultsHistory() {
       }
     }
     loadPending();
-  }, [items]);
+  }, [rows]);
 
-  // derive KPI values from items
-  const lastResult = items[0] ?? null;
-  const lastStatus: Result["result_status"] = lastResult?.result_status ?? null;
-  const scores = items
+  // derive KPI values from rows
+  const lastResult = rows[0] ?? null;
+  // Prefer explicit result_status from latest booking; if missing, fall back to inspsauDaysRemaining
+  const lastStatus: Result["result_status"] =
+    (lastResult?.result_status as Result["result_status"]) ??
+    (typeof inspsauDaysRemaining === "number"
+      ? inspsauDaysRemaining > 0
+        ? "apto"
+        : "inapto"
+      : null);
+  const scores = rows
     .map((r) => parseFloat(r.score ?? ""))
     .filter((n) => !isNaN(n));
   const avgScore =
@@ -244,17 +318,17 @@ export default function ResultsHistory() {
               Registros de Avaliações
             </h3>
           </div>
-          {items.length === 0 && loading ? (
+          {rows.length === 0 && loading ? (
             <div className="px-3 py-6">
               <PageSkeleton rows={6} />
             </div>
-          ) : items.length === 0 ? (
+          ) : rows.length === 0 ? (
             <div className="px-4 py-12 text-center text-slate-500 sm:px-6">
               Você ainda não possui resultados registrados.
             </div>
           ) : isCompactViewport ? (
             <div className="grid grid-cols-1 gap-3 p-4 sm:p-6">
-              {items.map((r) => {
+              {rows.map((r) => {
                 const isFuture = r.test_date
                   ? isAfter(parseISO(r.test_date), new Date())
                   : false;
@@ -362,7 +436,7 @@ export default function ResultsHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {items.map((r) => {
+                  {rows.map((r) => {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
@@ -448,7 +522,7 @@ export default function ResultsHistory() {
           )}
 
           <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <span>{items.length > 0 ? `${items.length} registro(s)` : ""}</span>
+            <span>{rows.length > 0 ? `${rows.length} registro(s)` : ""}</span>
             {hasMore && (
               <button
                 onClick={() => fetchPage()}

@@ -1,4 +1,6 @@
+import PasswordInput from "@/components/atomic/PasswordInput";
 import useAuth from "@/hooks/useAuth";
+import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
 import {
   Award,
@@ -49,6 +51,10 @@ export default function UserProfilesManagement() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -182,6 +188,49 @@ export default function UserProfilesManagement() {
       toast.error("Erro ao salvar o perfil.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleChangePassword(e?: FormEvent) {
+    if (e) e.preventDefault();
+    if (!user) {
+      toast.error("Usuário não autenticado.");
+      return;
+    }
+
+    if (!newPassword) {
+      toast.error("Informe a nova senha.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("Senha deve ter ao menos 8 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Senhas não conferem.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) {
+        toast.error(getAuthErrorMessage(error, "Erro ao alterar senha."));
+      } else {
+        toast.success("Senha alterada com sucesso.");
+        setShowChangePassword(false);
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(getAuthErrorMessage(err, "Erro ao alterar senha."));
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -513,12 +562,67 @@ export default function UserProfilesManagement() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="w-full md:w-auto px-6 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest"
-                    >
-                      Alterar Senha
-                    </button>
+                    {!showChangePassword ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowChangePassword(true)}
+                        className="w-full md:w-auto px-6 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest"
+                      >
+                        Alterar Senha
+                      </button>
+                    ) : (
+                      <div className="w-full md:w-auto mt-4 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <form
+                          onSubmit={handleChangePassword}
+                          className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
+                        >
+                          <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                              Nova senha
+                            </label>
+                            <PasswordInput
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                              Confirme a nova senha
+                            </label>
+                            <PasswordInput
+                              value={confirmPassword}
+                              onChange={(e) =>
+                                setConfirmPassword(e.target.value)
+                              }
+                            />
+                          </div>
+
+                          <div className="md:col-span-2 flex justify-end gap-3 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowChangePassword(false);
+                                setNewPassword("");
+                                setConfirmPassword("");
+                              }}
+                              className="px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={changingPassword}
+                              className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-bold"
+                            >
+                              {changingPassword
+                                ? "SALVANDO..."
+                                : "SALVAR SENHA"}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
                   </div>
                 </section>
 

@@ -1,12 +1,12 @@
 import PageSkeleton from "@/components/PageSkeleton";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { BookingRow as DBBookingRow } from "@/types";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type BookingRow = DBBookingRow;
 
 export default function ReschedulingNotification() {
   const [loading, setLoading] = useState(true);

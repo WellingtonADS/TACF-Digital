@@ -1,6 +1,7 @@
 import useLocations from "@/hooks/useLocations";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
+import { PT_MONTHS } from "@/utils/ptMonths";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -38,22 +39,6 @@ const INITIAL_STATE: FormState = {
 };
 
 // ─── Helpers de calendário ───────────────────────────────────────────────────
-
-const PT_MONTHS = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

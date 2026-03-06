@@ -1,6 +1,6 @@
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { BookingRow as DBBookingRow } from "@/types";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type BookingRow = DBBookingRow;
 
 interface BookingWithProfile extends BookingRow {
   full_name: string | null;

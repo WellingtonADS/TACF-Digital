@@ -3,8 +3,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuditLog from "../../../src/pages/AuditLog";
 
-const { rpcMock } = vi.hoisted(() => ({
-  rpcMock: vi.fn(),
+const { fromMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -22,47 +22,59 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+const auditLogData = [
+  {
+    id: "a1",
+    user_name: "Admin",
+    action: "UPDATE",
+    module: "bookings",
+    metadata: null,
+    created_at: "2026-02-01T10:00:00",
+  },
+  {
+    id: "a2",
+    user_name: "Coord",
+    action: "INSERT",
+    module: "sessions",
+    metadata: null,
+    created_at: "2026-02-02T09:00:00",
+  },
+];
+
 vi.mock("@/services/supabase", () => {
-  rpcMock.mockResolvedValue({
-    data: [
-      {
-        id: "a1",
-        user_name: "Admin",
-        action: "UPDATE",
-        module: "bookings",
-        metadata: null,
-        created_at: "2026-02-01T10:00:00",
-      },
-      {
-        id: "a2",
-        user_name: "Coord",
-        action: "INSERT",
-        module: "sessions",
-        metadata: null,
-        created_at: "2026-02-02T09:00:00",
-      },
-    ],
-    error: null,
-  });
+  fromMock.mockImplementation(() => ({
+    select: () => ({
+      order: () => ({
+        limit: () => Promise.resolve({ data: auditLogData, error: null }),
+      }),
+    }),
+  }));
   return {
     __esModule: true,
-    default: { rpc: rpcMock },
+    default: { from: fromMock },
   };
 });
 
 describe("AuditLog", () => {
   beforeEach(() => {
-    rpcMock.mockClear();
+    fromMock.mockClear();
+    fromMock.mockImplementation(() => ({
+      select: () => ({
+        order: () => ({
+          limit: () => Promise.resolve({ data: auditLogData, error: null }),
+        }),
+      }),
+    }));
   });
 
-  it("chama o RPC get_audit_logs na inicialização", async () => {
+  it("carrega e exibe os logs na inicialização", async () => {
     render(
       <MemoryRouter>
         <AuditLog />
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(rpcMock).toHaveBeenCalledWith("get_audit_logs");
+      expect(fromMock).toHaveBeenCalledWith("audit_logs");
     });
   });
 

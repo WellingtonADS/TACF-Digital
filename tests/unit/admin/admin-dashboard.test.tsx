@@ -30,7 +30,7 @@ vi.mock("@/hooks/useSessions", () => ({
     sessions: [
       {
         session_id: "s1",
-        date: "2026-02-25",
+        date: "2027-06-15",
         period: "morning",
         max_capacity: 20,
         occupied_count: 10,
@@ -112,12 +112,14 @@ describe("AdminDashboard", () => {
     expect(screen.getByText(/Pendências/i)).toBeInTheDocument();
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
 
-    // ensure session row is rendered and Lançar índices button exists
-    expect(screen.getByText(/s1/i)).toBeInTheDocument();
-    const launchBtn = screen.getByTitle("Lançar índices");
-    launchBtn.click();
-    expect(mockNavigate).toHaveBeenCalledWith("/app/lancamento-indices", {
-      state: { sessionId: "s1" },
+    // ensure upcoming session card is rendered
+    await waitFor(() => {
+      expect(screen.getByText(/S1/i)).toBeInTheDocument();
     });
+
+    // click the Lançar Índices quick action
+    const launchBtn = screen.getByRole("button", { name: /lançar .ndices/i });
+    launchBtn.click();
+    expect(mockNavigate).toHaveBeenCalledWith("/app/lancamento-indices");
   });
 });

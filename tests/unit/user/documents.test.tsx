@@ -67,8 +67,9 @@ describe("Documents", () => {
 
   it("cartão de certificados exibe Bilhete Digital e navega para /app/ticket ao clicar", () => {
     renderPage();
-    expect(screen.getByText("Bilhete Digital")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Bilhete Digital"));
+    const heading = screen.getByRole("heading", { name: "Bilhete Digital" });
+    expect(heading).toBeInTheDocument();
+    fireEvent.click(heading);
     expect(mockNavigate).toHaveBeenCalledWith("/app/ticket");
   });
 });

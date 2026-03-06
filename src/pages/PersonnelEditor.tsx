@@ -1,5 +1,7 @@
+import { Button } from "@/components/atomic/Button";
+import { Input } from "@/components/atomic/Input";
+import { getProfileById, updateProfile } from "@/hooks/usePersonnel";
 import Layout from "@/layout/Layout";
-import supabase from "@/services/supabase";
 import {
   ArrowLeft,
   Building2,
@@ -12,13 +14,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-type Profile = {
-  full_name: string | null;
-  war_name: string | null;
-  rank: string | null;
-  sector: string | null;
-  active: boolean;
-};
+import type { Profile } from "@/types";
 
 export default function PersonnelEditor() {
   const { userId } = useParams<{ userId: string }>();
@@ -34,27 +30,21 @@ export default function PersonnelEditor() {
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
-    supabase
-      .from("profiles")
-      .select("full_name, war_name, rank, sector, active")
-      .eq("id", userId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[PersonnelEditor] query error:", error);
-          setLoadError(error.message ?? "Erro ao carregar dados do militar.");
-          setLoading(false);
-          return;
-        }
-        if (!data) {
+    getProfileById(userId)
+      .then((p) => {
+        if (!p) {
           setLoadError("Militar nao encontrado.");
           setLoading(false);
           return;
         }
-        const p = data as Profile;
         setProfile(p);
         setActive(p.active !== false);
         setSector(p.sector ?? "");
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("[PersonnelEditor] query error:", err);
+        setLoadError(err.message ?? "Erro ao carregar dados do militar.");
         setLoading(false);
       });
   }, [userId]);
@@ -63,11 +53,7 @@ export default function PersonnelEditor() {
     if (!userId) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ active, sector: sector.trim() || null })
-        .eq("id", userId);
-      if (error) throw error;
+      await updateProfile(userId, { active, sector: sector.trim() || null });
       toast.success(active ? "Militar ativado." : "Militar inativado.");
       navigate("/app/efetivo");
     } catch (err: unknown) {
@@ -96,13 +82,14 @@ export default function PersonnelEditor() {
           <p className="text-red-500 font-semibold">
             {loadError ?? "Militar nao encontrado."}
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => navigate("/app/efetivo")}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            icon={<ArrowLeft size={15} />}
           >
-            <ArrowLeft size={15} /> Voltar
-          </button>
+            Voltar
+          </Button>
         </div>
       </Layout>
     );
@@ -138,12 +125,11 @@ export default function PersonnelEditor() {
             <Building2 size={13} className="text-primary" />
             OM / Setor
           </label>
-          <input
+          <Input
             type="text"
             value={sector}
             onChange={(e) => setSector(e.target.value)}
             placeholder="Ex: 1º BIS, CMNE, GACC..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <div>
@@ -179,14 +165,14 @@ export default function PersonnelEditor() {
         </div>
 
         <div className="flex gap-3">
-          <button
+          <Button
             type="button"
             onClick={() => navigate("/app/efetivo")}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={saving}
             onClick={handleSave}
@@ -198,7 +184,7 @@ export default function PersonnelEditor() {
               <Save size={15} />
             )}
             Salvar
-          </button>
+          </Button>
         </div>
       </div>
     </Layout>

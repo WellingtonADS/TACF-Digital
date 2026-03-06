@@ -1,7 +1,8 @@
 import useLocations from "@/hooks/useLocations";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { SessionRow as DBSessionRow } from "@/types";
+import { PT_MONTHS } from "@/utils/ptMonths";
 import {
   AlertCircle,
   AlertTriangle,
@@ -47,22 +48,6 @@ const INITIAL_STATE: FormState = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const PT_MONTHS = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -247,14 +232,7 @@ export default function SessionEditor() {
         navigate("/app/turmas");
         return;
       }
-      const s = data as {
-        date: string;
-        period: string;
-        max_capacity?: number | null;
-        location_id?: string | null;
-        applicators?: string[] | null;
-        status?: string | null;
-      };
+      const s = data as DBSessionRow;
       setForm({
         date: s.date ?? "",
         dateMode: "single",

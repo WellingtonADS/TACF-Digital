@@ -1,7 +1,11 @@
 import useAuth from "@/hooks/useAuth";
 import Layout from "@/layout/Layout";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type {
+  BookingRow as DBBookingRow,
+  Profile as DBProfile,
+  SessionRow as DBSessionRow,
+} from "@/types";
 import {
   CheckCircle2,
   ListChecks,
@@ -15,18 +19,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
-type SessionRow = Pick<
-  Database["public"]["Tables"]["sessions"]["Row"],
-  "id" | "date" | "period"
->;
+type SessionRow = Pick<DBSessionRow, "id" | "date" | "period">;
 
 type BookingRow = Pick<
-  Database["public"]["Tables"]["bookings"]["Row"],
+  DBBookingRow,
   "id" | "session_id" | "user_id" | "result_details"
 >;
 
 type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
+  DBProfile,
   "id" | "full_name" | "war_name" | "saram" | "rank"
 >;
 

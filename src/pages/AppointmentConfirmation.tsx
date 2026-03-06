@@ -1,5 +1,9 @@
 import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type {
+  BookingRow as DBBookingRow,
+  Profile as DBProfile,
+  SessionRow as DBSessionRow,
+} from "@/types";
 import {
   fetchExistingSemesterBooking,
   formatDatePtBr,
@@ -21,7 +25,7 @@ export const AppointmentConfirmation = () => {
   type LocationState = { bookingId?: string; sessionId?: string };
 
   type BookingPreview = Pick<
-    Database["public"]["Tables"]["bookings"]["Row"],
+    DBBookingRow,
     | "id"
     | "user_id"
     | "session_id"
@@ -33,12 +37,12 @@ export const AppointmentConfirmation = () => {
   >;
 
   type SessionPreview = Pick<
-    Database["public"]["Tables"]["sessions"]["Row"],
+    DBSessionRow,
     "id" | "date" | "period" | "max_capacity"
   > & { location_name?: string | null; location_address?: string | null };
 
   type ProfilePreview = Pick<
-    Database["public"]["Tables"]["profiles"]["Row"],
+    DBProfile,
     "id" | "full_name" | "war_name" | "saram" | "rank" | "sector"
   >;
 
