@@ -89,8 +89,8 @@ As rotas abaixo representam os acessos de operacao e governanca mais relevantes.
 
 ## Regras de navegacao e guardas
 
-- Todas as rotas `/app/*` exigem autenticacao (`ProtectedRoute`).
-- Rotas administrativas exigem permissao de admin (`AdminRoute`).
+- Todas as rotas `/app/*` exigem autenticacao por guardas de perfil (`UserRoute` e `AdminRoute`).
+- Rotas administrativas exigem permissao de admin/coordinator (`AdminRoute`).
 - Usuario nao administrador deve ser redirecionado para escopo permitido.
 - Em sessao expirada, redirecionar para login e limpar estado sensivel.
 

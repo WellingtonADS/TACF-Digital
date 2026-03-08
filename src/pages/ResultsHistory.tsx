@@ -18,6 +18,7 @@ import RescheduleDrawer from "../components/RescheduleDrawer";
 import useDashboard from "../hooks/useDashboard";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
 import useResponsive from "../hooks/useResponsive";
+import { prefetchRoute } from "../utils/prefetchRoutes";
 
 type Result = {
   id: string;
@@ -389,6 +390,7 @@ export default function ResultsHistory() {
                     <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
                       <a
                         href={`/app/recurso?result=${r.id}`}
+                        onMouseEnter={() => prefetchRoute("/app/recurso")}
                         className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
                       >
                         Visualizar Detalhes
@@ -490,6 +492,7 @@ export default function ResultsHistory() {
                           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                             <a
                               href={`/app/recurso?result=${r.id}`}
+                              onMouseEnter={() => prefetchRoute("/app/recurso")}
                               className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
                             >
                               Visualizar Detalhes

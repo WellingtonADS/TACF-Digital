@@ -254,14 +254,14 @@ export default function UserProfilesManagement() {
 
         <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary">
               Gerenciamento de Perfil
             </h2>
-            <p className="text-slate-500 mt-1">
+            <p className="text-text-muted mt-1">
               Atualize suas informações pessoais e militares para o TACF.
             </p>
           </div>
-          <div className="w-full sm:w-auto text-xs sm:text-sm text-slate-400 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="w-full sm:w-auto text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default">
             Último acesso: {lastAccess}
           </div>
         </header>
@@ -269,7 +269,7 @@ export default function UserProfilesManagement() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left column: profile summary */}
           <div className="lg:w-72 flex-shrink-0">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 md:p-8 flex flex-col items-center text-center">
+            <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default p-4 md:p-8 flex flex-col items-center text-center">
               {/* Avatar */}
               <div className="w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20 flex items-center justify-center mb-4">
                 <span className="text-xl md:text-3xl font-black text-primary tracking-tight">
@@ -280,16 +280,16 @@ export default function UserProfilesManagement() {
                     .join("")}
                 </span>
               </div>
-              <h3 className="text-lg font-black text-primary dark:text-white uppercase tracking-tight">
+              <h3 className="text-lg font-black text-primary uppercase tracking-tight">
                 {profile?.war_name ?? profile?.full_name ?? "--"}
               </h3>
-              <p className="text-sm text-slate-500 font-medium">
+              <p className="text-sm text-text-muted font-medium">
                 {profile?.rank ?? "--"}
               </p>
 
               {/* Status chip */}
               <div className="mt-5 w-full">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
                   Status de Aptidão
                 </p>
                 {profile?.inspsau_valid_until ? (
@@ -309,8 +309,8 @@ export default function UserProfilesManagement() {
                     </div>
                   )
                 ) : (
-                  <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
-                    <span className="font-bold text-slate-400 text-xs uppercase tracking-wide">
+                  <div className="bg-bg-card border border-border-default py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
+                    <span className="font-bold text-text-muted text-xs uppercase tracking-wide">
                       Não informado
                     </span>
                   </div>
@@ -318,12 +318,12 @@ export default function UserProfilesManagement() {
               </div>
 
               {/* Age & group */}
-              <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-slate-100 dark:border-slate-700">
+              <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-border-default dark:border-border-default">
                 <div className="text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
+                  <p className="text-[10px] font-bold text-text-muted uppercase">
                     Idade
                   </p>
-                  <p className="font-bold text-slate-700 dark:text-slate-200 text-lg">
+                  <p className="font-bold text-text-body text-lg">
                     {profile?.birth_date
                       ? differenceInYears(
                           new Date(),
@@ -332,11 +332,11 @@ export default function UserProfilesManagement() {
                       : "--"}
                   </p>
                 </div>
-                <div className="text-center border-l border-slate-100 dark:border-slate-700">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
+                <div className="text-center border-l border-border-default dark:border-border-default">
+                  <p className="text-[10px] font-bold text-text-muted uppercase">
                     Grupo
                   </p>
-                  <p className="font-bold text-slate-700 dark:text-slate-200 text-lg">
+                  <p className="font-bold text-text-body text-lg">
                     {profile?.physical_group ?? "--"}
                   </p>
                 </div>
@@ -346,23 +346,23 @@ export default function UserProfilesManagement() {
 
           {/* Right column: form */}
           <div className="flex-1">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-700 p-4 md:p-8 lg:p-10">
+            <div className="bg-bg-card rounded-3xl shadow-2xl border border-border-default/50 p-4 md:p-8 lg:p-10">
               <form className="space-y-10" onSubmit={handleSave}>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   Campos com <span className="font-bold">*</span> são
                   obrigatórios para concluir o cadastro.
                 </p>
 
                 <section>
-                  <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
-                    <User className="w-5 h-5 text-primary dark:text-blue-400" />
-                    <h4 className="font-bold text-slate-900 dark:text-white tracking-wider">
+                  <div className="flex items-center gap-3 mb-6 border-b border-border-default pb-4">
+                    <User className="w-5 h-5 text-primary dark:text-primary" />
+                    <h4 className="font-bold text-text-body tracking-wider">
                       DADOS PESSOAIS
                     </h4>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         Nome Completo *
                       </label>
                       <input
@@ -370,7 +370,7 @@ export default function UserProfilesManagement() {
                         onChange={(e) =>
                           handleChange("full_name", e.target.value)
                         }
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: João da Silva"
                         required
@@ -378,20 +378,20 @@ export default function UserProfilesManagement() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         E-mail Institucional *
                       </label>
                       <input
                         value={profile?.email ?? ""}
                         onChange={(e) => handleChange("email", e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="email"
                         placeholder="Ex.: joao.silva@fab.mil.br"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         Telefone / WhatsApp
                       </label>
                       <input
@@ -402,7 +402,7 @@ export default function UserProfilesManagement() {
                             formatPhone(e.target.value),
                           )
                         }
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="tel"
                         inputMode="numeric"
                         placeholder="(00) 00000-0000"
@@ -412,15 +412,15 @@ export default function UserProfilesManagement() {
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
-                    <Award className="w-5 h-5 text-primary dark:text-blue-400" />
-                    <h4 className="font-bold text-slate-900 dark:text-white tracking-wider">
+                  <div className="flex items-center gap-3 mb-6 border-b border-border-default pb-4">
+                    <Award className="w-5 h-5 text-primary dark:text-primary" />
+                    <h4 className="font-bold text-text-body tracking-wider">
                       DADOS MILITARES
                     </h4>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         Nome de Guerra *
                       </label>
                       <input
@@ -428,14 +428,14 @@ export default function UserProfilesManagement() {
                         onChange={(e) =>
                           handleChange("war_name", e.target.value)
                         }
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: SILVA"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         SARAM *
                       </label>
                       <input
@@ -446,7 +446,7 @@ export default function UserProfilesManagement() {
                             onlyDigits(e.target.value).slice(0, 7),
                           )
                         }
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: 1234567"
                         inputMode="numeric"
@@ -456,13 +456,13 @@ export default function UserProfilesManagement() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         Posto/Graduação *
                       </label>
                       <select
                         value={profile?.rank ?? ""}
                         onChange={(e) => handleChange("rank", e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         required
                         title="Posto/Graduação"
                         aria-label="Posto/Graduação"
@@ -484,13 +484,13 @@ export default function UserProfilesManagement() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                         OM / Setor *
                       </label>
                       <input
                         value={profile?.sector ?? ""}
                         onChange={(e) => handleChange("sector", e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-700 dark:text-slate-200 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: 2º/10º GAV"
                         required
@@ -500,25 +500,25 @@ export default function UserProfilesManagement() {
                 </section>
 
                 <section>
-                  <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
-                    <ShieldCheck className="w-5 h-5 text-primary dark:text-blue-400" />
-                    <h4 className="font-bold text-slate-900 dark:text-white tracking-wider">
+                  <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-border-default dark:border-border-default pb-4">
+                    <ShieldCheck className="w-5 h-5 text-primary dark:text-primary" />
+                    <h4 className="font-bold text-text-body tracking-wider">
                       SAÚDE
                     </h4>
                     <span className="sm:ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold uppercase">
                       Apenas Visualização
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/30 p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-bg-card p-6 rounded-2xl border border-dashed border-border-default">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
-                        <Calendar className="w-6 h-6 text-slate-400" />
+                      <div className="w-12 h-12 bg-bg-card rounded-xl flex items-center justify-center shadow-sm border border-border-default">
+                        <Calendar className="w-6 h-6 text-text-muted" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                           Última Inspeção
                         </p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
+                        <p className="font-semibold text-text-body dark:text-text-muted">
                           {profile?.inspsau_last_inspection
                             ? new Date(
                                 profile.inspsau_last_inspection,
@@ -528,14 +528,14 @@ export default function UserProfilesManagement() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
+                      <div className="w-12 h-12 bg-bg-card rounded-xl flex items-center justify-center shadow-sm border border-border-default">
                         <CheckCircle className="w-6 h-6 text-emerald-500" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                           Validade da INSPSAU
                         </p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
+                        <p className="font-semibold text-text-body dark:text-text-muted">
                           {profile?.inspsau_valid_until
                             ? new Date(
                                 profile.inspsau_valid_until,
@@ -547,17 +547,17 @@ export default function UserProfilesManagement() {
                   </div>
                 </section>
 
-                <section className="pt-6 border-t border-slate-100 dark:border-slate-700">
+                <section className="pt-6 border-t border-border-default dark:border-border-default">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                        <Key className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                      <div className="w-10 h-10 bg-bg-card rounded-full flex items-center justify-center">
+                        <Key className="w-5 h-5 text-text-muted" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">
+                        <h4 className="font-bold text-text-body">
                           Segurança da Conta
                         </h4>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-text-muted">
                           Última alteração de senha há 3 meses.
                         </p>
                       </div>
@@ -566,18 +566,18 @@ export default function UserProfilesManagement() {
                       <button
                         type="button"
                         onClick={() => setShowChangePassword(true)}
-                        className="w-full md:w-auto px-6 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest"
+                        className="w-full md:w-auto px-6 py-2 border border-border-default rounded-lg text-sm font-bold text-primary hover:bg-bg-card transition-colors uppercase tracking-widest"
                       >
                         Alterar Senha
                       </button>
                     ) : (
-                      <div className="w-full md:w-auto mt-4 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <div className="w-full md:w-auto mt-4 bg-bg-card p-4 rounded-2xl border border-border-default">
                         <form
                           onSubmit={handleChangePassword}
                           className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
                         >
                           <div className="flex flex-col">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                            <label className="text-[10px] font-bold text-text-muted uppercase mb-2">
                               Nova senha
                             </label>
                             <PasswordInput
@@ -587,7 +587,7 @@ export default function UserProfilesManagement() {
                           </div>
 
                           <div className="flex flex-col">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                            <label className="text-[10px] font-bold text-text-muted uppercase mb-2">
                               Confirme a nova senha
                             </label>
                             <PasswordInput
@@ -606,14 +606,14 @@ export default function UserProfilesManagement() {
                                 setNewPassword("");
                                 setConfirmPassword("");
                               }}
-                              className="px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700"
+                              className="px-4 py-2 text-sm font-bold text-text-muted rounded-lg border border-border-default"
                             >
                               Cancelar
                             </button>
                             <button
                               type="submit"
                               disabled={changingPassword}
-                              className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-bold"
+                              className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-bold"
                             >
                               {changingPassword
                                 ? "SALVANDO..."
@@ -630,14 +630,14 @@ export default function UserProfilesManagement() {
                   <button
                     type="button"
                     onClick={() => loadProfile()}
-                    className="w-full sm:w-auto px-8 py-4 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-sm hover:text-slate-800 dark:hover:text-white transition-colors"
+                    className="w-full sm:w-auto px-8 py-4 text-text-muted font-bold uppercase tracking-widest text-sm hover:text-text-body transition-colors"
                   >
                     CANCELAR
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl shadow-primary/20 flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
+                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl shadow-primary/20 flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
                   >
                     <CheckCircle className="w-5 h-5" />
                     {saving ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
@@ -648,7 +648,7 @@ export default function UserProfilesManagement() {
           </div>
         </div>
 
-        <footer className="mt-12 text-center text-slate-400 text-[10px] uppercase tracking-[0.2em] font-medium pb-8">
+        <footer className="mt-12 text-center text-text-muted text-[10px] uppercase tracking-[0.2em] font-medium pb-8">
           TACF-Digital © 2024 - Sistema de Gerenciamento de Teste de Avaliação
           do Condicionamento Físico
         </footer>

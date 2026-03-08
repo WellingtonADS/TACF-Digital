@@ -209,7 +209,7 @@ export default function SystemSettings() {
               <div>
                 <button
                   onClick={saveGeneral}
-                  className="px-4 py-2 bg-primary text-white rounded"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded"
                   disabled={loading}
                   type="button"
                 >
@@ -222,12 +222,12 @@ export default function SystemSettings() {
       case "evaluation":
         return (
           <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-border-default">
               <div className="flex flex-wrap gap-4 sm:gap-8">
                 <button className="pb-4 text-sm font-bold tab-active">
                   Masculino
                 </button>
-                <button className="pb-4 text-sm font-medium text-slate-400 hover:text-primary transition-colors">
+                <button className="pb-4 text-sm font-medium text-text-muted hover:text-primary transition-colors">
                   Feminino
                 </button>
               </div>
@@ -240,17 +240,17 @@ export default function SystemSettings() {
                 </button>
               </div>
             </div>
-            <p className="text-slate-500 text-sm mb-6">
+            <p className="text-text-muted text-sm mb-6">
               Defina os requisitos mínimos de desempenho para cada categoria
               etária.
             </p>
-            <div className="border border-slate-200 dark:border-slate-700 rounded-xl mb-10">
+            <div className="border border-border-default rounded-xl mb-10">
               <div className="space-y-2 p-3 md:hidden">
-                <article className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                <article className="rounded-lg border border-border-default bg-bg-card p-3">
+                  <p className="text-sm font-semibold text-text-body">
                     Até 24 anos
                   </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-text-muted">
                     <p>Corrida: 12:00</p>
                     <p>Flexão: 30</p>
                     <p>Abdominal: 35</p>
@@ -262,7 +262,7 @@ export default function SystemSettings() {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[480px] text-left border-collapse">
                   <thead>
-                    <tr className="bg-primary text-white">
+                    <tr className="bg-primary text-primary-foreground">
                       <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
                         Idade
                       </th>
@@ -283,10 +283,10 @@ export default function SystemSettings() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-border-default">
                     {/* sample rows, real data would come from API */}
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-700 dark:text-slate-300">
+                    <tr className="hover:bg-bg-card transition-colors">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-text-body">
                         Até 24 anos
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
@@ -304,7 +304,7 @@ export default function SystemSettings() {
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-primary transition-colors">
+                        <button className="p-2 text-text-muted hover:text-primary transition-colors">
                           <span className="material-icons text-xl">edit</span>
                         </button>
                       </td>
@@ -357,18 +357,18 @@ export default function SystemSettings() {
                   {auditLogs.map((log) => (
                     <article
                       key={log.id}
-                      className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                      className="rounded-lg border border-border-default bg-bg-card p-3"
                     >
-                      <p className="text-xs font-bold uppercase text-slate-400">
+                      <p className="text-xs font-bold uppercase text-text-muted">
                         {log.action}
                       </p>
-                      <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                      <p className="mt-1 text-sm text-text-body">
                         Entidade: {log.entity}
                       </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                      <p className="text-sm text-text-body">
                         Usuário: {log.user_name}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-text-muted">
                         {new Date(log.created_at ?? "").toLocaleString()}
                       </p>
                     </article>
@@ -378,7 +378,7 @@ export default function SystemSettings() {
                 <div className="hidden md:block">
                   <table className="w-full min-w-[640px] text-left border-collapse">
                     <thead>
-                      <tr className="bg-primary text-white">
+                      <tr className="bg-primary text-primary-foreground">
                         <th className="px-4 py-2 text-xs font-bold uppercase">
                           Ação
                         </th>
@@ -393,11 +393,11 @@ export default function SystemSettings() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-border-default">
                       {auditLogs.map((log) => (
                         <tr
                           key={log.id}
-                          className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                          className="hover:bg-bg-card transition-colors"
                         >
                           <td className="px-4 py-2 text-sm">{log.action}</td>
                           <td className="px-4 py-2 text-sm">{log.entity}</td>
@@ -434,25 +434,25 @@ export default function SystemSettings() {
   return (
     <Layout>
       <div className="w-full max-w-[1440px] mx-auto space-y-6">
-        <header className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm p-4 sm:p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="bg-bg-card border border-border-default rounded-3xl shadow-sm p-4 sm:p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-widest text-primary uppercase">
               Governança e Segurança
             </p>
-            <h1 className="mt-1 text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white leading-tight">
+            <h1 className="mt-1 text-2xl lg:text-3xl font-bold text-text-body leading-tight">
               Configurações do Sistema
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
+            <p className="text-text-muted mt-2 text-sm">
               Ajuste parâmetros globais, perfis e auditoria de forma
               centralizada.
             </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
                 Perfil Atual
               </span>
-              <span className="text-sm font-bold text-slate-900 dark:text-white">
+              <span className="text-sm font-bold text-text-body">
                 {profile?.full_name ?? "Administrador"}
               </span>
             </div>
@@ -463,10 +463,10 @@ export default function SystemSettings() {
         </header>
 
         <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-6">
-          <aside className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
+          <aside className="bg-bg-card rounded-3xl border border-border-default shadow-lg shadow-black/10 dark:shadow-none">
             <div className="p-4 sm:p-6 space-y-5">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
                   Seções
                 </p>
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
@@ -484,8 +484,8 @@ export default function SystemSettings() {
                       aria-current={active ? "page" : undefined}
                       className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
                         active
-                          ? "bg-primary text-white border-primary shadow-lg shadow-primary/25"
-                          : "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300 hover:bg-primary/5"
+                          ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
+                          : "bg-bg-default border-transparent text-text-muted hover:bg-primary/5"
                       }`}
                     >
                       <span className="material-icons text-base">
@@ -496,14 +496,14 @@ export default function SystemSettings() {
                   );
                 })}
               </nav>
-              <div className="hidden md:flex items-center gap-3 text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4">
+              <div className="hidden md:flex items-center gap-3 text-xs text-text-muted border-t border-border-default pt-4">
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 Sistema Operacional
               </div>
             </div>
           </aside>
 
-          <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 min-h-[480px]">
+          <section className="bg-bg-card rounded-3xl shadow-2xl border border-border-default min-h-[480px]">
             <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
           </section>
         </div>

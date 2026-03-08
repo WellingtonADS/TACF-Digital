@@ -1,6 +1,7 @@
 // implementation previously located in src/layout/Sidebar.tsx
 import useAuth from "@/hooks/useAuth";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import {
   BarChart2,
   Calendar,
@@ -19,34 +20,20 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-const userNav = [
-  { icon: LayoutDashboard, label: "Dashboard (Visão Geral)", path: "/app" },
-  {
-    icon: Calendar,
-    label: "Agendamentos / Avaliações",
-    path: "/app/agendamentos",
-  },
-  { icon: FileText, label: "Documentos / Relatórios", path: "/app/documentos" },
-  { icon: Ticket, label: "Bilhete Digital", path: "/app/ticket" },
-  { icon: ClipboardList, label: "Histórico", path: "/app/resultados" },
-  { icon: User, label: "Meu Perfil", path: "/app/perfil" },
-];
-
-/** Nav do contexto admin — espelha o design do stitch */
-const adminNav = [
-  { icon: LayoutDashboard, label: "Visão Geral", path: "/app/admin" },
-  { icon: Users, label: "Gerenciar Turmas", path: "/app/turmas" },
-  { icon: Users, label: "Efetivo", path: "/app/efetivo" },
-  { icon: MapPin, label: "OMs / Locais", path: "/app/om-locations" },
-  {
-    icon: ClipboardPen,
-    label: "Lançar Índices",
-    path: "/app/lancamento-indices",
-  },
-  { icon: BarChart2, label: "Relatórios", path: "/app/analytics" },
-  { icon: Settings, label: "Configurações", path: "/app/configuracoes" },
-  { icon: Shield, label: "Logs de Auditoria", path: "/app/auditoria" },
-];
+const sidebarIconMap = {
+  "layout-dashboard": LayoutDashboard,
+  calendar: Calendar,
+  "file-text": FileText,
+  ticket: Ticket,
+  "clipboard-list": ClipboardList,
+  user: User,
+  users: Users,
+  "map-pin": MapPin,
+  "clipboard-pen": ClipboardPen,
+  "bar-chart-2": BarChart2,
+  settings: Settings,
+  shield: Shield,
+} as const;
 
 type SidebarProps = {
   isOpen?: boolean;
@@ -61,9 +48,11 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const location = useLocation();
   const { profile } = useAuth();
-
-  const isAdmin = profile?.role === "admin" || profile?.role === "coordinator";
-  const navItems = isAdmin ? adminNav : userNav;
+  const navItems = getSidebarRoutesForRole(profile?.role).map((route) => ({
+    icon: sidebarIconMap[route.sidebarIcon!],
+    label: route.sidebarLabel!,
+    path: route.path,
+  }));
 
   const isActive = (path: string) => {
     if (path === "/app") {

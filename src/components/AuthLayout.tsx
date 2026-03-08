@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 bg-white font-inter">
+    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 bg-bg-default font-inter">
       <div className="hidden lg:block lg:col-span-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/baseareacanoas.jpg')] bg-cover bg-center transition-transform duration-1000 hover:scale-105" />
         <div className="absolute inset-0 bg-primary/40 mix-blend-multiply" />

@@ -29,11 +29,11 @@ const InputField = ({
   onChange,
 }: InputFieldProps) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+    <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
       {label}
     </label>
     <div className="relative group">
-      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#1B365D] transition-colors">
+      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-primary transition-colors">
         <Icon size={18} />
       </div>
       <input
@@ -42,7 +42,7 @@ const InputField = ({
         required={required}
         value={value}
         onChange={onChange}
-        className="w-full pl-11 pr-4 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+        className="w-full pl-11 pr-4 py-4 bg-bg-card text-text-body placeholder-text-muted rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-bg-card transition-all outline-none font-medium"
       />
     </div>
   </div>
@@ -80,15 +80,15 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <>
-        <div className="w-16 h-16 bg-blue-50 text-[#1B365D] rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="w-16 h-16 bg-bg-card text-primary rounded-full flex items-center justify-center mx-auto mb-6">
           <KeyRound size={32} />
         </div>
 
         <div className="mb-8">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+          <h2 className="text-3xl font-black text-text-body tracking-tight mb-2">
             Recuperar Senha
           </h2>
-          <p className="text-slate-500 text-sm font-medium leading-relaxed px-4">
+          <p className="text-text-muted text-sm font-medium leading-relaxed px-4">
             Insira seu e-mail institucional abaixo para receber as instruções de
             recuperação.
           </p>
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
           />
           <button
             disabled={loading}
-            className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-blue-900/20 transition-all"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all"
           >
             {loading ? "Enviando..." : "Enviar Instruções"}
           </button>
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
         <div className="mt-10">
           <Link
             to="/login"
-            className="flex items-center justify-center gap-2 w-full text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors group"
+            className="flex items-center justify-center gap-2 w-full text-sm font-bold text-text-muted hover:text-text-body transition-colors group"
           >
             <ArrowLeft
               size={18}
@@ -124,11 +124,11 @@ export default function ForgotPasswordPage() {
           </Link>
         </div>
 
-        <div className="mt-8 p-5 bg-[#E9EEF5] rounded-3xl flex items-center gap-4">
-          <div className="text-[#1B365D]">
+        <div className="mt-8 p-5 bg-bg-card rounded-3xl flex items-center gap-4">
+          <div className="text-primary">
             <AlertCircle size={24} />
           </div>
-          <p className="text-[11px] text-[#1B365D]/70 font-bold uppercase tracking-wider leading-relaxed text-left">
+          <p className="text-[11px] text-text-muted font-bold uppercase tracking-wider leading-relaxed text-left">
             Problemas com o acesso? Procure a seção de informática da sua OM.
           </p>
         </div>

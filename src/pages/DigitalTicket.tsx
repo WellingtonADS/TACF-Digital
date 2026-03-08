@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
@@ -17,7 +18,6 @@ import QR from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "@/components/layout/Layout";
 
 // no longer need formatTicketDate or route state types; they live in the hook
 
@@ -122,11 +122,11 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           <Breadcrumbs items={["Agendamentos", "Bilhete Digital"]} />
 
           <div className="mt-8 text-center space-y-4">
-            <ShieldCheck className="mx-auto text-slate-300" size={48} />
-            <h2 className="text-xl font-bold text-slate-700">
+            <ShieldCheck className="mx-auto text-text-muted" size={48} />
+            <h2 className="text-xl font-bold text-text-body">
               Sem agendamento encontrado
             </h2>
-            <p className="text-slate-500 text-sm">
+            <p className="text-text-muted text-sm">
               Você ainda não possui um agendamento confirmado. Acesse a área de
               agendamentos para reservar uma sessão.
             </p>
@@ -167,7 +167,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
         <Breadcrumbs items={["Agendamentos", "Bilhete Digital"]} />
       </div>
 
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden ticket-container print:bg-white print:shadow-none">
+      <div className="w-full max-w-2xl bg-bg-card dark:bg-bg-card rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden ticket-container print:bg-white print:shadow-none">
         <div className="bg-primary px-4 py-6 sm:px-8 sm:py-8 text-white relative">
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
@@ -198,7 +198,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em]">
                 Militar
               </span>
-              <p className="break-words text-xl font-black text-slate-900 dark:text-white sm:text-2xl">
+              <p className="break-words text-xl font-black text-text-body dark:text-text-inverted sm:text-2xl">
                 {ticketData.name}
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em]">
                 SARAM
               </span>
-              <p className="break-all text-xl font-mono font-semibold text-slate-900 dark:text-white sm:text-2xl">
+              <p className="break-all text-xl font-mono font-semibold text-text-body dark:text-text-inverted sm:text-2xl">
                 {ticketData.saram}
               </p>
             </div>
@@ -218,7 +218,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               </span>
               <div className="flex items-start gap-2">
                 <MapPin className="text-primary" size={18} />
-                <p className="break-words text-base font-mono font-medium text-slate-700 dark:text-slate-300 sm:text-lg">
+                <p className="break-words text-base font-mono font-medium text-text-body dark:text-text-muted sm:text-lg">
                   {ticketData.location}
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               </span>
               <div className="flex items-start gap-2">
                 <Calendar className="text-primary" size={18} />
-                <p className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+                <p className="text-base font-bold text-text-body dark:text-text-inverted sm:text-lg">
                   {ticketData.date}{" "}
                   <span className="text-primary font-normal mx-2">|</span>{" "}
                   {ticketData.time}
@@ -246,8 +246,8 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           <div className="ticket-cutout-right dark:bg-background-dark" />
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 sm:p-8 md:p-12 flex flex-col md:flex-row items-center gap-6 sm:gap-8">
-          <div className="flex-shrink-0 rounded-2xl border-2 border-primary/10 bg-white p-3 shadow-sm dark:bg-slate-900">
+        <div className="bg-bg-default dark:bg-bg-card/50 p-4 sm:p-8 md:p-12 flex flex-col md:flex-row items-center gap-6 sm:gap-8">
+          <div className="flex-shrink-0 rounded-2xl border-2 border-primary/10 bg-bg-card p-3 shadow-sm dark:bg-bg-card">
             <div className="w-32 md:w-36">
               <QR
                 value={qrValue}
@@ -269,7 +269,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
 
             <div className="w-full bg-primary/5 dark:bg-primary/20 p-4 rounded-xl flex items-start gap-3">
               <Info className="text-primary" size={16} />
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-xs text-text-muted leading-relaxed">
                 Apresente este código ou QR code no acesso à pista. Tenha em
                 mãos sua identidade militar original.
               </p>
@@ -295,7 +295,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
         </button>
       </div>
 
-      <div className="mt-6 text-center text-slate-500 text-sm print:hidden">
+      <div className="mt-6 text-center text-text-muted text-sm print:hidden">
         Dúvidas ou problemas com o agendamento?{" "}
         <a href="#" className="text-primary hover:underline">
           Contate o suporte TACF

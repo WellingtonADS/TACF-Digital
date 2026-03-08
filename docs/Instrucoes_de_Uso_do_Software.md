@@ -2,178 +2,174 @@
 
 ## 1. Objetivo
 
-Este guia orienta o uso do TACF-Digital nas rotinas operacionais do TACF, com foco em:
+Este guia descreve o uso operacional do TACF-Digital, cobrindo acesso, perfis, fluxos principais,
+operações administrativas e orientações de segurança. Destina-se a militares e administradores.
 
-- acesso ao sistema;
-- uso por perfil de usuário;
-- execução dos fluxos principais de agendamento, acompanhamento e gestão administrativa.
+## 2. Visão Geral Rápida (Resumo)
 
-## 2. Acesso ao Sistema
+- **Acesso:** login com e-mail e senha; recuperação por e-mail.
+- **Perfis:** `Militar` e `Administrador` com permissões distintas.
+- **Fluxos principais:** agendamento, confirmação, geração de ticket digital, reagendamento e auditoria.
 
-### 2.1 Pré-requisitos
+---
 
-- Usuário cadastrado no TACF-Digital;
-- Credenciais válidas (e-mail e senha);
-- Navegador atualizado.
+## 3. Acesso ao Sistema
 
-### 2.2 Entrada no sistema
+### 3.1 Pré-requisitos
+
+- Conta cadastrada e validação de e-mail;
+- Credenciais (e-mail e senha) em ambiente seguro;
+- Navegador moderno (Chrome, Edge, Firefox) atualizado.
+
+### 3.2 Login
 
 1. Acesse a página de login.
-2. Informe e-mail e senha.
-3. Clique em Entrar.
+2. Insira e-mail e senha.
+3. Caso habilitado, use autenticação multifator (MFA).
+4. Clique em Entrar.
 
-### 2.3 Recuperação de acesso
+### 3.3 Recuperação de conta
 
-Caso não consiga entrar:
-
-1. Use a opção de recuperação de senha.
-2. Siga as instruções enviadas para o e-mail cadastrado.
-
----
-
-## 3. Perfis de Uso
-
-O sistema possui dois perfis principais:
-
-- Militar (usuário operacional);
-- Administrador (gestão e governança).
-
-As telas e permissões mudam conforme o perfil.
+1. Clique em "Esqueci a senha".
+2. Siga as instruções enviadas ao e-mail cadastrado.
+3. Se houver problema com o e-mail, contate o suporte responsável.
 
 ---
 
-## 4. Uso do Sistema — Perfil Militar
+## 4. Perfis e Permissões
 
-## 4.1 Dashboard Operacional
+- **Militar:** acesso aos módulos de agendamento, ticket digital, histórico e documentos pessoais.
+- **Administrador:** gerenciamento de turmas, locais, horários, relatórios, auditoria e configurações do sistema.
 
-Após o login, o militar acessa a visão geral com:
-
-- status de prontidão;
-- alertas importantes (ex.: validade de inspeção de saúde);
-- atalhos para ações rápidas.
-
-## 4.2 Fluxo de Agendamento de TACF
-
-1. Abra o módulo Agendamentos.
-2. Selecione local, data e horário disponíveis.
-3. Revise os dados da solicitação.
-4. Confirme o agendamento.
-5. Gere e consulte o Ticket Digital.
-
-## 4.3 Ticket Digital
-
-No ticket, o usuário visualiza:
-
-- status da confirmação;
-- identificador/código de validação;
-- QR Code para conferência operacional.
-
-## 4.4 Histórico e Resultados
-
-No módulo de resultados/histórico, o militar pode:
-
-- consultar avaliações anteriores;
-- verificar notas e situação final;
-- acompanhar evolução de desempenho.
-
-## 4.5 Documentos e Recursos
-
-- Documentos: consulta de materiais e normas disponíveis no sistema.
-- Recurso: solicitação de revisão quando aplicável, conforme regras internas.
-
-## 4.6 Perfil do Usuário
-
-No menu de perfil, o militar pode:
-
-- consultar dados cadastrais e funcionais;
-- atualizar informações permitidas;
-- ajustar credenciais de segurança.
+As permissões específicas são controladas centralmente pelo backend/Supabase (RLS e RPCs). Não altere regras de negócio no frontend.
 
 ---
 
-## 5. Uso do Sistema — Perfil Administrador
+## 5. Fluxo do Usuário Militar
 
-## 5.1 Dashboard Administrativo
+### 5.1 Dashboard operacional
 
-Tela inicial para acompanhamento operacional com indicadores de controle e visão rápida da situação das turmas.
+Ao entrar, o usuário vê indicadores de sessão, vagas disponíveis e alertas. Use os atalhos para iniciar agendamentos.
 
-## 5.2 Gestão de Turmas
+### 5.2 Agendamento passo a passo
 
-No módulo de turmas, o administrador pode:
+1. Acesse o módulo `Agendamentos`.
+2. Escolha `Local`, `Data` e `Horário` disponíveis.
+3. Preencha dados solicitados (informações funcionais mínimas).
+4. Revise e confirme a solicitação.
+5. Receba confirmação por tela e e-mail; gere o `Ticket Digital`.
 
-1. criar nova turma;
-2. editar dados da sessão;
-3. acompanhar vagas e status;
-4. acessar agendamentos da turma.
+Observações:
 
-## 5.3 Lançamento de Índices
+- O frontend apenas envia a solicitação — regras de validação (quórum, capacidade, conflitos) são aplicadas no banco via RPCs.
+- Em caso de erro, consulte a mensagem retornada e abra um chamado se necessário.
 
-No módulo de avaliações, o administrador registra os resultados por militar e acompanha o cálculo consolidado de desempenho conforme as regras do sistema.
+### 5.3 Ticket Digital
 
-## 5.4 Gestão de Efetivo
+O ticket contém:
 
-Permite:
+- identificador único e status;
+- QR Code para verificação;
+- instruções e contatos de suporte.
 
-- localizar militares por identificação ou nome;
-- acompanhar situação de aptidão;
-- acessar informações operacionais para gestão do efetivo.
+### 5.4 Histórico e Resultados
 
-## 5.5 Reagendamentos
-
-No módulo de reagendamentos, o administrador pode:
-
-- analisar solicitações;
-- deferir ou indeferir pedidos;
-- registrar decisão para rastreabilidade.
-
-## 5.6 Auditoria e Governança
-
-No módulo de auditoria, é possível:
-
-- consultar histórico de ações;
-- acompanhar alterações relevantes;
-- reforçar rastreabilidade operacional.
-
-## 5.7 Configurações
-
-No módulo de configurações, o administrador gerencia:
-
-- perfis e permissões de acesso;
-- parâmetros administrativos do sistema;
-- cadastros de apoio (OMs, locais e horários, conforme permissões).
+Consulte avaliações anteriores, notas e relatórios no módulo `Resultados`.
 
 ---
 
-## 6. Boas Práticas de Uso
+## 6. Fluxos do Administrador
 
-- Sempre confirme os dados antes de concluir agendamentos.
-- Mantenha as informações do perfil atualizadas.
-- Use apenas seu próprio usuário e senha.
-- Em operações administrativas, registre decisões de forma consistente.
+### 6.1 Dashboard administrativo
+
+Painel de controle com métricas de ocupação, próximos eventos e alertas de conflitos.
+
+### 6.2 Gestão de turmas e sessões
+
+1. Criar/editar turmas: definir data, horário, capacidade e requisitos.
+2. Publicar vagas: torne disponibilidade visível aos militares.
+3. Cancelar ou reagendar sessões: registre justificativa para auditoria.
+
+### 6.3 Validação e regras de negócio
+
+Todas as regras críticas (quórum, capacidade máxima, políticas de reagendamento) devem ser implementadas e mantidas no Supabase (migrations/RPCs). Evite duplicar validações no cliente.
+
+### 6.4 Auditoria
+
+Use o módulo de auditoria para consultar logs de ações, alterações em turmas e decisões de reagendamento. Mantenha justificativas claras em cada operação.
 
 ---
 
-## 7. Situações Comuns e Ações Recomendadas
+## 7. Procedimentos Operacionais (Checklists)
 
-### 7.1 Não consigo acessar
+### 7.1 Checklist rápido — Criar turma
+
+- Definir `OM` responsável;
+- Informar `Data/Horário` e `Capacidade`;
+- Definir `Requisitos` (ex.: exame médico);
+- Confirmar publicação e comunicação ao efetivo.
+
+### 7.2 Checklist rápido — Confirmar resultados
+
+- Validar dados pessoais antes do lançamento;
+- Conferir cálculos e regras de pontuação;
+- Registrar responsável e timestamp para auditoria.
+
+---
+
+## 8. Suporte e Contatos
+
+- Para problemas de acesso ou dados: contato da TI/Helpdesk local.
+- Para dúvidas sobre regras operacionais: coordenação do TACF.
+- Sempre inclua `ID do usuário`, `ID da sessão` e prints quando abrir chamado.
+
+---
+
+## 9. Situações Comuns e Resolução
+
+### 9.1 Não consigo acessar
 
 - Verifique e-mail e senha;
-- use recuperação de senha;
-- se persistir, acione o suporte interno.
+- Redefina senha via link;
+- Se persistir, contate suporte com `prints` e `logs`.
 
-### 7.2 Não encontro vagas para agendamento
+### 9.2 Falha ao agendar / conflitos de vaga
 
-- Verifique datas alternativas;
-- consulte horários em outros locais disponíveis;
-- acompanhe atualizações no painel de agendamentos.
+- Verifique mensagens de erro no frontend;
+- Confirme disponibilidade em outro local/data;
+- Se conflito persistir, reporte para análise dos RPCs no banco.
 
-### 7.3 Solicitação pendente por muito tempo
+### 9.3 Reagendamento pendente
 
-- Consulte o status no próprio módulo;
-- em caso de necessidade operacional, encaminhe à administração responsável.
+- Verifique o histórico do pedido e a justificativa;
+- Se necessário, escalone ao administrador responsável.
 
 ---
 
-## 8. Observações Finais
+## 10. Segurança e Boas Práticas
 
-Este documento descreve o uso operacional do TACF-Digital com base nos fluxos atuais da aplicação. Ajustes de tela, nomenclaturas e permissões podem evoluir conforme políticas internas e atualizações funcionais do projeto.
+- Mantenha credenciais pessoais seguras;
+- Não compartilhe contas; use contas individuais;
+- Use MFA quando disponível;
+- Não mova regras críticas para o cliente — mantenha lógica no banco.
+
+---
+
+## 11. Glossário (rápido)
+
+- **OM:** Organização Militar;
+- **RPC:** função remota no Supabase/Postgres;
+- **RLS:** Row Level Security (políticas de acesso no Postgres);
+- **Ticket Digital:** comprovante de agendamento com QR Code.
+
+---
+
+## 12. Histórico de Alterações (Resumo)
+
+- 2026-03-07 — Documento ampliado com checklists, suporte e procedimentos operacionais.
+
+---
+
+## 13. Observações finais
+
+Este documento é uma referência operacional. Alterações em regras de negócio ou políticas do banco devem ser coordenadas com a equipe responsável e documentadas em `supabase/` (migrations e RPCs).

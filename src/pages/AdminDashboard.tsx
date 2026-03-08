@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
 import { format, isAfter, parseISO } from "date-fns";
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/layout/Layout";
 import { supabase } from "../services/supabase";
 
 export const AdminDashboard = () => {
@@ -165,8 +165,7 @@ export const AdminDashboard = () => {
       label: "Configurações",
       description: "Parâmetros globais e segurança",
       path: "/app/configuracoes",
-      accent:
-        "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+      accent: "bg-bg-card text-text-muted dark:bg-bg-card dark:text-text-muted",
     },
   ];
 
@@ -178,21 +177,21 @@ export const AdminDashboard = () => {
           <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
             Dashboard Administrativo
           </h2>
-          <p className="text-slate-500 mt-1">
+          <p className="text-text-muted mt-1">
             Bem-vindo ao centro de controle TACF‑Digital.
           </p>
         </div>
         <div className="flex items-center gap-4">
           <button
-            className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm text-slate-400 hover:text-primary transition-colors"
+            className="p-2 bg-bg-card dark:bg-bg-card rounded-full shadow-sm text-text-muted hover:text-primary transition-colors"
             aria-label="Notificações"
             title="Notificações"
           >
             <Bell size={20} />
           </button>
-          <div className="h-10 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+          <div className="h-10 w-px bg-border-default dark:bg-border-default mx-1" />
           <div className="text-right">
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
+            <p className="text-xs text-text-muted font-medium uppercase tracking-widest">
               Sessão Ativa
             </p>
             <p className="text-sm font-bold text-primary dark:text-white font-mono">
@@ -216,13 +215,13 @@ export const AdminDashboard = () => {
       {/* stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {/* Total inscritos */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
+            <p className="text-text-muted text-sm font-medium mb-1">
               Total Inscritos
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : totalInscritos}
             </h3>
@@ -234,13 +233,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Aptos mês */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
+        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
           <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
+            <p className="text-text-muted text-sm font-medium mb-1">
               Aptos (Mês)
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : aptosMonth}
             </h3>
@@ -252,13 +251,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Pendências */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
+        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
           <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
+            <p className="text-text-muted text-sm font-medium mb-1">
               Pendências
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : pendencias}
             </h3>
@@ -270,13 +269,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Capacidade restante */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
+            <p className="text-text-muted text-sm font-medium mb-1">
               Capacidade Restante
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${sessionsLoading ? "animate-pulse text-slate-400" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${sessionsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {sessionsLoading ? "—" : capacidadeRestante}
             </h3>
@@ -297,7 +296,7 @@ export const AdminDashboard = () => {
 
       {/* quick action cards */}
       <section className="mb-10">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 px-1">
           Acesso Rápido
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -306,7 +305,7 @@ export const AdminDashboard = () => {
               key={action.path}
               type="button"
               onClick={() => navigate(action.path)}
-              className="group flex flex-col items-start gap-3 bg-white dark:bg-slate-800 p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+              className="group flex flex-col items-start gap-3 bg-bg-card dark:bg-bg-card p-3 md:p-5 rounded-2xl shadow-sm border border-border-default dark:border-border-default hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}
@@ -314,10 +313,10 @@ export const AdminDashboard = () => {
                 <action.icon size={20} />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                <p className="text-sm font-bold text-text-body dark:text-text-inverted leading-tight">
                   {action.label}
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug line-clamp-2">
+                <p className="text-[11px] text-text-muted mt-0.5 leading-snug line-clamp-2">
                   {action.description}
                 </p>
               </div>
@@ -329,7 +328,7 @@ export const AdminDashboard = () => {
       {/* upcoming sessions strip */}
       <section>
         <div className="flex items-center justify-between mb-4 px-1">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+          <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
             Próximas Turmas Abertas
           </h3>
           <button
@@ -345,13 +344,13 @@ export const AdminDashboard = () => {
             Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-slate-800 rounded-2xl p-5 animate-pulse h-28 border border-slate-100 dark:border-slate-700"
+                className="bg-bg-card dark:bg-bg-card rounded-2xl p-5 animate-pulse h-28 border border-border-default dark:border-border-default"
               />
             ))
           ) : upcomingSessions.length === 0 ? (
-            <div className="col-span-3 bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700">
-              <Shield size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-sm text-slate-400">
+            <div className="col-span-3 bg-bg-card dark:bg-bg-card rounded-2xl p-8 text-center border border-border-default dark:border-border-default">
+              <Shield size={32} className="mx-auto text-text-muted mb-2" />
+              <p className="text-sm text-text-muted">
                 Nenhuma turma aberta nos próximos dias.
               </p>
             </div>
@@ -362,21 +361,21 @@ export const AdminDashboard = () => {
               const percent = max ? Math.round((occupied / max) * 100) : 0;
               const statusColor =
                 percent >= 95
-                  ? "border-l-slate-400"
+                  ? "border-l-text-muted"
                   : percent >= 50
                     ? "border-l-military-gold"
                     : "border-l-primary";
               return (
                 <div
                   key={s.session_id}
-                  className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 border-l-4 ${statusColor} flex flex-col gap-3`}
+                  className={`bg-bg-card dark:bg-bg-card rounded-2xl p-5 border border-border-default dark:border-border-default border-l-4 ${statusColor} flex flex-col gap-3`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-text-muted uppercase tracking-wider">
                         {s.session_id.slice(0, 8).toUpperCase()}
                       </p>
-                      <p className="text-sm font-bold text-slate-800 dark:text-white mt-0.5">
+                      <p className="text-sm font-bold text-text-body dark:text-text-inverted mt-0.5">
                         {format(parseISO(s.date), "EEEE, dd 'de' MMMM", {
                           locale: ptBR,
                         })}
@@ -387,20 +386,20 @@ export const AdminDashboard = () => {
                     </span>
                   </div>
                   <div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                    <div className="flex justify-between text-[10px] font-bold text-text-muted mb-1">
                       <span>Ocupação</span>
                       <span>
                         {occupied}/{max} — {percent}%
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-border-default dark:bg-border-default rounded-full overflow-hidden">
                       <progress
                         value={occupied}
                         max={max || 1}
                         aria-label="Ocupação da turma"
                         className={`h-full w-full rounded-full [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${
                           percent >= 95
-                            ? "[&::-webkit-progress-value]:bg-slate-400"
+                            ? "[&::-webkit-progress-value]:bg-text-muted"
                             : percent >= 50
                               ? "[&::-webkit-progress-value]:bg-amber-400"
                               : "[&::-webkit-progress-value]:bg-primary"

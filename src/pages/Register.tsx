@@ -92,25 +92,24 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             Campos com <span className="font-bold">*</span> são obrigatórios.
           </p>
 
           <div className="space-y-1">
-            <input
+            <Input
               name="tacf-register-full-name"
               type="text"
               required
               placeholder="Ex.: João da Silva"
               value={fullName}
               autoComplete="off"
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setFullName(v)}
             />
           </div>
 
           <div className="space-y-1">
-            <input
+            <Input
               name="tacf-register-email"
               type="email"
               required
@@ -120,8 +119,7 @@ export default function RegisterPage() {
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setEmail(v)}
             />
           </div>
 
@@ -139,7 +137,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -150,7 +148,7 @@ export default function RegisterPage() {
         </form>
 
         <div className="text-center pt-4">
-          <p className="text-sm text-slate-600">Já possui uma conta?</p>
+          <p className="text-sm text-text-muted">Já possui uma conta?</p>
           <Link
             to="/login"
             className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
@@ -160,7 +158,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-xs text-gray-300 font-medium">
+          <p className="text-xs text-text-muted font-medium">
             © 2026 HACO — Força Aérea Brasileira
           </p>
         </div>

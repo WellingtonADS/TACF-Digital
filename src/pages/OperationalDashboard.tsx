@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import RescheduleDrawer from "@/components/RescheduleDrawer";
 import useDashboard from "@/hooks/useDashboard";
 import supabase from "@/services/supabase";
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/layout/Layout";
 
 export const OperationalDashboard = () => {
   const {
@@ -111,21 +111,29 @@ export const OperationalDashboard = () => {
 
   const navigate = useNavigate();
 
+  type NextSessionWithOptionalDetails = NonNullable<typeof nextSession> & {
+    time?: string | null;
+    location?: string | null;
+  };
+
+  const nextSessionDetails =
+    nextSession as NextSessionWithOptionalDetails | null;
+
   const actionCards = [
     {
       icon: CalendarPlus,
       label: "Novo Agendamento",
       title: "Marcar TACF",
-      iconBg: "bg-blue-50 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-blue-400",
+      iconBg: "bg-primary/5 dark:bg-primary/20",
+      iconColor: "text-primary dark:text-primary",
       to: "/app/agendamentos",
     },
     {
       icon: ClipboardList,
       label: "Meus Testes",
       title: "Histórico",
-      iconBg: "bg-blue-50 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-blue-400",
+      iconBg: "bg-primary/5 dark:bg-primary/20",
+      iconColor: "text-primary dark:text-primary",
       to: "/app/resultados",
       count: resultsCount,
     },
@@ -133,8 +141,8 @@ export const OperationalDashboard = () => {
       icon: Award,
       label: "Resultados",
       title: "Certificados",
-      iconBg: "bg-blue-50 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-blue-400",
+      iconBg: "bg-primary/5 dark:bg-primary/20",
+      iconColor: "text-primary dark:text-primary",
       to: "/app/ticket",
       count: bookingsCount,
     },
@@ -142,8 +150,8 @@ export const OperationalDashboard = () => {
       icon: FileText,
       label: "Documentação",
       title: "Manuais e Normas",
-      iconBg: "bg-blue-50 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-blue-400",
+      iconBg: "bg-primary/5 dark:bg-primary/20",
+      iconColor: "text-primary dark:text-primary",
       to: "/app/documentos",
     },
   ];
@@ -207,7 +215,7 @@ export const OperationalDashboard = () => {
             onMouseEnter={() => {
               if (card.to) prefetchRoute(card.to);
             }}
-            className="group bg-white dark:bg-slate-900 p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
+            className="group bg-bg-card p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl shadow-black/10 border border-border-default text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
           >
             <div
               className={`h-10 w-10 md:h-14 md:w-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-3 md:mb-6 ${card.iconColor} group-hover:bg-primary group-hover:text-white transition-colors`}
@@ -217,15 +225,15 @@ export const OperationalDashboard = () => {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-1 group-hover:text-primary transition-colors">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted mb-1 group-hover:text-primary transition-colors">
                   {card.label}
                 </h3>
-                <p className="text-slate-900 dark:text-white font-semibold text-lg">
+                <p className="text-text-body font-semibold text-lg">
                   {card.title}
                 </p>
               </div>
               {typeof card.count === "number" && (
-                <div className="ml-auto text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-full">
+                <div className="ml-auto text-sm font-bold text-text-muted bg-bg-card px-3 py-2 rounded-full">
                   {card.count}
                 </div>
               )}
@@ -246,38 +254,36 @@ export const OperationalDashboard = () => {
       {/* Bottom Section: Status & Notifications */}
       <section className="flex flex-col xl:flex-row gap-6">
         {/* Status Card */}
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl p-4 md:p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-lg">
+        <div className="flex-1 bg-bg-card rounded-3xl p-4 md:p-6 lg:p-8 border border-border-default shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <CalendarPlus className="text-primary" size={20} />
-              <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+              <h4 className="text-sm font-bold uppercase tracking-widest text-text-muted">
                 Próximo Evento
               </h4>
             </div>
-            <MoreHorizontal className="text-slate-300" size={20} />
+            <MoreHorizontal className="text-text-muted" size={20} />
           </div>
           <div className="flex flex-col items-center justify-center py-6 md:py-8 rounded-2xl">
             {dashboardLoading ? (
               <div className="flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
+                <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
                   <Info size={24} />
                 </div>
-                <p className="text-slate-600 dark:text-slate-400 font-medium">
-                  Carregando...
-                </p>
+                <p className="text-text-muted font-medium">Carregando...</p>
               </div>
             ) : nextSession ? (
               <div className="w-full">
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
-                  <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-slate-100 dark:border-slate-800 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border-default flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-2xl md:text-3xl font-extrabold text-primary dark:text-white">
-                        {format(parseISO((nextSession as any).date), "dd", {
+                        {format(parseISO(nextSession.date), "dd", {
                           locale: ptBR,
                         })}
                       </div>
-                      <div className="text-xs md:text-sm uppercase text-slate-500">
-                        {format(parseISO((nextSession as any).date), "MMM", {
+                      <div className="text-xs md:text-sm uppercase text-text-muted">
+                        {format(parseISO(nextSession.date), "MMM", {
                           locale: ptBR,
                         })}
                       </div>
@@ -285,20 +291,20 @@ export const OperationalDashboard = () => {
                   </div>
 
                   <div className="flex-1 text-center md:text-left">
-                    <p className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white">
+                    <p className="text-lg md:text-xl font-extrabold text-text-body">
                       {format(
-                        parseISO((nextSession as any).date),
+                        parseISO(nextSession.date),
                         "EEEE, dd 'de' MMMM",
                         { locale: ptBR },
                       )}
                     </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {(nextSession as any).time ??
-                        `Turno: ${periodToLabel((nextSession as any).period)}`}
+                    <p className="text-sm text-text-muted mt-1">
+                      {nextSessionDetails?.time ??
+                        `Turno: ${periodToLabel(nextSession.period)}`}
                     </p>
-                    {(nextSession as any).location && (
-                      <p className="text-sm text-slate-500 mt-1">
-                        {(nextSession as any).location}
+                    {nextSessionDetails?.location && (
+                      <p className="text-sm text-text-muted mt-1">
+                        {nextSessionDetails.location}
                       </p>
                     )}
 
@@ -330,15 +336,15 @@ export const OperationalDashboard = () => {
               </div>
             ) : (
               <div className="text-center">
-                <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
+                <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
                   <Info size={24} />
                 </div>
-                <p className="text-slate-600 dark:text-slate-400 font-medium">
+                <p className="text-text-muted font-medium">
                   Nenhum agendamento pendente
                 </p>
                 <a
                   href="/app/agendamentos"
-                  className="mt-4 inline-block text-primary dark:text-blue-400 text-sm font-bold uppercase tracking-wider hover:underline"
+                  className="mt-4 inline-block text-primary dark:text-primary text-sm font-bold uppercase tracking-wider hover:underline"
                 >
                   Ver calendário completo
                 </a>
@@ -348,8 +354,8 @@ export const OperationalDashboard = () => {
         </div>
 
         {/* Info Section */}
-        <div className="w-full xl:w-96 bg-primary/5 dark:bg-slate-800/30 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10 dark:border-slate-700">
-          <h4 className="text-sm font-bold uppercase tracking-widest text-primary dark:text-blue-400 mb-6 flex items-center gap-2">
+        <div className="w-full xl:w-96 bg-primary/5 dark:bg-bg-card/30 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10 dark:border-border-default">
+          <h4 className="text-sm font-bold uppercase tracking-widest text-primary dark:text-primary mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes
           </h4>
@@ -357,16 +363,16 @@ export const OperationalDashboard = () => {
             {notifications.map((n, idx) => (
               <div
                 key={idx}
-                className="flex gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+                className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                <div className="w-10 h-10 rounded-full bg-bg-default flex items-center justify-center text-primary">
                   <Info size={20} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
+                  <p className="text-xs font-bold text-text-body tracking-tight">
                     {n.title}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-xs text-text-muted mt-1 leading-relaxed">
                     {n.description}
                   </p>
                 </div>

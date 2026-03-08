@@ -1,5 +1,5 @@
-import useAuth from "@/hooks/useAuth";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
 import {
@@ -566,7 +566,7 @@ export default function AnalyticsDashboard() {
   if (authLoading) {
     return (
       <Layout>
-        <p className="text-sm text-slate-500">Carregando...</p>
+        <p className="text-sm text-text-muted">Carregando...</p>
       </Layout>
     );
   }
@@ -597,10 +597,10 @@ export default function AnalyticsDashboard() {
         <header className="mb-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-primary dark:text-white">
+              <h2 className="text-2xl font-bold text-primary">
                 Relatorios Consolidados
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-text-muted">
                 Desempenho fisico e prontidao operacional.
               </p>
             </div>
@@ -613,8 +613,8 @@ export default function AnalyticsDashboard() {
                     onClick={() => applyPreset(p)}
                     className={`rounded-lg px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold transition-colors text-center ${
                       datePreset === p
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-bg-card text-text-muted hover:bg-bg-card/90 dark:bg-bg-card"
                     }`}
                   >
                     <span className="sm:hidden">
@@ -639,20 +639,20 @@ export default function AnalyticsDashboard() {
                 ),
               )}
               {datePreset === "custom" && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800">
-                  <CalendarDays size={12} className="text-slate-400" />
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-1.5 text-xs">
+                  <CalendarDays size={12} className="text-text-muted" />
                   <input
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                    className="bg-transparent text-text-body outline-none"
                   />
-                  <span className="text-slate-400">—</span>
+                  <span className="text-text-muted">—</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                    className="bg-transparent text-text-body outline-none"
                   />
                 </div>
               )}
@@ -660,7 +660,7 @@ export default function AnalyticsDashboard() {
           </div>
 
           {/* Tabs */}
-          <div className="mt-5 grid grid-cols-2 gap-0 border-b border-slate-200 dark:border-slate-700 sm:flex sm:overflow-x-auto">
+          <div className="mt-5 grid grid-cols-2 gap-0 border-b border-border-default sm:flex sm:overflow-x-auto">
             {[
               {
                 id: "overview" as ReportTab,
@@ -693,8 +693,8 @@ export default function AnalyticsDashboard() {
                 onClick={() => setActiveTab(id)}
                 className={`flex w-full items-center justify-center gap-1 border-b-2 px-2 pb-3 pt-1 text-[11px] font-semibold transition-colors sm:w-auto sm:flex-shrink-0 sm:justify-start sm:gap-1.5 sm:px-4 sm:text-sm ${
                   activeTab === id
-                    ? "border-primary text-primary dark:border-white dark:text-white"
-                    : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-muted hover:text-text-body dark:hover:text-text-muted"
                 }`}
               >
                 <Icon size={13} />
@@ -755,7 +755,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
                 <SectionTitle>Aptidao por Unidade</SectionTitle>
                 <div className="mt-4 space-y-4">
                   {loading ? (
@@ -766,17 +766,17 @@ export default function AnalyticsDashboard() {
                     units.slice(0, 6).map((u) => (
                       <div key={u.unit}>
                         <div className="mb-1.5 flex justify-between text-xs font-semibold">
-                          <span className="truncate pr-4 text-slate-600 dark:text-slate-300">
+                          <span className="truncate pr-4 text-text-muted">
                             {u.unit}
                           </span>
-                          <span className="text-slate-800 dark:text-white">
+                          <span className="text-text-body">
                             {u.percent.toFixed(0)}%{" "}
-                            <span className="font-normal text-slate-400">
+                            <span className="font-normal text-text-muted">
                               ({u.apt}/{u.total})
                             </span>
                           </span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-bg-card">
                           <div
                             className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
                             style={{ width: `${u.percent}%` }}
@@ -788,11 +788,11 @@ export default function AnalyticsDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
                 <SectionTitle>Evolucao de Aptidao</SectionTitle>
                 <div className="mt-4 h-[180px] w-full">
                   {loading ? (
-                    <div className="h-full w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+                    <div className="h-full w-full animate-pulse rounded-xl bg-bg-card" />
                   ) : trend.length === 0 ? (
                     <Empty text="Sem dados no periodo." />
                   ) : (
@@ -810,7 +810,7 @@ export default function AnalyticsDashboard() {
                           y2={200 - v * 2}
                           stroke="currentColor"
                           strokeWidth="0.5"
-                          className="text-slate-200 dark:text-slate-700"
+                          className="text-text-muted"
                           strokeDasharray="4,6"
                         />
                       ))}
@@ -848,7 +848,7 @@ export default function AnalyticsDashboard() {
                     </svg>
                   )}
                 </div>
-                <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-slate-400">
+                <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-text-muted">
                   {trend.map((pt) => (
                     <span key={pt.key}>{pt.label}</span>
                   ))}
@@ -860,11 +860,11 @@ export default function AnalyticsDashboard() {
 
         {/* Tab: Revalidacao Pendente */}
         {activeTab === "pending" && (
-          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <div className="rounded-2xl border border-border-default bg-bg-card shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default px-5 py-3">
               <div className="flex items-center gap-3">
                 <ShieldAlert size={15} className="text-amber-500" />
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
                   Revalidacao Pendente
                 </span>
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
@@ -874,25 +874,25 @@ export default function AnalyticsDashboard() {
               <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start md:w-auto md:justify-end">
                 <div className="relative w-full sm:w-auto sm:min-w-[220px]">
                   <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
                     size={13}
                   />
                   <input
                     value={pendingQuery}
                     onChange={(e) => setPendingQuery(e.target.value)}
                     placeholder="Buscar nome ou SARAM..."
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-3 text-xs dark:border-slate-700 dark:bg-slate-800/50 sm:w-auto"
+                    className="w-full rounded-lg border border-border-default bg-bg-card py-1.5 pl-7 pr-3 text-xs sm:w-auto"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowFilters((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400"}`}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-border-default text-text-muted hover:border-border-default dark:text-text-muted"}`}
                 >
                   <Filter size={12} />
                   Filtros
                   {(filterUnit || filterRank || filterStatus) && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
                       {
                         [filterUnit, filterRank, filterStatus].filter(Boolean)
                           .length
@@ -903,7 +903,7 @@ export default function AnalyticsDashboard() {
                 <button
                   type="button"
                   onClick={exportPendingCSV}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
                 >
                   <Download size={12} />
                   CSV
@@ -912,7 +912,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             {showFilters && (
-              <div className="flex flex-col items-stretch gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="flex flex-col items-stretch gap-3 border-b border-border-default bg-bg-card px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
                 <FilterSelect
                   label="Unidade"
                   value={filterUnit}
@@ -952,11 +952,11 @@ export default function AnalyticsDashboard() {
 
             <div className="space-y-2 px-4 py-3 md:hidden">
               {loading ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Carregando dados...
                 </p>
               ) : pendingRows.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Nenhuma revalidacao pendente.
                 </p>
               ) : (
@@ -975,7 +975,7 @@ export default function AnalyticsDashboard() {
                   return (
                     <article
                       key={row.id}
-                      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                      className="rounded-xl border border-border-default bg-bg-card p-3"
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <span
@@ -987,16 +987,16 @@ export default function AnalyticsDashboard() {
                           {row.status}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                      <p className="text-sm font-semibold text-text-body">
                         {row.warName ?? row.militaryName}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-text-muted">
                         {row.rank ? `${row.rank} · ` : ""}
                         {row.identity}
                       </p>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                        <p className="text-slate-500">Unidade: {row.unit}</p>
-                        <p className="text-slate-500">
+                        <p className="text-text-muted">Unidade: {row.unit}</p>
+                        <p className="text-text-muted">
                           Validade: {row.expiration}
                         </p>
                       </div>
@@ -1008,7 +1008,7 @@ export default function AnalyticsDashboard() {
                             {row.lastResult}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-text-muted">
                             Sem resultado
                           </span>
                         )}
@@ -1028,7 +1028,7 @@ export default function AnalyticsDashboard() {
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                  <tr className="border-b border-border-default text-[10px] font-bold uppercase tracking-widest text-text-muted">
                     {[
                       "Prioridade",
                       "Militar",
@@ -1044,12 +1044,12 @@ export default function AnalyticsDashboard() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-border-default">
                   {loading ? (
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-5 py-10 text-center text-sm text-text-muted"
                       >
                         Carregando dados...
                       </td>
@@ -1058,7 +1058,7 @@ export default function AnalyticsDashboard() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-5 py-10 text-center text-sm text-text-muted"
                       >
                         Nenhuma revalidacao pendente.
                       </td>
@@ -1080,7 +1080,7 @@ export default function AnalyticsDashboard() {
                       return (
                         <tr
                           key={row.id}
-                          className="transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+                          className="transition-colors hover:bg-bg-card"
                         >
                           <td className="px-5 py-3.5">
                             <span
@@ -1090,15 +1090,15 @@ export default function AnalyticsDashboard() {
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
-                            <p className="font-semibold text-slate-800 dark:text-white">
+                            <p className="font-semibold text-text-body">
                               {row.warName ?? row.militaryName}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-text-muted">
                               {row.rank ? `${row.rank} · ` : ""}
                               {row.identity}
                             </p>
                           </td>
-                          <td className="px-5 py-3.5 text-sm text-slate-500 dark:text-slate-400">
+                          <td className="px-5 py-3.5 text-sm text-text-muted">
                             {row.unit}
                           </td>
                           <td className="px-5 py-3.5">
@@ -1109,10 +1109,10 @@ export default function AnalyticsDashboard() {
                                 {row.lastResult}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-text-muted">—</span>
                             )}
                           </td>
-                          <td className="px-5 py-3.5 font-mono text-xs text-slate-600 dark:text-slate-300">
+                          <td className="px-5 py-3.5 font-mono text-xs text-text-muted">
                             {row.expiration}
                           </td>
                           <td className="px-5 py-3.5">
@@ -1133,7 +1133,7 @@ export default function AnalyticsDashboard() {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-slate-100 px-5 py-2 text-xs text-slate-400 dark:border-slate-700">
+            <div className="border-t border-border-default px-5 py-2 text-xs text-text-muted">
               {pendingRows.length} registro(s) exibidos
             </div>
           </div>
@@ -1141,18 +1141,18 @@ export default function AnalyticsDashboard() {
 
         {/* Tab: Por Unidade */}
         {activeTab === "units" && (
-          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <div className="rounded-2xl border border-border-default bg-bg-card shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-default px-5 py-3">
               <div className="flex items-center gap-3">
                 <Users size={15} className="text-primary" />
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
                   Desempenho por Unidade
                 </span>
               </div>
               <button
                 type="button"
                 onClick={exportUnitsCSV}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
               >
                 <Download size={12} />
                 CSV
@@ -1160,34 +1160,34 @@ export default function AnalyticsDashboard() {
             </div>
             <div className="space-y-2 px-4 py-3 md:hidden">
               {loading ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Carregando...
                 </p>
               ) : units.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Sem dados.
                 </p>
               ) : (
                 units.map((u) => (
                   <article
                     key={u.unit}
-                    className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    className="rounded-xl border border-border-default bg-bg-card p-3"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                      <p className="text-sm font-semibold text-text-body">
                         {u.unit}
                       </p>
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      <span className="text-xs font-bold text-text-muted">
                         {u.percent.toFixed(0)}%
                       </span>
                     </div>
                     <div className="grid grid-cols-4 gap-2 text-xs">
-                      <p className="text-slate-500">Tot: {u.total}</p>
+                      <p className="text-text-muted">Tot: {u.total}</p>
                       <p className="text-success">Apt: {u.apt}</p>
                       <p className="text-red-500">Inapt: {u.inapt}</p>
-                      <p className="text-slate-400">Pend: {u.pending}</p>
+                      <p className="text-text-muted">Pend: {u.pending}</p>
                     </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-bg-card">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
                         style={{ width: `${u.percent}%` }}
@@ -1201,7 +1201,7 @@ export default function AnalyticsDashboard() {
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                  <tr className="border-b border-border-default text-[10px] font-bold uppercase tracking-widest text-text-muted">
                     {[
                       "Unidade",
                       "Total",
@@ -1219,12 +1219,12 @@ export default function AnalyticsDashboard() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-border-default">
                   {loading ? (
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-5 py-10 text-center text-sm text-text-muted"
                       >
                         Carregando...
                       </td>
@@ -1233,7 +1233,7 @@ export default function AnalyticsDashboard() {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-5 py-10 text-center text-sm text-text-muted"
                       >
                         Sem dados.
                       </td>
@@ -1242,12 +1242,12 @@ export default function AnalyticsDashboard() {
                     units.map((u) => (
                       <tr
                         key={u.unit}
-                        className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                        className="hover:bg-bg-card transition-colors"
                       >
-                        <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-white">
+                        <td className="px-5 py-3.5 font-semibold text-text-body">
                           {u.unit}
                         </td>
-                        <td className="px-5 py-3.5 text-right text-slate-600 dark:text-slate-300">
+                        <td className="px-5 py-3.5 text-right text-text-muted">
                           {u.total}
                         </td>
                         <td className="px-5 py-3.5 text-right font-semibold text-success">
@@ -1256,18 +1256,18 @@ export default function AnalyticsDashboard() {
                         <td className="px-5 py-3.5 text-right font-semibold text-red-500">
                           {u.inapt}
                         </td>
-                        <td className="px-5 py-3.5 text-right text-slate-400">
+                        <td className="px-5 py-3.5 text-right text-text-muted">
                           {u.pending}
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-card">
                               <div
                                 className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
                                 style={{ width: `${u.percent}%` }}
                               />
                             </div>
-                            <span className="w-10 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                            <span className="w-10 text-right text-xs font-bold text-text-muted">
                               {u.percent.toFixed(0)}%
                             </span>
                           </div>
@@ -1316,14 +1316,14 @@ export default function AnalyticsDashboard() {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+    <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
       {children}
     </h3>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="py-8 text-center text-sm text-slate-400">{text}</p>;
+  return <p className="py-8 text-center text-sm text-text-muted">{text}</p>;
 }
 
 function Skeleton({ rows }: { rows: number }) {
@@ -1331,8 +1331,8 @@ function Skeleton({ rows }: { rows: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="animate-pulse space-y-1.5">
-          <div className="h-3 w-32 rounded bg-slate-100 dark:bg-slate-700" />
-          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
+          <div className="h-3 w-32 rounded bg-bg-card" />
+          <div className="h-2 w-full rounded-full bg-bg-card" />
         </div>
       ))}
     </>
@@ -1368,16 +1368,16 @@ function KpiCard({
   };
   return (
     <div
-      className={`flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border-b-4 bg-white p-3 sm:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)] dark:bg-slate-800 overflow-hidden ${borderMap[accent]}`}
+      className={`flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border-b-4 bg-bg-card p-3 sm:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)] overflow-hidden ${borderMap[accent]}`}
     >
       <div className="min-w-0 flex-1 pr-2">
-        <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
+        <p className="text-xs font-medium text-text-muted truncate">{label}</p>
         <p
-          className={`mt-1 text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white ${value === null ? "animate-pulse text-slate-300" : ""}`}
+          className={`mt-1 text-2xl sm:text-3xl font-bold text-text-body ${value === null ? "animate-pulse text-text-muted" : ""}`}
         >
           {value ?? "—"}
         </p>
-        <p className="mt-0.5 text-[11px] text-slate-400 truncate">{sub}</p>
+        <p className="mt-0.5 text-[11px] text-text-muted truncate">{sub}</p>
       </div>
       <div
         className={`flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-xl ${bgMap[accent]}`}
@@ -1403,14 +1403,14 @@ function FilterSelect({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
         {label}
       </label>
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-7 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          className="appearance-none rounded-lg border border-border-default bg-bg-card py-1.5 pl-3 pr-7 text-xs text-text-body"
         >
           <option value="">{placeholder}</option>
           {options.map((opt) => (
@@ -1421,7 +1421,7 @@ function FilterSelect({
         </select>
         <ChevronDown
           size={12}
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
         />
       </div>
     </div>
@@ -1442,24 +1442,22 @@ function ExportCard({
   onExport: () => void;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex flex-col justify-between rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
       <div>
         <div className="mb-3 flex items-center gap-3">
           {icon}
-          <h3 className="font-semibold text-slate-800 dark:text-white">
-            {title}
-          </h3>
+          <h3 className="font-semibold text-text-body">{title}</h3>
         </div>
-        <p className="text-sm text-slate-400">{description}</p>
+        <p className="text-sm text-text-muted">{description}</p>
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+        <span className="rounded-md bg-bg-card px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-text-muted">
           {format}
         </span>
         <button
           type="button"
           onClick={onExport}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-primary/90"
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Download size={12} />
           Baixar

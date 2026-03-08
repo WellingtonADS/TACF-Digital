@@ -240,10 +240,10 @@ export default function ClassCreationForm() {
               <CalendarDays className="text-primary" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-text-body dark:text-text-inverted">
                 Criar Nova Turma
               </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-text-muted dark:text-text-muted">
                 Preencha os dados abaixo para configurar a nova turma de teste
                 físico.
               </p>
@@ -251,20 +251,20 @@ export default function ClassCreationForm() {
           </div>
         </header>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-hidden rounded-3xl border border-border-default/50 bg-bg-card shadow-2xl dark:border-border-default dark:bg-bg-card">
           <form className="flex flex-col" onSubmit={handleSubmit}>
             <div className="space-y-8 sm:space-y-10 p-5 sm:p-8 md:p-12">
               <section className="space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div className="flex items-center gap-3 border-b border-border-default pb-3 dark:border-border-default">
                   <AlertCircle className="text-primary/60" size={18} />
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body dark:text-text-muted">
                     Informações Básicas
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
                       Nome da Turma
                     </label>
                     <input
@@ -272,14 +272,14 @@ export default function ClassCreationForm() {
                       onChange={(event) =>
                         updateField("className", event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                       placeholder="Ex: TAF 2º Semestre"
                       type="text"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
                       Local do Teste
                     </label>
                     <select
@@ -288,7 +288,7 @@ export default function ClassCreationForm() {
                         updateField("location_id", event.target.value)
                       }
                       disabled={loadingLocations}
-                      className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                     >
                       <option value="">
                         {loadingLocations
@@ -305,7 +305,7 @@ export default function ClassCreationForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
                       Quem vai aplicar
                     </label>
                     <select
@@ -314,7 +314,7 @@ export default function ClassCreationForm() {
                         updateField("instructor_id", e.target.value)
                       }
                       disabled={loadingInstructors}
-                      className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                     >
                       <option value="">
                         {loadingInstructors
@@ -332,19 +332,19 @@ export default function ClassCreationForm() {
               </section>
 
               <section className="space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div className="flex items-center gap-3 border-b border-border-default pb-3 dark:border-border-default">
                   <CalendarDays className="text-primary/60" size={18} />
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body dark:text-text-muted">
                     Calendário e Horário
                   </h2>
                 </div>
 
                 {/* Seletor de modo */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
                     Data do Teste
                   </label>
-                  <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800">
+                  <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1 dark:border-border-default dark:bg-bg-card">
                     {(
                       [
                         { mode: "single", label: "Um dia" },
@@ -358,8 +358,8 @@ export default function ClassCreationForm() {
                         onClick={() => updateField("dateMode", mode)}
                         className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
                           form.dateMode === mode
-                            ? "bg-white text-primary shadow-sm dark:bg-slate-900 dark:text-primary"
-                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                            ? "bg-bg-default text-primary shadow-sm dark:bg-bg-card dark:text-primary"
+                            : "text-text-muted hover:text-text-body dark:text-text-muted dark:hover:text-text-body"
                         }`}
                       >
                         {label}
@@ -385,7 +385,7 @@ export default function ClassCreationForm() {
                           updateField("date", v);
                         }
                       }}
-                      className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                     />
                     <p className="text-[11px] text-slate-400">
                       Sábados e domingos são bloqueados automaticamente.
@@ -400,7 +400,7 @@ export default function ClassCreationForm() {
                       type="week"
                       value={form.weekValue}
                       onChange={(e) => updateField("weekValue", e.target.value)}
-                      className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                     />
                     {form.weekValue && (
                       <div className="flex flex-wrap gap-2">
@@ -414,7 +414,7 @@ export default function ClassCreationForm() {
                         ))}
                       </div>
                     )}
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-text-muted">
                       Cria uma turma por dia (seg–sex) para a semana
                       selecionada.
                     </p>
@@ -433,7 +433,7 @@ export default function ClassCreationForm() {
                           onChange={(e) =>
                             updateField("monthValue", e.target.value)
                           }
-                          className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                          className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                         />
                         {form.monthValue && (
                           <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:bg-primary/10">
@@ -441,7 +441,7 @@ export default function ClassCreationForm() {
                               size={18}
                               className="shrink-0 text-primary"
                             />
-                            <p className="text-sm text-slate-700 dark:text-slate-300">
+                            <p className="text-sm text-text-body dark:text-text-muted">
                               <span className="font-bold text-primary">
                                 {days.length} turmas
                               </span>{" "}
@@ -480,7 +480,7 @@ export default function ClassCreationForm() {
                       onChange={(event) =>
                         updateField("startTime", event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full rounded-lg border border-border-default bg-bg-default py-3 pl-10 pr-4 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                       type="time"
                     />
                   </div>

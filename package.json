@@ -13,7 +13,35 @@
     "preview": "vite preview",
     "test:integration": "vitest run",
     "test:e2e": "playwright test -c playwright.config.ts",
-    "test:e2e:headed": "playwright test -c playwright.config.ts --headed"
+    "test:e2e:headed": "playwright test -c playwright.config.ts --headed",
+    "test:e2e:admin-context": "playwright test -c playwright.config.ts tests/e2e/admin-context.routes.spec.ts",
+    "test:e2e:admin-context:headed": "playwright test -c playwright.config.ts tests/e2e/admin-context.routes.spec.ts --headed",
+    "test:e2e:admin-context:auth": "playwright test -c playwright.config.ts tests/e2e/admin-context.routes.spec.ts --grep \"acesso autenticado\"",
+    "test:e2e:admin-context:auth:headed": "playwright test -c playwright.config.ts tests/e2e/admin-context.routes.spec.ts --grep \"acesso autenticado\" --headed",
+    "test:e2e:user-context": "playwright test -c playwright.config.ts tests/e2e/user-context.routes.spec.ts",
+    "test:e2e:user-context:headed": "playwright test -c playwright.config.ts tests/e2e/user-context.routes.spec.ts --headed",
+    "test:e2e:user-context:auth": "playwright test -c playwright.config.ts tests/e2e/user-context.routes.spec.ts --grep \"acesso autenticado\"",
+    "test:e2e:user-context:auth:headed": "playwright test -c playwright.config.ts tests/e2e/user-context.routes.spec.ts --grep \"acesso autenticado\" --headed",
+    "test:e2e:admin-journey": "playwright test -c playwright.config.ts tests/e2e/admin-journey.ui.spec.ts",
+    "test:e2e:admin-journey:headed": "playwright test -c playwright.config.ts tests/e2e/admin-journey.ui.spec.ts --headed",
+    "test:e2e:admin-om-crud": "playwright test -c playwright.config.ts tests/e2e/admin-om-crud.observability.spec.ts",
+    "test:e2e:admin-om-crud:headed": "playwright test -c playwright.config.ts tests/e2e/admin-om-crud.observability.spec.ts --headed",
+    "test:e2e:admin-sessions-crud": "playwright test -c playwright.config.ts tests/e2e/admin-sessions-crud.observability.spec.ts",
+    "test:e2e:admin-sessions-crud:headed": "playwright test -c playwright.config.ts tests/e2e/admin-sessions-crud.observability.spec.ts --headed",
+    "test:e2e:admin-rescheduling-crud": "playwright test -c playwright.config.ts tests/e2e/admin-rescheduling-crud.observability.spec.ts",
+    "test:e2e:admin-rescheduling-crud:headed": "playwright test -c playwright.config.ts tests/e2e/admin-rescheduling-crud.observability.spec.ts --headed",
+    "test:e2e:admin-personnel-crud": "playwright test -c playwright.config.ts tests/e2e/admin-personnel-crud.observability.spec.ts",
+    "test:e2e:admin-personnel-crud:headed": "playwright test -c playwright.config.ts tests/e2e/admin-personnel-crud.observability.spec.ts --headed",
+    "test:e2e:admin-settings-profiles-crud": "playwright test -c playwright.config.ts tests/e2e/admin-settings-profiles-crud.observability.spec.ts",
+    "test:e2e:admin-settings-profiles-crud:headed": "playwright test -c playwright.config.ts tests/e2e/admin-settings-profiles-crud.observability.spec.ts --headed",
+    "test:e2e:admin-audit": "playwright test -c playwright.config.ts tests/e2e/admin-audit.observability.spec.ts",
+    "test:e2e:admin-audit:headed": "playwright test -c playwright.config.ts tests/e2e/admin-audit.observability.spec.ts --headed",
+    "test:e2e:admin-analytics": "playwright test -c playwright.config.ts tests/e2e/admin-analytics.observability.spec.ts",
+    "test:e2e:admin-analytics:headed": "playwright test -c playwright.config.ts tests/e2e/admin-analytics.observability.spec.ts --headed",
+    "test:e2e:user-crud": "playwright test -c playwright.config.ts tests/e2e/user-crud.observability.spec.ts",
+    "test:e2e:user-crud:headed": "playwright test -c playwright.config.ts tests/e2e/user-crud.observability.spec.ts --headed",
+    "test:e2e:user-crud:reschedule": "playwright test -c playwright.config.ts tests/e2e/user-crud.observability.spec.ts --grep \"reagendamento-condicional\"",
+    "test:e2e:user-crud:reschedule:headed": "playwright test -c playwright.config.ts tests/e2e/user-crud.observability.spec.ts --grep \"reagendamento-condicional\" --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -58,6 +86,9 @@
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.55.0",
     "vite": "^5.0.8",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "axe-core": "^5.0.0",
+    "jest-axe": "^7.1.1",
+    "@axe-core/playwright": "^4.0.0"
   }
 }

@@ -130,7 +130,7 @@ export default function Login() {
     <AuthLayout>
       <>
         <div className="flex items-center gap-3 mb-10">
-          <div className="bg-primary text-white p-2 rounded-lg">
+          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
             <Plane
               className="w-6 h-6 transform -rotate-45"
               fill="currentColor"
@@ -188,7 +188,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -200,7 +200,7 @@ export default function Login() {
           <div className="flex justify-end pt-2">
             <Link
               to="/forgot"
-              className="text-sm font-medium text-gray-500 hover:text-primary underline decoration-transparent hover:decoration-primary transition-all"
+              className="text-sm font-medium text-text-muted hover:text-primary underline decoration-transparent hover:decoration-primary transition-all"
             >
               Esqueceu a senha?
             </Link>
@@ -208,7 +208,7 @@ export default function Login() {
         </form>
 
         <div className="text-center pt-4">
-          <p className="text-sm text-slate-600">Ainda não tem acesso?</p>
+          <p className="text-sm text-text-muted">Ainda não tem acesso?</p>
           <Link
             to="/register"
             className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
@@ -225,7 +225,7 @@ export default function Login() {
                 <button
                   onClick={retryAutoLogin}
                   disabled={retryingAutoLogin}
-                  className="btn btn-sm bg-primary text-white px-3 py-1 rounded"
+                  className="btn btn-sm bg-primary text-primary-foreground px-3 py-1 rounded"
                   type="button"
                 >
                   {retryingAutoLogin ? "Tentando..." : "Tentar login novamente"}
@@ -242,7 +242,7 @@ export default function Login() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-xs text-gray-300 font-medium">
+          <p className="text-xs text-text-muted font-medium">
             © 2026 HACO — Força Aérea Brasileira
           </p>
         </div>

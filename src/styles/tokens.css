@@ -1,6 +1,33 @@
 :root {
+  /* core branding */
   --color-primary: #1a355b;
   --color-accent: #0ea5e9;
+
+  /* semantic background colors */
+  --bg-default: #f4f7f9; /* light canvas */
+  --bg-card: #ffffff; /* containers/cards */
+
+  /* semantic text colors */
+  --text-body: #1e293b; /* primary paragraph text */
+  --text-muted: #6b7280; /* secondary text / labels */
+  --text-inverted: #ffffff; /* text on primary/dark surfaces */
+
+  /* semantic border */
+  --border-default: #e2e8f0;
+}
+
+/* dark mode overrides driven by OS preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-default: #13181f; /* dark canvas matches tailwind background-dark */
+    --bg-card: #1e293b; /* slightly lighter than canvas, similar to slate-800 */
+
+    --text-body: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-inverted: #f8fafc;
+
+    --border-default: #334155;
+  }
 }
 
 /* Tailwind overrides or additional tokens can be added here */

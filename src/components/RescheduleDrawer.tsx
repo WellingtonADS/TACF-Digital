@@ -70,7 +70,7 @@ export default function RescheduleDrawer({
     >
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className={`relative w-full max-w-md bg-white dark:bg-slate-900 shadow-xl p-6 overflow-y-auto transform transition-transform duration-300 ease-in-out ${
+        className={`relative w-full max-w-md bg-bg-card dark:bg-bg-card shadow-xl p-6 overflow-y-auto transform transition-transform duration-300 ease-in-out ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -78,7 +78,7 @@ export default function RescheduleDrawer({
           <h3 className="text-lg font-bold">Solicitar Reagendamento</h3>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            className="text-text-muted hover:text-text-body dark:hover:text-text-body"
           >
             <span className="material-icons-round">close</span>
           </button>

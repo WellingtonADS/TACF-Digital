@@ -25,6 +25,14 @@ export default {
         canvas: { DEFAULT: "#F4F7F9" }, // Fundo Gelo (light)
         "background-light": { DEFAULT: "#f6f7f8" }, // Background claro
         "background-dark": { DEFAULT: "#13181f" }, // Background escuro
+
+        /* semantic tokens backed by CSS variables */
+        "bg-default": "var(--bg-default)",
+        "bg-card": "var(--bg-card)",
+        "text-body": "var(--text-body)",
+        "text-muted": "var(--text-muted)",
+        "text-inverted": "var(--text-inverted)",
+        "border-default": "var(--border-default)",
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],

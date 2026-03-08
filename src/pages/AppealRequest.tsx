@@ -1,3 +1,4 @@
+import Layout from "@/components/layout/Layout";
 import {
   AlertCircle,
   ArrowLeft,
@@ -11,7 +12,6 @@ import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Layout from "@/components/layout/Layout";
 
 const MOTIVOS = [
   "Erro no registro do resultado",
@@ -70,16 +70,16 @@ export default function AppealRequest() {
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="text-emerald-600" size={40} />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
+          <h2 className="text-2xl font-black text-text-body mb-3">
             Solicitação Registrada
           </h2>
-          <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
+          <p className="text-text-muted max-w-sm mx-auto leading-relaxed">
             Sua solicitação de revisão foi registrada e será analisada pelo
             setor responsável (HACO). Você será notificado sobre a decisão.
           </p>
           <button
             onClick={() => navigate("/app/resultados")}
-            className="mt-8 px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg hover:bg-primary/90 transition-colors"
+            className="mt-8 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg hover:bg-primary/90 transition-colors"
           >
             Voltar ao Histórico
           </button>
@@ -94,29 +94,29 @@ export default function AppealRequest() {
         <Breadcrumbs items={["Histórico", "Recurso"]} />
 
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-3xl font-bold text-text-body tracking-tight">
             Solicitação de Revisão de Resultado
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-text-muted mt-1">
             Preencha o formulário abaixo para contestar um resultado do TACF.
           </p>
         </header>
 
         {/* Context card */}
         {resultId && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 mb-8 shadow-sm">
+          <div className="bg-bg-card rounded-2xl border border-border-default p-6 mb-8 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="text-amber-500" size={20} />
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
                 Resultado Contestado
               </span>
               <span className="ml-auto text-[10px] font-bold px-3 py-1 rounded-full bg-red-100 text-red-700 uppercase tracking-widest">
                 Em análise
               </span>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-sm text-text-muted">
               Referente ao resultado de ID:{" "}
-              <span className="font-mono font-bold text-slate-900 dark:text-white">
+              <span className="font-mono font-bold text-text-body">
                 {resultId}
               </span>
             </p>
@@ -125,14 +125,14 @@ export default function AppealRequest() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden"
+          className="bg-bg-card rounded-3xl shadow-xl border border-border-default overflow-hidden"
         >
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
 
           <div className="p-8 space-y-8">
             {/* Motivo */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
                 Motivo do Recurso *
               </label>
               <select
@@ -143,7 +143,7 @@ export default function AppealRequest() {
                 required
                 title="Motivo do Recurso"
                 aria-label="Motivo do Recurso"
-                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                className="w-full bg-bg-default border border-border-default rounded-xl p-3.5 text-text-body focus:ring-2 focus:ring-primary focus:border-primary transition"
               >
                 <option value="">Selecione o motivo...</option>
                 {MOTIVOS.map((m) => (
@@ -156,7 +156,7 @@ export default function AppealRequest() {
 
             {/* Justificativa */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
                 Justificativa *
               </label>
               <textarea
@@ -170,24 +170,24 @@ export default function AppealRequest() {
                 required
                 rows={6}
                 placeholder="Descreva detalhadamente os fatos que embasam a solicitação de revisão..."
-                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition resize-none"
+                className="w-full bg-bg-default border border-border-default rounded-xl p-3.5 text-text-body focus:ring-2 focus:ring-primary focus:border-primary transition resize-none"
               />
-              <p className="text-right text-[10px] text-slate-400 font-medium">
+              <p className="text-right text-[10px] text-text-muted font-medium">
                 {form.justificativa.length}/2000
               </p>
             </div>
 
             {/* Comprovante */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
                 Comprovante / Documento (opcional)
               </label>
               <label
-                className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-4 cursor-pointer hover:border-primary/50 transition"
+                className="flex items-center gap-3 bg-bg-default border border-dashed border-border-default rounded-xl p-4 cursor-pointer hover:border-primary/50 transition"
                 htmlFor="appeal-file"
               >
-                <Paperclip className="text-slate-400" size={20} />
-                <span className="text-sm text-slate-500 font-medium">
+                <Paperclip className="text-text-muted" size={20} />
+                <span className="text-sm text-text-muted font-medium">
                   {form.file
                     ? form.file.name
                     : "Clique para anexar (PDF, JPG, PNG — máx 5MB)"}
@@ -210,7 +210,7 @@ export default function AppealRequest() {
             {/* ICA 54-2 note */}
             <div className="flex gap-3 p-4 bg-primary/5 dark:bg-primary/20 rounded-2xl border border-primary/10">
               <Info className="text-primary flex-shrink-0 mt-0.5" size={18} />
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              <p className="text-xs text-text-muted leading-relaxed">
                 O prazo para interposição de recurso é de{" "}
                 <strong>5 dias úteis</strong> após a divulgação dos resultados,
                 conforme previsto na{" "}
@@ -221,18 +221,18 @@ export default function AppealRequest() {
           </div>
 
           {/* Footer actions */}
-          <div className="bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-bg-default border-t border-border-default px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-slate-500 font-bold text-sm uppercase tracking-wider hover:text-slate-700 transition-colors"
+              className="flex items-center gap-2 text-text-muted font-bold text-sm uppercase tracking-wider hover:text-text-body transition-colors"
             >
               <ArrowLeft size={16} /> Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center gap-3 bg-primary hover:bg-primary/90 text-white px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -244,7 +244,7 @@ export default function AppealRequest() {
           </div>
         </form>
 
-        <footer className="mt-8 text-center text-[10px] text-slate-400 uppercase tracking-widest pb-6">
+        <footer className="mt-8 text-center text-[10px] text-text-muted uppercase tracking-widest pb-6">
           TACF-Digital — Sistema de Gerenciamento de Avaliação Física
         </footer>
       </div>

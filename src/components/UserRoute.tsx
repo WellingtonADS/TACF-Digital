@@ -1,4 +1,5 @@
 import useAuth from "@/hooks/useAuth";
+import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
 import PageSkeleton from "./PageSkeleton";
 
@@ -22,9 +23,8 @@ export default function UserRoute({
     return <Navigate to="/login" replace />;
   }
 
-  const role = profile?.role;
-  if (role === "admin" || role === "coordinator") {
-    return <Navigate to="/app/admin" replace />;
+  if (!canAccessRoute(profile?.role, "user")) {
+    return <Navigate to={getDefaultHomeByRole(profile?.role)} replace />;
   }
 
   return children;

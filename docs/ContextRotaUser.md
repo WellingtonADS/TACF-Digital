@@ -35,7 +35,7 @@ Documento consolidado de navegacao e comportamento funcional para o perfil Usuar
 
 ## Mapa de rotas principais
 
-- `/app/dashboard`: visao de status operacional, alertas e proximas acoes.
+- `/app`: visao de status operacional, alertas e proximas acoes.
 - `/app/agendamentos`: selecao de local, data e horario para nova marcacao.
 - `/app/agendamentos/confirmacao`: revisao final de dados e confirmacao.
 - `/app/ticket`: comprovante digital apos confirmacao de agendamento.
@@ -48,7 +48,7 @@ Documento consolidado de navegacao e comportamento funcional para o perfil Usuar
 
 ### 1. Monitorar prontidao
 
-- Entrada recomendada: `/app/dashboard`.
+- Entrada recomendada: `/app`.
 - Acao principal: verificar alertas operacionais e pendencias.
 - Saidas comuns: `/app/agendamentos`, `/app/perfil`, `/app/documentos`.
 
@@ -83,14 +83,14 @@ Documento consolidado de navegacao e comportamento funcional para o perfil Usuar
 
 ## Regras de navegacao e guardas
 
-- Todas as rotas em `/app/*` exigem autenticacao (`ProtectedRoute`).
-- Rotas deste documento pertencem ao escopo de usuario (`UserRoute`).
+- Todas as rotas em `/app/*` exigem autenticacao via guardas por perfil (`UserRoute` e `AdminRoute`).
+- Rotas deste documento pertencem ao escopo de usuario (`UserRoute`) e redirecionam perfis admin/coordinator para `/app/admin`.
 - Usuario autenticado sem permissao para area administrativa nao deve acessar fluxos de admin.
 - Apos logout, redirecionar para tela de login e limpar estado sensivel da sessao.
 
 ## Contrato funcional por rota
 
-### `/app/dashboard`
+### `/app`
 
 - Exibe resumo de status operacional, pendencias e proximos eventos.
 - Deve priorizar informacao acionavel em primeiro viewport.
