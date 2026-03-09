@@ -36,18 +36,18 @@ type Result = {
 function StatusBadge({ status }: { status: Result["result_status"] }) {
   if (status === "apto")
     return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white">
+      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-primary-foreground">
         <CheckCircle size={11} /> APTO
       </span>
     );
   if (status === "inapto")
     return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white">
+      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-primary-foreground">
         <XCircle size={11} /> INAPTO
       </span>
     );
   return (
-    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white">
+    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-primary-foreground">
       PENDENTE
     </span>
   );
@@ -194,10 +194,10 @@ export default function ResultsHistory() {
 
         <header className="mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body dark:text-text-inverted">
               Histórico de Avaliações
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-text-muted mt-1">
               Consulte seus resultados passados e status de prontidão física.
             </p>
           </div>
@@ -206,15 +206,15 @@ export default function ResultsHistory() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           {/* Card 1: Status */}
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <CheckCircle size={56} className="text-emerald-600" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
               Status Atual
             </p>
             {loading ? (
-              <div className="h-10 w-24 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" />
+              <div className="h-10 w-24 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
@@ -247,27 +247,27 @@ export default function ResultsHistory() {
           </div>
 
           {/* Card 2: Média */}
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Award size={56} className="text-primary" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
               Último TACF
             </p>
             {loading ? (
-              <div className="h-10 w-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" />
+              <div className="h-10 w-20 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white">
+                  <span className="text-2xl md:text-4xl font-black text-text-body dark:text-text-inverted">
                     {avgScore ?? "--"}
                   </span>
-                  <span className="text-sm font-medium text-slate-400">
+                  <span className="text-sm font-medium text-text-muted">
                     Média Global
                   </span>
                 </div>
                 {lastResult?.test_date && (
-                  <p className="mt-4 text-xs font-semibold text-slate-500">
+                  <p className="mt-4 text-xs font-semibold text-text-muted">
                     Realizado em{" "}
                     {new Date(lastResult.test_date).toLocaleDateString("pt-BR")}
                   </p>
@@ -277,27 +277,27 @@ export default function ResultsHistory() {
           </div>
 
           {/* Card 3: Revalidação */}
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <CalendarClock size={56} className="text-amber-500" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
               Próxima Revalidação
             </p>
             {loading ? (
-              <div className="h-10 w-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" />
+              <div className="h-10 w-20 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white">
+                  <span className="text-2xl md:text-4xl font-black text-text-body dark:text-text-inverted">
                     {daysUntilReval !== null ? daysUntilReval : "--"}
                   </span>
-                  <span className="text-sm font-medium text-slate-400">
+                  <span className="text-sm font-medium text-text-muted">
                     dias restantes
                   </span>
                 </div>
                 {daysUntilReval !== null && (
-                  <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="mt-4 w-full bg-bg-default dark:bg-bg-default h-1.5 rounded-full overflow-hidden">
                     <div
                       className="bg-amber-500 h-full revalidation-progress"
                       data-pct={Math.min(
@@ -313,9 +313,9 @@ export default function ResultsHistory() {
         </div>
 
         {/* Table */}
-        <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-800">
-          <div className="border-b border-slate-50 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/50 sm:p-6">
-            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <section className="bg-bg-card dark:bg-bg-card rounded-3xl shadow-xl overflow-hidden border border-border-default dark:border-border-default">
+          <div className="border-b border-slate-50 bg-bg-default/50 p-4 dark:border-border-default dark:bg-bg-default/50 sm:p-6">
+            <h3 className="font-bold text-text-body dark:text-text-inverted flex items-center gap-2">
               <ClipboardList size={20} className="text-primary" />
               Registros de Avaliações
             </h3>
@@ -325,7 +325,7 @@ export default function ResultsHistory() {
               <PageSkeleton rows={6} />
             </div>
           ) : rows.length === 0 ? (
-            <div className="px-4 py-12 text-center text-slate-500 sm:px-6">
+            <div className="px-4 py-12 text-center text-text-muted sm:px-6">
               Você ainda não possui resultados registrados.
             </div>
           ) : isCompactViewport ? (
@@ -351,43 +351,43 @@ export default function ResultsHistory() {
                     className={`rounded-xl border p-4 ${
                       isFuture
                         ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900 dark:bg-emerald-900/10"
-                        : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40"
+                        : "border-border-default bg-bg-card dark:border-border-default dark:bg-bg-default/40"
                     }`}
                   >
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
                           Data
                         </p>
-                        <p className="text-sm font-bold uppercase text-slate-900 dark:text-white">
+                        <p className="text-sm font-bold uppercase text-text-body dark:text-text-inverted">
                           {dateLabel}
                         </p>
                       </div>
                       <StatusBadge status={r.result_status ?? null} />
                     </div>
 
-                    <div className="mb-3 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <MapPin size={14} className="text-slate-400" />
+                    <div className="mb-3 flex items-center gap-2 text-sm text-text-muted dark:text-text-muted">
+                      <MapPin size={14} className="text-text-muted" />
                       <span className="font-medium uppercase">
                         {r.location ?? "-"}
                       </span>
                     </div>
 
                     <div className="mb-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                      <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
                         Média / Conceito
                       </p>
-                      <p className="text-sm font-black text-slate-900 dark:text-white">
+                      <p className="text-sm font-black text-text-body dark:text-text-inverted">
                         {r.score ?? "--"}
                         {r.concept && (
-                          <span className="ml-1 text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                          <span className="ml-1 text-[10px] font-bold uppercase tracking-tighter text-text-muted">
                             {r.concept}
                           </span>
                         )}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                    <div className="flex flex-wrap items-center gap-3 border-t border-border-default pt-3 dark:border-border-default">
                       <a
                         href={`/app/recurso?result=${r.id}`}
                         onMouseEnter={() => prefetchRoute("/app/recurso")}
@@ -420,25 +420,25 @@ export default function ResultsHistory() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/30">
-                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                  <tr className="bg-bg-default dark:bg-bg-default/30">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
                       Data
                     </th>
-                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
                       Local de Avaliação
                     </th>
-                    <th className="border-b border-slate-100 px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
                       Média / Conceito
                     </th>
-                    <th className="border-b border-slate-100 px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
                       Resultado
                     </th>
-                    <th className="border-b border-slate-100 px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
                       Ações
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-border-default dark:divide-slate-800">
                   {rows.map((r) => {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
@@ -456,31 +456,31 @@ export default function ResultsHistory() {
                     return (
                       <tr
                         key={r.id}
-                        className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                        className={`hover:bg-bg-default/80 dark:hover:bg-bg-default/70 transition-colors ${
                           isFuture
                             ? "bg-emerald-50/50 dark:bg-emerald-900/10"
                             : ""
                         }`}
                       >
                         <td className="px-4 py-5 sm:px-6">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white uppercase">
+                          <span className="text-sm font-bold text-text-body dark:text-text-inverted uppercase">
                             {dateLabel}
                           </span>
                         </td>
                         <td className="px-4 py-5 sm:px-6">
                           <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-slate-400" />
-                            <span className="text-sm text-slate-600 dark:text-slate-300 font-medium uppercase">
+                            <MapPin size={14} className="text-text-muted" />
+                            <span className="text-sm text-text-muted dark:text-text-muted font-medium uppercase">
                               {r.location ?? "-"}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-5 sm:px-6">
-                          <span className="text-sm font-black text-slate-900 dark:text-white">
+                          <span className="text-sm font-black text-text-body dark:text-text-inverted">
                             {r.score ?? "--"}
                           </span>
                           {r.concept && (
-                            <span className="text-[10px] text-slate-400 ml-1 font-bold uppercase tracking-tighter">
+                            <span className="text-[10px] text-text-muted ml-1 font-bold uppercase tracking-tighter">
                               {r.concept}
                             </span>
                           )}
@@ -525,7 +525,7 @@ export default function ResultsHistory() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-2 border-t border-border-default bg-bg-default px-4 py-4 text-xs font-semibold uppercase tracking-widest text-text-muted dark:border-border-default dark:bg-bg-default/30 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <span>{rows.length > 0 ? `${rows.length} registro(s)` : ""}</span>
             {hasMore && (
               <button

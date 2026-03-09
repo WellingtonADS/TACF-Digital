@@ -11,6 +11,7 @@
   --text-body: #1e293b; /* primary paragraph text */
   --text-muted: #6b7280; /* secondary text / labels */
   --text-inverted: #ffffff; /* text on primary/dark surfaces */
+  --text-accent: #1a355b; /* links / highlighted text on light */
 
   /* semantic border */
   --border-default: #e2e8f0;
@@ -23,11 +24,25 @@
     --bg-card: #1e293b; /* slightly lighter than canvas, similar to slate-800 */
 
     --text-body: #e2e8f0;
-    --text-muted: #94a3b8;
+    --text-muted: #b8c5d6;
     --text-inverted: #f8fafc;
+    --text-accent: #7dd3fc;
 
     --border-default: #334155;
   }
+}
+
+/* support class-based dark mode toggles (html.dark / body.dark / wrapper .dark) */
+:is(html.dark, body.dark, .dark) {
+  --bg-default: #13181f;
+  --bg-card: #1e293b;
+
+  --text-body: #e2e8f0;
+  --text-muted: #b8c5d6;
+  --text-inverted: #f8fafc;
+  --text-accent: #7dd3fc;
+
+  --border-default: #334155;
 }
 
 /* Tailwind overrides or additional tokens can be added here */

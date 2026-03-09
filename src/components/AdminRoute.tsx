@@ -17,7 +17,7 @@ export default function AdminRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton />;
+    return <PageSkeleton fullPage />;
   }
 
   if (!user) {

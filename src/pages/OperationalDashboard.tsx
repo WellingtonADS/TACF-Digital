@@ -3,6 +3,7 @@ import RescheduleDrawer from "@/components/RescheduleDrawer";
 import useDashboard from "@/hooks/useDashboard";
 import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,17 +66,6 @@ export const OperationalDashboard = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
   const [pendingSwap, setPendingSwap] = useState(false);
-
-  function periodToLabel(period?: string | null) {
-    if (!period) return "";
-    const p = String(period).toLowerCase();
-    if (p === "morning" || p === "manhã") return "Manhã";
-    if (p === "afternoon" || p === "tarde") return "Tarde";
-    if (p === "evening" || p === "noite") return "Noite";
-    if (p === "full_day" || p === "full-day" || p === "dia")
-      return "Dia inteiro";
-    return p.charAt(0).toUpperCase() + p.slice(1);
-  }
 
   // check booking and pending swap when nextSession changes
   useEffect(() => {
@@ -300,7 +290,7 @@ export const OperationalDashboard = () => {
                     </p>
                     <p className="text-sm text-text-muted mt-1">
                       {nextSessionDetails?.time ??
-                        `Turno: ${periodToLabel(nextSession.period)}`}
+                        `Turno: ${formatSessionPeriod(nextSession.period)}`}
                     </p>
                     {nextSessionDetails?.location && (
                       <p className="text-sm text-text-muted mt-1">

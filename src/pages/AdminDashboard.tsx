@@ -1,6 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
+import { formatSessionPeriod } from "@/utils/booking";
 import { format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -127,45 +128,42 @@ export const AdminDashboard = () => {
       label: "Gerenciar Turmas",
       description: "Listar, criar e controlar sessões de avaliação",
       path: "/app/turmas",
-      accent: "bg-primary/10 text-primary dark:bg-primary/20",
+      accent: "bg-primary/10 text-primary",
     },
     {
       icon: Users,
       label: "Efetivo",
       description: "Buscar e monitorar militares",
       path: "/app/efetivo",
-      accent: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+      accent: "bg-sky-100 text-sky-700",
     },
     {
       icon: FileBarChart2,
       label: "Relatórios",
       description: "Analytics e exportação de dados",
       path: "/app/analytics",
-      accent:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+      accent: "bg-emerald-100 text-emerald-700",
     },
     {
       icon: GitMerge,
       label: "Reagendamentos",
       description: "Deferir ou indeferir solicitações",
       path: "/app/reagendamentos",
-      accent:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+      accent: "bg-amber-100 text-amber-700",
     },
     {
       icon: ClipboardList,
       label: "Lançar Índices",
       description: "Inserir resultados de avaliação",
       path: "/app/lancamento-indices",
-      accent:
-        "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+      accent: "bg-violet-100 text-violet-700",
     },
     {
       icon: Settings,
       label: "Configurações",
       description: "Parâmetros globais e segurança",
       path: "/app/configuracoes",
-      accent: "bg-bg-card text-text-muted dark:bg-bg-card dark:text-text-muted",
+      accent: "bg-bg-default text-text-muted",
     },
   ];
 
@@ -174,7 +172,7 @@ export const AdminDashboard = () => {
       {/* header */}
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-10">
         <div>
-          <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body">
             Dashboard Administrativo
           </h2>
           <p className="text-text-muted mt-1">
@@ -183,18 +181,18 @@ export const AdminDashboard = () => {
         </div>
         <div className="flex items-center gap-4">
           <button
-            className="p-2 bg-bg-card dark:bg-bg-card rounded-full shadow-sm text-text-muted hover:text-primary transition-colors"
+            className="p-2 bg-bg-card rounded-full shadow-sm text-text-muted hover:text-primary transition-colors"
             aria-label="Notificações"
             title="Notificações"
           >
             <Bell size={20} />
           </button>
-          <div className="h-10 w-px bg-border-default dark:bg-border-default mx-1" />
+          <div className="h-10 w-px bg-border-default mx-1" />
           <div className="text-right">
             <p className="text-xs text-text-muted font-medium uppercase tracking-widest">
               Sessão Ativa
             </p>
-            <p className="text-sm font-bold text-primary dark:text-white font-mono">
+            <p className="text-sm font-bold text-text-body font-mono">
               {clock}
             </p>
           </div>
@@ -215,13 +213,13 @@ export const AdminDashboard = () => {
       {/* stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {/* Total inscritos */}
-        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
             <p className="text-text-muted text-sm font-medium mb-1">
               Total Inscritos
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : totalInscritos}
             </h3>
@@ -233,13 +231,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Aptos mês */}
-        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
+        <div className="bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
           <div>
             <p className="text-text-muted text-sm font-medium mb-1">
               Aptos (Mês)
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : aptosMonth}
             </h3>
@@ -251,13 +249,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Pendências */}
-        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
+        <div className="bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
           <div>
             <p className="text-text-muted text-sm font-medium mb-1">
               Pendências
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body ${metricsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {metricsLoading ? "—" : pendencias}
             </h3>
@@ -269,13 +267,13 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Capacidade restante */}
-        <div className="bg-bg-card dark:bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
+        <div className="bg-bg-card p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
           <div>
             <p className="text-text-muted text-sm font-medium mb-1">
               Capacidade Restante
             </p>
             <h3
-              className={`text-xl md:text-3xl font-bold text-text-body dark:text-text-inverted ${sessionsLoading ? "animate-pulse text-text-muted" : ""}`}
+              className={`text-xl md:text-3xl font-bold text-text-body ${sessionsLoading ? "animate-pulse text-text-muted" : ""}`}
             >
               {sessionsLoading ? "—" : capacidadeRestante}
             </h3>
@@ -334,7 +332,7 @@ export const AdminDashboard = () => {
           <button
             type="button"
             onClick={() => navigate("/app/turmas")}
-            className="text-xs text-primary dark:text-sky-400 font-semibold hover:underline"
+            className="text-xs text-primary font-semibold hover:underline"
           >
             Ver todas →
           </button>
@@ -344,11 +342,11 @@ export const AdminDashboard = () => {
             Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-bg-card dark:bg-bg-card rounded-2xl p-5 animate-pulse h-28 border border-border-default dark:border-border-default"
+                className="bg-bg-card rounded-2xl p-5 animate-pulse h-28 border border-border-default"
               />
             ))
           ) : upcomingSessions.length === 0 ? (
-            <div className="col-span-3 bg-bg-card dark:bg-bg-card rounded-2xl p-8 text-center border border-border-default dark:border-border-default">
+            <div className="col-span-3 bg-bg-card rounded-2xl p-8 text-center border border-border-default">
               <Shield size={32} className="mx-auto text-text-muted mb-2" />
               <p className="text-sm text-text-muted">
                 Nenhuma turma aberta nos próximos dias.
@@ -368,21 +366,21 @@ export const AdminDashboard = () => {
               return (
                 <div
                   key={s.session_id}
-                  className={`bg-bg-card dark:bg-bg-card rounded-2xl p-5 border border-border-default dark:border-border-default border-l-4 ${statusColor} flex flex-col gap-3`}
+                  className={`bg-bg-card rounded-2xl p-5 border border-border-default border-l-4 ${statusColor} flex flex-col gap-3`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-bold text-text-muted uppercase tracking-wider">
                         {s.session_id.slice(0, 8).toUpperCase()}
                       </p>
-                      <p className="text-sm font-bold text-text-body dark:text-text-inverted mt-0.5">
+                      <p className="text-sm font-bold text-text-body mt-0.5">
                         {format(parseISO(s.date), "EEEE, dd 'de' MMMM", {
                           locale: ptBR,
                         })}
                       </p>
                     </div>
-                    <span className="text-xs bg-primary/10 text-primary dark:bg-primary/20 px-2 py-0.5 rounded-full font-semibold">
-                      {s.period}
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                      {formatSessionPeriod(s.period)}
                     </span>
                   </div>
                   <div>
@@ -392,7 +390,7 @@ export const AdminDashboard = () => {
                         {occupied}/{max} — {percent}%
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-border-default dark:bg-border-default rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-border-default rounded-full overflow-hidden">
                       <progress
                         value={occupied}
                         max={max || 1}

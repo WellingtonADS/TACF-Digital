@@ -387,7 +387,7 @@ export default function ClassCreationForm() {
                       }}
                       className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-card/50 dark:text-text-inverted"
                     />
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-text-muted">
                       Sábados e domingos são bloqueados automaticamente.
                     </p>
                   </div>
@@ -456,7 +456,7 @@ export default function ClassCreationForm() {
                             </p>
                           </div>
                         )}
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-text-muted">
                           Cria uma turma por dia útil (seg–sex) do mês
                           selecionado.
                         </p>
@@ -466,12 +466,12 @@ export default function ClassCreationForm() {
 
                 {/* Horário de Início */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                     Horário de Início
                   </label>
                   <div className="relative max-w-xs">
                     <Clock3
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
                       size={16}
                     />
                     <input
@@ -488,16 +488,16 @@ export default function ClassCreationForm() {
               </section>
 
               <section className="space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div className="flex items-center gap-3 border-b border-border-default pb-3">
                   <AlertCircle className="text-primary/60" size={18} />
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body">
                     Configuração de Capacidade
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                       Limite de Vagas (8 a 21)
                     </label>
                     <input
@@ -511,7 +511,7 @@ export default function ClassCreationForm() {
                           Number(event.target.value || 0),
                         )
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                      className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       type="number"
                     />
                     {!isValidCapacity && (
@@ -526,7 +526,7 @@ export default function ClassCreationForm() {
                       <span className="block text-xs font-semibold uppercase tracking-widest text-primary">
                         Lista de Espera
                       </span>
-                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      <p className="mt-0.5 text-xs text-text-muted">
                         Permitir inscrições excedentes
                       </p>
                     </div>
@@ -539,39 +539,39 @@ export default function ClassCreationForm() {
                           updateField("allowWaitlist", event.target.checked)
                         }
                       />
-                      <div className="h-6 w-12 rounded-full bg-slate-200 transition peer-checked:bg-primary dark:bg-slate-700" />
-                      <div className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-6" />
+                      <div className="h-6 w-12 rounded-full bg-border-default transition peer-checked:bg-primary" />
+                      <div className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-bg-card transition peer-checked:translate-x-6" />
                     </label>
                   </div>
                 </div>
               </section>
 
               <section className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                   Instruções Adicionais
                 </label>
                 <textarea
                   value={form.notes}
                   onChange={(event) => updateField("notes", event.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                  className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Ex: Traje específico, documento oficial com foto e garrafa de água."
                   rows={4}
                 />
               </section>
             </div>
 
-            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-slate-200/50 bg-slate-50 px-5 py-5 sm:px-8 sm:py-8 md:flex-row md:px-12 dark:border-slate-800 dark:bg-slate-800/30">
+            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-5 py-5 sm:px-8 sm:py-8 md:flex-row md:px-12">
               <button
                 type="button"
                 onClick={() => navigate("/app/turmas")}
-                className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 transition-colors hover:text-slate-900 md:w-auto dark:text-slate-400 dark:hover:text-white"
+                className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
               >
                 {saving ? <Save size={18} /> : <XCircle size={18} />}
                 <span className="text-xs font-bold uppercase tracking-widest">

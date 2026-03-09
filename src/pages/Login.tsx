@@ -136,7 +136,7 @@ export default function Login() {
               fill="currentColor"
             />
           </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
             TACF-Digital
           </h1>
         </div>
@@ -211,7 +211,7 @@ export default function Login() {
           <p className="text-sm text-text-muted">Ainda não tem acesso?</p>
           <Link
             to="/register"
-            className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
             Cadastre-se aqui
           </Link>

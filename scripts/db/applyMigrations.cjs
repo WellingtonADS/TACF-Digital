@@ -26,7 +26,7 @@ function getConnectionString() {
   return null;
 }
 
-async function runFiles(dir, filterFn) {
+async function runFiles(dir, filterFn, conn) {
   const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql"));
   files.sort();
   const selected = filterFn ? files.filter(filterFn) : files;
@@ -38,6 +38,26 @@ async function runFiles(dir, filterFn) {
       await client.query("BEGIN");
       await client.query(sql);
       await client.query("COMMIT");
+      // Limpa planos preparados/cache que podem reter OIDs de tipos (ENUMs),
+      // evitando erros quando migrations alteram tipos ENUM na mesma sessão.
+      try {
+        await client.query("DISCARD ALL");
+      } catch (e) {
+        // Não falhar a migration por conta do DISCARD; apenas logue o aviso.
+        console.warn("Aviso: DISCARD ALL falhou:", e.message || e);
+      }
+      // Reinicia a conexão caso o DISCARD não seja suficiente em alguns drivers,
+      // garantindo que planos preparados e OIDs sejam recarregados.
+      try {
+        await client.end();
+        global.client = new Client({ connectionString: conn });
+        await client.connect();
+      } catch (e) {
+        console.warn(
+          "Aviso: reinicialização da conexão falhou:",
+          e.message || e,
+        );
+      }
       console.log(`OK: ${file}`);
     } catch (err) {
       await client.query("ROLLBACK");
@@ -78,12 +98,15 @@ async function main() {
     await runFiles(
       migrationsDir,
       (name) => !name.toLowerCase().includes("seed"),
+      conn,
     );
 
     if (doSeed) {
       console.log("\nAplicando seeds...");
-      await runFiles(migrationsDir, (name) =>
-        name.toLowerCase().includes("seed"),
+      await runFiles(
+        migrationsDir,
+        (name) => name.toLowerCase().includes("seed"),
+        conn,
       );
     }
 

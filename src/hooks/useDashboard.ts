@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAuth from "./useAuth";
@@ -125,7 +126,7 @@ export default function useDashboard() {
             if (payload?.next_session)
               notes.push({
                 title: "Próximo Agendamento",
-                description: `Você tem agendamento em ${payload.next_session.date} (${payload.next_session.period}).`,
+                description: `Você tem agendamento em ${payload.next_session.date} (${formatSessionPeriod(payload.next_session.period)}).`,
                 level: "info",
               });
             else if (Number(payload?.bookings_count ?? 0) === 0)
@@ -250,7 +251,7 @@ export default function useDashboard() {
         if (localNextSession) {
           notes.push({
             title: "Próximo Agendamento",
-            description: `Você tem agendamento em ${localNextSession.date} (${localNextSession.period}).`,
+            description: `Você tem agendamento em ${localNextSession.date} (${formatSessionPeriod(localNextSession.period)}).`,
             level: "info",
           });
         } else if (localBookingsCount === 0) {

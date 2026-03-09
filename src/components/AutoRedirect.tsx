@@ -7,7 +7,7 @@ export default function AutoRedirect() {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton rows={6} />;
+    return <PageSkeleton fullPage rows={6} />;
   }
 
   if (user) {

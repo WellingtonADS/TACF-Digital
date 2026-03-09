@@ -6,6 +6,7 @@ import type {
   Profile as DBProfile,
   SessionRow as DBSessionRow,
 } from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
 import {
   CheckCircle2,
   ListChecks,
@@ -42,12 +43,6 @@ type ScoreEntryRow = {
   rank: string | null;
   aptStatus: AptStatus | null;
 };
-
-function periodLabel(period: string) {
-  if (period === "morning") return "Manhã";
-  if (period === "afternoon") return "Tarde";
-  return period;
-}
 
 export default function ScoreEntry() {
   const { profile, loading: authLoading } = useAuth();
@@ -327,7 +322,7 @@ export default function ScoreEntry() {
             </p>
             <p className="font-semibold">
               {selectedSession
-                ? `${selectedSession.date} • ${periodLabel(selectedSession.period)}`
+                ? `${selectedSession.date} • ${formatSessionPeriod(selectedSession.period)}`
                 : "Sem turma selecionada"}
             </p>
             <p className="mt-1 text-xs text-white/70">
@@ -339,8 +334,8 @@ export default function ScoreEntry() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <aside className="lg:col-span-4">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="border-b border-slate-200 bg-primary/5 px-5 py-4 dark:border-slate-800 dark:bg-primary/10">
+          <div className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
+            <div className="border-b border-border-default bg-primary/5 px-5 py-4 dark:bg-primary/10">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-primary">
                   Efetivo da Turma
@@ -355,7 +350,7 @@ export default function ScoreEntry() {
               <div className="mb-4 flex items-center justify-between">
                 <label
                   htmlFor="session-select"
-                  className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                  className="text-xs font-bold uppercase tracking-wider text-text-muted"
                 >
                   Seleção de Turma
                 </label>
@@ -365,7 +360,7 @@ export default function ScoreEntry() {
                 id="session-select"
                 value={selectedSessionId}
                 onChange={(event) => setSelectedSessionId(event.target.value)}
-                className="mb-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+                className="mb-4 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
               >
                 {loadingSessions && <option>Carregando turmas...</option>}
                 {!loadingSessions && sessions.length === 0 && (
@@ -373,33 +368,33 @@ export default function ScoreEntry() {
                 )}
                 {sessions.map((session) => (
                   <option key={session.id} value={session.id}>
-                    {session.date} • {periodLabel(session.period)}
+                    {session.date} • {formatSessionPeriod(session.period)}
                   </option>
                 ))}
               </select>
 
               <div className="relative mb-4">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
                   size={16}
                 />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar por nome ou SARAM..."
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-800"
+                  className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-9 pr-3 text-sm text-text-body"
                 />
               </div>
 
               <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
                 {loadingRows && (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-text-muted">
                     Carregando efetivo...
                   </p>
                 )}
 
                 {!loadingRows && filteredRows.length === 0 && (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-text-muted">
                     Nenhum militar encontrado para a turma selecionada.
                   </p>
                 )}
@@ -419,15 +414,15 @@ export default function ScoreEntry() {
                       className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
                         active
                           ? "border-primary bg-primary/10"
-                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+                          : "border-border-default bg-bg-card hover:bg-bg-default"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          <p className="truncate text-sm font-semibold text-text-body">
                             {row.warName || row.fullName}
                           </p>
-                          <p className="truncate text-xs text-slate-500">
+                          <p className="truncate text-xs text-text-muted">
                             SARAM: {row.saram ?? "--"}
                           </p>
                         </div>
@@ -456,9 +451,9 @@ export default function ScoreEntry() {
         </aside>
 
         <section className="lg:col-span-8">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
             {!selectedRow ? (
-              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+              <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-sm text-text-muted">
                 Selecione um militar para iniciar o lançamento.
               </div>
             ) : (
@@ -478,7 +473,7 @@ export default function ScoreEntry() {
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
                   <div>
-                    <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
                       <UserCheck size={14} className="text-primary" />
                       Resultado
                     </label>
@@ -489,7 +484,7 @@ export default function ScoreEntry() {
                         className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
                           aptStatus === "apto"
                             ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
-                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-emerald-300"
+                            : "border-border-default text-text-muted hover:border-emerald-300"
                         }`}
                       >
                         <CheckCircle2 size={20} />
@@ -501,7 +496,7 @@ export default function ScoreEntry() {
                         className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
                           aptStatus === "inapto"
                             ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-red-300"
+                            : "border-border-default text-text-muted hover:border-red-300"
                         }`}
                       >
                         <XCircle size={20} />
@@ -519,7 +514,7 @@ export default function ScoreEntry() {
                           : "border-primary/15 bg-primary/5 dark:bg-primary/10"
                     }`}
                   >
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                    <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
                       Resultado Atual
                     </p>
                     <div className="mt-4 flex items-center justify-center">
@@ -528,7 +523,7 @@ export default function ScoreEntry() {
                       ) : aptStatus === "inapto" ? (
                         <XCircle size={48} className="text-red-500" />
                       ) : (
-                        <span className="text-3xl font-black text-slate-300">
+                        <span className="text-3xl font-black text-text-muted opacity-60">
                           —
                         </span>
                       )}
@@ -539,7 +534,7 @@ export default function ScoreEntry() {
                           ? "text-emerald-600"
                           : aptStatus === "inapto"
                             ? "text-red-600"
-                            : "text-slate-400"
+                            : "text-text-muted"
                       }`}
                     >
                       {aptStatus === "apto"
@@ -548,19 +543,19 @@ export default function ScoreEntry() {
                           ? "INAPTO"
                           : "—"}
                     </p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
+                    <div className="mt-4 flex items-center justify-center gap-2 text-xs text-text-muted">
                       <ListChecks size={14} />
                       Lançamento de resultado
                     </div>
                   </aside>
                 </div>
 
-                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-end">
+                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
                     disabled={saving}
                     onClick={cancelEdit}
-                    className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:opacity-60"
                   >
                     Cancelar
                   </button>
@@ -578,7 +573,7 @@ export default function ScoreEntry() {
             )}
           </div>
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+          <div className="mt-4 rounded-xl border border-border-default bg-bg-card p-4 text-sm text-text-body">
             <div className="flex items-center gap-2">
               <User size={14} className="text-primary" />
               {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}

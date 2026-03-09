@@ -14,7 +14,9 @@ export default function AuthLayout({
       </div>
 
       <div className="col-span-1 lg:col-span-4 flex flex-col justify-center items-center p-6 sm:p-12 relative">
-        <div className="w-full max-w-sm space-y-8">{children}</div>
+        <div className="w-full max-w-sm space-y-8 rounded-3xl border border-border-default/70 bg-bg-card/85 backdrop-blur-md p-6 sm:p-8 shadow-2xl shadow-black/10">
+          {children}
+        </div>
       </div>
     </div>
   );

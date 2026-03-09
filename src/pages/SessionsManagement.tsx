@@ -1,6 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
+import { formatSessionPeriod } from "@/utils/booking";
 import { format, parseISO, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -73,6 +74,7 @@ export const SessionsManagement = () => {
         !term ||
         session.session_id.toLowerCase().includes(term) ||
         session.period.toLowerCase().includes(term) ||
+        formatSessionPeriod(session.period).toLowerCase().includes(term) ||
         dateLabel.includes(term);
       const status = getSessionStatus(session);
       const matchStatus = statusFilter === "all" || status === statusFilter;
@@ -378,7 +380,7 @@ export const SessionsManagement = () => {
                       </td>
                       <td className="px-6 py-5">
                         <span className="text-sm font-medium text-text-body dark:text-text-muted capitalize">
-                          {s.period}
+                          {formatSessionPeriod(s.period)}
                         </span>
                       </td>
                       <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
@@ -474,7 +476,7 @@ export const SessionsManagement = () => {
                         })}
                       </p>
                       <p className="text-xs text-text-muted capitalize">
-                        {s.period}
+                        {formatSessionPeriod(s.period)}
                       </p>
                     </div>
                     <span
@@ -546,7 +548,7 @@ export const SessionsManagement = () => {
         {/* pagination */}
         {!loading && !error && filteredSessions.length > pageSize && (
           <div className="px-6 py-4 bg-bg-default dark:bg-bg-card/50 border-t border-border-default flex justify-between items-center text-sm">
-            <p className="text-slate-500 text-xs">
+            <p className="text-text-muted text-xs">
               {paginatedSessions.length} de {filteredSessions.length} turmas
             </p>
             <div className="flex gap-1">
@@ -556,8 +558,8 @@ export const SessionsManagement = () => {
                 onClick={() => setPage((c) => Math.max(1, c - 1))}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
                   page <= 1
-                    ? "bg-slate-100 text-slate-300 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700"
-                    : "bg-white dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                    ? "bg-bg-default text-text-muted opacity-60 border-border-default"
+                    : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}
                 aria-label="Página anterior"
               >
@@ -571,7 +573,7 @@ export const SessionsManagement = () => {
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
                     v === page
                       ? "bg-primary text-white border-primary"
-                      : "bg-white dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                      : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                   }`}
                 >
                   {v}
@@ -583,8 +585,8 @@ export const SessionsManagement = () => {
                 onClick={() => setPage((c) => Math.min(pageCount, c + 1))}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
                   page >= pageCount
-                    ? "bg-slate-100 text-slate-300 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700"
-                    : "bg-white dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                    ? "bg-bg-default text-text-muted opacity-60 border-border-default"
+                    : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}
                 aria-label="Próxima página"
               >

@@ -16,7 +16,7 @@ export default function UserRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton />;
+    return <PageSkeleton fullPage />;
   }
 
   if (!user) {

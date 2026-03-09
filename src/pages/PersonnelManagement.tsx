@@ -456,10 +456,10 @@ export default function PersonnelManagement() {
       <div className="w-full">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body dark:text-text-inverted">
               Gestão de Efetivo
             </h1>
-            <p className="text-slate-500 text-sm">
+            <p className="text-text-muted text-sm">
               Painel Administrativo TACF-Digital (FAB)
             </p>
           </div>
@@ -473,16 +473,16 @@ export default function PersonnelManagement() {
           </button>
         </header>
 
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border-default bg-bg-card p-4 shadow-sm dark:border-border-default dark:bg-bg-card">
           <div className="relative w-full min-w-0 md:min-w-[260px] md:flex-1">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
               size={16}
             />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="w-full rounded-full border-none bg-slate-50 py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/40 dark:bg-slate-800"
+              className="w-full rounded-full border-none bg-bg-default py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/40 dark:bg-bg-default"
               placeholder="Buscar por SARAM ou Nome..."
               type="text"
             />
@@ -493,7 +493,7 @@ export default function PersonnelManagement() {
             onChange={(event) =>
               setRankFilter(event.target.value as (typeof RANK_OPTIONS)[number])
             }
-            className="w-full sm:w-auto rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
+            className="w-full sm:w-auto rounded-full border-none bg-bg-default px-5 py-3 text-sm font-medium text-text-muted focus:ring-2 focus:ring-primary/40 dark:bg-bg-default dark:text-text-muted"
           >
             <option value="Todos">Posto/Graduação</option>
             {RANK_OPTIONS.filter((item) => item !== "Todos").map((item) => (
@@ -510,7 +510,7 @@ export default function PersonnelManagement() {
                 event.target.value as (typeof STATUS_OPTIONS)[number],
               )
             }
-            className="w-full sm:w-auto rounded-full border-none bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/40 dark:bg-slate-800 dark:text-slate-300"
+            className="w-full sm:w-auto rounded-full border-none bg-bg-default px-5 py-3 text-sm font-medium text-text-muted focus:ring-2 focus:ring-primary/40 dark:bg-bg-default dark:text-text-muted"
           >
             <option value="Todos">Status de Aptidão</option>
             {STATUS_OPTIONS.filter((item) => item !== "Todos").map((item) => (
@@ -523,14 +523,14 @@ export default function PersonnelManagement() {
 
         <div className="grid grid-cols-12 gap-6">
           <section className="col-span-12 md:col-span-9">
-            <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-bg-card shadow-xl dark:border-border-default dark:bg-bg-card">
               <div className="space-y-2 p-3 md:hidden">
                 {loading ? (
-                  <p className="px-3 py-6 text-sm text-slate-500">
+                  <p className="px-3 py-6 text-sm text-text-muted">
                     Carregando efetivo...
                   </p>
                 ) : filteredRows.length === 0 ? (
-                  <p className="px-3 py-6 text-sm text-slate-500">
+                  <p className="px-3 py-6 text-sm text-text-muted">
                     Nenhum militar encontrado para os filtros selecionados.
                   </p>
                 ) : (
@@ -545,33 +545,33 @@ export default function PersonnelManagement() {
                     return (
                       <article
                         key={row.id}
-                        className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                        className="rounded-xl border border-border-default bg-bg-card p-3 dark:border-border-default dark:bg-bg-card"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="truncate font-bold text-slate-900 dark:text-white">
+                            <p className="truncate font-bold text-text-body dark:text-text-inverted">
                               {row.rank
                                 ? `${row.rank} ${row.warName || row.fullName}`
                                 : row.fullName}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-text-muted">
                               {row.sector || "Sem setor"}
                             </p>
                           </div>
                           <button
                             type="button"
                             onClick={() => openProfile(row)}
-                            className="p-2 text-slate-400 transition-colors hover:text-primary"
+                            className="p-2 text-text-muted transition-colors hover:text-primary"
                             title="Ver perfil"
                           >
                             <View size={18} />
                           </button>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                          <p className="text-slate-500">
+                          <p className="text-text-muted">
                             SARAM: {row.saram || "--"}
                           </p>
-                          <p className="text-slate-500">
+                          <p className="text-text-muted">
                             Último Teste: {dateLabel(row.lastTestDate)}
                           </p>
                         </div>
@@ -591,31 +591,31 @@ export default function PersonnelManagement() {
 
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[760px] border-collapse text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <thead className="bg-bg-default dark:bg-bg-default/50">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
                         Militar
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
                         SARAM
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
                         Último Teste
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-text-muted">
                         Ações
                       </th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-border-default dark:divide-slate-800">
                     {loading ? (
                       <tr>
                         <td
-                          className="px-6 py-8 text-sm text-slate-500"
+                          className="px-6 py-8 text-sm text-text-muted"
                           colSpan={5}
                         >
                           Carregando efetivo...
@@ -624,7 +624,7 @@ export default function PersonnelManagement() {
                     ) : filteredRows.length === 0 ? (
                       <tr>
                         <td
-                          className="px-6 py-8 text-sm text-slate-500"
+                          className="px-6 py-8 text-sm text-text-muted"
                           colSpan={5}
                         >
                           Nenhum militar encontrado para os filtros
@@ -643,7 +643,7 @@ export default function PersonnelManagement() {
                         return (
                           <tr
                             key={row.id}
-                            className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30"
+                            className="transition-colors hover:bg-bg-default dark:hover:bg-bg-default/60"
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -653,23 +653,23 @@ export default function PersonnelManagement() {
                                   )}
                                 </div>
                                 <div>
-                                  <div className="font-bold text-slate-900 dark:text-white">
+                                  <div className="font-bold text-text-body dark:text-text-inverted">
                                     {row.rank
                                       ? `${row.rank} ${row.warName || row.fullName}`
                                       : row.fullName}
                                   </div>
-                                  <div className="text-xs text-slate-500">
+                                  <div className="text-xs text-text-muted">
                                     {row.sector || "Sem setor"}
                                   </div>
                                 </div>
                               </div>
                             </td>
 
-                            <td className="px-6 py-4 text-center font-mono text-sm text-slate-600 dark:text-slate-400">
+                            <td className="px-6 py-4 text-center font-mono text-sm text-text-muted dark:text-text-muted">
                               {row.saram || "--"}
                             </td>
 
-                            <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
+                            <td className="px-6 py-4 text-center text-sm text-text-muted dark:text-text-muted">
                               {dateLabel(row.lastTestDate)}
                             </td>
 
@@ -686,7 +686,7 @@ export default function PersonnelManagement() {
                               <button
                                 type="button"
                                 onClick={() => openProfile(row)}
-                                className="p-2 text-slate-400 transition-colors hover:text-primary"
+                                className="p-2 text-text-muted transition-colors hover:text-primary"
                                 title="Ver perfil"
                               >
                                 <View size={18} />
@@ -701,12 +701,12 @@ export default function PersonnelManagement() {
               </div>
               {/* /overflow-x-auto */}
 
-              <div className="flex items-center justify-between bg-slate-50 p-6 dark:bg-slate-800/30">
-                <span className="text-sm font-medium text-slate-500">
+              <div className="flex items-center justify-between bg-bg-default p-6 dark:bg-bg-default/30">
+                <span className="text-sm font-medium text-text-muted">
                   Mostrando {filteredRows.length} de {rows.length} militares
                 </span>
                 <div className="flex items-center gap-2">
-                  <button className="h-8 w-8 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  <button className="h-8 w-8 rounded-full border border-border-default bg-bg-card text-xs font-bold text-text-muted dark:border-border-default dark:bg-bg-default dark:text-text-muted">
                     1
                   </button>
                 </div>
@@ -715,8 +715,8 @@ export default function PersonnelManagement() {
           </section>
 
           <aside className="col-span-12 space-y-6 md:col-span-3">
-            <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-              <h3 className="mb-6 text-lg font-bold text-slate-900 dark:text-white">
+            <div className="rounded-3xl border border-slate-100 bg-bg-card p-6 shadow-xl dark:border-border-default dark:bg-bg-card">
+              <h3 className="mb-6 text-lg font-bold text-text-body dark:text-text-inverted">
                 Aptidão Geral
               </h3>
 
@@ -728,11 +728,11 @@ export default function PersonnelManagement() {
                       background: `conic-gradient(rgb(45 90 39) ${summary.aptoPercent * 3.6}deg, rgb(192 57 43) ${summary.aptoPercent * 3.6}deg 360deg)`,
                     }}
                   />
-                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white dark:bg-slate-900">
-                    <span className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
+                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-bg-card dark:bg-bg-card">
+                    <span className="text-xl md:text-3xl font-extrabold text-text-body dark:text-text-inverted">
                       {summary.aptoPercent}%
                     </span>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-text-muted">
                       Aptos
                     </p>
                   </div>
@@ -743,11 +743,11 @@ export default function PersonnelManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-success" />
-                    <span className="font-medium text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-text-muted dark:text-text-muted">
                       Apto
                     </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-bold text-text-body dark:text-text-inverted">
                     {summary.apto}
                   </span>
                 </div>
@@ -755,11 +755,11 @@ export default function PersonnelManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-error" />
-                    <span className="font-medium text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-text-muted dark:text-text-muted">
                       Vencido
                     </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-bold text-text-body dark:text-text-inverted">
                     {summary.vencido}
                   </span>
                 </div>
@@ -767,11 +767,11 @@ export default function PersonnelManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-primary/50" />
-                    <span className="font-medium text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-text-muted dark:text-text-muted">
                       Inapto
                     </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-bold text-text-body dark:text-text-inverted">
                     {summary.inapto}
                   </span>
                 </div>
@@ -781,7 +781,7 @@ export default function PersonnelManagement() {
             <div className="rounded-3xl bg-primary p-6 text-white shadow-lg shadow-primary/20">
               <div className="mb-4 flex items-center justify-between">
                 <Users className="opacity-80" size={18} />
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px]">
+                <span className="rounded-full bg-bg-card/20 px-2 py-0.5 text-[10px]">
                   ESTE MÊS
                 </span>
               </div>
@@ -797,14 +797,14 @@ export default function PersonnelManagement() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+            <div className="rounded-3xl border border-slate-100 bg-bg-card p-6 shadow-lg dark:border-border-default dark:bg-bg-card">
               <div className="flex items-center gap-3">
                 <UserCircle2 className="text-primary" size={18} />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                     Total do Efetivo
                   </p>
-                  <p className="text-xl font-bold text-slate-900 dark:text-white">
+                  <p className="text-xl font-bold text-text-body dark:text-text-inverted">
                     {rows.length}
                   </p>
                 </div>
@@ -824,18 +824,18 @@ export default function PersonnelManagement() {
           />
 
           {/* Painel */}
-          <aside className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900">
+          <aside className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col bg-bg-card shadow-2xl dark:bg-bg-card">
             {/* Header do drawer */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-border-default">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                   {initialsFromName(selectedUser.fullName)}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900 dark:text-white">
+                  <p className="font-bold text-text-body dark:text-text-inverted">
                     {selectedUser.fullName}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-text-muted">
                     {selectedUser.rank ?? "Sem posto"} ·{" "}
                     {selectedUser.warName ?? "--"}
                   </p>
@@ -844,7 +844,7 @@ export default function PersonnelManagement() {
               <button
                 type="button"
                 onClick={closeDrawer}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+                className="rounded-lg p-2 text-text-muted hover:bg-bg-default hover:text-text-body dark:hover:bg-bg-default/80"
               >
                 <X size={18} />
               </button>
@@ -884,7 +884,7 @@ export default function PersonnelManagement() {
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
                           userDetail.active
                             ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
-                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-emerald-300 disabled:opacity-100"
+                            : "border-border-default dark:border-border-default text-text-muted hover:border-emerald-300 disabled:opacity-100"
                         }`}
                       >
                         {savingActive && !userDetail.active ? (
@@ -901,7 +901,7 @@ export default function PersonnelManagement() {
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
                           !userDetail.active
                             ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                            : "border-slate-200 dark:border-slate-700 text-slate-400 hover:border-red-300 disabled:opacity-100"
+                            : "border-border-default dark:border-border-default text-text-muted hover:border-red-300 disabled:opacity-100"
                         }`}
                       >
                         {savingActive && userDetail.active ? (
@@ -915,44 +915,44 @@ export default function PersonnelManagement() {
                   </div>
 
                   {/* Dados pessoais */}
-                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-border-default">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
                       <Shield size={13} /> Identificação
                     </h3>
                     <dl className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">SARAM</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">SARAM</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.saram ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Posto/Graduação</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Posto/Graduação</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.rank ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Nome de Guerra</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Nome de Guerra</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.war_name ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Setor</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Setor</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.sector ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Grupo Físico</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Grupo Físico</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.physical_group ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Data de Nascimento</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Data de Nascimento</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {dateLabel(userDetail.birth_date)}
                         </dd>
                       </div>
@@ -960,24 +960,24 @@ export default function PersonnelManagement() {
                   </section>
 
                   {/* Contacto */}
-                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-border-default">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
                       <Mail size={13} /> Contato
                     </h3>
                     <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <dt className="flex items-center gap-1.5 text-slate-500">
+                        <dt className="flex items-center gap-1.5 text-text-muted">
                           <Mail size={12} /> E-mail
                         </dt>
-                        <dd className="truncate font-semibold text-slate-900 dark:text-white">
+                        <dd className="truncate font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.email ?? "--"}
                         </dd>
                       </div>
                       <div className="flex items-center justify-between">
-                        <dt className="flex items-center gap-1.5 text-slate-500">
+                        <dt className="flex items-center gap-1.5 text-text-muted">
                           <Phone size={12} /> Telefone
                         </dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {userDetail.phone_number ?? "--"}
                         </dd>
                       </div>
@@ -985,20 +985,20 @@ export default function PersonnelManagement() {
                   </section>
 
                   {/* INSPSAU */}
-                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-border-default">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
                       <Award size={13} /> Inspeção de Saúde (INSPSAU)
                     </h3>
                     <dl className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Última Inspeção</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Última Inspeção</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {dateLabel(userDetail.inspsau_last_inspection)}
                         </dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-slate-500">Válida até</dt>
-                        <dd className="font-semibold text-slate-900 dark:text-white">
+                        <dt className="text-text-muted">Válida até</dt>
+                        <dd className="font-semibold text-text-body dark:text-text-inverted">
                           {dateLabel(userDetail.inspsau_valid_until)}
                         </dd>
                       </div>
@@ -1006,13 +1006,13 @@ export default function PersonnelManagement() {
                   </section>
 
                   {/* Histórico de testes TACF */}
-                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <section className="space-y-3 rounded-xl border border-slate-100 p-4 dark:border-border-default">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
                       <ClipboardList size={13} /> Histórico TACF
                     </h3>
 
                     {userDetail.testHistory.length === 0 ? (
-                      <p className="text-xs text-slate-400 py-1">
+                      <p className="text-xs text-text-muted py-1">
                         Nenhum teste registrado.
                       </p>
                     ) : (
@@ -1025,14 +1025,14 @@ export default function PersonnelManagement() {
                               ? "text-emerald-600"
                               : t.score !== null
                                 ? "text-red-500"
-                                : "text-slate-400";
+                                : "text-text-muted";
                           return (
                             <li
                               key={t.id}
                               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
                                 isFirst
                                   ? "bg-primary/5 border border-primary/20"
-                                  : "bg-slate-50 dark:bg-slate-800/50"
+                                  : "bg-bg-default dark:bg-bg-default/50"
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -1051,10 +1051,10 @@ export default function PersonnelManagement() {
                                 ) : (
                                   <FileText
                                     size={14}
-                                    className="text-slate-300 shrink-0"
+                                    className="text-text-muted shrink-0"
                                   />
                                 )}
-                                <span className="text-slate-600 dark:text-slate-300">
+                                <span className="text-text-muted dark:text-text-muted">
                                   {dateLabel(t.date)}
                                 </span>
                                 {isFirst && (
@@ -1076,14 +1076,14 @@ export default function PersonnelManagement() {
                   </section>
 
                   {/* Cadastro */}
-                  <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <p className="flex items-center gap-1.5 text-xs text-text-muted">
                     <Calendar size={11} />
                     Cadastrado em {dateLabel(userDetail.created_at)}
                   </p>
 
                   {/* Indicador de carregamento de dados extras */}
                   {loadingDetail && (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                    <div className="flex items-center gap-2 text-xs text-text-muted pt-1">
                       <Loader2 size={13} className="animate-spin" />
                       Carregando informações adicionais...
                     </div>

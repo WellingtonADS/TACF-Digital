@@ -1,3 +1,4 @@
+import { Input } from "@/components/atomic/Input";
 import PasswordInput from "@/components/atomic/PasswordInput";
 import AuthLayout from "@/components/AuthLayout";
 import { signIn, signUp } from "@/services/supabase";
@@ -86,7 +87,7 @@ export default function RegisterPage() {
               fill="currentColor"
             />
           </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
             TACF-Digital
           </h1>
         </div>
@@ -151,7 +152,7 @@ export default function RegisterPage() {
           <p className="text-sm text-text-muted">Já possui uma conta?</p>
           <Link
             to="/login"
-            className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
             Fazer login
           </Link>

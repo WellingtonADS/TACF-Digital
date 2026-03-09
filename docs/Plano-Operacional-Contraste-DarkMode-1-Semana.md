@@ -107,24 +107,46 @@ Garantir contraste adequado no tema escuro com padrao WCAG AA, reduzindo inconsi
 
 ## Atualização — 08/03/2026
 
-- **Status geral:** trabalho de tokenização e substituição de classes utilitárias concluído nas prioridades P0, P1 e P2 listadas no plano. `npx tsc --noEmit` passou sem erros.
+- **Status geral:** trabalho de tokenização e substituição de classes utilitárias concluído nas prioridades P0, P1 e P2 listadas no plano. `npx tsc --noEmit` e `yarn lint` passaram sem erros.
 - **Concluído (P0/P1/P2):** `src/styles/tokens.css`, `tailwind.config.ts`, `src/index.css`, e as páginas críticas (auth, perfil, settings, analytics, sessions, documents, operational) foram atualizadas para usar tokens semânticos.
-- **Pendências principais:** o linter (`yarn lint`) reportou erros ESLint relacionados a `any` em `src/pages/OperationalDashboard.tsx` (7 avisos) — isso é pré-existente e bloqueia um lint limpo.
-- **Ações em andamento:** correção dos avisos de ESLint em `OperationalDashboard.tsx` (tipagem/refactor) — em progresso.
+- **Concluído (rodada adicional):** `src/pages/AdminDashboard.tsx`, `src/pages/OmLocationManager.tsx`, `src/pages/AppointmentConfirmation.tsx` e blocos críticos de `src/pages/ClassCreationForm.tsx` foram refatorados para reduzir hardcodes (`slate/white/dark:*`) e reforçar consistência no dark mode.
+- **Concluído (passe final):** remanescentes de hardcode em `src/pages/AppointmentConfirmation.tsx` e `src/pages/ClassCreationForm.tsx` foram eliminados nesta rodada.
+- **Concluído (rodada de eficiência):** `src/pages/PersonnelManagement.tsx` e `src/pages/AuditLog.tsx` receberam padronização semântica em lote (remoção de hardcodes `slate/white/dark:*` em filtros, tabelas, cartões, drawer e paginação), mantendo apenas overlay escuro intencional de modal.
+- **Concluído (rodada final de consistência):** `src/pages/Scheduling.tsx`, `src/pages/SessionBookingsManagement.tsx` e `src/pages/ResultsHistory.tsx` foram normalizados para tokens semânticos, sem remanescentes de `slate/white/dark:*` nesses arquivos.
+- **Validação automatizada:**
+  - `yarn vitest run tests/unit/contrast.test.tsx` ✅ (2 testes passando)
+  - `yarn playwright test -c playwright.config.ts tests/e2e/contrast.spec.ts` ✅ (desktop e mobile passando)
+  - `yarn lint` ✅ após a rodada adicional
+  - `yarn playwright test -c playwright.config.ts tests/e2e/contrast.spec.ts --reporter=line` ✅ após a rodada adicional
+  - `yarn lint` ✅ após o passe final
+  - `yarn playwright test -c playwright.config.ts tests/e2e/contrast.spec.ts --reporter=line` ✅ após o passe final
+  - `yarn lint` ✅ após a rodada de eficiência
+  - `yarn playwright test -c playwright.config.ts tests/e2e/contrast.spec.ts --reporter=line` ✅ após a rodada de eficiência
+  - `yarn lint` ✅ após a rodada final de consistência
+  - `yarn playwright test -c playwright.config.ts tests/e2e/contrast.spec.ts --reporter=line` ✅ após a rodada final de consistência
+- **Ajuste aplicado no teste E2E:** contraste em dark mode passou a usar emulação de `prefers-color-scheme` (`page.emulateMedia({ colorScheme: "dark" })`) para alinhar com a estratégia de tokens.
+- **QA visual manual (básica):** ✅ concluída em `/login` e `/forgot` com modo escuro (desktop e mobile), sem regressões evidentes de legibilidade.
+- **Pendências principais:** preparação do PR final.
 
 ## Próximos Passos Imediatos
 
-- Corrigir os erros apontados pelo ESLint em `src/pages/OperationalDashboard.tsx` para obter um lint limpo (prioridade alta antes do PR).
-- Rodar as verificações automáticas de contraste (axe) em ambiente de CI / Playwright para validar WCAG AA em modo escuro.
-- Executar QA visual manual em mobile e desktop nas telas prioritárias e ajustar tokens menores (sombras, separadores) se necessário.
 - Preparar PR único agrupando mudanças por domínio (auth, user, admin) e anexar a checklist de validação.
 
 ## Checklist Rápida Atualizada (para PR)
 
-1. `npx tsc --noEmit` — sem erros.
-2. `yarn lint` — exceção: nenhum erro ESLint ativo (corrigir `OperationalDashboard.tsx`).
-3. Testes de contraste automatizados (axe) — passar nas páginas P0/P1.
-4. Revisão manual rápida em breakpoint móvel.
+1. `npx tsc --noEmit` — ✅ sem erros.
+2. `yarn lint` — ✅ sem erros.
+3. Testes de contraste automatizados (axe) — ✅ unit + e2e passando.
+4. Revisão manual rápida em breakpoint móvel — ✅ concluída (auth: `/login` e `/forgot`).
+
+## Checklist Final Para PR
+
+1. Tokenização semântica P0/P1/P2 aplicada e documentada. ✅
+2. `npx tsc --noEmit` sem erros. ✅
+3. `yarn lint` sem erros. ✅
+4. Testes de contraste (unitário + e2e) passando. ✅
+5. QA visual básica (desktop/mobile, dark mode) concluída. ✅
+6. PR pronto para abertura com escopo: contraste/dark-mode + validações. ✅
 
 ## Cronograma Operacional (1 Semana)
 

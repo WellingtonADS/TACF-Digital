@@ -2,6 +2,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatSessionPeriod } from "../booking";
 
 type AttendanceSession = {
   id: string;
@@ -18,12 +19,6 @@ type AttendanceBooking = {
   saram: string | null;
   status: string;
   attendance_confirmed: boolean | null;
-};
-
-const PERIOD_LABEL: Record<string, string> = {
-  morning: "Manhã",
-  afternoon: "Tarde",
-  evening: "Noturno",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -60,7 +55,7 @@ export function generateAttendanceListPdf({
   const longDate = format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
     locale: ptBR,
   });
-  const periodLabel = PERIOD_LABEL[session.period] ?? session.period;
+  const periodLabel = formatSessionPeriod(session.period);
 
   doc.setFontSize(14);
   doc.text("Lista de Presença", 14, 16);

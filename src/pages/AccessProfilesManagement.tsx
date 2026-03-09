@@ -1,5 +1,5 @@
-import useAuth from "@/hooks/useAuth";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
 import type { AccessProfile, Permission } from "@/types";
 import { useEffect, useState } from "react";
@@ -181,7 +181,7 @@ export default function AccessProfilesManagement() {
           {/* sidebar */}
           <aside className="w-full lg:w-80 lg:flex-shrink-0 flex flex-col gap-4">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Perfis Cadastrados
               </h2>
               <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -195,15 +195,15 @@ export default function AccessProfilesManagement() {
                   onClick={() => setSelectedProfileId(profile.id)}
                   className={`w-full text-left p-4 rounded-xl shadow-sm flex items-center gap-3 transition-all ${
                     profile.id === selectedProfileId
-                      ? "bg-white dark:bg-slate-800 border-2 border-primary"
-                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary/50 group"
+                      ? "bg-bg-card border-2 border-primary"
+                      : "bg-bg-card border border-border-default hover:border-primary/50 group"
                   }`}
                 >
                   <div
                     className={`${
                       profile.id === selectedProfileId
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 dark:bg-slate-700 text-slate-400 group-hover:text-primary"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-bg-default text-text-muted group-hover:text-primary"
                     } p-2 rounded-lg`}
                   >
                     <span className="material-icons-outlined text-sm">
@@ -211,10 +211,10 @@ export default function AccessProfilesManagement() {
                     </span>
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 dark:text-white text-sm">
+                    <p className="font-bold text-text-body text-sm">
                       {profile.name}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-text-muted">
                       {profile.description}
                     </p>
                   </div>
@@ -223,7 +223,7 @@ export default function AccessProfilesManagement() {
             </div>
             <button
               onClick={createProfile}
-              className="mt-4 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm"
+              className="mt-4 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-border-default rounded-xl text-text-muted font-medium hover:bg-bg-default transition-all text-sm"
             >
               <span className="material-icons-outlined text-sm">add</span>
               Novo Perfil
@@ -232,16 +232,16 @@ export default function AccessProfilesManagement() {
 
           {/* main content */}
           <div className="flex-1 flex flex-col gap-6 overflow-y-auto lg:pr-2">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-slate-100 dark:border-slate-700">
+            <div className="bg-bg-card rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-border-default">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-text-body flex items-center gap-2">
                     <span className="material-icons-outlined text-primary">
                       settings
                     </span>
                     Permissões do Perfil: {selectedProfile?.name || "--"}
                   </h2>
-                  <p className="text-slate-500 text-sm">
+                  <p className="text-text-muted text-sm">
                     Defina os níveis de acesso para cada módulo do TACF-Digital.
                   </p>
                 </div>
@@ -255,7 +255,7 @@ export default function AccessProfilesManagement() {
                 )}
               </div>
               {/* permissions table */}
-              <div className="border border-slate-100 dark:border-slate-700 rounded-xl">
+              <div className="border border-border-default rounded-xl">
                 <div className="space-y-2 p-3 md:hidden">
                   {permissions.map((perm) => {
                     const enabled = profilePermissions.has(perm.id);
@@ -264,15 +264,15 @@ export default function AccessProfilesManagement() {
                     return (
                       <article
                         key={perm.id}
-                        className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                        className="rounded-lg border border-border-default bg-bg-card p-3"
                       >
                         <div className="mb-3 flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-default text-text-muted">
                             <span className="material-icons-outlined text-sm">
                               {iconForPermission(name)}
                             </span>
                           </div>
-                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          <span className="text-sm font-semibold text-text-body">
                             {name}
                           </span>
                         </div>
@@ -282,14 +282,12 @@ export default function AccessProfilesManagement() {
                             (label, idx) => (
                               <label
                                 key={label}
-                                className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700"
+                                className="flex items-center justify-between rounded-md border border-border-default px-2 py-1.5 text-xs"
                               >
-                                <span className="text-slate-500 dark:text-slate-400">
-                                  {label}
-                                </span>
+                                <span className="text-text-muted">{label}</span>
                                 <input
                                   type="checkbox"
-                                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                  className="h-4 w-4 rounded border-border-default text-primary focus:ring-primary"
                                   checked={enabled}
                                   disabled={!selectedProfileId || loadingPerms}
                                   onChange={(e) =>
@@ -309,37 +307,37 @@ export default function AccessProfilesManagement() {
 
                 <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[760px] text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                    <thead className="bg-bg-default/80">
                       <tr>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
+                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase">
                           Módulo
                         </th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
                           Visualizar
                         </th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
                           Criar
                         </th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
                           Editar
                         </th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">
+                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
                           Excluir
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tbody className="divide-y divide-border-default">
                       {permissions.map((perm) => {
                         const enabled = profilePermissions.has(perm.id);
                         const name = perm.name;
                         return (
                           <tr
                             key={perm.id}
-                            className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                            className="hover:bg-bg-default/70 transition-colors"
                           >
-                            <td className="px-6 py-5 font-semibold text-slate-700 dark:text-slate-300">
+                            <td className="px-6 py-5 font-semibold text-text-body">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                                <div className="w-8 h-8 rounded-lg bg-bg-default flex items-center justify-center text-text-muted">
                                   <span className="material-icons-outlined text-sm">
                                     {iconForPermission(name)}
                                   </span>
@@ -353,7 +351,7 @@ export default function AccessProfilesManagement() {
                               <td key={col} className="px-6 py-5 text-center">
                                 <input
                                   type="checkbox"
-                                  className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
+                                  className="w-5 h-5 rounded border-border-default text-primary focus:ring-primary"
                                   checked={enabled}
                                   disabled={!selectedProfileId || loadingPerms}
                                   onChange={(e) =>
