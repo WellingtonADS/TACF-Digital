@@ -20,7 +20,7 @@ import QR from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
-import PageSkeleton from "../components/PageSkeleton";
+import FullPageLoading from "../components/FullPageLoading";
 
 // no longer need formatTicketDate or route state types; they live in the hook
 
@@ -125,9 +125,10 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   if (loading) {
     return (
       <Layout>
-        <div className="p-8 max-w-2xl mx-auto">
-          <PageSkeleton rows={8} />
-        </div>
+        <FullPageLoading
+          message="Carregando bilhete digital..."
+          description="Buscando os dados do seu agendamento confirmado."
+        />
       </Layout>
     );
   }
@@ -217,7 +218,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
                     Militar
                   </p>
-                  <p className="mt-1 break-words text-2xl font-black text-text-body dark:text-text-inverted">
+                  <p className="mt-1 break-words text-2xl font-black text-text-body">
                     {ticketData.name}
                   </p>
                 </div>
@@ -226,7 +227,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
                     SARAM
                   </p>
-                  <p className="mt-1 break-all font-mono text-xl font-bold text-text-body dark:text-text-inverted">
+                  <p className="mt-1 break-all font-mono text-xl font-bold text-text-body">
                     {ticketData.saram}
                   </p>
                 </div>
@@ -238,7 +239,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
                       Local
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-text-body dark:text-text-inverted">
+                  <p className="text-sm font-semibold text-text-body">
                     {ticketData.location}
                   </p>
                 </div>
@@ -250,7 +251,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
                       Data e Horário
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-text-body dark:text-text-inverted">
+                  <p className="text-sm font-bold text-text-body">
                     {ticketData.date}
                     <span className="mx-2 text-primary/70">|</span>
                     {ticketData.time}

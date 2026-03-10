@@ -141,12 +141,14 @@ export default function ReschedulingManagement() {
 
   return (
     <Layout>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between sticky top-0 z-30">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border-default bg-bg-card px-4 py-3 md:px-8 md:py-4">
         <div className="flex items-center gap-4">
           <div className="bg-primary p-2 rounded-lg">
-            <span className="material-icons text-white">event_repeat</span>
+            <span className="material-icons text-primary-foreground">
+              event_repeat
+            </span>
           </div>
-          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
+          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold tracking-tight uppercase text-text-body">
             Gestão de Solicitações de Reagendamento
           </h1>
         </div>
@@ -156,7 +158,7 @@ export default function ReschedulingManagement() {
       <main className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-6 md:space-y-8">
         {/* summary bar */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-3 flex flex-col lg:flex-row lg:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
+          <div className="md:col-span-3 flex flex-col gap-4 rounded-xl border border-border-default bg-bg-card p-4 shadow-sm lg:flex-row lg:items-center">
             <div className="flex-1 flex flex-wrap gap-2">
               {(["pendentes", "aprovados", "recusados"] as const).map((t) => (
                 <button
@@ -164,8 +166,8 @@ export default function ReschedulingManagement() {
                   onClick={() => setStatusFilter(t)}
                   className={`px-4 sm:px-6 py-2 font-bold rounded-lg text-sm ${
                     statusFilter === t
-                      ? "bg-primary text-white"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-bg-default text-text-muted hover:bg-bg-default/80"
                   }`}
                 >
                   {t.toUpperCase()}
@@ -181,28 +183,26 @@ export default function ReschedulingManagement() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="PESQUISAR POR SARAM OU NOME..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold focus:ring-primary focus:border-primary uppercase"
+                className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-10 pr-4 text-xs font-semibold uppercase text-text-body focus:border-primary focus:ring-primary"
                 type="text"
               />
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-l-4 border-amber-500 shadow-md flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="flex flex-col justify-center rounded-xl border-l-4 border-alert bg-bg-card p-4 shadow-md">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
               SOLICITAÇÕES {statusFilter.toUpperCase()}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-white">
+              <span className="text-xl md:text-3xl font-black text-text-body">
                 {visibleRows.length}
               </span>
-              <span className="material-icons text-amber-500">
-                pending_actions
-              </span>
+              <span className="material-icons text-alert">pending_actions</span>
             </div>
           </div>
         </div>
 
         {/* table */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border-default bg-bg-card shadow-2xl">
           <div className="space-y-2 p-3 md:hidden">
             {visibleRows.map((r) => (
               <article
@@ -225,10 +225,10 @@ export default function ReschedulingManagement() {
                   <span
                     className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                       r.status === "pending_swap"
-                        ? "status-pendente"
+                        ? "bg-alert/15 text-alert"
                         : r.status === "confirmed"
-                          ? "status-aprovado"
-                          : "status-recusado"
+                          ? "bg-success/15 text-success"
+                          : "bg-error/15 text-error"
                     }`}
                   >
                     {STATUS_LABELS[r.status] ?? r.status}
@@ -243,14 +243,14 @@ export default function ReschedulingManagement() {
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => changeStatus(r.id, "confirmed")}
-                    className="flex-1 flex items-center justify-center gap-1 btn-deferir text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:brightness-110 transition-all shadow-md"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-success px-3 py-1.5 text-[10px] font-bold text-success-foreground shadow-md transition-all hover:brightness-110"
                   >
                     <span className="material-icons text-xs">check_circle</span>
                     DEFERIR
                   </button>
                   <button
                     onClick={() => changeStatus(r.id, "cancelled")}
-                    className="flex-1 flex items-center justify-center gap-1 btn-indeferir border-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-error px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground"
                   >
                     <span className="material-icons text-xs">cancel</span>
                     INDEFERIR
@@ -336,10 +336,10 @@ export default function ReschedulingManagement() {
                       <span
                         className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                           r.status === "pending_swap"
-                            ? "status-pendente"
+                            ? "bg-alert/15 text-alert"
                             : r.status === "confirmed"
-                              ? "status-aprovado"
-                              : "status-recusado"
+                              ? "bg-success/15 text-success"
+                              : "bg-error/15 text-error"
                         }`}
                       >
                         {STATUS_LABELS[r.status] ?? r.status}
@@ -349,7 +349,7 @@ export default function ReschedulingManagement() {
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => changeStatus(r.id, "confirmed")}
-                          className="flex items-center gap-1 btn-deferir text-white px-4 py-1.5 rounded-lg text-[10px] font-bold hover:brightness-110 transition-all shadow-md"
+                          className="flex items-center gap-1 rounded-lg bg-success px-4 py-1.5 text-[10px] font-bold text-success-foreground shadow-md transition-all hover:brightness-110"
                         >
                           <span className="material-icons text-xs">
                             check_circle
@@ -358,7 +358,7 @@ export default function ReschedulingManagement() {
                         </button>
                         <button
                           onClick={() => changeStatus(r.id, "cancelled")}
-                          className="flex items-center gap-1 btn-indeferir border-2 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                          className="flex items-center gap-1 rounded-lg border border-error px-4 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground"
                         >
                           <span className="material-icons text-xs">cancel</span>
                           INDEFERIR

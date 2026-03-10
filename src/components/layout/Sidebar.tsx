@@ -1,4 +1,5 @@
 // implementation previously located in src/layout/Sidebar.tsx
+import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
@@ -75,7 +76,7 @@ export const Sidebar = ({
     >
       <div className="p-8 flex items-center gap-3">
         <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
-          <Shield className="text-white" size={24} />
+          <AppIcon icon={Shield} size="lg" tone="inverse" />
         </div>
         <div className="flex-1">
           <h1 className="text-xl font-bold leading-none">TACF-Digital</h1>
@@ -90,7 +91,7 @@ export const Sidebar = ({
           aria-label="Fechar menu"
           type="button"
         >
-          <X size={20} className="text-white/70" />
+          <AppIcon icon={X} size="lg" className="text-white/70" />
         </button>
       </div>
 
@@ -107,7 +108,7 @@ export const Sidebar = ({
                 : "text-white/70 hover:bg-white/5 hover:text-white border-l-4 border-transparent pl-3"
             }`}
           >
-            <item.icon size={20} />
+            <AppIcon icon={item.icon} size="lg" className="text-current" />
             <span className="text-sm font-medium">{item.label}</span>
           </Link>
         ))}
@@ -164,7 +165,7 @@ function LogoutButton() {
       className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm font-bold uppercase tracking-wider border border-red-500/20"
       type="button"
     >
-      <LogOut size={20} />
+      <AppIcon icon={LogOut} size="lg" className="text-current" />
       Sair
     </button>
   );

@@ -294,16 +294,16 @@ export default function UserProfilesManagement() {
                 </p>
                 {profile?.inspsau_valid_until ? (
                   isAfter(parseISO(profile.inspsau_valid_until), new Date()) ? (
-                    <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
+                    <div className="bg-emerald-50 border border-emerald-100 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
                       <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">
+                      <span className="font-bold text-emerald-600 text-xs uppercase tracking-wide">
                         Apto para o TACF
                       </span>
                     </div>
                   ) : (
-                    <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
+                    <div className="bg-red-50 border border-red-100 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
                       <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                      <span className="font-bold text-red-600 dark:text-red-400 text-xs uppercase tracking-wide">
+                      <span className="font-bold text-red-600 text-xs uppercase tracking-wide">
                         Inapto
                       </span>
                     </div>
@@ -318,7 +318,7 @@ export default function UserProfilesManagement() {
               </div>
 
               {/* Age & group */}
-              <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-border-default dark:border-border-default">
+              <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-border-default">
                 <div className="text-center">
                   <p className="text-[10px] font-bold text-text-muted uppercase">
                     Idade
@@ -332,7 +332,7 @@ export default function UserProfilesManagement() {
                       : "--"}
                   </p>
                 </div>
-                <div className="text-center border-l border-border-default dark:border-border-default">
+                <div className="text-center border-l border-border-default">
                   <p className="text-[10px] font-bold text-text-muted uppercase">
                     Grupo
                   </p>
@@ -355,7 +355,7 @@ export default function UserProfilesManagement() {
 
                 <section>
                   <div className="flex items-center gap-3 mb-6 border-b border-border-default pb-4">
-                    <User className="w-5 h-5 text-primary dark:text-primary" />
+                    <User className="w-5 h-5 text-primary" />
                     <h4 className="font-bold text-text-body tracking-wider">
                       DADOS PESSOAIS
                     </h4>
@@ -413,7 +413,7 @@ export default function UserProfilesManagement() {
 
                 <section>
                   <div className="flex items-center gap-3 mb-6 border-b border-border-default pb-4">
-                    <Award className="w-5 h-5 text-primary dark:text-primary" />
+                    <Award className="w-5 h-5 text-primary" />
                     <h4 className="font-bold text-text-body tracking-wider">
                       DADOS MILITARES
                     </h4>
@@ -500,12 +500,12 @@ export default function UserProfilesManagement() {
                 </section>
 
                 <section>
-                  <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-border-default dark:border-border-default pb-4">
-                    <ShieldCheck className="w-5 h-5 text-primary dark:text-primary" />
+                  <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-border-default pb-4">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
                     <h4 className="font-bold text-text-body tracking-wider">
                       SAÚDE
                     </h4>
-                    <span className="sm:ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold uppercase">
+                    <span className="sm:ml-auto text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase">
                       Apenas Visualização
                     </span>
                   </div>
@@ -518,7 +518,7 @@ export default function UserProfilesManagement() {
                         <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                           Última Inspeção
                         </p>
-                        <p className="font-semibold text-text-body dark:text-text-muted">
+                        <p className="font-semibold text-text-body">
                           {profile?.inspsau_last_inspection
                             ? new Date(
                                 profile.inspsau_last_inspection,
@@ -535,7 +535,7 @@ export default function UserProfilesManagement() {
                         <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                           Validade da INSPSAU
                         </p>
-                        <p className="font-semibold text-text-body dark:text-text-muted">
+                        <p className="font-semibold text-text-body">
                           {profile?.inspsau_valid_until
                             ? new Date(
                                 profile.inspsau_valid_until,
@@ -547,7 +547,7 @@ export default function UserProfilesManagement() {
                   </div>
                 </section>
 
-                <section className="pt-6 border-t border-border-default dark:border-border-default">
+                <section className="pt-6 border-t border-border-default">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-bg-card rounded-full flex items-center justify-center">

@@ -1,3 +1,4 @@
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
@@ -155,11 +156,7 @@ export default function AccessProfilesManagement() {
   }
 
   if (authLoading) {
-    return (
-      <Layout>
-        <div className="p-6">Carregando...</div>
-      </Layout>
-    );
+    return <FullPageLoading message="Validando acesso" />;
   }
 
   if (!canView) {
@@ -175,7 +172,7 @@ export default function AccessProfilesManagement() {
   return (
     <Layout>
       {loading ? (
-        <div className="p-6">Carregando perfis...</div>
+        <FullPageLoading message="Carregando perfis" />
       ) : (
         <div className="max-w-6xl mx-auto flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* sidebar */}

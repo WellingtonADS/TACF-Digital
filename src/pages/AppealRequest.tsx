@@ -106,7 +106,7 @@ export default function AppealRequest() {
         {resultId && (
           <div className="bg-bg-card rounded-2xl border border-border-default p-6 mb-8 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="text-amber-500" size={20} />
+              <AlertCircle className="text-red-500" size={20} />
               <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
                 Resultado Contestado
               </span>
@@ -208,7 +208,7 @@ export default function AppealRequest() {
             </div>
 
             {/* ICA 54-2 note */}
-            <div className="flex gap-3 p-4 bg-primary/5 dark:bg-primary/20 rounded-2xl border border-primary/10">
+            <div className="flex gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
               <Info className="text-primary flex-shrink-0 mt-0.5" size={18} />
               <p className="text-xs text-text-muted leading-relaxed">
                 O prazo para interposição de recurso é de{" "}

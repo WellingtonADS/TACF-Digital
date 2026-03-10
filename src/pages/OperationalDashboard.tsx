@@ -6,7 +6,7 @@ import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { format, isAfter, parseISO } from "date-fns";
+import { format, isAfter, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Award,
@@ -46,21 +46,13 @@ export const OperationalDashboard = () => {
   const inspsau = (typedProfile as unknown as Record<string, unknown>)
     ?.inspsau_valid_until as string | null | undefined;
   let statusLabel = "Inapto";
-  let statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
+  let statusColor = "text-white bg-error border border-error";
 
   if (inspsau) {
-    try {
-      const date = typeof inspsau === "string" ? parseISO(inspsau) : inspsau;
-      if (isAfter(date, new Date())) {
-        statusLabel = "Apto";
-        statusColor =
-          "text-emerald-300 bg-emerald-500/20 border-emerald-500/30";
-      } else {
-        statusLabel = "Inapto";
-        statusColor = "text-amber-300 bg-amber-500/10 border-amber-500/20";
-      }
-    } catch {
-      statusLabel = "Inapto";
+    const date = parseISO(inspsau);
+    if (isValid(date) && isAfter(date, new Date())) {
+      statusLabel = "Apto";
+      statusColor = "text-white bg-success border border-success";
     }
   }
 
@@ -268,7 +260,7 @@ export const OperationalDashboard = () => {
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                   <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border-default flex items-center justify-center">
                     <div className="text-center">
-                      <div className="text-2xl md:text-3xl font-extrabold text-primary dark:text-white">
+                      <div className="text-2xl md:text-3xl font-extrabold text-primary">
                         {format(parseISO(nextSession.date), "dd", {
                           locale: ptBR,
                         })}
@@ -317,7 +309,7 @@ export const OperationalDashboard = () => {
                       )}
 
                       {pendingSwap && (
-                        <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-semibold">
+                        <span className="inline-flex items-center text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold">
                           Reagendamento Pendente
                         </span>
                       )}
@@ -335,7 +327,7 @@ export const OperationalDashboard = () => {
                 </p>
                 <a
                   href="/app/agendamentos"
-                  className="mt-4 inline-block text-primary dark:text-primary text-sm font-bold uppercase tracking-wider hover:underline"
+                  className="mt-4 inline-block text-primary text-sm font-bold uppercase tracking-wider hover:underline"
                 >
                   Ver calendário completo
                 </a>
@@ -345,8 +337,8 @@ export const OperationalDashboard = () => {
         </div>
 
         {/* Info Section */}
-        <div className="w-full xl:w-96 bg-primary/5 dark:bg-bg-card/30 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10 dark:border-border-default">
-          <h4 className="text-sm font-bold uppercase tracking-widest text-primary dark:text-primary mb-6 flex items-center gap-2">
+        <div className="w-full xl:w-96 bg-primary/5 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10">
+          <h4 className="text-sm font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes
           </h4>

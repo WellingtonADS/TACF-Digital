@@ -5,7 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import AdminRoute from "./components/AdminRoute";
 import AutoRedirect from "./components/AutoRedirect";
-import PageSkeleton from "./components/PageSkeleton";
+import FullPageLoading from "./components/FullPageLoading";
 import ProtectedRoute from "./components/ProtectedRoute";
 import UserRoute from "./components/UserRoute";
 import "./index.css";
@@ -19,11 +19,7 @@ const OperationalDashboard = React.lazy(
   () => import("./pages/OperationalDashboard"),
 );
 
-const routeFallback = (
-  <div className="p-6">
-    <PageSkeleton rows={6} />
-  </div>
-);
+const routeFallback = <FullPageLoading message="Carregando modulo" />;
 
 const appRoutableEntries = getRoutableAppRoutes().map((route) => ({
   ...route,
@@ -131,5 +127,3 @@ createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>,
 );
-
-

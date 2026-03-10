@@ -1,15 +1,14 @@
+import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import {
-  Award,
   BookOpen,
   ExternalLink,
   FileText,
   Shield,
-  Ticket,
   type LucideIcon,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import Breadcrumbs from "../components/Breadcrumbs";
+import AppIcon from "../components/atomic/AppIcon";
+
 type DocItem = {
   title: string;
   subtitle: string;
@@ -17,165 +16,128 @@ type DocItem = {
   icon: LucideIcon;
   tag?: string;
 };
+
 const manuals: DocItem[] = [
   {
     title: "ICA 54-2",
-    subtitle: "Instrução do Comando da Aeronáutica — Atividades Físicas",
+    subtitle: "Instrução do Comando da Aeronáutica - Atividades Físicas",
     href: "https://www.fab.mil.br/organizacoes/mostra/102",
     icon: BookOpen,
     tag: "Normativo",
   },
   {
     title: "NSCA 54-1",
-    subtitle: "Norma de Sistema do Comando da Aeronáutica — Atividades Físicas",
+    subtitle: "Norma de Sistema do Comando da Aeronáutica - Atividades Físicas",
     href: "https://www.fab.mil.br/organizacoes/mostra/102",
     icon: FileText,
     tag: "Normativo",
   },
   {
-    title: "Port. n.º 1.000/SCI",
-    subtitle: "Portaria sobre índices de aptidão física — Atualização",
+    title: "Port. n. 1.000/SCI",
+    subtitle: "Portaria sobre índices de aptidão física - Atualização",
     icon: FileText,
     tag: "Portaria",
   },
   {
     title: "MCA 54-3",
-    subtitle: "Manual do Comando da Aeronáutica — Avaliação Física Individual",
+    subtitle: "Manual do Comando da Aeronáutica - Avaliação Física Individual",
     icon: BookOpen,
     tag: "Manual",
   },
 ];
+
 export default function Documents() {
-  const navigate = useNavigate();
   return (
     <Layout>
-      {" "}
-      <div className="max-w-4xl mx-auto">
-        {" "}
-        <Breadcrumbs items={["Documentos"]} />{" "}
-        <header className="mb-10">
-          {" "}
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body tracking-tight">
-            {" "}
-            Documentos e Normas{" "}
-          </h1>{" "}
-          <p className="text-text-muted mt-1">
-            {" "}
-            Acesse os principais documentos normativos do TACF e seus
-            certificados.{" "}
-          </p>{" "}
-        </header>{" "}
-        {/* Manuais */}{" "}
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+            Documentos e Normas
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+            Acesse os principais documentos normativos do TACF.
+          </p>
+        </header>
+
         <section className="mb-10">
-          {" "}
-          <div className="flex items-center gap-3 mb-6">
-            {" "}
-            <Shield className="text-primary" size={20} />{" "}
-            <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">
-              {" "}
-              Manuais e Normativos{" "}
-            </h2>{" "}
-          </div>{" "}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {" "}
-            {manuals.map((doc) => (
-              <div
-                key={doc.title}
-                className="group bg-bg-card rounded-2xl border border-border-default p-6 shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
-              >
-                {" "}
-                <div className="flex items-start gap-4">
-                  {" "}
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    {" "}
-                    <doc.icon size={22} className="text-primary" />{" "}
-                  </div>{" "}
-                  <div className="flex-1 min-w-0">
-                    {" "}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {" "}
-                      <h3 className="text-sm font-black text-text-body uppercase tracking-tighter">
-                        {" "}
-                        {doc.title}{" "}
-                      </h3>{" "}
-                      {doc.tag && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wider">
-                          {" "}
-                          {doc.tag}{" "}
+          <div className="mb-5 flex items-center gap-3">
+            <AppIcon icon={Shield} size="md" tone="primary" />
+            <p className="text-sm font-bold uppercase tracking-widest text-text-muted">
+              Normativos
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {manuals.map((doc) => {
+              const cardContent = (
+                <>
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <AppIcon icon={doc.icon} size="lg" tone="primary" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-black uppercase tracking-tighter text-text-body">
+                          {doc.title}
+                        </h3>
+
+                        {doc.tag && (
+                          <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                            {doc.tag}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-muted">
+                        {doc.subtitle}
+                      </p>
+
+                      {doc.href ? (
+                        <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-primary group-hover:underline">
+                          Acessar
+                          <AppIcon
+                            icon={ExternalLink}
+                            size="xs"
+                            tone="primary"
+                          />
                         </span>
-                      )}{" "}
-                    </div>{" "}
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-muted">
-                      {" "}
-                      {doc.subtitle}{" "}
-                    </p>{" "}
-                    {doc.href ? (
-                      <a
-                        href={doc.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline uppercase tracking-wider"
-                      >
-                        {" "}
-                        Acessar <ExternalLink size={11} />{" "}
-                      </a>
-                    ) : (
-                      <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-text-muted uppercase tracking-wider cursor-not-allowed">
-                        {" "}
-                        Em breve{" "}
-                      </span>
-                    )}{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>
-            ))}{" "}
-          </div>{" "}
-        </section>{" "}
-        {/* Certificados */}{" "}
-        <section>
-          {" "}
-          <div className="flex items-center gap-3 mb-6">
-            {" "}
-            <Award className="text-primary" size={20} />{" "}
-            <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">
-              {" "}
-              Meus Certificados{" "}
-            </h2>{" "}
-          </div>{" "}
-          <div
-            onClick={() => navigate("/app/ticket")}
-            className="group cursor-pointer bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-4 md:p-8 text-text-inverted flex items-center justify-between hover:opacity-95 transition-opacity shadow-xl shadow-primary/20"
-          >
-            {" "}
-            <div className="flex items-center gap-5">
-              {" "}
-              <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
-                {" "}
-                <Ticket size={28} />{" "}
-              </div>{" "}
-              <div>
-                {" "}
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                  {" "}
-                  Comprovante de Agendamento{" "}
-                </p>{" "}
-                <h3 className="text-xl font-black mt-1 tracking-tight">
-                  {" "}
-                  Bilhete Digital{" "}
-                </h3>{" "}
-                <p className="text-text-inverted/60 text-xs mt-1">
-                  {" "}
-                  Acesse seu comprovante com QR Code validável{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-            <ExternalLink
-              size={20}
-              className="opacity-60 group-hover:opacity-100 transition-opacity"
-            />{" "}
-          </div>{" "}
-        </section>{" "}
-      </div>{" "}
+                      ) : (
+                        <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                          Em breve
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+
+              if (doc.href) {
+                return (
+                  <a
+                    key={doc.title}
+                    href={doc.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${CARD_INTERACTIVE_CLASS} group rounded-2xl p-6`}
+                  >
+                    {cardContent}
+                  </a>
+                );
+              }
+
+              return (
+                <article
+                  key={doc.title}
+                  className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm"
+                >
+                  {cardContent}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      </div>
     </Layout>
   );
 }

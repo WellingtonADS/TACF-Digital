@@ -66,12 +66,14 @@ export default function ReschedulingNotification() {
 
   return (
     <Layout>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border-default bg-bg-card px-8 py-4">
         <div className="flex items-center gap-4">
           <div className="bg-primary p-2 rounded-lg">
-            <span className="material-icons text-white">notifications</span>
+            <span className="material-icons text-primary-foreground">
+              notifications
+            </span>
           </div>
-          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">
+          <h1 className="text-sm md:text-lg lg:text-2xl font-extrabold text-text-body tracking-tight uppercase">
             Notificações de Reagendamento
           </h1>
         </div>
@@ -79,15 +81,15 @@ export default function ReschedulingNotification() {
 
       <main className="max-w-[1100px] mx-auto p-4 md:p-8 space-y-4 md:space-y-6">
         {first ? (
-          <article className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 p-6">
+          <article className="rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                    <h2 className="text-lg font-bold text-text-body">
                       Solicitação de Reagendamento Recebida
                     </h2>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-text-muted">
                       Recebida em{" "}
                       {new Date(first.created_at ?? "").toLocaleString()}
                     </p>
@@ -99,7 +101,7 @@ export default function ReschedulingNotification() {
                   </div>
                 </div>
 
-                <div className="mt-4 text-sm text-slate-700 dark:text-slate-300">
+                <div className="mt-4 text-sm text-text-body">
                   <p className="font-semibold">Militar ID: {first.user_id}</p>
                   <p className="mt-2">
                     Motivo: <span className="italic">{first.swap_reason}</span>
@@ -114,7 +116,7 @@ export default function ReschedulingNotification() {
 
                 <div className="mt-6 flex gap-3 justify-end">
                   <a
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-all"
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-primary px-4 py-2 font-semibold text-primary transition-all hover:bg-primary hover:text-primary-foreground"
                     href={`/app/reagendamentos?bookingId=${first.id}`}
                   >
                     Ir para Gestão
@@ -122,7 +124,7 @@ export default function ReschedulingNotification() {
                   </a>
                   <button
                     onClick={() => markAsRead(first.id)}
-                    className="px-4 py-2 rounded-lg bg-primary text-white font-semibold"
+                    className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground"
                   >
                     Marcar como lida
                   </button>
@@ -131,9 +133,9 @@ export default function ReschedulingNotification() {
             </div>
           </article>
         ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 text-center border border-slate-200 dark:border-slate-800">
+          <div className="rounded-xl border border-border-default bg-bg-card p-6 text-center shadow">
             <h3 className="text-lg font-semibold">Nenhuma nova notificação</h3>
-            <p className="text-sm text-slate-500 mt-2">
+            <p className="mt-2 text-sm text-text-muted">
               Não há solicitações de reagendamento pendentes.
             </p>
           </div>
@@ -144,11 +146,11 @@ export default function ReschedulingNotification() {
           {items.slice(0, 6).map((it) => (
             <div
               key={it.id}
-              className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center justify-between"
+              className="flex items-center justify-between rounded-lg border border-border-default bg-bg-card p-3"
             >
               <div className="text-sm">
                 <div className="font-bold">Militar ID: {it.user_id}</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-text-muted">
                   {it.swap_reason?.slice(0, 80)}
                   {it.swap_reason && it.swap_reason.length > 80 ? "..." : ""}
                 </div>

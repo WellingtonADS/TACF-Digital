@@ -1,4 +1,5 @@
 import Button from "@/components/atomic/Button";
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
@@ -420,7 +421,7 @@ export default function SystemSettings() {
   }
 
   if (authLoading) {
-    return <div className="p-6">Carregando...</div>;
+    return <FullPageLoading message="Carregando configuracoes" />;
   }
 
   if (!canView) {

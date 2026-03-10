@@ -1,4 +1,5 @@
 // implementation moved from src/layout/Topbar.tsx
+import AppIcon from "@/components/atomic/AppIcon";
 import { Menu } from "lucide-react";
 
 type TopbarProps = {
@@ -13,7 +14,7 @@ export const Topbar = ({ onToggleSidebar }: TopbarProps) => (
       aria-label="Abrir menu"
       type="button"
     >
-      <Menu size={20} />
+      <AppIcon icon={Menu} size="lg" tone="muted" />
     </button>
     <div className="font-semibold text-text-body tracking-tight">
       TACF Digital

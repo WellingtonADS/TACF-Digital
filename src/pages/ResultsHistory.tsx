@@ -1,3 +1,5 @@
+import AppIcon from "@/components/atomic/AppIcon";
+import { CARD_ELEVATED_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import supabase from "@/services/supabase";
 import { isAfter, parseISO } from "date-fns";
@@ -9,6 +11,7 @@ import {
   ClipboardList,
   ExternalLink,
   MapPin,
+  MinusCircle,
   XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -34,21 +37,33 @@ type Result = {
 };
 
 function StatusBadge({ status }: { status: Result["result_status"] }) {
-  if (status === "apto")
+  if (status === "apto") {
     return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-primary-foreground">
-        <CheckCircle size={11} /> APTO
+      <span className="inline-flex items-center gap-1 rounded-full bg-success px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-inverted">
+        <AppIcon icon={CheckCircle} size="xs" tone="inverse" /> APTO
       </span>
     );
-  if (status === "inapto")
+  }
+
+  if (status === "inapto") {
     return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-600 text-primary-foreground">
-        <XCircle size={11} /> INAPTO
+      <span className="inline-flex items-center gap-1 rounded-full bg-error px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-inverted">
+        <AppIcon icon={XCircle} size="xs" tone="inverse" /> INAPTO
       </span>
     );
+  }
+
+  if (status === "pendente") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-bg-default px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-body">
+        <AppIcon icon={CalendarClock} size="xs" tone="muted" /> PENDENTE
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-primary-foreground">
-      PENDENTE
+    <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-bg-default px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+      <AppIcon icon={MinusCircle} size="xs" tone="muted" /> SEM STATUS
     </span>
   );
 }
@@ -186,6 +201,10 @@ export default function ResultsHistory() {
 
   // days until revalidation: use inspsauDaysRemaining from hook if available
   const daysUntilReval: number | null = inspsauDaysRemaining ?? null;
+  const revalidationPct =
+    daysUntilReval !== null
+      ? Math.min(Math.max(Math.round((daysUntilReval / 365) * 100), 0), 100)
+      : 0;
 
   return (
     <Layout>
@@ -194,37 +213,41 @@ export default function ResultsHistory() {
 
         <header className="mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body dark:text-text-inverted">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body">
               Histórico de Avaliações
             </h1>
-            <p className="text-text-muted mt-1">
+            <p className="mt-1 text-sm text-text-muted sm:text-base">
               Consulte seus resultados passados e status de prontidão física.
             </p>
           </div>
         </header>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="mb-10 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
           {/* Card 1: Status */}
-          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
+          <div
+            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
+          >
             <div className="absolute top-0 right-0 p-4 opacity-10">
-              <CheckCircle size={56} className="text-emerald-600" />
+              <AppIcon icon={CheckCircle} size="lg" tone="primary" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
-              Status Atual
+            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
+              Status de Prontidão
             </p>
             {loading ? (
-              <div className="h-10 w-24 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
+              <div className="h-10 w-28 animate-pulse rounded bg-bg-default" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
                   <span
                     className={`text-2xl md:text-4xl font-black ${
                       lastStatus === "apto"
-                        ? "text-emerald-600"
+                        ? "text-success"
                         : lastStatus === "inapto"
-                          ? "text-red-600"
-                          : "text-amber-500"
+                          ? "text-error"
+                          : lastStatus === "pendente"
+                            ? "text-primary"
+                            : "text-text-body"
                     }`}
                   >
                     {lastStatus === "apto"
@@ -237,38 +260,45 @@ export default function ResultsHistory() {
                   </span>
                 </div>
                 {lastStatus === "apto" && (
-                  <div className="mt-4 flex items-center gap-1 text-xs text-emerald-600 font-semibold bg-emerald-600/10 w-fit px-2 py-1 rounded">
-                    <CheckCircle size={13} />
+                  <div className="mt-4 flex w-fit items-center gap-1 rounded bg-success/10 px-2 py-1 text-xs font-semibold text-success">
+                    <AppIcon icon={CheckCircle} size="xs" tone="default" />
                     PRONTO PARA O SERVIÇO
                   </div>
+                )}
+                {lastStatus === "pendente" && (
+                  <p className="mt-4 text-xs font-semibold text-text-muted">
+                    Aguardando consolidação do resultado mais recente.
+                  </p>
                 )}
               </>
             )}
           </div>
 
-          {/* Card 2: Média */}
-          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
+          {/* Card 2: Média do histórico */}
+          <div
+            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
+          >
             <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Award size={56} className="text-primary" />
+              <AppIcon icon={Award} size="lg" tone="primary" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
-              Último TACF
+            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
+              Média do Histórico
             </p>
             {loading ? (
-              <div className="h-10 w-20 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
+              <div className="h-10 w-20 animate-pulse rounded bg-bg-default" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-text-body dark:text-text-inverted">
+                  <span className="text-2xl md:text-4xl font-black text-text-body">
                     {avgScore ?? "--"}
                   </span>
                   <span className="text-sm font-medium text-text-muted">
-                    Média Global
+                    média geral
                   </span>
                 </div>
                 {lastResult?.test_date && (
                   <p className="mt-4 text-xs font-semibold text-text-muted">
-                    Realizado em{" "}
+                    Último TACF em{" "}
                     {new Date(lastResult.test_date).toLocaleDateString("pt-BR")}
                   </p>
                 )}
@@ -277,19 +307,21 @@ export default function ResultsHistory() {
           </div>
 
           {/* Card 3: Revalidação */}
-          <div className="bg-bg-card dark:bg-bg-card p-6 rounded-xl shadow-sm border border-border-default dark:border-border-default relative overflow-hidden">
+          <div
+            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
+          >
             <div className="absolute top-0 right-0 p-4 opacity-10">
-              <CalendarClock size={56} className="text-amber-500" />
+              <AppIcon icon={CalendarClock} size="lg" tone="primary" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
+            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
               Próxima Revalidação
             </p>
             {loading ? (
-              <div className="h-10 w-20 bg-bg-default dark:bg-bg-default animate-pulse rounded" />
+              <div className="h-10 w-20 animate-pulse rounded bg-bg-default" />
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-text-body dark:text-text-inverted">
+                  <span className="text-2xl md:text-4xl font-black text-text-body">
                     {daysUntilReval !== null ? daysUntilReval : "--"}
                   </span>
                   <span className="text-sm font-medium text-text-muted">
@@ -297,13 +329,12 @@ export default function ResultsHistory() {
                   </span>
                 </div>
                 {daysUntilReval !== null && (
-                  <div className="mt-4 w-full bg-bg-default dark:bg-bg-default h-1.5 rounded-full overflow-hidden">
+                  <div className="mt-4 w-full bg-bg-default h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-amber-500 h-full revalidation-progress"
-                      data-pct={Math.min(
-                        Math.round((daysUntilReval / 365) * 100),
-                        100,
-                      )}
+                      className={`h-full revalidation-progress ${
+                        daysUntilReval <= 30 ? "bg-error" : "bg-primary"
+                      }`}
+                      data-pct={revalidationPct}
                     />
                   </div>
                 )}
@@ -313,12 +344,14 @@ export default function ResultsHistory() {
         </div>
 
         {/* Table */}
-        <section className="bg-bg-card dark:bg-bg-card rounded-3xl shadow-xl overflow-hidden border border-border-default dark:border-border-default">
-          <div className="border-b border-slate-50 bg-bg-default/50 p-4 dark:border-border-default dark:bg-bg-default/50 sm:p-6">
-            <h3 className="font-bold text-text-body dark:text-text-inverted flex items-center gap-2">
-              <ClipboardList size={20} className="text-primary" />
+        <section
+          className={`${CARD_ELEVATED_CLASS} overflow-hidden rounded-3xl border border-border-default`}
+        >
+          <div className="border-b border-border-default bg-bg-default/50 p-4 sm:p-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-text-body md:text-xl">
+              <AppIcon icon={ClipboardList} size="md" tone="primary" />
               Registros de Avaliações
-            </h3>
+            </h2>
           </div>
           {rows.length === 0 && loading ? (
             <div className="px-3 py-6">
@@ -350,8 +383,8 @@ export default function ResultsHistory() {
                     key={r.id}
                     className={`rounded-xl border p-4 ${
                       isFuture
-                        ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900 dark:bg-emerald-900/10"
-                        : "border-border-default bg-bg-card dark:border-border-default dark:bg-bg-default/40"
+                        ? "border-primary/30 bg-primary/5"
+                        : "border-border-default bg-bg-card"
                     }`}
                   >
                     <div className="mb-3 flex items-start justify-between gap-2">
@@ -359,15 +392,15 @@ export default function ResultsHistory() {
                         <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
                           Data
                         </p>
-                        <p className="text-sm font-bold uppercase text-text-body dark:text-text-inverted">
+                        <p className="text-sm font-bold uppercase text-text-body">
                           {dateLabel}
                         </p>
                       </div>
                       <StatusBadge status={r.result_status ?? null} />
                     </div>
 
-                    <div className="mb-3 flex items-center gap-2 text-sm text-text-muted dark:text-text-muted">
-                      <MapPin size={14} className="text-text-muted" />
+                    <div className="mb-3 flex items-center gap-2 text-sm text-text-muted">
+                      <AppIcon icon={MapPin} size="xs" tone="muted" />
                       <span className="font-medium uppercase">
                         {r.location ?? "-"}
                       </span>
@@ -377,7 +410,7 @@ export default function ResultsHistory() {
                       <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
                         Média / Conceito
                       </p>
-                      <p className="text-sm font-black text-text-body dark:text-text-inverted">
+                      <p className="text-sm font-black text-text-body">
                         {r.score ?? "--"}
                         {r.concept && (
                           <span className="ml-1 text-[10px] font-bold uppercase tracking-tighter text-text-muted">
@@ -387,14 +420,14 @@ export default function ResultsHistory() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 border-t border-border-default pt-3 dark:border-border-default">
+                    <div className="flex flex-wrap items-center gap-3 border-t border-border-default pt-3">
                       <a
                         href={`/app/recurso?result=${r.id}`}
                         onMouseEnter={() => prefetchRoute("/app/recurso")}
-                        className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
+                        className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary transition-colors hover:text-primary/80"
                       >
                         Visualizar Detalhes
-                        <ExternalLink size={13} />
+                        <AppIcon icon={ExternalLink} size="xs" tone="primary" />
                       </a>
                       {isFuture && (
                         <button
@@ -403,11 +436,13 @@ export default function ResultsHistory() {
                             setDrawerCurrentDate(r.test_date ?? "");
                             setDrawerOpen(true);
                           }}
-                          className="text-xs font-bold text-amber-600 hover:underline"
+                          className="text-xs font-bold text-primary transition-colors hover:text-primary/80"
                         >
                           Reagendar
                           {pendingSwaps.has(r.id) && (
-                            <span className="ml-1 text-[10px]">(Pendente)</span>
+                            <span className="ml-1 text-[10px] text-text-muted">
+                              (Pendente)
+                            </span>
                           )}
                         </button>
                       )}
@@ -420,25 +455,25 @@ export default function ResultsHistory() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left border-collapse">
                 <thead>
-                  <tr className="bg-bg-default dark:bg-bg-default/30">
-                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
+                  <tr className="bg-bg-default">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Data
                     </th>
-                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Local de Avaliação
                     </th>
-                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Média / Conceito
                     </th>
-                    <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Resultado
                     </th>
-                    <th className="border-b border-border-default px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-muted dark:border-border-default sm:px-6">
+                    <th className="border-b border-border-default px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Ações
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-default dark:divide-slate-800">
+                <tbody className="divide-y divide-border-default">
                   {rows.map((r) => {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
@@ -456,27 +491,25 @@ export default function ResultsHistory() {
                     return (
                       <tr
                         key={r.id}
-                        className={`hover:bg-bg-default/80 dark:hover:bg-bg-default/70 transition-colors ${
-                          isFuture
-                            ? "bg-emerald-50/50 dark:bg-emerald-900/10"
-                            : ""
+                        className={`hover:bg-bg-default/80 transition-colors ${
+                          isFuture ? "bg-primary/5" : ""
                         }`}
                       >
                         <td className="px-4 py-5 sm:px-6">
-                          <span className="text-sm font-bold text-text-body dark:text-text-inverted uppercase">
+                          <span className="text-sm font-bold text-text-body uppercase">
                             {dateLabel}
                           </span>
                         </td>
                         <td className="px-4 py-5 sm:px-6">
                           <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-text-muted" />
-                            <span className="text-sm text-text-muted dark:text-text-muted font-medium uppercase">
+                            <AppIcon icon={MapPin} size="xs" tone="muted" />
+                            <span className="text-sm text-text-muted font-medium uppercase">
                               {r.location ?? "-"}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-5 sm:px-6">
-                          <span className="text-sm font-black text-text-body dark:text-text-inverted">
+                          <span className="text-sm font-black text-text-body">
                             {r.score ?? "--"}
                           </span>
                           {r.concept && (
@@ -496,7 +529,11 @@ export default function ResultsHistory() {
                               className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
                             >
                               Visualizar Detalhes
-                              <ExternalLink size={13} />
+                              <AppIcon
+                                icon={ExternalLink}
+                                size="xs"
+                                tone="primary"
+                              />
                             </a>
                             {isFuture && (
                               <button
@@ -505,11 +542,11 @@ export default function ResultsHistory() {
                                   setDrawerCurrentDate(r.test_date ?? "");
                                   setDrawerOpen(true);
                                 }}
-                                className="text-xs text-amber-600 hover:underline font-bold"
+                                className="text-xs font-bold text-primary transition-colors hover:text-primary/80"
                               >
                                 Reagendar
                                 {pendingSwaps.has(r.id) && (
-                                  <span className="ml-1 text-[10px]">
+                                  <span className="ml-1 text-[10px] text-text-muted">
                                     (Pendente)
                                   </span>
                                 )}
@@ -525,7 +562,7 @@ export default function ResultsHistory() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 border-t border-border-default bg-bg-default px-4 py-4 text-xs font-semibold uppercase tracking-widest text-text-muted dark:border-border-default dark:bg-bg-default/30 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-2 border-t border-border-default bg-bg-default px-4 py-4 text-xs font-semibold uppercase tracking-widest text-text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <span>{rows.length > 0 ? `${rows.length} registro(s)` : ""}</span>
             {hasMore && (
               <button
@@ -534,7 +571,7 @@ export default function ResultsHistory() {
                 disabled={loading}
               >
                 {loading ? "Carregando..." : "Carregar mais"}
-                <ChevronRight size={15} />
+                <AppIcon icon={ChevronRight} size="xs" tone="muted" />
               </button>
             )}
           </div>
