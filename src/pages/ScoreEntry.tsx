@@ -1,12 +1,5 @@
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import supabase from "@/services/supabase";
-import type {
-  BookingRow as DBBookingRow,
-  Profile as DBProfile,
-  SessionRow as DBSessionRow,
-} from "@/types";
-import { formatSessionPeriod } from "@/utils/booking";
 import {
   CheckCircle2,
   ListChecks,
@@ -15,7 +8,14 @@ import {
   User,
   UserCheck,
   XCircle,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type {
+  BookingRow as DBBookingRow,
+  Profile as DBProfile,
+  SessionRow as DBSessionRow,
+} from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";

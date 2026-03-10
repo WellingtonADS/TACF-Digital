@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/icons";
 import AppIcon from "./atomic/AppIcon";
 
 type FullPageLoadingProps = {

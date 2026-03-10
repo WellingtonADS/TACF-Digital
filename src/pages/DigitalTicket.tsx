@@ -1,8 +1,6 @@
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { jsPDF } from "jspdf";
 import {
   ArrowLeft,
   Check,
@@ -13,7 +11,9 @@ import {
   MapPin,
   Printer,
   ShieldCheck,
-} from "lucide-react";
+} from "@/icons";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { useCallback, useMemo, useState } from "react";
 import QR from "react-qr-code";

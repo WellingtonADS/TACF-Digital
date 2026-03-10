@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "@/icons";
 import React, { useState } from "react";
 
 type Props = React.InputHTMLAttributes<HTMLInputElement> & {

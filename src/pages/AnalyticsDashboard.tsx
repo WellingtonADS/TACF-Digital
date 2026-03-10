@@ -1,18 +1,5 @@
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import supabase from "@/services/supabase";
-import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
-import {
-  addDays,
-  addYears,
-  endOfMonth,
-  endOfYear,
-  format,
-  isBefore,
-  startOfMonth,
-  startOfYear,
-  subMonths,
-} from "date-fns";
 import {
   AlertTriangle,
   BarChart3,
@@ -26,7 +13,20 @@ import {
   ShieldAlert,
   TrendingUp,
   Users,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
+import {
+  addDays,
+  addYears,
+  endOfMonth,
+  endOfYear,
+  format,
+  isBefore,
+  startOfMonth,
+  startOfYear,
+  subMonths,
+} from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

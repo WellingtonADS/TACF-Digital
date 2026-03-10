@@ -1,10 +1,11 @@
 import AppIcon from "@/components/atomic/AppIcon";
-import { CARD_ELEVATED_CLASS } from "@/components/atomic/Card";
-import Layout from "@/components/layout/Layout";
-import supabase from "@/services/supabase";
-import { isAfter, parseISO } from "date-fns";
 import {
-  Award,
+  CARD_ELEVATED_CLASS,
+  CARD_INTERACTIVE_CLASS,
+} from "@/components/atomic/Card";
+import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
+import {
   CalendarClock,
   CheckCircle,
   ChevronRight,
@@ -13,12 +14,12 @@ import {
   MapPin,
   MinusCircle,
   XCircle,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import { isAfter, parseISO } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import Breadcrumbs from "../components/Breadcrumbs";
 import PageSkeleton from "../components/PageSkeleton";
 import RescheduleDrawer from "../components/RescheduleDrawer";
-import useDashboard from "../hooks/useDashboard";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
 import useResponsive from "../hooks/useResponsive";
 import { prefetchRoute } from "../utils/prefetchRoutes";
@@ -76,9 +77,7 @@ export default function ResultsHistory() {
     "get_results_history",
     { limit: 25 },
   );
-  const { inspsauDaysRemaining } = useDashboard() as unknown as {
-    inspsauDaysRemaining?: number;
-  };
+
   const [pendingSwaps, setPendingSwaps] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
@@ -140,26 +139,25 @@ export default function ResultsHistory() {
     });
   }, [items]);
 
-  // (old deduplication logic removed; rows is used directly)
   // deduplicate rows by id to avoid duplicate React keys
-  // const dedupedRows = useMemo(() => {
-  //   const seen = new Set<string>();
-  //   const out: (Result & {
-  //     concept?: string | null;
-  //     location?: string | null;
-  //   })[] = [];
-  //   for (const r of rows) {
-  //     if (!r || !r.id) continue;
-  //     if (seen.has(r.id)) continue;
-  //     seen.add(r.id);
-  //     out.push(r);
-  //   }
-  //   return out;
-  // }, [rows]);
+  const dedupedRows = useMemo(() => {
+    const seen = new Set<string>();
+    const out: (Result & {
+      concept?: string | null;
+      location?: string | null;
+    })[] = [];
+    for (const r of rows) {
+      if (!r || !r.id) continue;
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      out.push(r);
+    }
+    return out;
+  }, [rows]);
 
   useEffect(() => {
     async function loadPending() {
-      const ids = rows.map((r) => r.id);
+      const ids = dedupedRows.map((r) => r.id);
       if (ids.length === 0) {
         setPendingSwaps(new Set());
         return;
@@ -169,7 +167,8 @@ export default function ResultsHistory() {
           .from("swap_requests")
           .select("booking_id")
           .in("booking_id", ids)
-          .eq("status", "pending");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase-generated types mismatch our enum
+          .eq("status", "pending" as any);
         if (error) throw error;
         const set = new Set<string>();
         (data ?? []).forEach((r) => r.booking_id && set.add(r.booking_id));
@@ -179,169 +178,21 @@ export default function ResultsHistory() {
       }
     }
     loadPending();
-  }, [rows]);
+  }, [dedupedRows]);
 
-  // derive KPI values from rows
-  const lastResult = rows[0] ?? null;
-  // Prefer explicit result_status from latest booking; if missing, fall back to inspsauDaysRemaining
-  const lastStatus: Result["result_status"] =
-    (lastResult?.result_status as Result["result_status"]) ??
-    (typeof inspsauDaysRemaining === "number"
-      ? inspsauDaysRemaining > 0
-        ? "apto"
-        : "inapto"
-      : null);
-  const scores = rows
-    .map((r) => parseFloat(r.score ?? ""))
-    .filter((n) => !isNaN(n));
-  const avgScore =
-    scores.length > 0
-      ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
-      : null;
-
-  // days until revalidation: use inspsauDaysRemaining from hook if available
-  const daysUntilReval: number | null = inspsauDaysRemaining ?? null;
-  const revalidationPct =
-    daysUntilReval !== null
-      ? Math.min(Math.max(Math.round((daysUntilReval / 365) * 100), 0), 100)
-      : 0;
+  if (loading) return <FullPageLoading message="Carregando registros" />;
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
-        <Breadcrumbs items={["Histórico"]} />
-
-        <header className="mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-text-body">
-              Histórico de Avaliações
-            </h1>
-            <p className="mt-1 text-sm text-text-muted sm:text-base">
-              Consulte seus resultados passados e status de prontidão física.
-            </p>
-          </div>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+            Histórico de Avaliações
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+            Consulte seus resultados passados e status de prontidão física.
+          </p>
         </header>
-
-        {/* KPI Cards */}
-        <div className="mb-10 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
-          {/* Card 1: Status */}
-          <div
-            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <AppIcon icon={CheckCircle} size="lg" tone="primary" />
-            </div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
-              Status de Prontidão
-            </p>
-            {loading ? (
-              <div className="h-10 w-28 animate-pulse rounded bg-bg-default" />
-            ) : (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className={`text-2xl md:text-4xl font-black ${
-                      lastStatus === "apto"
-                        ? "text-success"
-                        : lastStatus === "inapto"
-                          ? "text-error"
-                          : lastStatus === "pendente"
-                            ? "text-primary"
-                            : "text-text-body"
-                    }`}
-                  >
-                    {lastStatus === "apto"
-                      ? "APTO"
-                      : lastStatus === "inapto"
-                        ? "INAPTO"
-                        : lastStatus === "pendente"
-                          ? "PENDENTE"
-                          : "--"}
-                  </span>
-                </div>
-                {lastStatus === "apto" && (
-                  <div className="mt-4 flex w-fit items-center gap-1 rounded bg-success/10 px-2 py-1 text-xs font-semibold text-success">
-                    <AppIcon icon={CheckCircle} size="xs" tone="default" />
-                    PRONTO PARA O SERVIÇO
-                  </div>
-                )}
-                {lastStatus === "pendente" && (
-                  <p className="mt-4 text-xs font-semibold text-text-muted">
-                    Aguardando consolidação do resultado mais recente.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Card 2: Média do histórico */}
-          <div
-            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <AppIcon icon={Award} size="lg" tone="primary" />
-            </div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
-              Média do Histórico
-            </p>
-            {loading ? (
-              <div className="h-10 w-20 animate-pulse rounded bg-bg-default" />
-            ) : (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-text-body">
-                    {avgScore ?? "--"}
-                  </span>
-                  <span className="text-sm font-medium text-text-muted">
-                    média geral
-                  </span>
-                </div>
-                {lastResult?.test_date && (
-                  <p className="mt-4 text-xs font-semibold text-text-muted">
-                    Último TACF em{" "}
-                    {new Date(lastResult.test_date).toLocaleDateString("pt-BR")}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Card 3: Revalidação */}
-          <div
-            className={`${CARD_ELEVATED_CLASS} relative overflow-hidden rounded-2xl border border-border-default p-5 sm:p-6`}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <AppIcon icon={CalendarClock} size="lg" tone="primary" />
-            </div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-text-muted">
-              Próxima Revalidação
-            </p>
-            {loading ? (
-              <div className="h-10 w-20 animate-pulse rounded bg-bg-default" />
-            ) : (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl md:text-4xl font-black text-text-body">
-                    {daysUntilReval !== null ? daysUntilReval : "--"}
-                  </span>
-                  <span className="text-sm font-medium text-text-muted">
-                    dias restantes
-                  </span>
-                </div>
-                {daysUntilReval !== null && (
-                  <div className="mt-4 w-full bg-bg-default h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full revalidation-progress ${
-                        daysUntilReval <= 30 ? "bg-error" : "bg-primary"
-                      }`}
-                      data-pct={revalidationPct}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
 
         {/* Table */}
         <section
@@ -353,17 +204,17 @@ export default function ResultsHistory() {
               Registros de Avaliações
             </h2>
           </div>
-          {rows.length === 0 && loading ? (
+          {dedupedRows.length === 0 && loading ? (
             <div className="px-3 py-6">
               <PageSkeleton rows={6} />
             </div>
-          ) : rows.length === 0 ? (
+          ) : dedupedRows.length === 0 ? (
             <div className="px-4 py-12 text-center text-text-muted sm:px-6">
               Você ainda não possui resultados registrados.
             </div>
           ) : isCompactViewport ? (
             <div className="grid grid-cols-1 gap-3 p-4 sm:p-6">
-              {rows.map((r) => {
+              {dedupedRows.map((r) => {
                 const isFuture = r.test_date
                   ? isAfter(parseISO(r.test_date), new Date())
                   : false;
@@ -381,7 +232,7 @@ export default function ResultsHistory() {
                 return (
                   <article
                     key={r.id}
-                    className={`rounded-xl border p-4 ${
+                    className={`${CARD_INTERACTIVE_CLASS} rounded-2xl border p-6 ${
                       isFuture
                         ? "border-primary/30 bg-primary/5"
                         : "border-border-default bg-bg-card"
@@ -474,7 +325,7 @@ export default function ResultsHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {rows.map((r) => {
+                  {dedupedRows.map((r) => {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
@@ -563,7 +414,11 @@ export default function ResultsHistory() {
           )}
 
           <div className="flex flex-col gap-2 border-t border-border-default bg-bg-default px-4 py-4 text-xs font-semibold uppercase tracking-widest text-text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <span>{rows.length > 0 ? `${rows.length} registro(s)` : ""}</span>
+            <span>
+              {dedupedRows.length > 0
+                ? `${dedupedRows.length} registro(s)`
+                : ""}
+            </span>
             {hasMore && (
               <button
                 onClick={() => fetchPage()}

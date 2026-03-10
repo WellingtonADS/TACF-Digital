@@ -1,13 +1,10 @@
+import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import RescheduleDrawer from "@/components/RescheduleDrawer";
+import TicketsListModal from "@/components/TicketsListModal";
 import useDashboard from "@/hooks/useDashboard";
-import supabase from "@/services/supabase";
-import type { Profile as DBProfile } from "@/types";
-import { formatSessionPeriod } from "@/utils/booking";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { format, isAfter, isValid, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Award,
   CalendarPlus,
@@ -17,7 +14,13 @@ import {
   Info,
   MoreHorizontal,
   Shield,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { Profile as DBProfile } from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { format, isAfter, isValid, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -122,8 +125,8 @@ export const OperationalDashboard = () => {
     },
     {
       icon: Award,
-      label: "Resultados",
-      title: "Certificados",
+      label: "Confirmação",
+      title: "Agendado",
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/ticket",
@@ -140,8 +143,11 @@ export const OperationalDashboard = () => {
   ];
 
   const notifications = derivedNotifications;
+  const [showTicketsModal, setShowTicketsModal] = useState(false);
 
-  return (
+  return loading || dashboardLoading ? (
+    <FullPageLoading message="Carregando dashboard" />
+  ) : (
     <Layout>
       {/* Greeting Card */}
       <section className="mb-8">
@@ -159,7 +165,7 @@ export const OperationalDashboard = () => {
               <div
                 className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${statusColor}`}
               >
-                <CheckCircle size={18} />
+                <AppIcon icon={CheckCircle} size="sm" ariaLabel="Status" />
                 <span className="text-xs font-bold uppercase tracking-widest">
                   Status: {loading ? "Carregando" : statusLabel}
                 </span>
@@ -171,18 +177,18 @@ export const OperationalDashboard = () => {
                   <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-sm">
                     Bilhete: {latestOrderNumber}
                   </div>
-                  <button
-                    onClick={() => navigate("/app/ticket")}
-                    className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs font-semibold hover:bg-white/20 transition-colors"
-                  >
-                    Abrir Bilhete
-                  </button>
                 </div>
               )}
             </div>
             <div className="hidden lg:block">
               <div className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center">
-                <Shield size={48} className="text-white/40" />
+                <AppIcon
+                  icon={Shield}
+                  size={48}
+                  className="text-white/40"
+                  ariaLabel="Seguranca"
+                  decorative={false}
+                />
               </div>
             </div>
           </div>
@@ -194,7 +200,10 @@ export const OperationalDashboard = () => {
         {actionCards.map((card, index) => (
           <button
             key={index}
-            onClick={() => navigate(card.to ?? "/")}
+            onClick={() => {
+              if (card.to === "/app/ticket") setShowTicketsModal(true);
+              else navigate(card.to ?? "/");
+            }}
             onMouseEnter={() => {
               if (card.to) prefetchRoute(card.to);
             }}
@@ -203,8 +212,18 @@ export const OperationalDashboard = () => {
             <div
               className={`h-10 w-10 md:h-14 md:w-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-3 md:mb-6 ${card.iconColor} group-hover:bg-primary group-hover:text-white transition-colors`}
             >
-              <card.icon size={20} className="md:hidden" />
-              <card.icon size={32} className="hidden md:block" />
+              <AppIcon
+                icon={card.icon}
+                size="sm"
+                className="md:hidden"
+                ariaLabel={card.label}
+              />
+              <AppIcon
+                icon={card.icon}
+                size="lg"
+                className="hidden md:block"
+                ariaLabel={card.label}
+              />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -224,6 +243,10 @@ export const OperationalDashboard = () => {
           </button>
         ))}
       </section>
+      <TicketsListModal
+        open={showTicketsModal}
+        onClose={() => setShowTicketsModal(false)}
+      />
 
       {/* Drawer for rescheduling */}
       <RescheduleDrawer
@@ -240,18 +263,30 @@ export const OperationalDashboard = () => {
         <div className="flex-1 bg-bg-card rounded-3xl p-4 md:p-6 lg:p-8 border border-border-default shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <CalendarPlus className="text-primary" size={20} />
+              <AppIcon
+                icon={CalendarPlus}
+                size="md"
+                className="text-primary"
+                ariaLabel="Proximo evento"
+                decorative={false}
+              />
               <h4 className="text-sm font-bold uppercase tracking-widest text-text-muted">
                 Próximo Evento
               </h4>
             </div>
-            <MoreHorizontal className="text-text-muted" size={20} />
+            <AppIcon
+              icon={MoreHorizontal}
+              size="md"
+              className="text-text-muted"
+              ariaLabel="Mais opcoes"
+              decorative={true}
+            />
           </div>
           <div className="flex flex-col items-center justify-center py-6 md:py-8 rounded-2xl">
             {dashboardLoading ? (
               <div className="flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
-                  <Info size={24} />
+                  <AppIcon icon={Info} size="md" decorative={true} />
                 </div>
                 <p className="text-text-muted font-medium">Carregando...</p>
               </div>
@@ -349,7 +384,7 @@ export const OperationalDashboard = () => {
                 className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"
               >
                 <div className="w-10 h-10 rounded-full bg-bg-default flex items-center justify-center text-primary">
-                  <Info size={20} />
+                  <AppIcon icon={Info} size="sm" decorative={true} />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-text-body tracking-tight">

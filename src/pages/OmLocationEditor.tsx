@@ -1,6 +1,5 @@
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import type { Location } from "@/types/database.types";
 import {
   ArrowLeft,
   Building2,
@@ -10,7 +9,8 @@ import {
   Tag,
   Users,
   X,
-} from "lucide-react";
+} from "@/icons";
+import type { Location } from "@/types/database.types";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";

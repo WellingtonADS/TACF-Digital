@@ -1,7 +1,4 @@
 import Layout from "@/components/layout/Layout";
-import supabase from "@/services/supabase";
-import type { Profile as DBProfile } from "@/types";
-import { format } from "date-fns";
 import {
   Award,
   Calendar,
@@ -22,7 +19,10 @@ import {
   View,
   X,
   XCircle,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { Profile as DBProfile } from "@/types";
+import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

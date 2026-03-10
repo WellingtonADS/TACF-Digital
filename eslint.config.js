@@ -35,6 +35,17 @@ export default defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Importe ícones via src/icons em vez de lucide-react.",
+            },
+          ],
+        },
+      ],
     },
   },
   // Config for non-production code: e2e, scripts, migrations — relax some strict TS rules.

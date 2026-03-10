@@ -1,9 +1,6 @@
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
-import { formatSessionPeriod } from "@/utils/booking";
-import { format, isAfter, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle,
   BarChart2,
@@ -16,7 +13,10 @@ import {
   Settings,
   Shield,
   Users,
-} from "lucide-react";
+} from "@/icons";
+import { formatSessionPeriod } from "@/utils/booking";
+import { format, isAfter, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";

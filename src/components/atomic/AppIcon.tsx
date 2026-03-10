@@ -1,44 +1,48 @@
-import type { LucideIcon, LucideProps } from "lucide-react";
+import type { LucideIcon, LucideProps } from "@/icons";
+import clsx from "clsx";
 
-type AppIconSize = "xs" | "sm" | "md" | "lg";
-type AppIconTone = "default" | "muted" | "primary" | "inverse" | "danger";
+type SizeKey = "xs" | "sm" | "md" | "lg";
 
-const SIZE_MAP: Record<AppIconSize, number> = {
+const SIZE_MAP: Record<SizeKey, number> = {
   xs: 14,
-  sm: 16,
-  md: 18,
-  lg: 20,
+  sm: 18,
+  md: 24,
+  lg: 32,
 };
 
-const TONE_CLASS_MAP: Record<AppIconTone, string> = {
-  default: "text-text-body",
-  muted: "text-text-muted",
-  primary: "text-primary",
-  inverse: "text-text-inverted",
-  danger: "text-error",
-};
-
-export type AppIconProps = Omit<LucideProps, "size"> & {
+// optional semantic tone that maps to a Tailwind text color class like
+// "text-primary" or "text-muted". This keeps callers from having to repeat
+// the same `className` logic everywhere.
+export interface AppIconProps extends Omit<LucideProps, "size"> {
   icon: LucideIcon;
-  size?: AppIconSize;
-  tone?: AppIconTone;
-};
+  size?: SizeKey | number;
+  className?: string;
+  ariaLabel?: string;
+  decorative?: boolean;
+  tone?: string;
+}
 
 export default function AppIcon({
-  icon: IconComponent,
+  icon: Icon,
   size = "md",
-  tone = "default",
   className,
-  strokeWidth = 2,
+  ariaLabel,
+  decorative = false,
+  tone,
+  strokeWidth,
   ...props
 }: AppIconProps) {
-  const resolvedClassName = `${TONE_CLASS_MAP[tone]} ${className ?? ""}`.trim();
+  const px = typeof size === "number" ? size : SIZE_MAP[size];
+  const toneClass = tone ? `text-${tone}` : "";
 
   return (
-    <IconComponent
-      size={SIZE_MAP[size]}
+    <Icon
+      size={px}
       strokeWidth={strokeWidth}
-      className={resolvedClassName}
+      className={clsx(toneClass, className)}
+      role={decorative ? undefined : "img"}
+      aria-hidden={decorative}
+      aria-label={decorative ? undefined : ariaLabel}
       {...props}
     />
   );

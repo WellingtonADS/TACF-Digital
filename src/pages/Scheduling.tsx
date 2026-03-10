@@ -1,12 +1,8 @@
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import TicketModal from "@/components/TicketModal";
+import useDashboard from "@/hooks/useDashboard";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import supabase from "@/services/supabase";
-import {
-  fetchBookedDatesForUser,
-  formatDatePtBr,
-  formatSessionPeriod,
-} from "@/utils/booking";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
 import {
   Calendar,
   Check,
@@ -17,7 +13,14 @@ import {
   Hash,
   HelpCircle,
   MapPin,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import {
+  fetchBookedDatesForUser,
+  formatDatePtBr,
+  formatSessionPeriod,
+} from "@/utils/booking";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -33,6 +36,8 @@ const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export const Scheduling = () => {
   const navigate = useNavigate();
+  useDashboard();
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   const [viewDate, setViewDate] = useState(() => new Date());
   const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
@@ -164,15 +169,18 @@ export const Scheduling = () => {
     };
   }, [startStr, endStr]);
 
+  if (loading) return <FullPageLoading message="Carregando sessões" />;
+
   return (
     <Layout>
       <main>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
-          <header className="mb-6 sm:mb-8">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary">
+        <div className="mx-auto max-w-5xl">
+          <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Novo Agendamento
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">
+            </h1>
+            {/* botão de abrir bilhete removido */}
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
               Selecione uma data disponível para a realização do seu Teste de
               Avaliação de Condicionamento Físico.
             </p>
@@ -490,12 +498,13 @@ export const Scheduling = () => {
                 </span>
               </div>
             </div>
-            <div className="text-[11px] sm:text-sm text-text-muted italic text-center md:text-right">
-              SISTEMA DE AVALIAÇÃO DO CONDICIONAMENTO FÍSICO DIGITAL © 2023
-            </div>
           </footer>
         </div>
       </main>
+      <TicketModal
+        open={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+      />
     </Layout>
   );
 };

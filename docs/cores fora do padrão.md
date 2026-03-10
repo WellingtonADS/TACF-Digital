@@ -131,6 +131,78 @@ Padrao unico de estilo de icone:
 - proibido variar tamanho/cor de icone sem regra funcional
 - toda pagina deve manter o mesmo padrao de tamanhos (`xs|sm|md|lg`) para papeis equivalentes
 
+#### 3.2.1 Componente `AppIcon` (contrato obrigatorio)
+
+- Todos os ícones devem ser renderizados via componente wrapper `AppIcon` localizado em `src/components/atomic/AppIcon.tsx`.
+- Assinatura mínima (props): `icon` (componente Lucide), `size?: 'xs' | 'sm' | 'md' | 'lg' | number`, `className?: string`, `ariaLabel?: string`, `decorative?: boolean`.
+- Comportamento de acessibilidade:
+  - `decorative=true` → `aria-hidden="true"` e sem `role`/`aria-label`.
+  - caso contrário → `role="img"` e `aria-label` a partir de `ariaLabel` (ou texto adjacente visível).
+- `AppIcon` deve mapear tokens semânticos de tamanho (`xs|sm|md|lg`) para pixels padrão do projeto (ver seção 3.2.4).
+
+#### 3.2.2 Export central de ícones
+
+- Criar `src/icons/index.ts` que re-exporte apenas os ícones aprovados do `lucide-react`.
+- Importar ícones sempre de `@/icons` (ou `src/icons`) em vez de `lucide-react` diretamente.
+- Novo ícone só pode ser adicionado exportando-o em `src/icons/index.ts` e documentando o motivo no PR.
+
+#### 3.2.3 Proibição de import direto e regra ESLint
+
+- Proibir imports diretos de `lucide-react` usando ESLint rule `no-restricted-imports`.
+- Exemplo de entrada ESLint (adicionar em `eslint.config.js`):
+
+```js
+rules: {
+	'no-restricted-imports': ['error', {
+		paths: [{ name: 'lucide-react', message: 'Importe ícones via src/icons em vez de lucide-react.' }]
+	}]
+}
+```
+
+#### 3.2.4 Padrão de tamanhos (tokens)
+
+- Mapear tamanhos semânticos para valores-padrão:
+  - `xs` → `14` (icon inline / texto auxiliar)
+  - `sm` → `18` (listas densas, badges)
+  - `md` → `24` (botoes e acoes principais)
+  - `lg` → `32` (hero / destaque de cartao)
+- Estes valores são defaults do `AppIcon`, mas o wrapper aceita valor numérico quando necessário.
+
+#### 3.2.5 Uso em cards e responsividade
+
+- Em estruturas como `actionCards`, mantenha `icon`, `iconBg` e `iconColor` no objeto de configuração e renderize via `AppIcon`:
+
+```ts
+// src/pages/Example.tsx
+import AppIcon from '@/components/atomic/AppIcon';
+import { CalendarPlus } from '@/icons';
+
+<div className="...">
+	<div className="icon-wrapper">
+		<AppIcon icon={CalendarPlus} size="md" className="text-primary" ariaLabel="Próximo evento" />
+	</div>
+</div>
+```
+
+- Para responsividade, controle visual pelo `className` (Tailwind) e mantenha os tamanhos semânticos consistentes (`sm` → `md` nas telas maiores somente com justificativa funcional).
+
+#### 3.2.6 Acessibilidade e semântica
+
+- Nunca transmitir informação crítica apenas pelo ícone; sempre haver rótulo textual ou `aria-label` claro.
+- Ícones decorativos: `decorative=true`. Ícones que representam estado/ação: fornecer `ariaLabel` e, preferencialmente, texto visível.
+
+#### 3.2.7 Checklist de migração (por arquivo alterado)
+
+1. Adicionar `import { X } from '@/icons'` em vez de `lucide-react`.
+2. Substituir usos diretos por `<AppIcon icon={X} size="md" ariaLabel="..." />` conforme necessário.
+3. Validar cores usando tokens (`text-primary`, `text-muted`, `bg-primary/5`, etc.).
+4. Rodar `yarn lint` e `npx tsc --noEmit`.
+5. Teste visual em mobile/desktop e marque no PR que a migração segue o contrato (tamanhos, cores e acessibilidade).
+
+#### 3.2.8 Exceções e documentação
+
+- Qualquer exceção ao contrato (novo tamanho, estilo ou uso de outra biblioteca) deve ser documentada no PR com justificativa funcional e aprovada pelo time de UX.
+
 ### 3.3 Contrato de loading
 
 Obrigatorio:

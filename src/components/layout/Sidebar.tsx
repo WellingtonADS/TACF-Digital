@@ -1,8 +1,6 @@
 // implementation previously located in src/layout/Sidebar.tsx
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import {
   BarChart2,
   Calendar,
@@ -18,7 +16,9 @@ import {
   User,
   Users,
   X,
-} from "lucide-react";
+} from "@/icons";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const sidebarIconMap = {
@@ -84,6 +84,7 @@ export const Sidebar = ({
             FORÇA AÉREA BRASILEIRA
           </p>
         </div>
+
         {/* Botão fechar — visível apenas no mobile */}
         <button
           onClick={onClose}

@@ -1,8 +1,5 @@
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import supabase from "@/services/supabase";
-import type { SessionRow as DBSessionRow } from "@/types";
-import { PT_MONTHS } from "@/utils/ptMonths";
 import {
   AlertCircle,
   AlertTriangle,
@@ -13,7 +10,10 @@ import {
   Loader2,
   Save,
   XCircle,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { SessionRow as DBSessionRow } from "@/types";
+import { PT_MONTHS } from "@/utils/ptMonths";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";

@@ -2,6 +2,7 @@
 import { useResponsive } from "@/hooks/useResponsive";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import Footer from "./Footer";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
@@ -39,6 +40,7 @@ export const Layout = ({ children }: Props) => {
         <main className="flex-1 p-4 sm:p-6 lg:p-10 bg-[#F4F7F9]">
           {children}
         </main>
+        <Footer />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import AuthLayout from "@/components/AuthLayout";
+import { AlertCircle, ArrowLeft, KeyRound, Mail } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { AlertCircle, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import type { ChangeEventHandler, ComponentType, FormEvent } from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

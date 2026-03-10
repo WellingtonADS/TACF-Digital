@@ -7,7 +7,7 @@ import {
   Info,
   Loader2,
   Paperclip,
-} from "lucide-react";
+} from "@/icons";
 import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -243,10 +243,6 @@ export default function AppealRequest() {
             </button>
           </div>
         </form>
-
-        <footer className="mt-8 text-center text-[10px] text-text-muted uppercase tracking-widest pb-6">
-          TACF-Digital — Sistema de Gerenciamento de Avaliação Física
-        </footer>
       </div>
     </Layout>
   );

@@ -11,7 +11,7 @@ import {
   Plus,
   Search,
   Users,
-} from "lucide-react";
+} from "@/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";

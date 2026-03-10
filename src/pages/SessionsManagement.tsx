@@ -1,9 +1,6 @@
 import Layout from "@/components/layout/Layout";
 import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import { formatSessionPeriod } from "@/utils/booking";
-import { format, parseISO, startOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Calendar,
   ChevronLeft,
@@ -16,7 +13,10 @@ import {
   Plus,
   Search,
   Settings,
-} from "lucide-react";
+} from "@/icons";
+import { formatSessionPeriod } from "@/utils/booking";
+import { format, parseISO, startOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 

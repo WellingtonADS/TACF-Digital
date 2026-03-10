@@ -6,9 +6,7 @@ export default function Breadcrumbs({ items }: { items: string[] }) {
           <li key={it} className="flex items-center">
             <span
               className={
-                idx === items.length - 1
-                  ? "text-slate-700 text-slate-200 font-medium"
-                  : ""
+                idx === items.length - 1 ? "text-slate-700 font-medium" : ""
               }
             >
               {it}

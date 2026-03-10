@@ -1,10 +1,4 @@
 import Layout from "@/components/layout/Layout";
-import supabase from "@/services/supabase";
-import type { BookingRow as DBBookingRow } from "@/types";
-import { formatSessionPeriod } from "@/utils/booking";
-import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft,
   CalendarClock,
@@ -15,7 +9,13 @@ import {
   UserCheck,
   UserX,
   XCircle,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { BookingRow as DBBookingRow } from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
+import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";

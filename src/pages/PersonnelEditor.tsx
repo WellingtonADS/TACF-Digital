@@ -2,18 +2,11 @@ import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import Layout from "@/components/layout/Layout";
 import { getProfileById, updateProfile } from "@/hooks/usePersonnel";
-import {
-  ArrowLeft,
-  Building2,
-  Loader2,
-  Save,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { ArrowLeft, Building2, Loader2, Save, UserCheck, UserX } from "@/icons";
+import type { Profile } from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import type { Profile } from "@/types";
 export default function PersonnelEditor() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();

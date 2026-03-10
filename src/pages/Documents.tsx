@@ -6,7 +6,7 @@ import {
   FileText,
   Shield,
   type LucideIcon,
-} from "lucide-react";
+} from "@/icons";
 import AppIcon from "../components/atomic/AppIcon";
 
 type DocItem = {

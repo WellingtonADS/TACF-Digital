@@ -83,6 +83,28 @@ export default function useDashboard() {
             const payload = payloadCandidate as DashboardPayload;
             setBookingsCount(Number(payload?.bookings_count ?? 0));
             setResultsCount(Number(payload?.results_count ?? 0));
+            // If RPC reports 0 bookings, double-check client-side in case RPC
+            // is out-of-date or the payload missed generated order_numbers.
+            // Do a lightweight check and override if we find records.
+            try {
+              const uid =
+                user?.id ??
+                (profile && (profile as { id?: string })?.id) ??
+                null;
+              if (uid && Number(payload?.bookings_count ?? 0) === 0) {
+                const { data: manualBookings } = await supabase
+                  .from("bookings")
+                  .select("id")
+                  .eq("user_id", uid)
+                  .not("order_number", "is", null);
+                const manualCount = Array.isArray(manualBookings)
+                  ? manualBookings.length
+                  : 0;
+                if (manualCount > 0) setBookingsCount(manualCount);
+              }
+            } catch (err) {
+              console.error("Erro ao revalidar contagem de bilhetes:", err);
+            }
             if (payload?.next_session) {
               setNextSession({
                 id: payload.next_session.session_id,
@@ -158,15 +180,32 @@ export default function useDashboard() {
           return;
         }
 
-        // 1) bookings count (agendado)
-        const { data: bookingsData } = await supabase
+        // 1) bookings count: prior behavior counted only `status = 'agendado'`.
+        // The tickets modal and other places treat a booking with an `order_number`
+        // as a generated bilhete. Count bookings that have an `order_number` to
+        // reflect the number shown in the Bilhetes UI.
+        // Count bookings that have an order_number (bilhetes gerados)
+        const { data: bookingsWithOrder } = await supabase
           .from("bookings")
-          .select("id, session_id, status")
+          .select("id")
+          .eq("user_id", uid)
+          .not("order_number", "is", null);
+        const withOrderCount = Array.isArray(bookingsWithOrder)
+          ? bookingsWithOrder.length
+          : 0;
+
+        // Additionally include bookings that are still `agendado` but have no
+        // order_number yet, to avoid showing 0 when user has scheduled tests.
+        const { data: agendadoData } = await supabase
+          .from("bookings")
+          .select("id, order_number")
           .eq("user_id", uid)
           .eq("status", "agendado");
-        const localBookingsCount = Array.isArray(bookingsData)
-          ? bookingsData.length
+        const agendadoWithoutOrder = Array.isArray(agendadoData)
+          ? agendadoData.filter((b: any) => b.order_number == null).length
           : 0;
+
+        const localBookingsCount = withOrderCount + agendadoWithoutOrder;
         setBookingsCount(localBookingsCount);
 
         // 2) results count (bookings with score)
@@ -180,7 +219,12 @@ export default function useDashboard() {
           : 0;
         setResultsCount(localResultsCount);
 
-        // 3) next session: find user's active bookings -> fetch sessions and pick next by date
+        // 3) next session: fetch user's bookings -> fetch sessions and pick next by date
+        const { data: bookingsData } = await supabase
+          .from("bookings")
+          .select("id, session_id")
+          .eq("user_id", uid);
+
         const bookingRows: BookingInfo[] = Array.isArray(bookingsData)
           ? bookingsData.map((b: { id: string; session_id: string }) => ({
               id: b.id,
@@ -286,5 +330,3 @@ export default function useDashboard() {
     refresh: async () => {},
   } as const;
 }
-
-

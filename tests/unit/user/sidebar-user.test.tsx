@@ -26,7 +26,6 @@ describe("Sidebar — navegação user", () => {
     expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
     expect(screen.getByText(/Agendamentos/i)).toBeInTheDocument();
     expect(screen.getByText(/Documentos/i)).toBeInTheDocument();
-    expect(screen.getByText("Bilhete Digital")).toBeInTheDocument();
     expect(screen.getByText("Histórico")).toBeInTheDocument();
     expect(screen.getByText("Meu Perfil")).toBeInTheDocument();
   });
@@ -55,12 +54,6 @@ describe("Sidebar — navegação user", () => {
     renderSidebar();
     const link = screen.getByRole("link", { name: /documento/i });
     expect(link).toHaveAttribute("href", "/app/documentos");
-  });
-
-  it("link Bilhete Digital aponta para /app/ticket", () => {
-    renderSidebar();
-    const link = screen.getByRole("link", { name: /bilhete digital/i });
-    expect(link).toHaveAttribute("href", "/app/ticket");
   });
 
   it("link Histórico aponta para /app/resultados", () => {

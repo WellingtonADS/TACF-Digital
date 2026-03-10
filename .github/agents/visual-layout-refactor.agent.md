@@ -1,7 +1,7 @@
 ---
 name: visual-layout-refactor
 description: Agente especializado em padronizacao visual de layout para o TACF Digital. Usa skills de auditoria, migracao de tokens, responsividade e padrao visual para refatorar UI com consistencia e baixo risco.
-model: GPT-5.3-Codex
+
 ---
 
 # Visual Layout Refactor Agent

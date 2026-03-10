@@ -74,7 +74,7 @@ describe("OperationalDashboard", () => {
     );
     expect(screen.getByText("Novo Agendamento")).toBeInTheDocument();
     expect(screen.getByText("Meus Testes")).toBeInTheDocument();
-    expect(screen.getByText("Resultados")).toBeInTheDocument();
+    expect(screen.getByText("Confirmação")).toBeInTheDocument();
     expect(screen.getByText("Documentação")).toBeInTheDocument();
   });
 

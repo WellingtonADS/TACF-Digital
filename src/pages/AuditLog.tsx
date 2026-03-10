@@ -2,8 +2,6 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import Layout from "@/components/layout/Layout";
 import PageSkeleton from "@/components/PageSkeleton";
 import useResponsive from "@/hooks/useResponsive";
-import supabase from "@/services/supabase";
-import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -19,7 +17,9 @@ import {
   Timer,
   Trash2,
   X,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

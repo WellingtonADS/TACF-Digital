@@ -1,9 +1,9 @@
 import { Input } from "@/components/atomic/Input";
 import PasswordInput from "@/components/atomic/PasswordInput";
 import AuthLayout from "@/components/AuthLayout";
+import { Loader2, Plane } from "@/icons";
 import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { Loader2, Plane } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";

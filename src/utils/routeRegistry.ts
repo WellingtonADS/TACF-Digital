@@ -11,7 +11,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
     prefetch: true,
     prefetchCritical: true,
     lazyLoader: () => import("../pages/OperationalDashboard"),
-    sidebarLabel: "Dashboard (Visão Geral)",
+    sidebarLabel: "Visão Geral",
     sidebarIcon: "layout-dashboard",
     sidebarOrder: 10,
   },
@@ -35,7 +35,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
     prefetch: true,
     prefetchCritical: true,
     lazyLoader: () => import("../pages/Scheduling"),
-    sidebarLabel: "Agendamentos / Avaliações",
+    sidebarLabel: "Agendamentos",
     sidebarIcon: "calendar",
     sidebarOrder: 20,
   },
@@ -51,7 +51,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
     path: "/app/ticket",
     access: "user",
     section: "agendamentos",
-    showInSidebar: true,
+    showInSidebar: false,
     prefetch: true,
     prefetchCritical: true,
     lazyLoader: () => import("../pages/DigitalTicket"),
@@ -78,7 +78,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
     showInSidebar: true,
     prefetch: true,
     lazyLoader: () => import("../pages/Documents"),
-    sidebarLabel: "Documentos / Relatórios",
+    sidebarLabel: "Documentos Técnicos",
     sidebarIcon: "file-text",
     sidebarOrder: 30,
   },
@@ -293,5 +293,3 @@ export function getRoutableAppRoutes() {
     (route) => route.path.startsWith("/app/") && route.lazyLoader,
   );
 }
-
-

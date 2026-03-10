@@ -1,7 +1,5 @@
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import supabase from "@/services/supabase";
-import type { LocationSchedule } from "@/types/database.types";
 import {
   ArrowLeft,
   CalendarDays,
@@ -10,7 +8,9 @@ import {
   Moon,
   Save,
   Sun,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { LocationSchedule } from "@/types/database.types";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";

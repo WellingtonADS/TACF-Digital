@@ -1,8 +1,8 @@
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
+import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
 import supabase from "@/services/supabase";
 import { PT_MONTHS } from "@/utils/ptMonths";
-import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";

@@ -1,6 +1,6 @@
 // implementation moved from src/layout/Topbar.tsx
 import AppIcon from "@/components/atomic/AppIcon";
-import { Menu } from "lucide-react";
+import { Menu } from "@/icons";
 
 type TopbarProps = {
   onToggleSidebar?: () => void;

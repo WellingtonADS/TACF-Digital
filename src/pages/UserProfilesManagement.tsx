@@ -1,20 +1,13 @@
 import PasswordInput from "@/components/atomic/PasswordInput";
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
-import {
-  Award,
-  Calendar,
-  CheckCircle,
-  Key,
-  ShieldCheck,
-  User,
-} from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import Breadcrumbs from "../components/Breadcrumbs";
 import supabase, { upsertProfile } from "../services/supabase";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
@@ -240,31 +233,24 @@ export default function UserProfilesManagement() {
 
   // avoid flicker: if we already have a profile to show, render it
   if ((authLoading || loading) && !profile) {
-    return (
-      <Layout>
-        <div className="max-w-6xl mx-auto">Carregando perfil...</div>
-      </Layout>
-    );
+    return <FullPageLoading message="Carregando perfil" />;
   }
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
-        <Breadcrumbs items={["Perfil"]} />
-
-        <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary">
-              Gerenciamento de Perfil
-            </h2>
-            <p className="text-text-muted mt-1">
-              Atualize suas informações pessoais e militares para o TACF.
-            </p>
-          </div>
-          <div className="w-full sm:w-auto text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default">
-            Último acesso: {lastAccess}
-          </div>
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+            Gerenciamento de Perfil
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+            Atualize suas informações pessoais e militares para o TACF.
+          </p>
         </header>
+
+        <div className="w-full text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default mb-6">
+          Último acesso: {lastAccess}
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left column: profile summary */}
@@ -647,11 +633,6 @@ export default function UserProfilesManagement() {
             </div>
           </div>
         </div>
-
-        <footer className="mt-12 text-center text-text-muted text-[10px] uppercase tracking-[0.2em] font-medium pb-8">
-          TACF-Digital © 2024 - Sistema de Gerenciamento de Teste de Avaliação
-          do Condicionamento Físico
-        </footer>
       </div>
     </Layout>
   );

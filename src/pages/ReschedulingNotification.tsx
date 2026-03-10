@@ -1,8 +1,8 @@
 import PageSkeleton from "@/components/PageSkeleton";
 import Layout from "@/components/layout/Layout";
+import { ArrowRight } from "@/icons";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow } from "@/types";
-import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
