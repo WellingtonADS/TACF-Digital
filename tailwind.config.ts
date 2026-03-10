@@ -3,6 +3,34 @@ import animate from "tailwindcss-animate";
 // forms plugin para padronizar inputs
 import forms from "@tailwindcss/forms";
 
+const scaleFromVar = (cssVar: string) => ({
+  50: `rgb(var(${cssVar}) / 0.08)`,
+  100: `rgb(var(${cssVar}) / 0.14)`,
+  200: `rgb(var(${cssVar}) / 0.22)`,
+  300: `rgb(var(${cssVar}) / 0.36)`,
+  400: `rgb(var(${cssVar}) / 0.52)`,
+  500: `rgb(var(${cssVar}) / 0.72)`,
+  600: `rgb(var(${cssVar}) / 0.84)`,
+  700: `rgb(var(${cssVar}) / 0.92)`,
+  800: `rgb(var(${cssVar}) / 0.96)`,
+  900: `rgb(var(${cssVar}) / 1)`,
+  DEFAULT: `rgb(var(${cssVar}) / <alpha-value>)`,
+});
+
+const slateScale = {
+  50: "rgb(var(--color-bg-default) / 1)",
+  100: "rgb(var(--color-bg-default) / 0.9)",
+  200: "rgb(var(--color-border-default) / 1)",
+  300: "rgb(var(--color-border-default) / 0.8)",
+  400: "rgb(var(--color-text-muted) / 0.95)",
+  500: "rgb(var(--color-text-muted) / 1)",
+  600: "rgb(var(--color-text-body) / 0.85)",
+  700: "rgb(var(--color-text-body) / 1)",
+  800: "rgb(var(--color-primary) / 0.9)",
+  900: "rgb(var(--color-primary) / 1)",
+  DEFAULT: "rgb(var(--color-text-body) / <alpha-value>)",
+};
+
 export default {
   // Garantindo que ele varra todas as subpastas da sua árvore
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -16,23 +44,51 @@ export default {
     },
     extend: {
       colors: {
-        primary: { DEFAULT: "#1a355b", foreground: "#FFFFFF" }, // Azul Militar (novo)
-        secondary: { DEFAULT: "#0078D4", foreground: "#FFFFFF" }, // Azul Digital
-        success: { DEFAULT: "#2D5A27", foreground: "#FFFFFF" }, // Verde Militar
-        alert: { DEFAULT: "#E67E22", foreground: "#FFFFFF" }, // Laranja
-        error: { DEFAULT: "#C0392B", foreground: "#FFFFFF" }, // Vermelho
-        "military-gold": { DEFAULT: "#F59E0B", foreground: "#000000" }, // Ouro Militar
-        canvas: { DEFAULT: "#F4F7F9" }, // Fundo Gelo (light)
-        "background-light": { DEFAULT: "#f6f7f8" }, // Background claro
-        "background-dark": { DEFAULT: "#13181f" }, // Background escuro
+        primary: {
+          DEFAULT: "rgb(var(--color-primary) / <alpha-value>)",
+          foreground: "rgb(var(--color-primary-foreground) / <alpha-value>)",
+        },
+        secondary: {
+          DEFAULT: "rgb(var(--color-secondary) / <alpha-value>)",
+          foreground: "rgb(var(--color-secondary-foreground) / <alpha-value>)",
+        },
+        success: {
+          DEFAULT: "rgb(var(--color-success) / <alpha-value>)",
+          foreground: "rgb(var(--color-success-foreground) / <alpha-value>)",
+        },
+        alert: {
+          DEFAULT: "rgb(var(--color-alert) / <alpha-value>)",
+          foreground: "rgb(var(--color-alert-foreground) / <alpha-value>)",
+        },
+        error: {
+          DEFAULT: "rgb(var(--color-error) / <alpha-value>)",
+          foreground: "rgb(var(--color-error-foreground) / <alpha-value>)",
+        },
+        "military-gold": {
+          DEFAULT: "rgb(var(--color-military-gold) / <alpha-value>)",
+          foreground:
+            "rgb(var(--color-military-gold-foreground) / <alpha-value>)",
+        },
+        canvas: { DEFAULT: "rgb(var(--color-bg-default) / <alpha-value>)" },
+        "background-light": {
+          DEFAULT: "rgb(var(--color-bg-default) / <alpha-value>)",
+        },
 
         /* semantic tokens backed by CSS variables */
-        "bg-default": "var(--bg-default)",
-        "bg-card": "var(--bg-card)",
-        "text-body": "var(--text-body)",
-        "text-muted": "var(--text-muted)",
-        "text-inverted": "var(--text-inverted)",
-        "border-default": "var(--border-default)",
+        "bg-default": "rgb(var(--color-bg-default) / <alpha-value>)",
+        "bg-card": "rgb(var(--color-bg-card) / <alpha-value>)",
+        "text-body": "rgb(var(--color-text-body) / <alpha-value>)",
+        "text-muted": "rgb(var(--color-text-muted) / <alpha-value>)",
+        "text-inverted": "rgb(var(--color-text-inverted) / <alpha-value>)",
+        "border-default": "rgb(var(--color-border-default) / <alpha-value>)",
+
+        // Compatibility aliases so existing pages follow the new palette.
+        emerald: scaleFromVar("--color-success"),
+        green: scaleFromVar("--color-success"),
+        amber: scaleFromVar("--color-alert"),
+        red: scaleFromVar("--color-error"),
+        violet: scaleFromVar("--color-secondary"),
+        slate: slateScale,
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],

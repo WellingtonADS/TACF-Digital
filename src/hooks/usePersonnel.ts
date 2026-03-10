@@ -21,3 +21,5 @@ export async function updateProfile(id: string, payload: Partial<Profile>) {
 }
 
 export default { getProfileById, updateProfile };
+
+

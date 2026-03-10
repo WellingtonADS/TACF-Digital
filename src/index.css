@@ -15,16 +15,6 @@
     box-sizing: border-box;
   }
   :root {
-    /* Colors - Design Tokens */
-    --color-primary: 26 53 91; /* #1a355b */
-    --color-primary-foreground: 255 255 255;
-    --color-success: 45 90 39; /* #2D5A27 */
-    --color-alert: 230 126 34; /* #E67E22 */
-    --color-error: 192 57 43; /* #C0392B */
-    --color-military-gold: 245 158 11; /* #F59E0B */
-    --color-background-light: 246 247 248;
-    --color-background-dark: 19 24 31; /* #13181f */
-
     /* Scrollbar tokens */
     --scrollbar-track: rgba(2, 6, 23, 0.06);
     --scrollbar-thumb: rgba(2, 6, 23, 0.28);
@@ -34,23 +24,7 @@
     color-scheme: light;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-background: var(--color-background-dark);
-      --scrollbar-track: rgba(148, 163, 184, 0.12);
-      --scrollbar-thumb: rgba(148, 163, 184, 0.36);
-      --scrollbar-thumb-hover: rgba(148, 163, 184, 0.5);
-      color-scheme: dark;
-    }
-  }
-
-  :is(html.dark, body.dark, .dark) {
-    --color-background: var(--color-background-dark);
-    --scrollbar-track: rgba(148, 163, 184, 0.12);
-    --scrollbar-thumb: rgba(148, 163, 184, 0.36);
-    --scrollbar-thumb-hover: rgba(148, 163, 184, 0.5);
-    color-scheme: dark;
-  }
+  /* dark mode rules removed - always light scheme */
 
   html,
   body,
@@ -77,36 +51,7 @@
     background-attachment: fixed;
   }
 
-  @media (prefers-color-scheme: dark) {
-    body {
-      background-image:
-        radial-gradient(
-          900px 380px at 100% -8%,
-          rgba(14, 165, 233, 0.15),
-          transparent 62%
-        ),
-        radial-gradient(
-          980px 460px at -8% 108%,
-          rgba(30, 64, 175, 0.16),
-          transparent 66%
-        );
-    }
-  }
-
-  :is(html.dark, body.dark, .dark) body,
-  :is(html.dark, body.dark, .dark) {
-    background-image:
-      radial-gradient(
-        900px 380px at 100% -8%,
-        rgba(14, 165, 233, 0.15),
-        transparent 62%
-      ),
-      radial-gradient(
-        980px 460px at -8% 108%,
-        rgba(30, 64, 175, 0.16),
-        transparent 66%
-      );
-  }
+  /* dark mode background-image overrides removed */
 
   /* Normalize form controls for consistent contrast across pages/components */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
@@ -217,6 +162,18 @@
   }
 
   /* Cards */
+  .card-surface {
+    @apply bg-bg-card border border-border-default;
+  }
+
+  .card-surface-elevated {
+    @apply card-surface shadow-sm;
+  }
+
+  .card-surface-interactive {
+    @apply card-surface transition-all duration-300 hover:border-primary hover:shadow-md hover:-translate-y-0.5 hover:scale-[1.02];
+  }
+
   .card-elevated {
     @apply bg-bg-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow;
   }
@@ -250,25 +207,6 @@
   /* Focus states */
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
-  }
-
-  /* Keep brand color pattern while improving blue text readability in dark mode */
-  @media (prefers-color-scheme: dark) {
-    .text-primary {
-      color: var(--text-accent);
-    }
-
-    .hover\:text-primary:hover {
-      color: #bae6fd;
-    }
-  }
-
-  :is(html.dark, body.dark, .dark) .text-primary {
-    color: var(--text-accent);
-  }
-
-  :is(html.dark, body.dark, .dark) .hover\:text-primary:hover {
-    color: #bae6fd;
   }
 
   /* Revalidation progress bar — width driven by data-pct attribute via JS at runtime */

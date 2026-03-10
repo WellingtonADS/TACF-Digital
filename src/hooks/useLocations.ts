@@ -160,3 +160,5 @@ export default function useLocations(): UseLocationsResult {
 
   return { locations, total, loading, error, fetch, create, update, remove };
 }
+
+

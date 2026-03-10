@@ -129,7 +129,9 @@ export default function useTicket(initial?: TicketData) {
             routeState?.orderNumber ??
             prev?.code ??
             "",
-          confirmed: bookingData.status === "confirmed",
+          confirmed:
+            bookingData.status === "agendado" ||
+            bookingData.status === "remarcado",
         }));
       } finally {
         if (!cancelled) setLoading(false);
@@ -157,3 +159,5 @@ function formatTicketDate(date: string): string {
     .replace(".", "")
     .toUpperCase();
 }
+
+

@@ -22,9 +22,9 @@ type AttendanceBooking = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  confirmed: "Confirmado",
-  pending: "Pendente",
-  cancelled: "Cancelado",
+  agendado: "Agendado",
+  remarcado: "Remarcado",
+  cancelado: "Cancelado",
   no_show: "Não compareceu",
 };
 
@@ -101,3 +101,5 @@ export function generateAttendanceListPdf({
   doc.save(filename);
   return filename;
 }
+
+

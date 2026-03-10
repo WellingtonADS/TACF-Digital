@@ -50,14 +50,14 @@ AS $function$
 $function$
 
 
-CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])
+CREATE OR REPLACE FUNCTION extensions.armor(bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_armor$function$
 
 
-CREATE OR REPLACE FUNCTION extensions.armor(bytea)
+CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -334,6 +334,13 @@ CREATE OR REPLACE FUNCTION extensions.pgp_key_id(bytea)
 AS '$libdir/pgcrypto', $function$pgp_key_id_w$function$
 
 
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text)
+ RETURNS text
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
+
+
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
  RETURNS text
  LANGUAGE c
@@ -348,14 +355,7 @@ CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text)
- RETURNS text
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
-
-
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -369,7 +369,7 @@ CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, 
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -390,14 +390,14 @@ CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$
 
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -916,7 +916,7 @@ DECLARE
     v_profile_active BOOLEAN;
 BEGIN
     -- 1. Bloqueio pessimista e leitura da capacidade (O(1))
-    SELECT date, max_capacity, capacity, status 
+    SELECT starts_at::date AS date, max_capacity, capacity, status 
     INTO v_session_date, v_max_cap, v_current_cap, v_session_status
     FROM public.sessions 
     WHERE id = p_session_id 
@@ -956,7 +956,7 @@ BEGIN
         WHERE user_id = p_user_id 
         AND semester = v_semester 
         AND test_date >= DATE_TRUNC('year', v_session_date)
-        AND status = 'confirmed'
+        AND status = 'agendado'
     ) THEN
         RETURN QUERY SELECT false, NULL::UUID, 'user already has booking this semester'::TEXT, NULL::TEXT;
         RETURN;
@@ -982,7 +982,7 @@ BEGIN
     ) VALUES (
         p_user_id, 
         p_session_id, 
-        'confirmed', 
+        'agendado', 
         v_semester, 
         v_order_str, 
         v_session_date
@@ -1093,19 +1093,42 @@ CREATE OR REPLACE FUNCTION public.fn_sync_session_capacity()
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_session uuid;
+  v_is_active_new BOOLEAN := FALSE;
+  v_is_active_old BOOLEAN := FALSE;
+  v_new_session uuid;
+  v_old_session uuid;
 BEGIN
-  IF TG_OP = 'DELETE' THEN
-    v_session = OLD.session_id;
-  ELSE
-    v_session = COALESCE(NEW.session_id, OLD.session_id);
-  END IF;
+  IF TG_OP = 'INSERT' THEN
+    v_is_active_new := NEW.status::text IN ('agendado','remarcado');
+    v_new_session := NEW.session_id;
+    IF v_is_active_new THEN
+      UPDATE public.sessions SET capacity = COALESCE(capacity,0) + 1 WHERE id = v_new_session;
+    END IF;
 
-  UPDATE public.sessions
-  SET capacity = (
-    SELECT COUNT(*) FROM public.bookings b WHERE b.session_id = v_session AND b.status::text IN ('confirmed','pending_swap','agendado','remarcado')
-  )
-  WHERE id = v_session;
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_is_active_new := NEW.status::text IN ('agendado','remarcado');
+    v_is_active_old := OLD.status::text IN ('agendado','remarcado');
+    v_new_session := NEW.session_id;
+    v_old_session := OLD.session_id;
+
+    -- Entrou no estado ativo ou mudou de sessão
+    IF v_is_active_new AND (NOT v_is_active_old OR v_old_session IS DISTINCT FROM v_new_session) THEN
+      UPDATE public.sessions SET capacity = COALESCE(capacity,0) + 1 WHERE id = v_new_session;
+      IF v_is_active_old AND v_old_session IS DISTINCT FROM v_new_session THEN
+        UPDATE public.sessions SET capacity = GREATEST(0, COALESCE(capacity,0) - 1) WHERE id = v_old_session;
+      END IF;
+
+    -- Saiu do estado ativo para inativo (ex: cancelado)
+    ELSIF v_is_active_old AND NOT v_is_active_new THEN
+      UPDATE public.sessions SET capacity = GREATEST(0, COALESCE(capacity,0) - 1) WHERE id = v_new_session;
+    END IF;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    v_is_active_old := OLD.status::text IN ('agendado','remarcado');
+    IF v_is_active_old THEN
+      UPDATE public.sessions SET capacity = GREATEST(0, COALESCE(capacity,0) - 1) WHERE id = OLD.session_id;
+    END IF;
+  END IF;
 
   RETURN NULL;
 END;
@@ -1121,7 +1144,7 @@ AS $function$
 BEGIN
   IF NEW.starts_at IS NOT NULL THEN
     NEW.date := NEW.starts_at::date;
-    NEW.period := CASE WHEN EXTRACT(HOUR FROM NEW.starts_at) < 12 THEN 'manha' ELSE 'tarde' END;
+    NEW.period := CASE WHEN EXTRACT(HOUR FROM NEW.starts_at) < 12 THEN 'manha'::session_period ELSE 'tarde'::session_period END;
   END IF;
   RETURN NEW;
 END;

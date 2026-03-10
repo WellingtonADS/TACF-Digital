@@ -1,3 +1,4 @@
+import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import {
@@ -21,15 +22,13 @@ const STATUS_META = {
   active: {
     label: "ATIVO",
     bar: "bg-emerald-500",
-    badge:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
     accent: "border-l-emerald-500",
   },
   maintenance: {
     label: "MANUT",
     bar: "bg-amber-400",
-    badge:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700",
+    badge: "bg-amber-50 text-amber-700 border-amber-200",
     accent: "border-l-amber-400",
   },
   inactive: {
@@ -163,7 +162,7 @@ export default function OmLocationManager() {
             return (
               <article
                 key={loc.id}
-                className={`bg-bg-card rounded-2xl border border-border-default border-l-4 ${meta.accent} flex flex-col overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                className={`${CARD_INTERACTIVE_CLASS} rounded-2xl border-l-4 ${meta.accent} flex flex-col overflow-hidden`}
               >
                 <div className="p-5 flex-1 flex flex-col gap-3">
                   {/* top row */}

@@ -14,7 +14,7 @@ export default function PageSkeleton({
   subtitleWidth = "w-56",
 }: Props) {
   const containerBase =
-    "rounded-2xl border border-border-default/70 dark:border-border-default/60 p-4 sm:p-6 bg-bg-card/90 dark:bg-bg-card/60 shadow-sm w-full";
+    "rounded-2xl border border-border-default/70 p-4 sm:p-6 bg-bg-card/90 shadow-sm w-full";
 
   const content = (
     <>
@@ -47,15 +47,15 @@ export default function PageSkeleton({
         </div>
 
         {showAvatar ? (
-          <div className="h-12 w-12 rounded-full bg-border-default dark:bg-border-default animate-pulse shrink-0" />
+          <div className="h-12 w-12 rounded-full bg-border-default animate-pulse shrink-0" />
         ) : null}
 
         <div className="flex-1 space-y-2">
           <div
-            className={`${titleWidth} h-5 rounded-md bg-border-default/90 dark:bg-border-default/80 animate-pulse`}
+            className={`${titleWidth} h-5 rounded-md bg-border-default/90 animate-pulse`}
           />
           <div
-            className={`${subtitleWidth} h-3 rounded-md bg-bg-card/90 dark:bg-bg-card/80 animate-pulse`}
+            className={`${subtitleWidth} h-3 rounded-md bg-bg-card/90 animate-pulse`}
           />
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function PageSkeleton({
           <div
             key={i}
             className={
-              `h-4 rounded-md bg-bg-card dark:bg-bg-card animate-pulse ` +
+              `h-4 rounded-md bg-bg-card animate-pulse ` +
               (i % 3 === 0 ? " w-3/4" : i % 2 === 0 ? " w-full" : " w-5/6")
             }
           />

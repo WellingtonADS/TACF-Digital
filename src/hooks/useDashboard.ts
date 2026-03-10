@@ -158,12 +158,12 @@ export default function useDashboard() {
           return;
         }
 
-        // 1) bookings count (confirmed)
+        // 1) bookings count (agendado)
         const { data: bookingsData } = await supabase
           .from("bookings")
           .select("id, session_id, status")
           .eq("user_id", uid)
-          .eq("status", "confirmed");
+          .eq("status", "agendado");
         const localBookingsCount = Array.isArray(bookingsData)
           ? bookingsData.length
           : 0;
@@ -180,7 +180,7 @@ export default function useDashboard() {
           : 0;
         setResultsCount(localResultsCount);
 
-        // 3) next session: find user's confirmed bookings -> fetch sessions and pick next by date
+        // 3) next session: find user's active bookings -> fetch sessions and pick next by date
         const bookingRows: BookingInfo[] = Array.isArray(bookingsData)
           ? bookingsData.map((b: { id: string; session_id: string }) => ({
               id: b.id,
@@ -286,3 +286,5 @@ export default function useDashboard() {
     refresh: async () => {},
   } as const;
 }
+
+

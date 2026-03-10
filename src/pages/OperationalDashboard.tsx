@@ -1,3 +1,4 @@
+import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import RescheduleDrawer from "@/components/RescheduleDrawer";
 import useDashboard from "@/hooks/useDashboard";
@@ -80,7 +81,7 @@ export const OperationalDashboard = () => {
           .select("id")
           .eq("user_id", user.id)
           .eq("session_id", nextSession.id)
-          .eq("status", "confirmed")
+          .eq("status", "agendado")
           .maybeSingle();
         const bid = bookingData?.id;
         if (bid) {
@@ -89,7 +90,7 @@ export const OperationalDashboard = () => {
             .from("swap_requests")
             .select("id")
             .eq("booking_id", bid)
-            .eq("status", "pending");
+            .eq("status", "solicitado");
           setPendingSwap(Array.isArray(swapData) && swapData.length > 0);
         }
       } catch (err) {
@@ -114,16 +115,16 @@ export const OperationalDashboard = () => {
       icon: CalendarPlus,
       label: "Novo Agendamento",
       title: "Marcar TACF",
-      iconBg: "bg-primary/5 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-primary",
+      iconBg: "bg-primary/5",
+      iconColor: "text-primary",
       to: "/app/agendamentos",
     },
     {
       icon: ClipboardList,
       label: "Meus Testes",
       title: "Histórico",
-      iconBg: "bg-primary/5 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-primary",
+      iconBg: "bg-primary/5",
+      iconColor: "text-primary",
       to: "/app/resultados",
       count: resultsCount,
     },
@@ -131,8 +132,8 @@ export const OperationalDashboard = () => {
       icon: Award,
       label: "Resultados",
       title: "Certificados",
-      iconBg: "bg-primary/5 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-primary",
+      iconBg: "bg-primary/5",
+      iconColor: "text-primary",
       to: "/app/ticket",
       count: bookingsCount,
     },
@@ -140,8 +141,8 @@ export const OperationalDashboard = () => {
       icon: FileText,
       label: "Documentação",
       title: "Manuais e Normas",
-      iconBg: "bg-primary/5 dark:bg-primary/20",
-      iconColor: "text-primary dark:text-primary",
+      iconBg: "bg-primary/5",
+      iconColor: "text-primary",
       to: "/app/documentos",
     },
   ];
@@ -205,7 +206,7 @@ export const OperationalDashboard = () => {
             onMouseEnter={() => {
               if (card.to) prefetchRoute(card.to);
             }}
-            className="group bg-bg-card p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl shadow-black/10 border border-border-default text-left hover:scale-[1.02] hover:border-primary transition-all duration-300"
+            className={`group ${CARD_INTERACTIVE_CLASS} p-4 text-left md:p-6 lg:p-8 rounded-3xl`}
           >
             <div
               className={`h-10 w-10 md:h-14 md:w-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-3 md:mb-6 ${card.iconColor} group-hover:bg-primary group-hover:text-white transition-colors`}

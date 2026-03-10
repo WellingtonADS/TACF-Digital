@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   starts_at TIMESTAMPTZ NOT NULL,
   -- convenience columns (populados a partir de starts_at)
   date DATE,
-  period TEXT,
+  period session_period,
   max_capacity INTEGER NOT NULL CHECK (max_capacity >= 8 AND max_capacity <= 21),
   capacity INTEGER NOT NULL DEFAULT 0,
   applicators TEXT[] DEFAULT '{}' NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS public.swap_requests (
   requested_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   new_session_id UUID NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
   reason TEXT NOT NULL,
-  status swap_status DEFAULT 'pending' NOT NULL,
+  status swap_status DEFAULT 'solicitado' NOT NULL,
   processed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   processed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

@@ -58,3 +58,5 @@ export type AppRouteMeta = {
   sidebarIcon?: SidebarIconKey;
   sidebarOrder?: number;
 };
+
+

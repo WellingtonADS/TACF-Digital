@@ -15,3 +15,5 @@ export async function apiPost<T = unknown>(url: string, body: unknown) {
 }
 
 export default { apiGet, apiPost };
+
+

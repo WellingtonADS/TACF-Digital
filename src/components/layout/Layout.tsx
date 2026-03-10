@@ -16,7 +16,7 @@ export const Layout = ({ children }: Props) => {
   const handleClose = () => setSidebarOpen(false);
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark flex">
+    <div className="min-h-screen bg-background-light flex">
       {/* Overlay mobile */}
       {isSmallScreen && sidebarOpen && (
         <div
@@ -36,7 +36,7 @@ export const Layout = ({ children }: Props) => {
         className={`flex flex-col flex-1 min-h-screen ${isDesktop ? "md:ml-64 lg:ml-72" : ""}`}
       >
         <Topbar onToggleSidebar={() => setSidebarOpen((v) => !v)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-10 bg-[#F4F7F9] dark:bg-background-dark">
+        <main className="flex-1 p-4 sm:p-6 lg:p-10 bg-[#F4F7F9]">
           {children}
         </main>
       </div>

@@ -176,3 +176,5 @@ export default function useAuth() {
 
   return { user, profile, loading, error, signOut, updateProfile } as const;
 }
+
+

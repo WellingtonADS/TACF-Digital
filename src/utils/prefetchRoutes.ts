@@ -38,3 +38,5 @@ export function prefetchCriticalRoutes() {
     criticalPaths.forEach(prefetchRoute);
   }, 400);
 }
+
+

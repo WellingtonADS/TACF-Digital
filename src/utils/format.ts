@@ -3,3 +3,5 @@ export function currencyBRL(value: number) {
 }
 
 export default { currencyBRL };
+
+

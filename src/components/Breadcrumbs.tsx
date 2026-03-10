@@ -7,7 +7,7 @@ export default function Breadcrumbs({ items }: { items: string[] }) {
             <span
               className={
                 idx === items.length - 1
-                  ? "text-slate-700 dark:text-slate-200 font-medium"
+                  ? "text-slate-700 text-slate-200 font-medium"
                   : ""
               }
             >
