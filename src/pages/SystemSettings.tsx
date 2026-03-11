@@ -1,7 +1,19 @@
+import AppIcon from "@/components/atomic/AppIcon";
 import Button from "@/components/atomic/Button";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import {
+  BarChart2,
+  Clock3,
+  Download,
+  Edit2,
+  MapPin,
+  Settings,
+  ShieldCheck,
+  UserCircle2,
+  type LucideIcon,
+} from "@/icons";
 import supabase from "@/services/supabase";
 import type {
   AuditLogRow as DBAuditLogRow,
@@ -15,14 +27,15 @@ type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
 
 const TABS = [
-  { key: "general", label: "Geral", icon: "settings" },
-  { key: "evaluation", label: "Tabelas de Avaliação", icon: "analytics" },
-  { key: "locations", label: "Locais / OM", icon: "location_on" },
-  { key: "profiles", label: "Perfis de Acesso", icon: "verified_user" },
-  { key: "audit", label: "Logs de Auditoria", icon: "history" },
+  { key: "general", label: "Geral", icon: Settings },
+  { key: "evaluation", label: "Tabelas de Avaliação", icon: BarChart2 },
+  { key: "locations", label: "Locais / OM", icon: MapPin },
+  { key: "profiles", label: "Perfis de Acesso", icon: ShieldCheck },
+  { key: "audit", label: "Logs de Auditoria", icon: Clock3 },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
+type TabItem = { key: TabKey; label: string; icon: LucideIcon };
 
 export default function SystemSettings() {
   const navigate = useNavigate();
@@ -31,6 +44,7 @@ export default function SystemSettings() {
   const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
   const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
   const [loading, setLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -39,22 +53,32 @@ export default function SystemSettings() {
   const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
 
   useEffect(() => {
-    if (!canView) return;
+    if (!canView) {
+      setSettingsLoading(false);
+      return;
+    }
+
     async function load() {
+      setSettingsLoading(true);
       setLoading(true);
-      const { data, error } = await supabase
-        .from("system_settings")
-        .select("*")
-        .limit(1)
-        .single();
-      if (error) {
-        console.error(error);
-        toast.error("Falha ao carregar configurações");
-      } else {
-        setSettings(data);
-        setFormState(data ?? {});
+      try {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("*")
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error(error);
+          toast.error("Falha ao carregar configurações");
+        } else {
+          setSettings(data);
+          setFormState(data ?? {});
+        }
+      } finally {
+        setLoading(false);
+        setSettingsLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [canView]);
@@ -103,22 +127,31 @@ export default function SystemSettings() {
 
   function renderContent() {
     if (loading && activeTab === "general") {
-      return <p>Carregando...</p>;
+      return (
+        <div className="space-y-3">
+          <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
+          <div className="h-10 w-full animate-pulse rounded-lg bg-border-default" />
+          <div className="h-10 w-full animate-pulse rounded-lg bg-border-default" />
+          <div className="h-10 w-40 animate-pulse rounded-lg bg-border-default" />
+        </div>
+      );
     }
 
     switch (activeTab) {
       case "general":
         return (
           <div>
-            <h2 className="text-lg font-bold mb-4">Parâmetros Globais</h2>
+            <h2 className="mb-4 text-lg font-bold text-text-body">
+              Parâmetros Globais
+            </h2>
             <div className="space-y-4 max-w-xl">
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="mb-1 block text-sm font-medium text-text-body">
                   Nome do Sistema
                 </label>
                 <input
                   type="text"
-                  className="w-full border rounded px-3 py-2"
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
                   value={formState.system_name ?? ""}
                   onChange={(e) =>
                     setFormState((s) => ({ ...s, system_name: e.target.value }))
@@ -126,12 +159,12 @@ export default function SystemSettings() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="mb-1 block text-sm font-medium text-text-body">
                   Organização
                 </label>
                 <input
                   type="text"
-                  className="w-full border rounded px-3 py-2"
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
                   value={formState.organization_name ?? ""}
                   onChange={(e) =>
                     setFormState((s) => ({
@@ -143,12 +176,12 @@ export default function SystemSettings() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="mb-1 block text-sm font-medium text-text-body">
                     Capacidade mínima
                   </label>
                   <input
                     type="number"
-                    className="w-full border rounded px-3 py-2"
+                    className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
                     value={formState.min_capacity ?? 0}
                     onChange={(e) =>
                       setFormState((s) => ({
@@ -159,12 +192,12 @@ export default function SystemSettings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="mb-1 block text-sm font-medium text-text-body">
                     Capacidade máxima
                   </label>
                   <input
                     type="number"
-                    className="w-full border rounded px-3 py-2"
+                    className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
                     value={formState.max_capacity ?? 0}
                     onChange={(e) =>
                       setFormState((s) => ({
@@ -179,6 +212,7 @@ export default function SystemSettings() {
                 <input
                   id="allow_swaps"
                   type="checkbox"
+                  className="h-4 w-4 rounded border-border-default text-primary focus-ring"
                   checked={Boolean(formState.allow_swaps)}
                   onChange={(e) =>
                     setFormState((s) => ({
@@ -187,7 +221,7 @@ export default function SystemSettings() {
                     }))
                   }
                 />
-                <label htmlFor="allow_swaps" className="text-sm">
+                <label htmlFor="allow_swaps" className="text-sm text-text-body">
                   Permitir trocas
                 </label>
               </div>
@@ -195,6 +229,7 @@ export default function SystemSettings() {
                 <input
                   id="require_quorum"
                   type="checkbox"
+                  className="h-4 w-4 rounded border-border-default text-primary focus-ring"
                   checked={Boolean(formState.require_quorum)}
                   onChange={(e) =>
                     setFormState((s) => ({
@@ -203,7 +238,10 @@ export default function SystemSettings() {
                     }))
                   }
                 />
-                <label htmlFor="require_quorum" className="text-sm">
+                <label
+                  htmlFor="require_quorum"
+                  className="text-sm text-text-body"
+                >
                   Exigir quórum
                 </label>
               </div>
@@ -225,7 +263,7 @@ export default function SystemSettings() {
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-border-default">
               <div className="flex flex-wrap gap-4 sm:gap-8">
-                <button className="pb-4 text-sm font-bold tab-active">
+                <button className="border-b-2 border-primary pb-4 text-sm font-bold text-primary">
                   Masculino
                 </button>
                 <button className="pb-4 text-sm font-medium text-text-muted hover:text-primary transition-colors">
@@ -234,9 +272,12 @@ export default function SystemSettings() {
               </div>
               <div className="pb-4">
                 <button className="flex items-center text-primary text-sm font-semibold hover:underline">
-                  <span className="material-icons text-base mr-1">
-                    file_download
-                  </span>
+                  <AppIcon
+                    icon={Download}
+                    size="sm"
+                    className="mr-1"
+                    decorative
+                  />
                   Exportar PDF
                 </button>
               </div>
@@ -300,13 +341,13 @@ export default function SystemSettings() {
                         35
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded">
+                        <span className="rounded px-2 py-1 text-xs font-bold bg-success/10 text-success">
                           EXCELENTE
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
                         <button className="p-2 text-text-muted hover:text-primary transition-colors">
-                          <span className="material-icons text-xl">edit</span>
+                          <AppIcon icon={Edit2} size="sm" decorative />
                         </button>
                       </td>
                     </tr>
@@ -349,9 +390,16 @@ export default function SystemSettings() {
       case "audit":
         return (
           <div>
-            <h2 className="text-lg font-bold mb-4">Logs de Auditoria</h2>
+            <h2 className="mb-4 text-lg font-bold text-text-body">
+              Logs de Auditoria
+            </h2>
             {auditLoading ? (
-              <p>Carregando...</p>
+              <div className="space-y-3">
+                <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
+                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
+                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
+                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
+              </div>
             ) : (
               <div className="max-h-[400px] overflow-auto">
                 <div className="space-y-2 p-3 md:hidden">
@@ -420,51 +468,58 @@ export default function SystemSettings() {
     }
   }
 
-  if (authLoading) {
+  const pageLoading = authLoading || settingsLoading;
+
+  if (pageLoading) {
     return <FullPageLoading message="Carregando configuracoes" />;
   }
 
   if (!canView) {
     return (
       <Layout>
-        <p className="p-6 text-red-500">Acesso não autorizado.</p>
+        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
+          <p className="text-sm font-semibold">Acesso não autorizado.</p>
+        </div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="w-full max-w-[1440px] mx-auto space-y-6">
-        <header className="bg-bg-card border border-border-default rounded-3xl shadow-sm p-4 sm:p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold tracking-widest text-primary uppercase">
-              Governança e Segurança
-            </p>
-            <h1 className="mt-1 text-2xl lg:text-3xl font-bold text-text-body leading-tight">
-              Configurações do Sistema
-            </h1>
-            <p className="text-text-muted mt-2 text-sm">
-              Ajuste parâmetros globais, perfis e auditoria de forma
-              centralizada.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
-                Perfil Atual
-              </span>
-              <span className="text-sm font-bold text-text-body">
-                {profile?.full_name ?? "Administrador"}
-              </span>
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0">
+        <section className="mb-8">
+          <div className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8 lg:p-10">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                  Configurações do Sistema
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-normal text-white/80 md:text-base">
+                  Ajuste parâmetros globais, perfis de acesso e auditoria em um
+                  único painel administrativo.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex flex-col text-right">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
+                    Perfil Atual
+                  </span>
+                  <span className="text-sm font-bold text-white">
+                    {profile?.full_name ?? "Administrador"}
+                  </span>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white">
+                  <AppIcon icon={UserCircle2} size="md" decorative />
+                </div>
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-icons text-2xl">account_circle</span>
-            </div>
           </div>
-        </header>
+        </section>
 
         <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-6">
-          <aside className="bg-bg-card rounded-3xl border border-border-default shadow-lg shadow-black/10 dark:shadow-none">
+          <aside className="bg-bg-card rounded-3xl border border-border-default shadow-sm">
             <div className="p-4 sm:p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
@@ -475,7 +530,7 @@ export default function SystemSettings() {
                 </span>
               </div>
               <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                {TABS.map((tab) => {
+                {(TABS as ReadonlyArray<TabItem>).map((tab) => {
                   const active = tab.key === activeTab;
                   return (
                     <button
@@ -489,22 +544,20 @@ export default function SystemSettings() {
                           : "bg-bg-default border-transparent text-text-muted hover:bg-primary/5"
                       }`}
                     >
-                      <span className="material-icons text-base">
-                        {tab.icon}
-                      </span>
+                      <AppIcon icon={tab.icon} size="sm" decorative />
                       <span>{tab.label}</span>
                     </button>
                   );
                 })}
               </nav>
               <div className="hidden md:flex items-center gap-3 text-xs text-text-muted border-t border-border-default pt-4">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="h-2 w-2 rounded-full bg-success"></span>
                 Sistema Operacional
               </div>
             </div>
           </aside>
 
-          <section className="bg-bg-card rounded-3xl shadow-2xl border border-border-default min-h-[480px]">
+          <section className="bg-bg-card rounded-3xl border border-border-default shadow-sm min-h-[480px]">
             <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
           </section>
         </div>

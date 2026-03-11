@@ -1,3 +1,5 @@
+import AppIcon from "@/components/atomic/AppIcon"; // wrapper for all icons, per visual contract
+import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import {
@@ -43,6 +45,47 @@ type ScoreEntryRow = {
   rank: string | null;
   aptStatus: AptStatus | null;
 };
+
+function PageHero({
+  selectedSession,
+  launchedCount,
+  totalRows,
+}: {
+  selectedSession: SessionRow | null;
+  launchedCount: number;
+  totalRows: number;
+}) {
+  return (
+    <section className="mb-8">
+      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Lançamento de Índices
+            </h1>
+            <p className="mt-2 text-sm text-white/85 md:text-base">
+              Painel administrativo de lançamento de nota final TACF Digital.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+              Turma Selecionada
+            </p>
+            <p className="font-semibold">
+              {selectedSession
+                ? `${selectedSession.date} • ${formatSessionPeriod(selectedSession.period)}`
+                : "Sem turma selecionada"}
+            </p>
+            <p className="mt-1 text-xs text-white/80">
+              {launchedCount}/{totalRows} lançamentos concluídos
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function ScoreEntry() {
   const { profile, loading: authLoading } = useAuth();
@@ -277,20 +320,25 @@ export default function ScoreEntry() {
     }
   }
 
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="text-sm text-slate-500">Carregando...</div>
-      </Layout>
-    );
+  // Mantém retorno de loading apenas após todas as chamadas de hooks/memos.
+  const pageLoading =
+    authLoading || loadingSessions || (canManage && loadingRows);
+
+  if (pageLoading) {
+    return <FullPageLoading message="Carregando dados" />;
   }
 
   if (!canManage) {
     return (
       <Layout>
-        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-amber-300/30 bg-amber-50 p-6 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-alert/30 bg-alert/10 p-6 text-alert">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5" size={20} />
+            <AppIcon
+              icon={ShieldAlert}
+              size="md"
+              className="mt-0.5"
+              ariaLabel="Acesso restrito"
+            />
             <div>
               <h1 className="text-lg font-bold">Acesso restrito</h1>
               <p className="mt-1 text-sm">
@@ -306,281 +354,302 @@ export default function ScoreEntry() {
 
   return (
     <Layout>
-      <div className="mb-6 rounded-2xl bg-gradient-to-r from-primary to-[#4a2b7a] p-6 text-white shadow-xl shadow-primary/20">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
-              Lançamento de Índices
-            </h1>
-            <p className="mt-1 text-sm text-white/75">
-              Painel administrativo de lançamento de nota final TACF-Digital
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-              Turma Selecionada
-            </p>
-            <p className="font-semibold">
-              {selectedSession
-                ? `${selectedSession.date} • ${formatSessionPeriod(selectedSession.period)}`
-                : "Sem turma selecionada"}
-            </p>
-            <p className="mt-1 text-xs text-white/70">
-              {launchedCount}/{rows.length} lançamentos concluídos
-            </p>
-          </div>
-        </div>
-      </div>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+        <PageHero
+          selectedSession={selectedSession}
+          launchedCount={launchedCount}
+          totalRows={rows.length}
+        />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <aside className="lg:col-span-4">
-          <div className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
-            <div className="border-b border-border-default bg-primary/5 px-5 py-4 dark:bg-primary/10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-primary">
-                  Efetivo da Turma
-                </h2>
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                  {launchedCount}/{rows.length}
-                </span>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <aside className="lg:col-span-4">
+            <div className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
+              <div className="border-b border-border-default bg-primary/5 px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">
+                    Efetivo da Turma
+                  </h2>
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                    {launchedCount}/{rows.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <label
+                    htmlFor="session-select"
+                    className="text-xs font-bold uppercase tracking-wider text-text-muted"
+                  >
+                    Seleção de Turma
+                  </label>
+                </div>
+
+                <select
+                  id="session-select"
+                  value={selectedSessionId}
+                  onChange={(event) => setSelectedSessionId(event.target.value)}
+                  className="mb-4 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
+                >
+                  {loadingSessions && <option>Carregando turmas...</option>}
+                  {!loadingSessions && sessions.length === 0 && (
+                    <option value="">Sem turmas disponíveis</option>
+                  )}
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.date} • {formatSessionPeriod(session.period)}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="relative mb-4">
+                  <AppIcon
+                    icon={Search}
+                    size="sm"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                    decorative
+                  />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Buscar por nome ou SARAM..."
+                    className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-9 pr-3 text-sm text-text-body"
+                  />
+                </div>
+
+                <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+                  {loadingRows && (
+                    <p className="text-sm text-text-muted">
+                      Carregando efetivo...
+                    </p>
+                  )}
+
+                  {!loadingRows && filteredRows.length === 0 && (
+                    <p className="text-sm text-text-muted">
+                      Nenhum militar encontrado para a turma selecionada.
+                    </p>
+                  )}
+
+                  {filteredRows.map((row) => {
+                    const active = selectedUserId === row.userId;
+                    const launched = row.aptStatus !== null;
+
+                    return (
+                      <button
+                        key={row.bookingId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedUserId(row.userId);
+                          setAptStatus(row.aptStatus ?? "apto");
+                        }}
+                        className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
+                          active
+                            ? "border-primary bg-primary/10"
+                            : "border-border-default bg-bg-card hover:bg-bg-default"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-text-body">
+                              {row.warName || row.fullName}
+                            </p>
+                            <p className="truncate text-xs text-text-muted">
+                              SARAM: {row.saram ?? "--"}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                              launched
+                                ? row.aptStatus === "apto"
+                                  ? "bg-success/10 text-success"
+                                  : "bg-error/10 text-error"
+                                : "bg-alert/10 text-alert"
+                            }`}
+                          >
+                            {launched
+                              ? row.aptStatus === "apto"
+                                ? "Apto"
+                                : "Inapto"
+                              : "Pendente"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+          </aside>
 
-            <div className="p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <label
-                  htmlFor="session-select"
-                  className="text-xs font-bold uppercase tracking-wider text-text-muted"
-                >
-                  Seleção de Turma
-                </label>
-              </div>
+          <section className="lg:col-span-8">
+            <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
+              {!selectedRow ? (
+                <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-sm text-text-muted">
+                  Selecione um militar para iniciar o lançamento.
+                </div>
+              ) : (
+                <>
+                  <header className="mb-6 rounded-2xl bg-primary/10 p-6 text-primary">
+                    <p className="text-[10px] uppercase tracking-widest text-primary/70">
+                      Militar selecionado
+                    </p>
+                    <h2 className="mt-2 text-3xl font-bold">
+                      {selectedRow.warName || selectedRow.fullName}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap gap-4 text-sm text-text-body">
+                      <span>SARAM {selectedRow.saram ?? "--"}</span>
+                      <span>Posto/Graduação: {selectedRow.rank ?? "--"}</span>
+                    </div>
+                  </header>
 
-              <select
-                id="session-select"
-                value={selectedSessionId}
-                onChange={(event) => setSelectedSessionId(event.target.value)}
-                className="mb-4 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
-              >
-                {loadingSessions && <option>Carregando turmas...</option>}
-                {!loadingSessions && sessions.length === 0 && (
-                  <option value="">Sem turmas disponíveis</option>
-                )}
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.date} • {formatSessionPeriod(session.period)}
-                  </option>
-                ))}
-              </select>
-
-              <div className="relative mb-4">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                  size={16}
-                />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar por nome ou SARAM..."
-                  className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-9 pr-3 text-sm text-text-body"
-                />
-              </div>
-
-              <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-                {loadingRows && (
-                  <p className="text-sm text-text-muted">
-                    Carregando efetivo...
-                  </p>
-                )}
-
-                {!loadingRows && filteredRows.length === 0 && (
-                  <p className="text-sm text-text-muted">
-                    Nenhum militar encontrado para a turma selecionada.
-                  </p>
-                )}
-
-                {filteredRows.map((row) => {
-                  const active = selectedUserId === row.userId;
-                  const launched = row.aptStatus !== null;
-
-                  return (
-                    <button
-                      key={row.bookingId}
-                      type="button"
-                      onClick={() => {
-                        setSelectedUserId(row.userId);
-                        setAptStatus(row.aptStatus ?? "apto");
-                      }}
-                      className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                        active
-                          ? "border-primary bg-primary/10"
-                          : "border-border-default bg-bg-card hover:bg-bg-default"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-text-body">
-                            {row.warName || row.fullName}
-                          </p>
-                          <p className="truncate text-xs text-text-muted">
-                            SARAM: {row.saram ?? "--"}
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
-                            launched
-                              ? row.aptStatus === "apto"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                                : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
-                              : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div>
+                      <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                        <AppIcon
+                          icon={UserCheck}
+                          size="xs"
+                          className="text-primary"
+                          ariaLabel="Resultado"
+                        />
+                        Resultado
+                      </label>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setAptStatus("apto")}
+                          className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
+                            aptStatus === "apto"
+                              ? "border-success bg-success/10 text-success"
+                              : "border-border-default text-text-muted hover:border-success/30"
                           }`}
                         >
-                          {launched
-                            ? row.aptStatus === "apto"
-                              ? "Apto"
-                              : "Inapto"
-                            : "Pendente"}
-                        </span>
+                          <AppIcon
+                            icon={CheckCircle2}
+                            size="md"
+                            ariaLabel="Apto"
+                          />
+                          Apto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAptStatus("inapto")}
+                          className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
+                            aptStatus === "inapto"
+                              ? "border-error bg-error/10 text-error"
+                              : "border-border-default text-text-muted hover:border-error/30"
+                          }`}
+                        >
+                          <AppIcon
+                            icon={XCircle}
+                            size="md"
+                            ariaLabel="Inapto"
+                          />
+                          Inapto
+                        </button>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section className="lg:col-span-8">
-          <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
-            {!selectedRow ? (
-              <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-sm text-text-muted">
-                Selecione um militar para iniciar o lançamento.
-              </div>
-            ) : (
-              <>
-                <header className="mb-6 rounded-2xl bg-gradient-to-r from-primary to-[#4a2b7a] p-6 text-white">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">
-                    Militar selecionado
-                  </p>
-                  <h2 className="mt-2 text-3xl font-bold">
-                    {selectedRow.warName || selectedRow.fullName}
-                  </h2>
-                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/90">
-                    <span>SARAM {selectedRow.saram ?? "--"}</span>
-                    <span>Posto/Graduação: {selectedRow.rank ?? "--"}</span>
-                  </div>
-                </header>
-
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-                  <div>
-                    <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
-                      <UserCheck size={14} className="text-primary" />
-                      Resultado
-                    </label>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setAptStatus("apto")}
-                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                          aptStatus === "apto"
-                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
-                            : "border-border-default text-text-muted hover:border-emerald-300"
-                        }`}
-                      >
-                        <CheckCircle2 size={20} />
-                        Apto
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAptStatus("inapto")}
-                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                          aptStatus === "inapto"
-                            ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                            : "border-border-default text-text-muted hover:border-red-300"
-                        }`}
-                      >
-                        <XCircle size={20} />
-                        Inapto
-                      </button>
                     </div>
-                  </div>
 
-                  <aside
-                    className={`rounded-xl border p-5 text-center transition-colors ${
-                      aptStatus === "apto"
-                        ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20"
-                        : aptStatus === "inapto"
-                          ? "border-red-200 bg-red-50 dark:bg-red-900/20"
-                          : "border-primary/15 bg-primary/5 dark:bg-primary/10"
-                    }`}
-                  >
-                    <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
-                      Resultado Atual
-                    </p>
-                    <div className="mt-4 flex items-center justify-center">
-                      {aptStatus === "apto" ? (
-                        <CheckCircle2 size={48} className="text-emerald-500" />
-                      ) : aptStatus === "inapto" ? (
-                        <XCircle size={48} className="text-red-500" />
-                      ) : (
-                        <span className="text-3xl font-black text-text-muted opacity-60">
-                          —
-                        </span>
-                      )}
-                    </div>
-                    <p
-                      className={`mt-2 text-lg font-black ${
+                    <aside
+                      className={`rounded-xl border p-5 text-center transition-colors ${
                         aptStatus === "apto"
-                          ? "text-emerald-600"
+                          ? "border-success/20 bg-success/10"
                           : aptStatus === "inapto"
-                            ? "text-red-600"
-                            : "text-text-muted"
+                            ? "border-error/20 bg-error/10"
+                            : "border-primary/15 bg-primary/5"
                       }`}
                     >
-                      {aptStatus === "apto"
-                        ? "APTO"
-                        : aptStatus === "inapto"
-                          ? "INAPTO"
-                          : "—"}
-                    </p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-xs text-text-muted">
-                      <ListChecks size={14} />
-                      Lançamento de resultado
-                    </div>
-                  </aside>
-                </div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                        Resultado Atual
+                      </p>
+                      <div className="mt-4 flex items-center justify-center">
+                        {aptStatus === "apto" ? (
+                          <AppIcon
+                            icon={CheckCircle2}
+                            size={"lg"}
+                            className="text-success"
+                            ariaLabel="Apto"
+                          />
+                        ) : aptStatus === "inapto" ? (
+                          <AppIcon
+                            icon={XCircle}
+                            size={"lg"}
+                            className="text-error"
+                            ariaLabel="Inapto"
+                          />
+                        ) : (
+                          <span className="text-3xl font-black text-text-muted opacity-60">
+                            —
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className={`mt-2 text-lg font-black ${
+                          aptStatus === "apto"
+                            ? "text-success"
+                            : aptStatus === "inapto"
+                              ? "text-error"
+                              : "text-text-muted"
+                        }`}
+                      >
+                        {aptStatus === "apto"
+                          ? "APTO"
+                          : aptStatus === "inapto"
+                            ? "INAPTO"
+                            : "—"}
+                      </p>
+                      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-text-muted">
+                        <AppIcon
+                          icon={ListChecks}
+                          size="xs"
+                          className="text-text-muted"
+                          decorative
+                        />
+                        Lançamento de resultado
+                      </div>
+                    </aside>
+                  </div>
 
-                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={cancelEdit}
-                    className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:opacity-60"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={saving || !aptStatus}
-                    onClick={saveStatus}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-                  >
-                    <CheckCircle2 size={16} />
-                    {saving ? "Salvando..." : "Salvar"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="mt-4 rounded-xl border border-border-default bg-bg-card p-4 text-sm text-text-body">
-            <div className="flex items-center gap-2">
-              <User size={14} className="text-primary" />
-              {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}
-              com resultado lançado
+                  <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={cancelEdit}
+                      className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:opacity-60"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving || !aptStatus}
+                      onClick={saveStatus}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+                    >
+                      <AppIcon
+                        icon={CheckCircle2}
+                        size="sm"
+                        ariaLabel="Salvar"
+                      />
+                      {saving ? "Salvando..." : "Salvar"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        </section>
+
+            <div className="mt-4 rounded-xl border border-border-default bg-bg-card p-4 text-sm text-text-body">
+              <div className="flex items-center gap-2">
+                <AppIcon
+                  icon={User}
+                  size="xs"
+                  className="text-primary"
+                  ariaLabel="Efetivo"
+                />
+                {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}
+                com resultado lançado
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </Layout>
   );
