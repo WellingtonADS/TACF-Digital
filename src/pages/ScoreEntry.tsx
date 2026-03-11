@@ -4,8 +4,6 @@
  * @path src/pages/ScoreEntry.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon"; // wrapper for all icons, per visual contract
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
@@ -26,6 +24,7 @@ import type {
   SessionRow as DBSessionRow,
 } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
+import { isAdminLike } from "@/utils/routeAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
@@ -97,8 +96,7 @@ function PageHero({
 
 export default function ScoreEntry() {
   const { profile, loading: authLoading } = useAuth();
-  const role = profile?.role;
-  const canManage = role === "admin" || role === "coordinator";
+  const canManage = isAdminLike(profile?.role);
 
   const location = useLocation();
   const stateSessionId = (location.state as { sessionId?: string } | null)

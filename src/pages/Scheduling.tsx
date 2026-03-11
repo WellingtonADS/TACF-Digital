@@ -4,8 +4,6 @@
  * @path src/pages/Scheduling.tsx
  */
 
-
-
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import TicketModal from "@/components/TicketModal";
@@ -23,11 +21,8 @@ import {
   MapPin,
 } from "@/icons";
 import supabase from "@/services/supabase";
-import {
-  fetchBookedDatesForUser,
-  formatDatePtBr,
-  formatSessionPeriod,
-} from "@/utils/booking";
+import { fetchBookedDatesForUser, formatSessionPeriod } from "@/utils/booking";
+import { formatDatePtBr } from "@/utils/date";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";

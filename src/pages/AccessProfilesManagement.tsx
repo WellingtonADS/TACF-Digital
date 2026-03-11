@@ -11,28 +11,15 @@ import useAuth from "@/hooks/useAuth";
 import {
   ArrowLeft,
   ArrowRight,
-  BarChart2,
-  Calendar,
-  ClipboardList,
-  ClipboardPen,
-  FileText,
-  LayoutDashboard,
-  MapPin,
-  Settings,
   Shield,
   ShieldCheck,
-  Ticket,
   User,
-  Users,
   type LucideIcon,
 } from "@/icons";
 import supabase from "@/services/supabase";
-import type {
-  ProfileRole,
-  SidebarIconKey,
-  Profile as UserProfile,
-} from "@/types";
+import type { ProfileRole, Profile as UserProfile } from "@/types";
 import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
+import { sidebarIconMap } from "@/utils/sidebarIcons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -58,21 +45,6 @@ const ROLE_META: Record<
     description: "Acesso aos fluxos pessoais e de agendamento.",
     icon: User,
   },
-};
-
-const sidebarIconMap: Record<SidebarIconKey, LucideIcon> = {
-  "layout-dashboard": LayoutDashboard,
-  calendar: Calendar,
-  "file-text": FileText,
-  ticket: Ticket,
-  "clipboard-list": ClipboardList,
-  user: User,
-  users: Users,
-  "map-pin": MapPin,
-  "clipboard-pen": ClipboardPen,
-  "bar-chart-2": BarChart2,
-  settings: Settings,
-  shield: Shield,
 };
 
 function PageHero({

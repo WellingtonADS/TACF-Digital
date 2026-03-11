@@ -4,8 +4,6 @@
  * @path src/pages/SessionBookingsManagement.tsx
  */
 
-
-
 import Layout from "@/components/layout/Layout";
 import {
   ArrowLeft,
@@ -19,7 +17,7 @@ import {
   XCircle,
 } from "@/icons";
 import supabase from "@/services/supabase";
-import type { BookingRow as DBBookingRow } from "@/types";
+import type { BookingRow as DBBookingRow, Profile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
@@ -29,6 +27,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 type BookingRow = DBBookingRow;
+type ProfileLookup = Pick<
+  Profile,
+  "id" | "full_name" | "war_name" | "saram" | "rank" | "email"
+>;
 
 interface BookingWithProfile extends BookingRow {
   full_name: string | null;
@@ -47,23 +49,23 @@ type SessionInfo = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  confirmed: "Confirmado",
-  pending: "Pendente",
-  cancelled: "Cancelado",
+  agendado: "Agendado",
+  remarcado: "Remarcado",
+  cancelado: "Cancelado",
   no_show: "Não compareceu",
 };
 
 const STATUS_CLASSES: Record<string, string> = {
-  confirmed:
+  agendado:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  pending:
+  remarcado:
     "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  cancelled:
+  cancelado:
     "bg-bg-default text-text-muted dark:bg-bg-default dark:text-text-muted",
   no_show: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-type StatusFilterOption = "all" | "confirmed" | "pending" | "cancelled";
+type StatusFilterOption = "all" | "agendado" | "remarcado" | "cancelado";
 
 export default function SessionBookingsManagement() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -103,22 +105,14 @@ export default function SessionBookingsManagement() {
 
       // Load profiles
       const userIds = Array.from(new Set(booksRaw.map((b) => b.user_id)));
-      type ProfileRow = {
-        id: string;
-        full_name: string | null;
-        war_name: string | null;
-        saram: string | null;
-        rank: string | null;
-        email: string | null;
-      };
-      const profilesById = new Map<string, ProfileRow>();
+      const profilesById = new Map<string, ProfileLookup>();
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("id,full_name,war_name,saram,rank,email")
           .in("id", userIds);
         (profilesData ?? []).forEach((p) =>
-          profilesById.set(p.id, p as ProfileRow),
+          profilesById.set(p.id, p as ProfileLookup),
         );
       }
 
@@ -164,9 +158,9 @@ export default function SessionBookingsManagement() {
   const counts = useMemo(
     () => ({
       all: bookings.length,
-      confirmed: bookings.filter((b) => b.status === "confirmed").length,
-      pending: bookings.filter((b) => b.status === "pending").length,
-      cancelled: bookings.filter((b) => b.status === "cancelled").length,
+      agendado: bookings.filter((b) => b.status === "agendado").length,
+      remarcado: bookings.filter((b) => b.status === "remarcado").length,
+      cancelado: bookings.filter((b) => b.status === "cancelado").length,
     }),
     [bookings],
   );
@@ -262,9 +256,9 @@ export default function SessionBookingsManagement() {
 
   const filterTabs: { key: StatusFilterOption; label: string }[] = [
     { key: "all", label: `Todos (${counts.all})` },
-    { key: "confirmed", label: `Confirmados (${counts.confirmed})` },
-    { key: "pending", label: `Pendentes (${counts.pending})` },
-    { key: "cancelled", label: `Cancelados (${counts.cancelled})` },
+    { key: "agendado", label: `Agendados (${counts.agendado})` },
+    { key: "remarcado", label: `Remarcados (${counts.remarcado})` },
+    { key: "cancelado", label: `Cancelados (${counts.cancelado})` },
   ];
 
   return (

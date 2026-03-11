@@ -4,8 +4,6 @@
  * @path src/pages/ResultsHistory.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon";
 import {
   CARD_ELEVATED_CLASS,
@@ -176,7 +174,7 @@ export default function ResultsHistory() {
           .select("booking_id")
           .in("booking_id", ids)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase-generated types mismatch our enum
-          .eq("status", "pending" as any);
+          .eq("status", "solicitado" as any);
         if (error) throw error;
         const set = new Set<string>();
         (data ?? []).forEach((r) => r.booking_id && set.add(r.booking_id));

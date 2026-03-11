@@ -4,8 +4,6 @@
  * @path src/components/TicketModal.tsx
  */
 
-
-
 import useTicket from "@/hooks/useTicket";
 import { useCallback } from "react";
 import { createPortal } from "react-dom";
@@ -26,7 +24,7 @@ export default function TicketModal({ open, onClose }: Props) {
     } catch {
       // ignore
     }
-  }, [ticketData?.code]);
+  }, [ticketData]);
 
   if (!open) return null;
 

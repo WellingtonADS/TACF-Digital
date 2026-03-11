@@ -4,13 +4,12 @@
  * @path src/pages/UserProfilesManagement.tsx
  */
 
-
-
 import PasswordInput from "@/components/atomic/PasswordInput";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
+import type { Profile } from "@/types";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
 import type { FormEvent } from "react";
@@ -32,15 +31,7 @@ function formatPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-type Profile = {
-  id: string;
-  full_name?: string | null;
-  war_name?: string | null;
-  saram?: string | null;
-  email?: string | null;
-  phone_number?: string | null;
-  rank?: string | null;
-  sector?: string | null;
+type UserProfileView = Profile & {
   inspsau_valid_until?: string | null;
   inspsau_last_inspection?: string | null;
   birth_date?: string | null;
@@ -49,7 +40,7 @@ type Profile = {
 
 export default function UserProfilesManagement() {
   const { user, profile: authProfile, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfileView | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -61,7 +52,7 @@ export default function UserProfilesManagement() {
     if (authLoading) return;
     // prefer profile already loaded by useAuth to avoid duplicate fetches
     if (authProfile) {
-      setProfile(authProfile as Profile);
+      setProfile(authProfile);
       return;
     }
     loadProfile();
@@ -85,7 +76,7 @@ export default function UserProfilesManagement() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const data = (result.data as Profile | null) ?? null;
+      const data = (result.data as UserProfileView | null) ?? null;
       const error = result.error;
 
       if (error) {
@@ -119,7 +110,10 @@ export default function UserProfilesManagement() {
     }
   }
 
-  function handleChange<K extends keyof Profile>(key: K, value: Profile[K]) {
+  function handleChange<K extends keyof UserProfileView>(
+    key: K,
+    value: UserProfileView[K],
+  ) {
     setProfile((p) => (p ? { ...p, [key]: value } : p));
   }
 
@@ -179,7 +173,7 @@ export default function UserProfilesManagement() {
       } else {
         toast.success("Alterações salvas com sucesso.");
         const saved = (Array.isArray(data) ? data[0] : data) as
-          | Profile
+          | UserProfileView
           | null
           | undefined;
         setProfile(saved ?? profile);

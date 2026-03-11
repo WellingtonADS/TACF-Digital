@@ -6,6 +6,15 @@ export type Json =
   | { [key: string]: Json }
   | Json[];
 
+// ─── Enum Aliases (DRY — definir uma vez, reusar em toda parte) ───────────────────
+export type UserRole = "user" | "admin" | "coordinator";
+export type SemesterType = "1" | "2";
+export type SessionPeriod = "manha" | "tarde";
+export type SessionStatus = "open" | "closed" | "completed";
+export type BookingStatus = "agendado" | "cancelado" | "remarcado";
+export type SwapStatus = "solicitado" | "aprovado" | "cancelado";
+export type LocationStatus = "active" | "maintenance" | "inactive";
+
 export interface Database {
   public: {
     Tables: {
@@ -15,18 +24,14 @@ export interface Database {
           saram?: string | null;
           full_name?: string | null;
           rank?: string | null;
-          role: "user" | "admin" | "coordinator";
-          semester?: "1" | "2" | null;
+          role: UserRole;
+          semester?: SemesterType | null;
           phone_number?: string | null;
           email?: string | null;
           active: boolean;
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
-          birth_date?: string | null;
-          physical_group?: string | null;
-          inspsau_valid_until?: string | null;
-          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -34,18 +39,14 @@ export interface Database {
           id?: string;
           full_name?: string | null;
           rank?: string | null;
-          role?: "user" | "admin" | "coordinator";
-          semester?: "1" | "2" | null;
+          role?: UserRole;
+          semester?: SemesterType | null;
           phone_number?: string | null;
           email?: string | null;
           active?: boolean;
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
-          birth_date?: string | null;
-          physical_group?: string | null;
-          inspsau_valid_until?: string | null;
-          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -54,18 +55,14 @@ export interface Database {
           saram?: string | null;
           full_name?: string | null;
           rank?: string | null;
-          role?: "user" | "admin" | "coordinator";
-          semester?: "1" | "2" | null;
+          role?: UserRole;
+          semester?: SemesterType | null;
           phone_number?: string | null;
           email?: string | null;
           active?: boolean;
           war_name?: string | null;
           sector?: string | null;
           metadata?: Json | null;
-          birth_date?: string | null;
-          physical_group?: string | null;
-          inspsau_valid_until?: string | null;
-          inspsau_last_inspection?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -79,7 +76,7 @@ export interface Database {
           organization_name: string;
           min_capacity: number;
           max_capacity: number;
-          default_periods: string[]; // session_period enum values
+          default_periods: SessionPeriod[];
           allow_swaps: boolean;
           require_quorum: boolean;
           created_at?: string | null;
@@ -92,7 +89,7 @@ export interface Database {
           organization_name: string;
           min_capacity?: number;
           max_capacity?: number;
-          default_periods?: string[];
+          default_periods?: SessionPeriod[];
           allow_swaps?: boolean;
           require_quorum?: boolean;
           created_at?: string | null;
@@ -105,83 +102,11 @@ export interface Database {
           organization_name?: string;
           min_capacity?: number;
           max_capacity?: number;
-          default_periods?: string[];
+          default_periods?: SessionPeriod[];
           allow_swaps?: boolean;
           require_quorum?: boolean;
           created_at?: string | null;
           updated_at?: string | null;
-        };
-        Relationships: [];
-      };
-      access_profiles: {
-        Row: {
-          id: string;
-          name: string;
-          description?: string | null;
-          role: "user" | "admin" | "coordinator";
-          icon: string;
-          is_active: boolean;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          role: "user" | "admin" | "coordinator";
-          icon?: string;
-          is_active?: boolean;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          description?: string | null;
-          role?: "user" | "admin" | "coordinator";
-          icon?: string;
-          is_active?: boolean;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Relationships: [];
-      };
-      permissions: {
-        Row: {
-          id: string;
-          name: string;
-          description?: string | null;
-          created_at?: string | null;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          created_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          description?: string | null;
-          created_at?: string | null;
-        };
-        Relationships: [];
-      };
-      access_profile_permissions: {
-        Row: {
-          access_profile_id: string;
-          permission_id: string;
-          created_at?: string | null;
-        };
-        Insert: {
-          access_profile_id: string;
-          permission_id: string;
-          created_at?: string | null;
-        };
-        Update: {
-          access_profile_id?: string;
-          permission_id?: string;
-          created_at?: string | null;
         };
         Relationships: [];
       };
@@ -221,13 +146,14 @@ export interface Database {
           id: string;
           user_id: string;
           session_id: string;
-          status: "agendado" | "cancelado" | "remarcado";
-          semester?: string | null;
+          status: BookingStatus;
+          semester: SemesterType;
           swap_reason?: string | null;
           order_number?: string | null;
-          attendance_confirmed?: boolean | null;
-          score?: number | null;
-          result_details?: string | null;
+          attendance_confirmed: boolean;
+          score?: string | null;
+          result_details?: Json | null;
+          metadata?: Json | null;
           test_date?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
@@ -236,13 +162,14 @@ export interface Database {
           id?: string;
           user_id: string;
           session_id: string;
-          status?: "agendado" | "cancelado" | "remarcado";
-          semester?: string | null;
+          status?: BookingStatus;
+          semester: SemesterType;
           swap_reason?: string | null;
           order_number?: string | null;
-          attendance_confirmed?: boolean | null;
-          score?: number | null;
-          result_details?: string | null;
+          attendance_confirmed?: boolean;
+          score?: string | null;
+          result_details?: Json | null;
+          metadata?: Json | null;
           test_date?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
@@ -251,13 +178,14 @@ export interface Database {
           id?: string;
           user_id?: string;
           session_id?: string;
-          status?: "agendado" | "cancelado" | "remarcado";
-          semester?: string | null;
+          status?: BookingStatus;
+          semester?: SemesterType;
           swap_reason?: string | null;
           order_number?: string | null;
-          attendance_confirmed?: boolean | null;
-          score?: number | null;
-          result_details?: string | null;
+          attendance_confirmed?: boolean;
+          score?: string | null;
+          result_details?: Json | null;
+          metadata?: Json | null;
           test_date?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
@@ -267,42 +195,51 @@ export interface Database {
       sessions: {
         Row: {
           id: string;
-          starts_at: string;
-          date: string | null;
-          period: "manha" | "tarde" | null;
-          max_capacity?: number | null;
+          starts_at: string | null;
+          date: string;
+          period: SessionPeriod;
+          max_capacity: number;
           capacity?: number | null;
+          title?: string | null;
+          summary?: string | null;
+          metadata?: Json | null;
           location_id?: string | null;
           applicators?: string[] | null;
-          status?: string | null;
+          status: SessionStatus;
           coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
         Insert: {
           id?: string;
-          starts_at: string;
-          date?: string | null;
-          period?: "manha" | "tarde" | null;
-          max_capacity?: number | null;
+          starts_at?: string | null;
+          date: string;
+          period: SessionPeriod;
+          max_capacity: number;
           capacity?: number | null;
+          title?: string | null;
+          summary?: string | null;
+          metadata?: Json | null;
           location_id?: string | null;
           applicators?: string[] | null;
-          status?: string | null;
+          status?: SessionStatus;
           coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
         Update: {
           id?: string;
-          starts_at?: string;
-          date?: string | null;
-          period?: "manha" | "tarde" | null;
-          max_capacity?: number | null;
+          starts_at?: string | null;
+          date?: string;
+          period?: SessionPeriod;
+          max_capacity?: number;
           capacity?: number | null;
+          title?: string | null;
+          summary?: string | null;
+          metadata?: Json | null;
           location_id?: string | null;
           applicators?: string[] | null;
-          status?: string | null;
+          status?: SessionStatus;
           coordinator_id?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
@@ -315,7 +252,7 @@ export interface Database {
           name: string;
           address: string;
           max_capacity: number;
-          status: "active" | "maintenance" | "inactive";
+          status: LocationStatus;
           facilities: string[] | null;
           metadata?: Json | null;
           created_by?: string | null;
@@ -327,7 +264,7 @@ export interface Database {
           name: string;
           address: string;
           max_capacity?: number;
-          status?: "active" | "maintenance" | "inactive";
+          status?: LocationStatus;
           facilities?: string[] | null;
           metadata?: Json | null;
           created_by?: string | null;
@@ -339,7 +276,7 @@ export interface Database {
           name?: string;
           address?: string;
           max_capacity?: number;
-          status?: "active" | "maintenance" | "inactive";
+          status?: LocationStatus;
           facilities?: string[] | null;
           metadata?: Json | null;
           created_by?: string | null;
@@ -353,7 +290,7 @@ export interface Database {
           id: string;
           location_id: string;
           day_of_week: number;
-          period: "manha" | "tarde";
+          period: SessionPeriod;
           start_time: string;
           end_time?: string | null;
           is_active: boolean;
@@ -363,7 +300,7 @@ export interface Database {
           id?: string;
           location_id: string;
           day_of_week: number;
-          period: "manha" | "tarde";
+          period: SessionPeriod;
           start_time?: string;
           end_time?: string | null;
           is_active?: boolean;
@@ -373,7 +310,7 @@ export interface Database {
           id?: string;
           location_id?: string;
           day_of_week?: number;
-          period?: "manha" | "tarde";
+          period?: SessionPeriod;
           start_time?: string;
           end_time?: string | null;
           is_active?: boolean;
@@ -388,7 +325,7 @@ export interface Database {
           requested_by: string;
           new_session_id: string;
           reason: string;
-          status: "solicitado" | "aprovado" | "cancelado";
+          status: SwapStatus;
           processed_by?: string | null;
           processed_at?: string | null;
           created_at: string;
@@ -400,7 +337,7 @@ export interface Database {
           requested_by: string;
           new_session_id: string;
           reason: string;
-          status?: "solicitado" | "aprovado" | "cancelado";
+          status?: SwapStatus;
           processed_by?: string | null;
           processed_at?: string | null;
           created_at?: string;
@@ -412,7 +349,7 @@ export interface Database {
           requested_by?: string;
           new_session_id?: string;
           reason?: string;
-          status?: "solicitado" | "aprovado" | "cancelado";
+          status?: SwapStatus;
           processed_by?: string | null;
           processed_at?: string | null;
           created_at?: string;
@@ -499,6 +436,19 @@ export interface Database {
           available_count: number;
         }[];
       };
+      get_booked_dates: {
+        Args: { p_start: string; p_end: string };
+        Returns: {
+          test_date: string;
+        }[];
+      };
+      get_existing_semester_booking: {
+        Args: { p_semester: string };
+        Returns: {
+          id: string;
+          test_date: string;
+        }[];
+      };
       get_audit_logs: {
         Args: Record<string, never>;
         Returns: {
@@ -526,8 +476,13 @@ export interface Database {
       };
     };
     Enums: {
-      session_period: "manha" | "tarde";
-      user_role: "user" | "admin" | "coordinator";
+      session_period: SessionPeriod;
+      session_status: SessionStatus;
+      user_role: UserRole;
+      booking_status: BookingStatus;
+      swap_status: SwapStatus;
+      location_status: LocationStatus;
+      semester_type: SemesterType;
     };
   };
 }
@@ -535,5 +490,3 @@ export interface Database {
 export type Location = Database["public"]["Tables"]["locations"]["Row"];
 export type LocationSchedule =
   Database["public"]["Tables"]["location_schedules"]["Row"];
-
-

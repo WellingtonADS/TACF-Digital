@@ -4,8 +4,6 @@
  * @path src/pages/ReschedulingManagement.tsx
  */
 
-
-
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
@@ -38,9 +36,9 @@ type RequestRow = BookingRow & {
 type FilterStatus = "pendentes" | "aprovados" | "recusados";
 
 const STATUS_LABELS: Record<string, string> = {
-  pending_swap: "Pendente",
-  confirmed: "Aprovado",
-  cancelled: "Recusado",
+  solicitado: "Pendente",
+  aprovado: "Aprovado",
+  cancelado: "Recusado",
 };
 
 const FILTER_OPTIONS: Array<{ value: FilterStatus; label: string }> = [
@@ -50,10 +48,10 @@ const FILTER_OPTIONS: Array<{ value: FilterStatus; label: string }> = [
 ];
 
 function getStatusBadgeClass(status: RequestRow["status"]) {
-  if (status === "pending_swap") {
+  if (status === "solicitado") {
     return "bg-secondary/10 text-secondary border-secondary/20";
   }
-  if (status === "confirmed") {
+  if (status === "aprovado") {
     return "bg-success/10 text-success border-success/20";
   }
   return "bg-error/10 text-error border-error/20";
@@ -215,15 +213,15 @@ export default function ReschedulingManagement() {
   }, []);
 
   const pendingCount = useMemo(
-    () => rows.filter((row) => row.status === "pending_swap").length,
+    () => rows.filter((row) => row.status === "solicitado").length,
     [rows],
   );
   const approvedCount = useMemo(
-    () => rows.filter((row) => row.status === "confirmed").length,
+    () => rows.filter((row) => row.status === "aprovado").length,
     [rows],
   );
   const rejectedCount = useMemo(
-    () => rows.filter((row) => row.status === "cancelled").length,
+    () => rows.filter((row) => row.status === "cancelado").length,
     [rows],
   );
 
@@ -237,13 +235,13 @@ export default function ReschedulingManagement() {
           return false;
         }
       }
-      if (statusFilter === "pendentes") return row.status === "pending_swap";
-      if (statusFilter === "aprovados") return row.status === "confirmed";
-      return row.status === "cancelled";
+      if (statusFilter === "pendentes") return row.status === "solicitado";
+      if (statusFilter === "aprovados") return row.status === "aprovado";
+      return row.status === "cancelado";
     });
   }, [rows, query, statusFilter]);
 
-  async function changeStatus(id: string, status: "confirmed" | "cancelled") {
+  async function changeStatus(id: string, status: "aprovado" | "cancelado") {
     const { error } = await supabase
       .from("bookings")
       .update({ status })
@@ -360,7 +358,7 @@ export default function ReschedulingManagement() {
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => changeStatus(row.id, "confirmed")}
+                      onClick={() => changeStatus(row.id, "aprovado")}
                       className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-success px-3 py-2 text-[10px] font-bold text-success-foreground transition-all hover:brightness-110"
                     >
                       <CheckCircle size={12} />
@@ -368,7 +366,7 @@ export default function ReschedulingManagement() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => changeStatus(row.id, "cancelled")}
+                      onClick={() => changeStatus(row.id, "cancelado")}
                       className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-error px-3 py-2 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground"
                     >
                       <XCircle size={12} />
@@ -466,7 +464,7 @@ export default function ReschedulingManagement() {
                         <div className="flex items-center justify-end gap-3">
                           <button
                             type="button"
-                            onClick={() => changeStatus(row.id, "confirmed")}
+                            onClick={() => changeStatus(row.id, "aprovado")}
                             className="flex items-center gap-1 rounded-lg bg-success px-4 py-1.5 text-[10px] font-bold text-success-foreground transition-all hover:brightness-110"
                           >
                             <CheckCircle size={12} />
@@ -474,7 +472,7 @@ export default function ReschedulingManagement() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => changeStatus(row.id, "cancelled")}
+                            onClick={() => changeStatus(row.id, "cancelado")}
                             className="flex items-center gap-1 rounded-lg border border-error px-4 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground"
                           >
                             <XCircle size={12} />

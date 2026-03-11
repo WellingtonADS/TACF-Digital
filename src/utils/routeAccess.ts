@@ -1,6 +1,9 @@
 import type { ProfileRole, RouteAccess } from "@/types";
 
-const ADMIN_ROLES: ReadonlySet<ProfileRole> = new Set(["admin", "coordinator"]);
+export const ADMIN_ROLES: ReadonlySet<ProfileRole> = new Set([
+  "admin",
+  "coordinator",
+]);
 
 export function isAdminLike(role: ProfileRole | null | undefined): boolean {
   return role ? ADMIN_ROLES.has(role) : false;
@@ -21,4 +24,12 @@ export function canAccessRoute(
   return !isAdminLike(role);
 }
 
+const ROLE_LABELS: Record<ProfileRole, string> = {
+  admin: "Administrador",
+  coordinator: "Coordenador",
+  user: "Usuário",
+};
 
+export function getRoleLabel(role: ProfileRole | null | undefined): string {
+  return role ? (ROLE_LABELS[role] ?? "Usuário") : "Usuário";
+}

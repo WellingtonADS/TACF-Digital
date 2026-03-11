@@ -4,8 +4,6 @@
  * @path src/pages/AnalyticsDashboard.tsx
  */
 
-
-
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -23,6 +21,7 @@ import {
 } from "@/icons";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
+import { isAdminLike } from "@/utils/routeAccess";
 import {
   addDays,
   addYears,
@@ -153,8 +152,7 @@ function presetRange(preset: DatePreset): { from: string; to: string } {
 
 export default function AnalyticsDashboard() {
   const { profile, loading: authLoading } = useAuth();
-  const canManage =
-    profile?.role === "admin" || profile?.role === "coordinator";
+  const canManage = isAdminLike(profile?.role);
 
   // Date state
   const [datePreset, setDatePreset] = useState<DatePreset>("year");

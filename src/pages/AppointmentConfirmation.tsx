@@ -4,8 +4,6 @@
  * @path src/pages/AppointmentConfirmation.tsx
  */
 
-
-
 import Layout from "@/components/layout/Layout";
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "@/icons";
 import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
@@ -18,9 +16,9 @@ import {
   fetchExistingSemesterBooking,
   formatDatePtBr,
   formatSessionPeriod,
-  getSemesterFromDate,
   translateBookingError,
 } from "@/utils/booking";
+import { getSemesterFromDate } from "@/utils/date";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -266,10 +264,7 @@ export const AppointmentConfirmation = () => {
         if (session?.date) {
           const semester = getSemesterFromDate(session.date!);
           if (semester) {
-            const existing = await fetchExistingSemesterBooking(
-              userId,
-              semester,
-            );
+            const existing = await fetchExistingSemesterBooking(semester);
             if (existing && existing.id !== booking?.id) {
               setExistingSemesterBooking(existing as unknown as BookingPreview);
               toast.error(

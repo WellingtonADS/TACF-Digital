@@ -4,8 +4,6 @@
  * @path src/pages/AdminDashboard.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import StatCard from "@/components/atomic/StatCard";
@@ -132,11 +130,11 @@ export const AdminDashboard = () => {
         if (aptosError) throw aptosError;
         setAptosMonth(aptosCount ?? 0);
 
-        // pendências: qualquer booking que não esteja confirmado
+        // pendências: qualquer booking que não esteja agendado
         const { count: pendCount, error: pendError } = await supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
-          .not("status", "eq", "confirmed");
+          .not("status", "eq", "agendado");
 
         if (pendError) throw pendError;
         setPendencias(pendCount ?? 0);

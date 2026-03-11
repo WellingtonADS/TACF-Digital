@@ -7,40 +7,12 @@
 // implementation previously located in src/layout/Sidebar.tsx
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
-import {
-  BarChart2,
-  Calendar,
-  ClipboardList,
-  ClipboardPen,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  Settings,
-  Shield,
-  Ticket,
-  User,
-  Users,
-  X,
-} from "@/icons";
+import { LogOut, Shield, X } from "@/icons";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { getRoleLabel } from "@/utils/routeAccess";
 import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
+import { sidebarIconMap } from "@/utils/sidebarIcons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-
-const sidebarIconMap = {
-  "layout-dashboard": LayoutDashboard,
-  calendar: Calendar,
-  "file-text": FileText,
-  ticket: Ticket,
-  "clipboard-list": ClipboardList,
-  user: User,
-  users: Users,
-  "map-pin": MapPin,
-  "clipboard-pen": ClipboardPen,
-  "bar-chart-2": BarChart2,
-  settings: Settings,
-  shield: Shield,
-} as const;
 
 type SidebarProps = {
   isOpen?: boolean;
@@ -136,11 +108,7 @@ export const Sidebar = ({
                 {profile.war_name ?? profile.full_name ?? "—"}
               </p>
               <p className="text-xs text-white/50 truncate capitalize">
-                {profile.role === "admin"
-                  ? "Administrador"
-                  : profile.role === "coordinator"
-                    ? "Coordenador"
-                    : "Usuário"}
+                {getRoleLabel(profile.role)}
               </p>
             </div>
           </div>

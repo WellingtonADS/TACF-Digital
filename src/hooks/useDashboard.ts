@@ -202,7 +202,10 @@ export default function useDashboard() {
           .eq("user_id", uid)
           .eq("status", "agendado");
         const agendadoWithoutOrder = Array.isArray(agendadoData)
-          ? agendadoData.filter((b: any) => b.order_number == null).length
+          ? agendadoData.filter(
+              (b: { order_number: string | null; id: string }) =>
+                b.order_number == null,
+            ).length
           : 0;
 
         const localBookingsCount = withOrderCount + agendadoWithoutOrder;

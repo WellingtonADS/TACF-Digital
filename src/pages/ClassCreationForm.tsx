@@ -4,8 +4,6 @@
  * @path src/pages/ClassCreationForm.tsx
  */
 
-
-
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
@@ -99,10 +97,10 @@ function fmtDateChip(dateStr: string): string {
   });
 }
 
-function derivePeriod(startTime: string): "morning" | "afternoon" {
+function derivePeriod(startTime: string): "manha" | "tarde" {
   const [hoursRaw] = startTime.split(":");
   const hours = Number(hoursRaw || 0);
-  return hours < 12 ? "morning" : "afternoon";
+  return hours < 12 ? "manha" : "tarde";
 }
 
 export default function ClassCreationForm() {

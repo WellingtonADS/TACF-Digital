@@ -1,29 +1,10 @@
 import supabase from "@/services/supabase";
 
-export const formatDatePtBr = (dateStr: string) =>
-  new Date(`${dateStr}T12:00:00`).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
 export const formatSessionPeriod = (period: string) => {
   const normalized = (period ?? "").toString().trim().toLowerCase();
   if (normalized === "manha") return "Manhã";
   if (normalized === "tarde") return "Tarde";
-  if (normalized === "morning") return "Manhã";
-  if (normalized === "afternoon") return "Tarde";
   return period;
-};
-
-export const getSemesterFromDate = (dateStr: string) => {
-  try {
-    const d = new Date(`${dateStr}T12:00:00`);
-    const month = d.getMonth() + 1;
-    return month <= 6 ? "1" : "2";
-  } catch {
-    return null;
-  }
 };
 
 export const translateBookingError = (err?: string | null) => {
@@ -55,44 +36,47 @@ export async function fetchBookedDatesForUser(
   endStr: string,
 ): Promise<Set<string>> {
   try {
-    const userResp = await supabase.auth.getUser();
-    const userId = userResp.data.user?.id ?? null;
+    const { data, error } = await supabase.rpc("get_booked_dates", {
+      p_start: startStr,
+      p_end: endStr,
+    });
 
-    if (!userId) return new Set();
+    if (error || !Array.isArray(data)) return new Set();
 
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("test_date")
-      .eq("user_id", userId)
-      .gte("test_date", startStr)
-      .lte("test_date", endStr);
+    const dates = data
+      .filter(
+        (r): r is { test_date: string } =>
+          !!r &&
+          typeof r === "object" &&
+          "test_date" in r &&
+          typeof (r as { test_date: unknown }).test_date === "string",
+      )
+      .map((r) => r.test_date);
 
-    if (error || !data) return new Set();
-
-    return new Set((data as { test_date: string }[]).map((r) => r.test_date));
-  } catch {
+    return new Set(dates);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("fetchBookedDatesForUser error:", error);
+    }
     return new Set();
   }
 }
 
 export async function fetchExistingSemesterBooking(
-  userId: string,
   semester: string,
 ): Promise<{ id: string; test_date: string } | null> {
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("id, test_date")
-      .eq("user_id", userId)
-      .eq("status", "agendado")
-      .eq("semester", semester)
-      .maybeSingle<{ id: string; test_date: string }>();
+    const { data, error } = await supabase.rpc(
+      "get_existing_semester_booking",
+      { p_semester: semester },
+    );
 
     if (error || !data) return null;
-    return data;
-  } catch {
+    return data[0] ?? null;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("fetchExistingSemesterBooking error:", error);
+    }
     return null;
   }
 }
-
-

@@ -4,8 +4,6 @@
  * @path src/pages/OmScheduleEditor.tsx
  */
 
-
-
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
@@ -21,7 +19,7 @@ import {
   Sun,
 } from "@/icons";
 import supabase from "@/services/supabase";
-import type { LocationSchedule } from "@/types/database.types";
+import type { LocationSchedule, SessionPeriod } from "@/types/database.types";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -36,23 +34,23 @@ const DAYS: { num: number; short: string; long: string }[] = [
   { num: 5, short: "Sex", long: "Sexta-feira" },
 ];
 
-const PERIODS: { key: "morning" | "afternoon"; label: string }[] = [
-  { key: "morning", label: "Manhã" },
-  { key: "afternoon", label: "Tarde" },
+const PERIODS: { key: SessionPeriod; label: string }[] = [
+  { key: "manha", label: "Manhã" },
+  { key: "tarde", label: "Tarde" },
 ];
 
-const DEFAULT_TIMES: Record<"morning" | "afternoon", string> = {
-  morning: "07:00",
-  afternoon: "13:00",
+const DEFAULT_TIMES: Record<SessionPeriod, string> = {
+  manha: "07:00",
+  tarde: "13:00",
 };
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-type SlotKey = `${number}-${"morning" | "afternoon"}`;
+type SlotKey = `${number}-${SessionPeriod}`;
 
 type SlotState = {
   day_of_week: number;
-  period: "morning" | "afternoon";
+  period: SessionPeriod;
   start_time: string;
   is_active: boolean;
 };
@@ -369,16 +367,15 @@ export default function OmScheduleEditor() {
 
   const morningCount = useMemo(
     () =>
-      Object.values(slots).filter((s) => s.period === "morning" && s.is_active)
+      Object.values(slots).filter((s) => s.period === "manha" && s.is_active)
         .length,
     [slots],
   );
 
   const afternoonCount = useMemo(
     () =>
-      Object.values(slots).filter(
-        (s) => s.period === "afternoon" && s.is_active,
-      ).length,
+      Object.values(slots).filter((s) => s.period === "tarde" && s.is_active)
+        .length,
     [slots],
   );
 
@@ -464,7 +461,7 @@ export default function OmScheduleEditor() {
                     key={period.key}
                     className="flex items-center justify-center gap-2 rounded-xl bg-bg-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted"
                   >
-                    {period.key === "morning" ? (
+                    {period.key === "manha" ? (
                       <Sun size={14} className="text-secondary" />
                     ) : (
                       <Moon size={14} className="text-primary" />

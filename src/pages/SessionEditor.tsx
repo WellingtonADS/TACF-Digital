@@ -4,8 +4,6 @@
  * @path src/pages/SessionEditor.tsx
  */
 
-
-
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import {
@@ -25,11 +23,14 @@ import { PT_MONTHS } from "@/utils/ptMonths";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import type { Database } from "../types/database.types";
+import type {
+  Database,
+  SessionPeriod,
+  SessionStatus,
+} from "../types/database.types";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-type SessionStatus = "open" | "closed" | "completed";
 type DateMode = "single" | "week" | "month";
 
 type FormState = {
@@ -108,13 +109,13 @@ function fmtDateChip(dateStr: string): string {
   });
 }
 
-function derivePeriod(startTime: string): "morning" | "afternoon" {
+function derivePeriod(startTime: string): SessionPeriod {
   const hours = Number(startTime.split(":")[0] ?? 0);
-  return hours < 12 ? "morning" : "afternoon";
+  return hours < 12 ? "manha" : "tarde";
 }
 
 function periodToDefaultTime(period: string): string {
-  return period === "morning" ? "08:00" : "14:00";
+  return period === "manha" ? "08:00" : "14:00";
 }
 
 /**
@@ -247,7 +248,7 @@ export default function SessionEditor() {
         dateMode: "single",
         weekValue: "",
         monthValue: "",
-        startTime: periodToDefaultTime(s.period ?? "morning"),
+        startTime: periodToDefaultTime(s.period ?? "manha"),
         location_id: s.location_id ?? "",
         instructor_id:
           Array.isArray(s.applicators) && s.applicators.length > 0

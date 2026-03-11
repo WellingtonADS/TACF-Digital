@@ -4,8 +4,6 @@
  * @path src/components/TicketsListModal.tsx
  */
 
-
-
 import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
@@ -63,7 +61,7 @@ export default function TicketsListModal({
 
         if (error) console.error("Erro ao buscar bilhetes:", error);
         if (!mounted) return;
-        setTickets(Array.isArray(data) ? (data as any) : []);
+        setTickets(Array.isArray(data) ? (data as TicketRow[]) : []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -170,7 +168,9 @@ export default function TicketsListModal({
                                 await navigator.clipboard.writeText(
                                   t.order_number ?? "",
                                 );
-                              } catch {}
+                              } catch {
+                                // ignore
+                              }
                             }}
                             className="flex-1 rounded-xl border px-3 py-2 text-sm"
                           >
