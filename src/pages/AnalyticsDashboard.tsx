@@ -21,6 +21,7 @@ import {
 } from "@/icons";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
+import { downloadCSV } from "@/utils/csv";
 import { isAdminLike } from "@/utils/routeAccess";
 import {
   addDays,
@@ -101,23 +102,6 @@ function clampPercent(value: number) {
 
 function priorityOrder(p: PendingRow["priority"]) {
   return p === "ALTA" ? 0 : p === "MEDIA" ? 1 : 2;
-}
-
-function downloadCSV(filename: string, rows: string[][], headers: string[]) {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [
-    headers.map(esc).join(","),
-    ...rows.map((r) => r.map(esc).join(",")),
-  ];
-  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function presetRange(preset: DatePreset): { from: string; to: string } {

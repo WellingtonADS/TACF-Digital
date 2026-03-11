@@ -4,12 +4,10 @@
  * @path src/pages/PersonnelManagement.tsx
  */
 
-
-
-import Layout from "@/components/layout/Layout";
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
 import {
   Award,
   Calendar,
@@ -32,6 +30,7 @@ import {
 } from "@/icons";
 import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
+import { downloadCSV } from "@/utils/csv";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -434,7 +433,7 @@ export default function PersonnelManagement() {
   }, [rows]);
 
   function exportCsv() {
-    const header = [
+    const headers = [
       "nome",
       "nome_guerra",
       "posto_graduacao",
@@ -445,7 +444,7 @@ export default function PersonnelManagement() {
       "status",
     ];
 
-    const body = filteredRows.map((row) => [
+    const rows = filteredRows.map((row) => [
       row.fullName,
       row.warName ?? "",
       row.rank ?? "",
@@ -456,21 +455,7 @@ export default function PersonnelManagement() {
       row.status,
     ]);
 
-    const csv = [header, ...body]
-      .map((line) =>
-        line
-          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "efetivo-tacf.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCSV("efetivo-tacf.csv", rows, headers);
   }
 
   if (loading) {
@@ -491,7 +476,7 @@ export default function PersonnelManagement() {
                 <p className="mt-2 text-sm font-normal text-white/80 md:text-base">
                   Controle operacional de militares, aptidão e prontidão para
                   sessão TACF.
-                </p>                
+                </p>
               </div>
 
               <button
