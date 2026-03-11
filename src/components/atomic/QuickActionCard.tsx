@@ -1,3 +1,11 @@
+/**
+ * @page QuickActionCard
+ * @description Cartão de ação rápida com ícone e texto.
+ * @path src/components/atomic/QuickActionCard.tsx
+ */
+
+
+
 import type { ReactNode } from "react";
 
 type Props = {

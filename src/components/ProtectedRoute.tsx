@@ -1,3 +1,11 @@
+/**
+ * @page ProtectedRoute
+ * @description Guard de rota para usuários autenticados.
+ * @path src/components/ProtectedRoute.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import PageSkeleton from "./PageSkeleton";
@@ -10,7 +18,7 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton rows={6} />;
+    return <PageSkeleton fullPage rows={6} />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

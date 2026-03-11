@@ -221,7 +221,7 @@ export interface Database {
           id: string;
           user_id: string;
           session_id: string;
-          status: string;
+          status: "agendado" | "cancelado" | "remarcado";
           semester?: string | null;
           swap_reason?: string | null;
           order_number?: string | null;
@@ -236,7 +236,7 @@ export interface Database {
           id?: string;
           user_id: string;
           session_id: string;
-          status?: string;
+          status?: "agendado" | "cancelado" | "remarcado";
           semester?: string | null;
           swap_reason?: string | null;
           order_number?: string | null;
@@ -251,7 +251,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           session_id?: string;
-          status?: string;
+          status?: "agendado" | "cancelado" | "remarcado";
           semester?: string | null;
           swap_reason?: string | null;
           order_number?: string | null;
@@ -267,9 +267,11 @@ export interface Database {
       sessions: {
         Row: {
           id: string;
-          date: string;
-          period: string;
+          starts_at: string;
+          date: string | null;
+          period: "manha" | "tarde" | null;
           max_capacity?: number | null;
+          capacity?: number | null;
           location_id?: string | null;
           applicators?: string[] | null;
           status?: string | null;
@@ -279,9 +281,11 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          date: string;
-          period: string;
+          starts_at: string;
+          date?: string | null;
+          period?: "manha" | "tarde" | null;
           max_capacity?: number | null;
+          capacity?: number | null;
           location_id?: string | null;
           applicators?: string[] | null;
           status?: string | null;
@@ -291,9 +295,11 @@ export interface Database {
         };
         Update: {
           id?: string;
-          date?: string;
-          period?: string;
+          starts_at?: string;
+          date?: string | null;
+          period?: "manha" | "tarde" | null;
           max_capacity?: number | null;
+          capacity?: number | null;
           location_id?: string | null;
           applicators?: string[] | null;
           status?: string | null;
@@ -347,7 +353,7 @@ export interface Database {
           id: string;
           location_id: string;
           day_of_week: number;
-          period: "morning" | "afternoon";
+          period: "manha" | "tarde";
           start_time: string;
           end_time?: string | null;
           is_active: boolean;
@@ -357,7 +363,7 @@ export interface Database {
           id?: string;
           location_id: string;
           day_of_week: number;
-          period: "morning" | "afternoon";
+          period: "manha" | "tarde";
           start_time?: string;
           end_time?: string | null;
           is_active?: boolean;
@@ -367,7 +373,7 @@ export interface Database {
           id?: string;
           location_id?: string;
           day_of_week?: number;
-          period?: "morning" | "afternoon";
+          period?: "manha" | "tarde";
           start_time?: string;
           end_time?: string | null;
           is_active?: boolean;
@@ -382,7 +388,7 @@ export interface Database {
           requested_by: string;
           new_session_id: string;
           reason: string;
-          status: "pending" | "approved" | "rejected";
+          status: "solicitado" | "aprovado" | "cancelado";
           processed_by?: string | null;
           processed_at?: string | null;
           created_at: string;
@@ -394,7 +400,7 @@ export interface Database {
           requested_by: string;
           new_session_id: string;
           reason: string;
-          status?: "pending" | "approved" | "rejected";
+          status?: "solicitado" | "aprovado" | "cancelado";
           processed_by?: string | null;
           processed_at?: string | null;
           created_at?: string;
@@ -406,7 +412,7 @@ export interface Database {
           requested_by?: string;
           new_session_id?: string;
           reason?: string;
-          status?: "pending" | "approved" | "rejected";
+          status?: "solicitado" | "aprovado" | "cancelado";
           processed_by?: string | null;
           processed_at?: string | null;
           created_at?: string;
@@ -520,7 +526,7 @@ export interface Database {
       };
     };
     Enums: {
-      session_period: "morning" | "afternoon";
+      session_period: "manha" | "tarde";
       user_role: "user" | "admin" | "coordinator";
     };
   };
@@ -529,3 +535,5 @@ export interface Database {
 export type Location = Database["public"]["Tables"]["locations"]["Row"];
 export type LocationSchedule =
   Database["public"]["Tables"]["location_schedules"]["Row"];
+
+

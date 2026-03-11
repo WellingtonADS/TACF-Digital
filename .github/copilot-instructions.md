@@ -1,14 +1,38 @@
-Sempre evite resposta longas na janela de contexto, use documentos MarkDown, txt, csv, etc..
-
-```instructions
-# TACF Digital — Instruções para agentes (resumido)
+# TACF Digital — Instruções para agentes (atualizadas)
 
 Este arquivo orienta agentes de IA para trabalhar com o repositório TACF Digital.
 
-Planejar a criação/refatoração, mantenha as conexões do projeto com o banco de dados, pesquise o que já existe em src, só gere algo novo se for extremamente preciso. não gerar testes sem ser solicitado. Sempre com refinamento visual final para aproximar ainda mais do conceito do projeto
-D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaAdmin.md
-D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
+## Objetivo do projeto
 
+O TACF Digital é uma plataforma de agendamento e gestão de sessões voltada para o
+ambiente militar. O foco é permitir que usuários reservem, confirmem e administrem
+sessões com regras de quórum, capacidade e cronograma controladas pelo banco de
+dados. Os agentes devem manter esse propósito em mente ao modificar ou estender o
+código: a interface é apenas uma camada de apresentação, toda regra de negócio
+importante vive em RPCs/migrations no Supabase.
+
+## Estrutura de arquivos e prioridades
+
+Para evitar dispersão de código, siga a hierarquia abaixo sempre que adicionar ou
+alterar arquivos:
+
+1. **`src/pages/`** – cada rota principal tem sua própria página; componentes
+   específicos de página devem ficar aqui.
+2. **`src/components/`** – UI reutilizável agrupada por domínio (`Admin`,
+   `Booking`, `Calendar`, etc.). Antes de criar uma nova pasta, verifique se ela
+   já se encaixa em uma das categorias existentes.
+3. **`src/hooks/`** – hooks customizados que encapsulam lógica de dados ou
+   comportamento compartilhado (por ex. `useBooking`, `useSessions`).
+4. **`src/services/`** – wrappers e clientes externos (Sobresupabase, API, etc.).
+   Evite criar serviços para lógica que pertence ao banco de dados; use RPCs.
+5. **`src/utils/`** – funções utilitárias e geradores (ex.: PDF, formatação de
+   datas). Use quando o código não se encaixa em componentes, hooks ou serviços.
+6. **`supabase/`** – migrations, políticas e RPCs; toda lógica de domínio deve ser
+   colocada aqui, não no frontend.
+
+> 🔁 Ordem de prioridade ao salvar: verifique primeiro se um arquivo existente pode
+> ser reaproveitado/extendido antes de criar um novo. Isso impede a proliferação de
+> pastas e mantém o repositório organizado.
 
 ## Code Style
 
@@ -22,6 +46,12 @@ D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
 - Backend/storage: Supabase (RLS, RPCs, migrations) em `supabase/`.
 - UI organizada por domínio: `components/Admin`, `components/Booking`, `components/Calendar`.
 
+### Rotas
+
+- **Preview:** rotas de visualização sob `/preview/*`.
+- **App:** aplicação principal sob `/app/*`.
+- Use `React.lazy` + `Suspense` por rota e implemente prefetch on hover (prefetch do bundle/queries quando o usuário passa o mouse sobre links).
+
 ## Build & Test (comandos)
 
 - Instalar: `yarn`
@@ -33,18 +63,23 @@ D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
 - E2E: Playwright removed in this branch; reintroduce via PR if needed
 - DB scripts: `yarn db:apply`
 
+> Observação: ao desenvolver localmente, garanta que o frontend aponte para o Supabase correto e que as variáveis de ambiente estejam configuradas para usar dados reais quando necessário.
+
 ## Convenções de projeto (importante)
 
 - Estado preferencialmente local; não introduza Redux/Context sem discussão.
 - Não valide regras de domínio (capacidade, quórum, número de ordem) no frontend — essa lógica vive no Postgres/RPCs.
-- Não adicione dependências fora do stack aprovado (React/TS/Vite/Tailwind/jsPDF/Supabase/Playwright/Vitest).
-- Não adicione dependências fora do stack aprovado (React/TS/Vite/Tailwind/jsPDF/Supabase/Vitest). Playwright é opcional e removido nesta branch.
+- Não adicione dependências fora do stack aprovado. Pilha aprovada: React, TypeScript, Vite, Tailwind, Sonner (notificações), jsPDF (+autotable), `react-qr-code`, Supabase, Vitest.
+- Ao implementar geração de PDF/QR, prefira utilitários existentes: `src/utils/pdf/generateCallList.ts` e componentes como `src/pages/DigitalTicket.tsx`.
 
 ## Integrações e pontos de atenção
 
 - Supabase client e helpers: `src/services/supabase.ts`.
 - RPCs importantes: `supabase/rpc/` (ex.: `confirmar_agendamento.sql`, `book_session.sql`).
 - PDF geração: `src/utils/pdf/generateCallList.ts` (usa `jspdf` + `autotable`).
+
+- UI e conexão com dados reais: ao refatorar interfaces, garanta que as chamadas do frontend usem `src/services/supabase.ts` e que hooks como `useSessions` / `useBooking` consumam RPCs existentes em `supabase/rpc/`.
+- Lógica crítica (quórum, validações, regras de reserva) deve ficar exclusivamente no banco via RPCs/migrations — **não** mova essas validações para o frontend.
 
 ## Segurança e limites operacionais
 
@@ -54,13 +89,15 @@ D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
 ## Como agentes devem trabalhar aqui
 
 - Prefira usar/atualizar RPCs existentes em `supabase/rpc/` em vez de mover validações para o cliente.
-- Para mudanças no banco (migrations/policies), peça revisão humana e documente no PR.
-- Ao modificar comportamento de reservas ou regras de domínio, marque revisão do coordenador.
+- Para mudanças no banco (migrations/policies), abra issue, documente a mudança e peça revisão humana.
+- Ao refatorar UI para usar dados reais: valide `env` locais, atualize `src/services/supabase.ts` se necessário e escreva testes unitários que mockem esse wrapper.
+- Para rota/Bundle splitting: adicione lazy-loading por rota e escreva testes básicos para garantir fallback UI visível durante carregamento.
 
 ## Arquivos úteis
 
 - `src/services/supabase.ts` — wrapper Supabase
 - `src/utils/pdf/generateCallList.ts` — gerador de listas de chamada
+- `src/pages/DigitalTicket.tsx` — exemplo de PDF/QR
 - `supabase/migrations` e `supabase/policies/rls.sql`
 
 ## Skills recomendadas (agentes)
@@ -70,46 +107,6 @@ D:\Users\well\Projetos\Desenvolvimento\tacf-digital\docs\ContextRotaUser.md
 - `testing-patterns` + `unit-testing-test-generate`: escrever/atualizar testes unitários (Vitest).
 - `e2e-testing-patterns`: criar/manter testes E2E com Playwright (`yarn test:e2e`).
 - `database-migrations-sql-migrations` / `postgres-best-practices`: revisar migrations, RPCs e RLS (supabase/).
-- `performance-engineer`: otimização de bundle, Core Web Vitals e profiling.
 - `pdf-official`: manter geração/extração de PDFs (`src/utils/pdf/`).
 
-Última atualização: 13 Feb 2026
-
-## Atualizações e orientações adicionais (2026-02-19)
-
-- Rotas e organização:
-  - Considere separar rotas públicas de `preview` e rotas da aplicação principal:
-    - `/preview/*` → views estáticas/preview (carregamento otimizado, menos dados sensíveis).
-    - `/app/*` → aplicação principal (autenticação, dados reais via Supabase).
-  - Mantenha convenção de pastas e lazy-loading por rota para reduzir bundle inicial.
-
-- Lazy-loading por rota:
-  - Use `React.lazy` + `Suspense` para carregar componentes por rota em `src/pages`.
-  - Exemplo: carregar páginas com `const Page = React.lazy(() => import('./pages/XYZ'))`.
-  - Forneça um `fallback` leve em `Suspense` (skeleton/loader) para experiência imediata.
-
-- Prefetch on hover / prefetching:
-  - Prefetch assets e módulos ao detectar hover em links importantes (ex.: `onMouseEnter`).
-  - Prefetch de dados pode ser feito com chamadas Supabase leves ou estratégias de cache.
-  - Evite prefetch agressivo que aumente uso de API/limites; prefira prefetch condicional.
-
-- Uso de Supabase para dados reais:
-  - Use `src/services/supabase.ts` como única fonte para consultas e mutações.
-  - Prefira RPCs em `supabase/rpc/` para regras de domínio complexas e validações server-side.
-  - Nunca mover regras de domínio críticas para o frontend; mantenha a lógica no banco/RPCs.
-  - Ao introduzir integração com dados reais, execute `yarn lint` e `npx tsc --noEmit` antes de abrir PR.
-
-- Geração de PDF / QR:
-  - PDFs devem ser gerados usando os utilitários existentes (`src/utils/pdf/generateCallList.ts`).
-  - Para QR codes em PDFs, prefira gerar imagens vetoriais/PNG no backend ou usar libs aprovadas no frontend (`jspdf` + plugin compatível).
-  - Documente qualquer alteração na geração de PDF/QR em um arquivo de migração/README e inclua testes unitários.
-
-- Revisões e changes no banco de dados:
-  - Qualquer mudança em `supabase/migrations` ou `supabase/policies` exige revisão do coordenador (HACO).
-  - Ao criar migrations, documente o impacto e adicione testes/instruções de rollback no PR.
-
-- Observações gerais:
-  - Não introduzir validações de domínio no frontend; o frontend é apenas uma camada de apresentação.
-  - Para mudanças de infra/docs, adicione labels apropriadas (`docs`, `infra`) e descreva as etapas de verificação no corpo do PR.
-
-```
+Última atualização: 19 Feb 2026

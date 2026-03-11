@@ -1,5 +1,19 @@
+/**
+ * @page AppointmentConfirmation
+ * @description Confirmação e detalhes de agendamento.
+ * @path src/pages/AppointmentConfirmation.tsx
+ */
+
+
+
+import Layout from "@/components/layout/Layout";
+import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "@/icons";
 import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type {
+  BookingRow as DBBookingRow,
+  Profile as DBProfile,
+  SessionRow as DBSessionRow,
+} from "@/types";
 import {
   fetchExistingSemesterBooking,
   formatDatePtBr,
@@ -8,12 +22,10 @@ import {
   translateBookingError,
 } from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "../layout/Layout";
 
 export const AppointmentConfirmation = () => {
   const navigate = useNavigate();
@@ -21,7 +33,7 @@ export const AppointmentConfirmation = () => {
   type LocationState = { bookingId?: string; sessionId?: string };
 
   type BookingPreview = Pick<
-    Database["public"]["Tables"]["bookings"]["Row"],
+    DBBookingRow,
     | "id"
     | "user_id"
     | "session_id"
@@ -33,12 +45,12 @@ export const AppointmentConfirmation = () => {
   >;
 
   type SessionPreview = Pick<
-    Database["public"]["Tables"]["sessions"]["Row"],
+    DBSessionRow,
     "id" | "date" | "period" | "max_capacity"
   > & { location_name?: string | null; location_address?: string | null };
 
   type ProfilePreview = Pick<
-    Database["public"]["Tables"]["profiles"]["Row"],
+    DBProfile,
     "id" | "full_name" | "war_name" | "saram" | "rank" | "sector"
   >;
 
@@ -312,7 +324,7 @@ export const AppointmentConfirmation = () => {
       <main>
         <div className="mx-auto max-w-2xl px-3 sm:px-0">
           <div className="mb-8 text-center sm:mb-10">
-            <h2 className="mb-5 text-2xl font-bold text-slate-900 dark:text-white sm:mb-6 sm:text-3xl">
+            <h2 className="mb-5 text-2xl font-bold text-text-body sm:mb-6 sm:text-3xl">
               Revisar Agendamento
             </h2>
 
@@ -320,7 +332,7 @@ export const AppointmentConfirmation = () => {
             <div className="sm:hidden">
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col items-center gap-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-primary-foreground">
                     <CheckCircle size={16} />
                   </div>
                   <span className="text-[11px] font-semibold text-emerald-600">
@@ -328,7 +340,7 @@ export const AppointmentConfirmation = () => {
                   </span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                     2
                   </div>
                   <span className="text-[11px] font-bold text-primary">
@@ -336,10 +348,10 @@ export const AppointmentConfirmation = () => {
                   </span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-400">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-default text-sm font-bold text-text-muted">
                     3
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-text-muted">
                     Finalizado
                   </span>
                 </div>
@@ -348,7 +360,7 @@ export const AppointmentConfirmation = () => {
 
             <div className="hidden items-center justify-center gap-4 sm:flex">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-primary-foreground">
                   <CheckCircle size={16} />
                 </div>
                 <span className="text-sm font-semibold text-emerald-600">
@@ -357,26 +369,26 @@ export const AppointmentConfirmation = () => {
               </div>
               <div className="h-px w-12 bg-emerald-200" />
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                   2
                 </div>
                 <span className="text-sm font-bold text-primary">
                   Confirmação
                 </span>
               </div>
-              <div className="h-px w-12 bg-slate-200" />
+              <div className="h-px w-12 bg-border-default" />
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-400">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-default text-sm font-bold text-text-muted">
                   3
                 </div>
-                <span className="text-sm font-semibold text-slate-400">
+                <span className="text-sm font-semibold text-text-muted">
                   Finalizado
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 relative">
+          <div className="bg-bg-card rounded-xl shadow-2xl overflow-hidden border border-border-default relative">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
             <div className="p-5 sm:p-8 md:p-10">
               {loading ? (
@@ -384,18 +396,18 @@ export const AppointmentConfirmation = () => {
               ) : (
                 <div className="space-y-8">
                   <section>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                    <label className="block text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
                       Militar
                     </label>
-                    <div className="flex items-start gap-4 rounded-lg bg-slate-50 p-4">
+                    <div className="flex items-start gap-4 rounded-lg bg-bg-default p-4">
                       <div className="text-primary/80 text-3xl">
                         <CheckCircle size={28} />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-base font-bold text-slate-900 sm:text-lg">
+                        <p className="truncate text-base font-bold text-text-body sm:text-lg">
                           {profile?.war_name ?? profile?.full_name ?? "--"}
                         </p>
-                        <p className="text-sm text-slate-600 break-words">
+                        <p className="text-sm text-text-muted break-words">
                           SARAM: {profile?.saram ?? "--"} • Posto/Graduação:{" "}
                           {profile?.rank ?? "--"}
                         </p>
@@ -404,7 +416,7 @@ export const AppointmentConfirmation = () => {
                   </section>
 
                   <section>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                    <label className="block text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
                       Local da Avaliação
                     </label>
                     <div className="flex items-start gap-4">
@@ -412,11 +424,11 @@ export const AppointmentConfirmation = () => {
                         <MapPin className="text-primary" size={18} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-900 sm:text-lg">
+                        <p className="text-base font-semibold text-text-body sm:text-lg">
                           {session?.location_name ?? "Local não informado"}
                         </p>
                         {session?.location_address && (
-                          <p className="mt-1 break-words text-sm text-slate-500">
+                          <p className="mt-1 break-words text-sm text-text-muted">
                             {session.location_address}
                           </p>
                         )}
@@ -424,14 +436,14 @@ export const AppointmentConfirmation = () => {
                     </div>
                   </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-border-default">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                      <label className="block text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
                         Data e Hora
                       </label>
                       <div className="flex items-center gap-3">
                         <Calendar className="text-primary/70" size={18} />
-                        <span className="text-base font-bold text-slate-900 sm:text-lg">
+                        <span className="text-base font-bold text-text-body sm:text-lg">
                           {session?.date ? formatDatePtBr(session.date) : "--"}
                         </span>
                       </div>
@@ -446,19 +458,19 @@ export const AppointmentConfirmation = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                      <label className="block text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
                         Requisitos
                       </label>
                       <ul className="space-y-2">
-                        <li className="flex items-center gap-2 text-sm text-slate-700">
+                        <li className="flex items-center gap-2 text-sm text-text-body">
                           <CheckCircle className="text-emerald-500" size={16} />{" "}
                           Uniforme de TAF completo
                         </li>
-                        <li className="flex items-center gap-2 text-sm text-slate-700">
+                        <li className="flex items-center gap-2 text-sm text-text-body">
                           <CheckCircle className="text-emerald-500" size={16} />{" "}
                           Documento de Identidade Original
                         </li>
-                        <li className="flex items-center gap-2 text-sm text-slate-700">
+                        <li className="flex items-center gap-2 text-sm text-text-body">
                           <CheckCircle className="text-emerald-500" size={16} />{" "}
                           Atestado Médico (se aplicável)
                         </li>
@@ -475,7 +487,7 @@ export const AppointmentConfirmation = () => {
               )}
             </div>
 
-            <div className="bg-slate-50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200">
+            <div className="bg-bg-default p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border-default">
               {existingBookingForDate &&
                 existingBookingForDate.id !== booking?.id && (
                   <div className="w-full mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
@@ -495,7 +507,7 @@ export const AppointmentConfirmation = () => {
                 )}
               <button
                 onClick={handleBack}
-                className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors uppercase tracking-widest flex items-center gap-2"
+                className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-text-muted hover:text-text-body transition-colors uppercase tracking-widest flex items-center gap-2"
               >
                 <ArrowLeft size={16} /> Voltar e Editar
               </button>
@@ -511,7 +523,7 @@ export const AppointmentConfirmation = () => {
                     existingBookingForDate.id !== booking?.id
                   )
                 }
-                className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-lg transition-all flex items-center justify-center gap-3"
+                className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-lg transition-all flex items-center justify-center gap-3"
               >
                 <span className="text-sm font-bold uppercase tracking-widest">
                   {confirming ? "Confirmando..." : "Confirmar Agendamento"}
@@ -521,7 +533,7 @@ export const AppointmentConfirmation = () => {
             </div>
           </div>
 
-          <p className="text-center mt-8 text-sm text-slate-500">
+          <p className="text-center mt-8 text-sm text-text-muted">
             Problemas com o agendamento?{" "}
             <a className="text-primary font-semibold underline" href="#">
               Contatar a Seção de Preparo

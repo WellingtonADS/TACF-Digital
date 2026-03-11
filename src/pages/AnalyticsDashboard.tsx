@@ -1,7 +1,28 @@
+/**
+ * @page AnalyticsDashboard
+ * @description Visualização analítica de indicadores e relatórios.
+ * @path src/pages/AnalyticsDashboard.tsx
+ */
+
+
+
+import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import Layout from "@/layout/Layout";
+import {
+  AlertTriangle,
+  BarChart2,
+  CalendarDays,
+  Download,
+  FileText,
+  Filter,
+  Search,
+  ShieldAlert,
+  TrendingUp,
+  Users,
+} from "@/icons";
 import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
+import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
 import {
   addDays,
   addYears,
@@ -13,32 +34,18 @@ import {
   startOfYear,
   subMonths,
 } from "date-fns";
-import {
-  AlertTriangle,
-  BarChart3,
-  CalendarDays,
-  ChevronDown,
-  Download,
-  FileText,
-  Filter,
-  LineChart,
-  Search,
-  ShieldAlert,
-  TrendingUp,
-  Users,
-} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
+  DBProfile,
   "id" | "full_name" | "war_name" | "saram" | "rank" | "sector" | "active"
 >;
 
 type BookingRow = Pick<
-  Database["public"]["Tables"]["bookings"]["Row"],
+  DBBookingRow,
   | "id"
   | "user_id"
   | "score"
@@ -199,7 +206,7 @@ export default function AnalyticsDashboard() {
             .select(
               "id, user_id, score, test_date, created_at, status, result_details",
             )
-            .eq("status", "confirmed")
+            .eq("status", "agendado")
             .gte("created_at", fromTs)
             .lte("created_at", toTs),
           supabase
@@ -207,7 +214,7 @@ export default function AnalyticsDashboard() {
             .select(
               "id, user_id, score, test_date, created_at, status, result_details",
             )
-            .eq("status", "confirmed")
+            .eq("status", "agendado")
             .not("result_details", "is", null)
             .order("created_at", { ascending: false }),
         ]);
@@ -563,18 +570,15 @@ export default function AnalyticsDashboard() {
     toast.success("Relatorio completo exportado.");
   }
 
-  if (authLoading) {
-    return (
-      <Layout>
-        <p className="text-sm text-slate-500">Carregando...</p>
-      </Layout>
-    );
-  }
+  // move loader after hooks to preserve hook order
+  const pageLoading = authLoading || loading;
+
+  if (pageLoading) return <FullPageLoading message="Carregando analytics" />;
 
   if (!canManage) {
     return (
       <Layout>
-        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-amber-300/30 bg-amber-50 p-6 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5" size={20} />
             <div>
@@ -592,67 +596,85 @@ export default function AnalyticsDashboard() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-[1400px]">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-0">
+        <section className="mb-8">
+          <div className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8 lg:p-10">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                  Operações Inteligência
+                </h1>
+                <p className="mt-2 text-sm font-normal text-white/80 md:text-base max-w-2xl">
+                  Análise consolidada de prontidão operacional, avaliação de
+                  pessoal e efetivo estratégico. Monitore índices de aptidão,
+                  revalidações pendentes e desempenho por unidade.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={exportFullCSV}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
+                >
+                  <Download size={14} />
+                  EXPORTAR RELATÓRIO
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Page header */}
-        <header className="mb-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-primary dark:text-white">
-                Relatorios Consolidados
+        <header className="mb-6 rounded-3xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-text-body uppercase tracking-widest">
+                Período de Análise
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Desempenho fisico e prontidao operacional.
+              <p className="text-xs text-text-muted sm:text-sm">
+                Defina o recorte temporal para leitura dos indicadores.
               </p>
             </div>
-            <div className="grid w-full grid-cols-2 items-center gap-1.5 sm:grid-cols-4 sm:gap-2 md:flex md:w-auto md:flex-wrap">
+            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               {(["month", "quarter", "year", "custom"] as DatePreset[]).map(
                 (p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => applyPreset(p)}
-                    className={`rounded-lg px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold transition-colors text-center ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors text-center ${
                       datePreset === p
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border-default bg-bg-default text-text-muted hover:border-primary/40 hover:text-text-body"
                     }`}
                   >
-                    <span className="sm:hidden">
-                      {p === "month"
-                        ? "Mês"
-                        : p === "quarter"
-                          ? "Trim."
-                          : p === "year"
-                            ? "Ano"
-                            : "Custom"}
-                    </span>
-                    <span className="hidden sm:inline">
-                      {p === "month"
-                        ? "Este mes"
-                        : p === "quarter"
-                          ? "Trimestre"
-                          : p === "year"
-                            ? "Este ano"
-                            : "Personalizado"}
-                    </span>
+                    {p === "month"
+                      ? "Este mes"
+                      : p === "quarter"
+                        ? "Trimestre"
+                        : p === "year"
+                          ? "Este ano"
+                          : "Personalizado"}
                   </button>
                 ),
               )}
               {datePreset === "custom" && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800">
-                  <CalendarDays size={12} className="text-slate-400" />
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border-default bg-bg-default px-3 py-1.5 text-xs">
+                  <CalendarDays size={12} className="text-text-muted" />
                   <input
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                    className="bg-transparent text-text-body outline-none"
                   />
-                  <span className="text-slate-400">—</span>
+                  <span className="text-text-muted">—</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="bg-transparent text-slate-700 outline-none dark:text-slate-300"
+                    className="bg-transparent text-text-body outline-none"
                   />
                 </div>
               )}
@@ -660,12 +682,12 @@ export default function AnalyticsDashboard() {
           </div>
 
           {/* Tabs */}
-          <div className="mt-5 grid grid-cols-2 gap-0 border-b border-slate-200 dark:border-slate-700 sm:flex sm:overflow-x-auto">
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto border-t border-border-default pt-4 pb-1">
             {[
               {
                 id: "overview" as ReportTab,
                 label: "Visao Geral",
-                icon: BarChart3,
+                icon: BarChart2,
                 badge: undefined as number | undefined,
               },
               {
@@ -691,25 +713,16 @@ export default function AnalyticsDashboard() {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`flex w-full items-center justify-center gap-1 border-b-2 px-2 pb-3 pt-1 text-[11px] font-semibold transition-colors sm:w-auto sm:flex-shrink-0 sm:justify-start sm:gap-1.5 sm:px-4 sm:text-sm ${
+                className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
                   activeTab === id
-                    ? "border-primary text-primary dark:border-white dark:text-white"
-                    : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border-default text-text-muted hover:border-primary/40 hover:text-text-body"
                 }`}
               >
-                <Icon size={13} />
-                <span className="sm:hidden">
-                  {id === "overview"
-                    ? "Geral"
-                    : id === "pending"
-                      ? "Pendente"
-                      : id === "units"
-                        ? "Unidades"
-                        : "Export"}
-                </span>
-                <span className="hidden sm:inline">{label}</span>
+                <Icon size={14} />
+                <span>{label}</span>
                 {badge !== undefined && badge > 0 && (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                  <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-bold text-secondary">
                     {badge}
                   </span>
                 )}
@@ -721,80 +734,84 @@ export default function AnalyticsDashboard() {
         {/* Tab: Visao Geral */}
         {activeTab === "overview" && (
           <>
-            <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
               <KpiCard
-                label="Indice de Aptidao"
+                label="Índice de Aptidão"
                 value={loading ? null : `${fitnessPercent.toFixed(1)}%`}
                 sub={
-                  loading ? "" : `${kpiApt} aptos - ${kpiEvaluated} avaliados`
+                  loading ? "" : `${kpiApt} aptos de ${kpiEvaluated} avaliados`
                 }
                 icon={<TrendingUp size={22} />}
                 accent="success"
               />
               <KpiCard
+                label="Inaptidões Atuais"
+                value={loading ? null : String(kpiInapt)}
+                sub="última verificação registrada"
+                icon={<AlertTriangle size={22} />}
+                accent="error"
+              />
+              <KpiCard
                 label="Efetivo Ativo"
                 value={loading ? null : String(activeProfiles.length)}
-                sub={loading ? "" : `${kpiNotEvaluated} sem avaliacao`}
+                sub={loading ? "" : `${kpiNotEvaluated} sem avaliação`}
                 icon={<Users size={22} />}
                 accent="primary"
               />
               <KpiCard
-                label="Avaliacoes no Periodo"
+                label="Avaliações no Período"
                 value={loading ? null : String(periodEvals.length)}
-                sub={loading ? "" : `${bookings.length} agendamentos`}
-                icon={<LineChart size={22} />}
+                sub={loading ? "" : `${bookings.length} confirmadas`}
+                icon={<TrendingUp size={22} />}
                 accent="secondary"
-              />
-              <KpiCard
-                label="Inaptidoes Atuais"
-                value={loading ? null : String(kpiInapt)}
-                sub="ultimo resultado registrado"
-                icon={<AlertTriangle size={22} />}
-                accent="error"
               />
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <SectionTitle>Aptidao por Unidade</SectionTitle>
-                <div className="mt-4 space-y-4">
+              <section className="rounded-3xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
+                <h3 className="text-xl font-bold text-text-body mb-6">
+                  Aptidão por Unidade
+                </h3>
+                <div className="mt-4 space-y-5">
                   {loading ? (
                     <Skeleton rows={4} />
                   ) : units.length === 0 ? (
                     <Empty text="Sem dados de unidade." />
                   ) : (
                     units.slice(0, 6).map((u) => (
-                      <div key={u.unit}>
-                        <div className="mb-1.5 flex justify-between text-xs font-semibold">
-                          <span className="truncate pr-4 text-slate-600 dark:text-slate-300">
+                      <div key={u.unit} className="space-y-1.5">
+                        <div className="flex justify-between items-baseline gap-3">
+                          <span className="font-medium text-text-body">
                             {u.unit}
                           </span>
-                          <span className="text-slate-800 dark:text-white">
-                            {u.percent.toFixed(0)}%{" "}
-                            <span className="font-normal text-slate-400">
-                              ({u.apt}/{u.total})
-                            </span>
+                          <span className="text-xl font-bold text-primary">
+                            {u.percent.toFixed(0)}%
                           </span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
                           <div
-                            className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                            className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-secondary" : "bg-error"}`}
                             style={{ width: `${u.percent}%` }}
                           />
                         </div>
+                        <p className="text-xs text-text-muted">
+                          {u.apt} aptos de {u.total} · {u.pending} pendentes
+                        </p>
                       </div>
                     ))
                   )}
                 </div>
-              </div>
+              </section>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <SectionTitle>Evolucao de Aptidao</SectionTitle>
-                <div className="mt-4 h-[180px] w-full">
+              <section className="rounded-3xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
+                <h3 className="text-xl font-bold text-text-body mb-6">
+                  Evolução de Aptidão
+                </h3>
+                <div className="mt-4 h-[220px] w-full">
                   {loading ? (
-                    <div className="h-full w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+                    <div className="h-full w-full animate-pulse rounded-xl bg-border-default" />
                   ) : trend.length === 0 ? (
-                    <Empty text="Sem dados no periodo." />
+                    <Empty text="Sem dados no período." />
                   ) : (
                     <svg
                       className="h-full w-full"
@@ -810,7 +827,7 @@ export default function AnalyticsDashboard() {
                           y2={200 - v * 2}
                           stroke="currentColor"
                           strokeWidth="0.5"
-                          className="text-slate-200 dark:text-slate-700"
+                          className="text-border-default"
                           strokeDasharray="4,6"
                         />
                       ))}
@@ -818,7 +835,7 @@ export default function AnalyticsDashboard() {
                         <polygon
                           points={`0,200 ${linePoints} 500,200`}
                           fill="currentColor"
-                          className="text-primary/10"
+                          className="text-primary/5"
                         />
                       )}
                       <polyline
@@ -848,51 +865,51 @@ export default function AnalyticsDashboard() {
                     </svg>
                   )}
                 </div>
-                <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-slate-400">
+                <div className="mt-4 flex justify-between text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                   {trend.map((pt) => (
                     <span key={pt.key}>{pt.label}</span>
                   ))}
                 </div>
-              </div>
+              </section>
             </div>
           </>
         )}
 
         {/* Tab: Revalidacao Pendente */}
         {activeTab === "pending" && (
-          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <section className="rounded-lg border border-border-default bg-bg-card shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default px-6 py-4">
               <div className="flex items-center gap-3">
-                <ShieldAlert size={15} className="text-amber-500" />
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  Revalidacao Pendente
-                </span>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                  {pendingRows.length}
+                <ShieldAlert size={16} className="text-secondary" />
+                <h3 className="text-xs font-bold uppercase tracking-widest text-text-body">
+                  Revalidação Pendente
+                </h3>
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                  {pendingRows.length} avaliando
                 </span>
               </div>
               <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start md:w-auto md:justify-end">
                 <div className="relative w-full sm:w-auto sm:min-w-[220px]">
                   <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
                     size={13}
                   />
                   <input
                     value={pendingQuery}
                     onChange={(e) => setPendingQuery(e.target.value)}
                     placeholder="Buscar nome ou SARAM..."
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-3 text-xs dark:border-slate-700 dark:bg-slate-800/50 sm:w-auto"
+                    className="w-full rounded-lg border border-border-default bg-bg-card py-1.5 pl-7 pr-3 text-xs"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowFilters((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400"}`}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-border-default text-text-muted hover:border-text-body"}`}
                 >
                   <Filter size={12} />
                   Filtros
                   {(filterUnit || filterRank || filterStatus) && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
                       {
                         [filterUnit, filterRank, filterStatus].filter(Boolean)
                           .length
@@ -903,7 +920,7 @@ export default function AnalyticsDashboard() {
                 <button
                   type="button"
                   onClick={exportPendingCSV}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
                 >
                   <Download size={12} />
                   CSV
@@ -912,7 +929,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             {showFilters && (
-              <div className="flex flex-col items-stretch gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="flex flex-col items-stretch gap-3 border-b border-border-default bg-bg-card px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
                 <FilterSelect
                   label="Unidade"
                   value={filterUnit}
@@ -952,69 +969,69 @@ export default function AnalyticsDashboard() {
 
             <div className="space-y-2 px-4 py-3 md:hidden">
               {loading ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Carregando dados...
                 </p>
               ) : pendingRows.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-400">
-                  Nenhuma revalidacao pendente.
+                <p className="py-6 text-center text-sm text-text-muted">
+                  Nenhuma revalidação pendente.
                 </p>
               ) : (
                 pendingRows.map((row) => {
-                  const pClass =
+                  const priorityColor =
                     row.priority === "ALTA"
-                      ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                      ? "bg-error/10 text-error"
                       : row.priority === "MEDIA"
-                        ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
-                        : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
-                  const sClass =
+                        ? "bg-secondary/10 text-secondary"
+                        : "bg-secondary/10 text-secondary";
+                  const statusColor =
                     row.status === "Expirado"
-                      ? "text-red-500 font-bold"
-                      : "text-amber-500 font-bold";
+                      ? "text-error font-bold"
+                      : "text-secondary font-bold";
 
                   return (
                     <article
                       key={row.id}
-                      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                      className="rounded-lg border border-border-default bg-bg-card p-4 space-y-3"
                     >
-                      <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${pClass}`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${priorityColor}`}
                         >
                           {row.priority}
                         </span>
-                        <span className={`text-xs ${sClass}`}>
-                          {row.status}
-                        </span>
+                        <span className={statusColor}>{row.status}</span>
                       </div>
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                        {row.warName ?? row.militaryName}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {row.rank ? `${row.rank} · ` : ""}
-                        {row.identity}
-                      </p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                        <p className="text-slate-500">Unidade: {row.unit}</p>
-                        <p className="text-slate-500">
+                      <div>
+                        <p className="font-semibold text-text-body">
+                          {row.warName ?? row.militaryName}
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          {row.rank ? `${row.rank} · ` : ""}
+                          {row.identity}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <p className="text-text-muted">Unidade: {row.unit}</p>
+                        <p className="text-text-muted">
                           Validade: {row.expiration}
                         </p>
                       </div>
-                      <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-2 border-t border-border-default">
                         {row.lastResult ? (
                           <span
-                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${row.lastResult === "apto" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}
+                            className={`rounded-full px-2 py-1 text-xs font-bold uppercase ${row.lastResult === "apto" ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}
                           >
                             {row.lastResult}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-text-muted">
                             Sem resultado
                           </span>
                         )}
                         <button
                           type="button"
-                          className="text-xs font-semibold text-primary hover:underline dark:text-secondary"
+                          className="text-xs font-semibold text-primary hover:underline"
                         >
                           Notificar
                         </button>
@@ -1028,28 +1045,28 @@ export default function AnalyticsDashboard() {
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                  <tr className="border-b border-border-default text-xs font-bold uppercase tracking-wider text-text-muted">
                     {[
                       "Prioridade",
                       "Militar",
                       "Unidade",
-                      "Ultimo Resultado",
+                      "Último Resultado",
                       "Validade",
                       "Status",
                       "",
                     ].map((h) => (
-                      <th key={h} className="px-5 py-3">
+                      <th key={h} className="px-6 py-4">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-border-default">
                   {loading ? (
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-6 py-10 text-center text-sm text-text-muted"
                       >
                         Carregando dados...
                       </td>
@@ -1058,70 +1075,68 @@ export default function AnalyticsDashboard() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-6 py-10 text-center text-sm text-text-muted"
                       >
-                        Nenhuma revalidacao pendente.
+                        Nenhuma revalidação pendente.
                       </td>
                     </tr>
                   ) : (
                     pendingRows.map((row) => {
-                      const pClass =
+                      const priorityColor =
                         row.priority === "ALTA"
-                          ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                          ? "bg-error/10 text-error"
                           : row.priority === "MEDIA"
-                            ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
-                            : "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400";
-                      const sClass =
+                            ? "bg-secondary/10 text-secondary"
+                            : "bg-secondary/10 text-secondary";
+                      const statusColor =
                         row.status === "Expirado"
-                          ? "text-red-500 font-bold"
-                          : "text-amber-500 font-bold";
-                      const displayPriority =
-                        row.priority === "MEDIA" ? "MEDIA" : row.priority;
+                          ? "text-error font-bold"
+                          : "text-secondary font-bold";
                       return (
                         <tr
                           key={row.id}
-                          className="transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+                          className="transition-colors hover:bg-bg-card"
                         >
-                          <td className="px-5 py-3.5">
+                          <td className="px-6 py-4">
                             <span
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${pClass}`}
+                              className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${priorityColor}`}
                             >
-                              {displayPriority}
+                              {row.priority}
                             </span>
                           </td>
-                          <td className="px-5 py-3.5">
-                            <p className="font-semibold text-slate-800 dark:text-white">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-text-body">
                               {row.warName ?? row.militaryName}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-text-muted">
                               {row.rank ? `${row.rank} · ` : ""}
                               {row.identity}
                             </p>
                           </td>
-                          <td className="px-5 py-3.5 text-sm text-slate-500 dark:text-slate-400">
+                          <td className="px-6 py-4 text-sm text-text-muted">
                             {row.unit}
                           </td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-6 py-4">
                             {row.lastResult ? (
                               <span
-                                className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${row.lastResult === "apto" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400"}`}
+                                className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${row.lastResult === "apto" ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}
                               >
                                 {row.lastResult}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-text-muted">—</span>
                             )}
                           </td>
-                          <td className="px-5 py-3.5 font-mono text-xs text-slate-600 dark:text-slate-300">
+                          <td className="px-6 py-4 font-mono text-xs text-text-muted">
                             {row.expiration}
                           </td>
-                          <td className="px-5 py-3.5">
-                            <span className={sClass}>{row.status}</span>
+                          <td className="px-6 py-4">
+                            <span className={statusColor}>{row.status}</span>
                           </td>
-                          <td className="px-5 py-3.5 text-right">
+                          <td className="px-6 py-4 text-right">
                             <button
                               type="button"
-                              className="text-xs font-semibold text-primary hover:underline dark:text-secondary"
+                              className="text-xs font-semibold text-primary hover:underline"
                             >
                               Notificar
                             </button>
@@ -1133,63 +1148,77 @@ export default function AnalyticsDashboard() {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-slate-100 px-5 py-2 text-xs text-slate-400 dark:border-slate-700">
-              {pendingRows.length} registro(s) exibidos
+            <div className="border-t border-border-default px-6 py-3 text-xs text-text-muted">
+              {pendingRows.length} registro(s) exibido(s)
             </div>
-          </div>
+          </section>
         )}
 
         {/* Tab: Por Unidade */}
         {activeTab === "units" && (
-          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <section className="rounded-lg border border-border-default bg-bg-card shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default px-6 py-4">
               <div className="flex items-center gap-3">
-                <Users size={15} className="text-primary" />
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                <Users size={16} className="text-primary" />
+                <h3 className="text-xs font-bold uppercase tracking-widest text-text-body">
                   Desempenho por Unidade
-                </span>
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={exportUnitsCSV}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-400 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
               >
                 <Download size={12} />
                 CSV
               </button>
             </div>
-            <div className="space-y-2 px-4 py-3 md:hidden">
+            <div className="space-y-3 px-4 py-4 md:hidden">
               {loading ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Carregando...
                 </p>
               ) : units.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-text-muted">
                   Sem dados.
                 </p>
               ) : (
                 units.map((u) => (
                   <article
                     key={u.unit}
-                    className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    className="rounded-lg border border-border-default bg-bg-card p-4 space-y-3"
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                        {u.unit}
-                      </p>
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h4 className="font-semibold text-text-body">{u.unit}</h4>
+                      <span className="text-lg font-bold text-primary">
                         {u.percent.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 text-xs">
-                      <p className="text-slate-500">Tot: {u.total}</p>
-                      <p className="text-success">Apt: {u.apt}</p>
-                      <p className="text-red-500">Inapt: {u.inapt}</p>
-                      <p className="text-slate-400">Pend: {u.pending}</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-text-muted">Total</p>
+                        <p className="font-semibold text-text-body">
+                          {u.total}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-muted">Aptos</p>
+                        <p className="font-semibold text-success">{u.apt}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-muted">Inaptos</p>
+                        <p className="font-semibold text-error">{u.inapt}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-muted">Pendentes</p>
+                        <p className="font-semibold text-text-body">
+                          {u.pending}
+                        </p>
+                      </div>
                     </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
                       <div
-                        className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                        className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-secondary" : "bg-error"}`}
                         style={{ width: `${u.percent}%` }}
                       />
                     </div>
@@ -1201,30 +1230,30 @@ export default function AnalyticsDashboard() {
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-700">
+                  <tr className="border-b border-border-default text-xs font-bold uppercase tracking-wider text-text-muted">
                     {[
                       "Unidade",
                       "Total",
                       "Aptos",
                       "Inaptos",
                       "Pendentes",
-                      "% Aptidao",
+                      "% Aptidão",
                     ].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-5 py-3 ${i > 0 && i < 5 ? "text-right" : ""}`}
+                        className={`px-6 py-4 ${i > 0 && i < 5 ? "text-right" : ""}`}
                       >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-border-default">
                   {loading ? (
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-6 py-10 text-center text-sm text-text-muted"
                       >
                         Carregando...
                       </td>
@@ -1233,7 +1262,7 @@ export default function AnalyticsDashboard() {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-5 py-10 text-center text-sm text-slate-400"
+                        className="px-6 py-10 text-center text-sm text-text-muted"
                       >
                         Sem dados.
                       </td>
@@ -1242,32 +1271,32 @@ export default function AnalyticsDashboard() {
                     units.map((u) => (
                       <tr
                         key={u.unit}
-                        className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                        className="hover:bg-bg-card transition-colors"
                       >
-                        <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-white">
+                        <td className="px-6 py-4 font-semibold text-text-body">
                           {u.unit}
                         </td>
-                        <td className="px-5 py-3.5 text-right text-slate-600 dark:text-slate-300">
+                        <td className="px-6 py-4 text-right text-text-muted">
                           {u.total}
                         </td>
-                        <td className="px-5 py-3.5 text-right font-semibold text-success">
+                        <td className="px-6 py-4 text-right font-semibold text-success">
                           {u.apt}
                         </td>
-                        <td className="px-5 py-3.5 text-right font-semibold text-red-500">
+                        <td className="px-6 py-4 text-right font-semibold text-error">
                           {u.inapt}
                         </td>
-                        <td className="px-5 py-3.5 text-right text-slate-400">
+                        <td className="px-6 py-4 text-right text-text-muted">
                           {u.pending}
                         </td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-border-default min-w-[80px]">
                               <div
-                                className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-military-gold" : "bg-red-400"}`}
+                                className={`h-full rounded-full transition-all duration-700 ${u.percent >= 80 ? "bg-success" : u.percent >= 60 ? "bg-secondary" : "bg-error"}`}
                                 style={{ width: `${u.percent}%` }}
                               />
                             </div>
-                            <span className="w-10 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                            <span className="w-12 text-right font-bold text-text-body">
                               {u.percent.toFixed(0)}%
                             </span>
                           </div>
@@ -1278,29 +1307,29 @@ export default function AnalyticsDashboard() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Tab: Exportar */}
         {activeTab === "export" && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ExportCard
-              title="Revalidacao Pendente"
-              description={`${pendingRows.length} militares com expiracao proxima ou vencida.`}
+              title="Revalidação Pendente"
+              description={`${pendingRows.length} militares com expiração próxima ou vencida para priorização de revalidação.`}
               format="CSV"
-              icon={<ShieldAlert size={20} className="text-amber-500" />}
+              icon={<ShieldAlert size={20} className="text-secondary" />}
               onExport={exportPendingCSV}
             />
             <ExportCard
               title="Desempenho por Unidade"
-              description={`${units.length} unidades com resumo de aptos, inaptos e pendentes.`}
+              description={`${units.length} unidades com resumo de aptidão, inaptos, pendentes e métricas operacionais.`}
               format="CSV"
-              icon={<BarChart3 size={20} className="text-primary" />}
+              icon={<BarChart2 size={20} className="text-primary" />}
               onExport={exportUnitsCSV}
             />
             <ExportCard
               title="Efetivo Completo"
-              description={`${activeProfiles.length} militares ativos com situacao atual.`}
+              description={`${activeProfiles.length} militares ativos com status de avaliação e validade total registrada.`}
               format="CSV"
               icon={<FileText size={20} className="text-success" />}
               onExport={exportFullCSV}
@@ -1314,16 +1343,8 @@ export default function AnalyticsDashboard() {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-      {children}
-    </h3>
-  );
-}
-
 function Empty({ text }: { text: string }) {
-  return <p className="py-8 text-center text-sm text-slate-400">{text}</p>;
+  return <p className="py-8 text-center text-sm text-text-muted">{text}</p>;
 }
 
 function Skeleton({ rows }: { rows: number }) {
@@ -1331,8 +1352,8 @@ function Skeleton({ rows }: { rows: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="animate-pulse space-y-1.5">
-          <div className="h-3 w-32 rounded bg-slate-100 dark:bg-slate-700" />
-          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
+          <div className="h-3 w-32 rounded bg-border-default" />
+          <div className="h-2 w-full rounded-full bg-border-default" />
         </div>
       ))}
     </>
@@ -1347,40 +1368,44 @@ function KpiCard({
   sub,
   icon,
   accent,
+  className,
 }: {
   label: string;
   value: string | null;
   sub: string;
   icon: React.ReactNode;
   accent: AccentColor;
+  className?: string;
 }) {
   const borderMap: Record<AccentColor, string> = {
     primary: "border-primary/30",
     secondary: "border-secondary/30",
     success: "border-success/30",
-    error: "border-red-500/30",
+    error: "border-error/30",
   };
   const bgMap: Record<AccentColor, string> = {
     primary: "bg-primary/10 text-primary",
     secondary: "bg-secondary/10 text-secondary",
     success: "bg-success/10 text-success",
-    error: "bg-red-500/10 text-red-500",
+    error: "bg-error/10 text-error",
   };
   return (
     <div
-      className={`flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border-b-4 bg-white p-3 sm:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)] dark:bg-slate-800 overflow-hidden ${borderMap[accent]}`}
+      className={`flex w-full flex-col gap-3 overflow-hidden rounded-2xl border-b-4 bg-bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5 ${borderMap[accent]} ${className || ""}`}
     >
       <div className="min-w-0 flex-1 pr-2">
-        <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+          {label}
+        </p>
         <p
-          className={`mt-1 text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white ${value === null ? "animate-pulse text-slate-300" : ""}`}
+          className={`mt-2 text-2xl sm:text-3xl font-bold text-text-body ${value === null ? "animate-pulse text-text-muted" : ""}`}
         >
           {value ?? "—"}
         </p>
-        <p className="mt-0.5 text-[11px] text-slate-400 truncate">{sub}</p>
+        <p className="mt-1 text-xs text-text-muted">{sub}</p>
       </div>
       <div
-        className={`flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-xl ${bgMap[accent]}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${bgMap[accent]}`}
       >
         {icon}
       </div>
@@ -1402,28 +1427,22 @@ function FilterSelect({
   placeholder: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-bold uppercase tracking-widest text-text-muted">
         {label}
       </label>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-7 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-        >
-          <option value="">{placeholder}</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={12}
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
-        />
-      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none rounded-lg border border-border-default bg-bg-card py-2 pl-3 pr-3 text-sm text-text-body cursor-pointer"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -1442,26 +1461,26 @@ function ExportCard({
   onExport: () => void;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex flex-col justify-between rounded-2xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
       <div>
-        <div className="mb-3 flex items-center gap-3">
-          {icon}
-          <h3 className="font-semibold text-slate-800 dark:text-white">
-            {title}
-          </h3>
+        <div className="mb-4 flex items-start gap-4">
+          <div className="flex-shrink-0">{icon}</div>
+          <div>
+            <h3 className="font-bold text-text-body text-lg">{title}</h3>
+            <p className="mt-1 text-sm text-text-muted">{description}</p>
+          </div>
         </div>
-        <p className="text-sm text-slate-400">{description}</p>
       </div>
-      <div className="mt-5 flex items-center justify-between">
-        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <span className="rounded-md bg-border-default px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-text-muted">
           {format}
         </span>
         <button
           type="button"
           onClick={onExport}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-primary/90"
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          <Download size={12} />
+          <Download size={13} />
           Baixar
         </button>
       </div>

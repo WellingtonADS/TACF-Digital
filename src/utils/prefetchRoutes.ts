@@ -1,25 +1,8 @@
+import { getCriticalPrefetchPaths, getPrefetchLoaders } from "./routeRegistry";
+
 type PrefetchLoader = () => Promise<unknown>;
 
-const routeLoaders: Record<string, PrefetchLoader> = {
-  "/app": () => import("../pages/OperationalDashboard"),
-  "/app/admin": () => import("../pages/AdminDashboard"),
-  "/app/agendamentos": () => import("../pages/Scheduling"),
-  "/app/agendamentos/confirmacao": () =>
-    import("../pages/AppointmentConfirmation"),
-  "/app/ticket": () => import("../pages/DigitalTicket"),
-  "/app/resultados": () => import("../pages/ResultsHistory"),
-  "/app/documentos": () => import("../pages/Documents"),
-  "/app/perfil": () => import("../pages/UserProfilesManagement"),
-  "/app/turmas": () => import("../pages/SessionsManagement"),
-  "/app/turmas/nova": () => import("../pages/ClassCreationForm"),
-  "/app/efetivo": () => import("../pages/PersonnelManagement"),
-  "/app/lancamento-indices": () => import("../pages/ScoreEntry"),
-  "/app/analytics": () => import("../pages/AnalyticsDashboard"),
-  "/app/configuracoes": () => import("../pages/SystemSettings"),
-  "/app/om-locations": () => import("../pages/OmLocationManager"),
-  "/app/reagendamentos": () => import("../pages/ReschedulingManagement"),
-  "/app/auditoria": () => import("../pages/AuditLog"),
-};
+const routeLoaders = getPrefetchLoaders();
 
 const prefetched = new Set<string>();
 
@@ -49,17 +32,11 @@ export function prefetchRoute(path: string) {
 
 export function prefetchCriticalRoutes() {
   if (typeof window === "undefined") return;
-
-  const criticalPaths = [
-    "/app",
-    "/app/admin",
-    "/app/agendamentos",
-    "/app/resultados",
-    "/app/ticket",
-    "/app/turmas",
-  ];
+  const criticalPaths = getCriticalPrefetchPaths();
 
   window.setTimeout(() => {
     criticalPaths.forEach(prefetchRoute);
   }, 400);
 }
+
+

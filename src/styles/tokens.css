@@ -1,6 +1,36 @@
 :root {
-  --color-primary: #1a355b;
-  --color-accent: #0ea5e9;
+  /* Single source of truth for all project colors (light-only). */
+
+  /* base palette in RGB channels */
+  --color-primary: 26 53 91; /* #1a355b */
+  --color-primary-foreground: 255 255 255;
+  --color-secondary: 0 120 212; /* #0078d4 */
+  --color-secondary-foreground: 255 255 255;
+  --color-success: 45 90 39; /* #2d5a27 */
+  --color-success-foreground: 255 255 255;
+  --color-alert: 230 126 34; /* #e67e22 */
+  --color-alert-foreground: 255 255 255;
+  --color-error: 192 57 43; /* #c0392b */
+  --color-error-foreground: 255 255 255;
+  --color-military-gold: 245 158 11; /* #f59e0b */
+  --color-military-gold-foreground: 0 0 0;
+
+  /* semantic RGB tokens */
+  --color-bg-default: 244 247 249; /* #f4f7f9 */
+  --color-bg-card: 255 255 255; /* #ffffff */
+  --color-text-body: 30 41 59; /* #1e293b */
+  --color-text-muted: 107 114 128; /* #6b7280 */
+  --color-text-inverted: 255 255 255; /* #ffffff */
+  --color-border-default: 226 232 240; /* #e2e8f0 */
+
+  /* semantic variables for raw CSS usage */
+  --bg-default: rgb(var(--color-bg-default));
+  --bg-card: rgb(var(--color-bg-card));
+  --text-body: rgb(var(--color-text-body));
+  --text-muted: rgb(var(--color-text-muted));
+  --text-inverted: rgb(var(--color-text-inverted));
+  --text-accent: rgb(var(--color-primary));
+  --border-default: rgb(var(--color-border-default));
 }
 
-/* Tailwind overrides or additional tokens can be added here */
+/* dark mode removed - always light tokens */

@@ -1,5 +1,15 @@
+/**
+ * @page AdminRoute
+ * @description Guard de rota para acessos administrativos.
+ * @path src/components/AdminRoute.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
+import { canAccessRoute } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
+import ForbiddenState from "./ForbiddenState";
 import PageSkeleton from "./PageSkeleton";
 
 /**
@@ -15,18 +25,22 @@ export default function AdminRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton />;
+    return <PageSkeleton fullPage />;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = profile?.role;
-  if (role === "admin" || role === "coordinator") {
+  if (canAccessRoute(profile?.role, "admin")) {
     return children;
   }
 
-  // not authorized, send to the standard dashboard so we don't leak the UI
-  return <Navigate to="/app" replace />;
+  return (
+    <ForbiddenState
+      title="Area administrativa restrita"
+      description="Seu perfil nao possui permissao para acessar funcionalidades administrativas."
+      actionTo="/app"
+    />
+  );
 }

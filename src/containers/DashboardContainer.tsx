@@ -1,4 +1,12 @@
-import Layout from "../layout/Layout";
+/**
+ * @page DashboardContainer
+ * @description Container que compõe dashboards com dados.
+ * @path src/containers/DashboardContainer.tsx
+ */
+
+
+
+import Layout from "@/components/layout/Layout";
 
 export const DashboardContainer = () => {
   return (
@@ -10,3 +18,5 @@ export const DashboardContainer = () => {
 };
 
 export default DashboardContainer;
+
+

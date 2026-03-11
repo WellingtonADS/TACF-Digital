@@ -1,4 +1,13 @@
+/**
+ * @page UserRoute
+ * @description Guard de rota para usuários comuns.
+ * @path src/components/UserRoute.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
+import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
 import PageSkeleton from "./PageSkeleton";
 
@@ -15,16 +24,15 @@ export default function UserRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton />;
+    return <PageSkeleton fullPage />;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = profile?.role;
-  if (role === "admin" || role === "coordinator") {
-    return <Navigate to="/app/admin" replace />;
+  if (!canAccessRoute(profile?.role, "user")) {
+    return <Navigate to={getDefaultHomeByRole(profile?.role)} replace />;
   }
 
   return children;

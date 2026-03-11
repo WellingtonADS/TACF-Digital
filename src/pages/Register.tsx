@@ -1,7 +1,17 @@
+/**
+ * @page Register
+ * @description Tela de registro de novos usuários.
+ * @path src/pages/Register.tsx
+ */
+
+
+
+import { Input } from "@/components/atomic/Input";
+import PasswordInput from "@/components/atomic/PasswordInput";
 import AuthLayout from "@/components/AuthLayout";
+import { Loader2, Plane } from "@/icons";
 import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { Loader2, Plane } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -85,31 +95,30 @@ export default function RegisterPage() {
               fill="currentColor"
             />
           </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
             TACF-Digital
           </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             Campos com <span className="font-bold">*</span> são obrigatórios.
           </p>
 
           <div className="space-y-1">
-            <input
+            <Input
               name="tacf-register-full-name"
               type="text"
               required
               placeholder="Ex.: João da Silva"
               value={fullName}
               autoComplete="off"
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setFullName(v)}
             />
           </div>
 
           <div className="space-y-1">
-            <input
+            <Input
               name="tacf-register-email"
               type="email"
               required
@@ -119,28 +128,25 @@ export default function RegisterPage() {
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setEmail(v)}
             />
           </div>
 
           <div className="space-y-1">
-            <input
+            <PasswordInput
               name="tacf-register-password"
-              type="password"
               required
               placeholder="Ex.: senha com mínimo de 8 caracteres"
               value={password}
               autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -151,17 +157,17 @@ export default function RegisterPage() {
         </form>
 
         <div className="text-center pt-4">
-          <p className="text-sm text-slate-600">Já possui uma conta?</p>
+          <p className="text-sm text-text-muted">Já possui uma conta?</p>
           <Link
             to="/login"
-            className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
             Fazer login
           </Link>
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-xs text-gray-300 font-medium">
+          <p className="text-xs text-text-muted font-medium">
             © 2026 HACO — Força Aérea Brasileira
           </p>
         </div>

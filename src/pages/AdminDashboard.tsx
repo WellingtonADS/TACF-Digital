@@ -1,7 +1,19 @@
+/**
+ * @page AdminDashboard
+ * @description Painel administrativo com métricas e atalhos.
+ * @path src/pages/AdminDashboard.tsx
+ */
+
+
+
+import AppIcon from "@/components/atomic/AppIcon";
+import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
+import StatCard from "@/components/atomic/StatCard";
+import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
-import { format, isAfter, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import type { LucideIcon } from "@/icons";
 import {
   AlertTriangle,
   BarChart2,
@@ -14,38 +26,40 @@ import {
   Settings,
   Shield,
   Users,
-} from "lucide-react";
+} from "@/icons";
+import { formatSessionPeriod } from "@/utils/booking";
+import { format, isAfter, isValid, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../layout/Layout";
 import { supabase } from "../services/supabase";
 
 export const AdminDashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  // clock for session display
-  const [clock, setClock] = useState(() => {
-    const now = new Date();
-    return now.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  });
+  const typedProfile = profile as Record<string, unknown> | null;
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setClock(
-        new Date().toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-      );
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
+  const displayName = String(
+    typedProfile?.full_name ?? typedProfile?.war_name ?? "Administrador",
+  );
+
+  const inspsau = typedProfile?.inspsau_valid_until as
+    | string
+    | null
+    | undefined;
+  let statusLabel = "Inapto";
+  let statusColor = "text-white bg-error border border-error";
+
+  if (inspsau) {
+    const date = parseISO(inspsau);
+    if (isValid(date) && isAfter(date, new Date())) {
+      statusLabel = "Apto";
+      statusColor = "text-white bg-success border border-success";
+    }
+  }
+
+  // (clock removed) hero shows status chip instead to match OperationalDashboard
 
   // metrics
   const [totalInscritos, setTotalInscritos] = useState<number>(0);
@@ -56,6 +70,40 @@ export const AdminDashboard = () => {
 
   // sessions (somente para capacidade restante e próximas turmas)
   const { sessions, loading: sessionsLoading } = useSessions();
+
+  const isLoading = metricsLoading || sessionsLoading;
+
+  type LocalAction = {
+    icon: LucideIcon;
+    label: string;
+    description: string;
+    path: string;
+    accent?: string;
+  };
+
+  function QuickActionButton({ action }: { action: LocalAction }) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(action.path)}
+        className={`${CARD_INTERACTIVE_CLASS} group flex h-full min-h-[156px] w-full flex-col items-start justify-start gap-3 rounded-2xl p-4 text-left md:min-h-[168px] md:p-5`}
+      >
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}
+        >
+          <AppIcon icon={action.icon} size="sm" ariaLabel={action.label} />
+        </div>
+        <div className="flex w-full flex-1 flex-col text-left">
+          <p className="text-left text-base font-semibold leading-tight text-text-body line-clamp-2">
+            {action.label}
+          </p>
+          <p className="mt-1 text-left text-xs leading-snug text-text-muted line-clamp-2">
+            {action.description}
+          </p>
+        </div>
+      </button>
+    );
+  }
 
   useEffect(() => {
     async function loadMetrics() {
@@ -88,7 +136,7 @@ export const AdminDashboard = () => {
         const { count: pendCount, error: pendError } = await supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
-          .neq("status", "confirmed");
+          .not("status", "eq", "confirmed");
 
         if (pendError) throw pendError;
         setPendencias(pendCount ?? 0);
@@ -127,293 +175,257 @@ export const AdminDashboard = () => {
       label: "Gerenciar Turmas",
       description: "Listar, criar e controlar sessões de avaliação",
       path: "/app/turmas",
-      accent: "bg-primary/10 text-primary dark:bg-primary/20",
+      accent: "bg-primary/5 text-primary",
     },
     {
       icon: Users,
       label: "Efetivo",
       description: "Buscar e monitorar militares",
       path: "/app/efetivo",
-      accent: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+      accent: "bg-primary/5 text-primary",
     },
     {
       icon: FileBarChart2,
       label: "Relatórios",
       description: "Analytics e exportação de dados",
       path: "/app/analytics",
-      accent:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+      accent: "bg-primary/5 text-primary",
     },
     {
       icon: GitMerge,
       label: "Reagendamentos",
       description: "Deferir ou indeferir solicitações",
       path: "/app/reagendamentos",
-      accent:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+      accent: "bg-primary/5 text-primary",
     },
     {
       icon: ClipboardList,
       label: "Lançar Índices",
       description: "Inserir resultados de avaliação",
       path: "/app/lancamento-indices",
-      accent:
-        "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+      accent: "bg-primary/5 text-primary",
     },
     {
       icon: Settings,
       label: "Configurações",
       description: "Parâmetros globais e segurança",
       path: "/app/configuracoes",
-      accent:
-        "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+      accent: "bg-bg-default text-text-muted",
     },
   ];
 
+  const sessionCardBaseClass =
+    "h-full rounded-2xl border border-border-default bg-bg-card p-5";
+
+  if (isLoading) return <FullPageLoading message="Carregando dashboard" />;
+
   return (
     <Layout>
-      {/* header */}
-      <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-10">
-        <div>
-          <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
-            Dashboard Administrativo
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Bem-vindo ao centro de controle TACF‑Digital.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm text-slate-400 hover:text-primary transition-colors"
-            aria-label="Notificações"
-            title="Notificações"
-          >
-            <Bell size={20} />
-          </button>
-          <div className="h-10 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-          <div className="text-right">
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
-              Sessão Ativa
-            </p>
-            <p className="text-sm font-bold text-primary dark:text-white font-mono">
-              {clock}
-            </p>
-          </div>
-          {profile && (
-            <div className="flex items-center gap-2 ml-2">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                <span className="text-xs font-bold text-primary">
-                  {(profile.war_name ?? profile.full_name ?? "?")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {/* Total inscritos */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Total Inscritos
-            </p>
-            <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {metricsLoading ? "—" : totalInscritos}
-            </h3>
-          </div>
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <Users size={22} className="md:hidden" />
-            <Users size={28} className="hidden md:block" />
-          </div>
-        </div>
-
-        {/* Aptos mês */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-green/30">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Aptos (Mês)
-            </p>
-            <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {metricsLoading ? "—" : aptosMonth}
-            </h3>
-          </div>
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-military-green/10 rounded-2xl flex items-center justify-center text-military-green">
-            <CheckCircle size={22} className="md:hidden" />
-            <CheckCircle size={28} className="hidden md:block" />
-          </div>
-        </div>
-
-        {/* Pendências */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between border-b-4 border-military-gold/30">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Pendências
-            </p>
-            <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${metricsLoading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {metricsLoading ? "—" : pendencias}
-            </h3>
-          </div>
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-military-gold/10 rounded-2xl flex items-center justify-center text-military-gold">
-            <AlertTriangle size={22} className="md:hidden" />
-            <AlertTriangle size={28} className="hidden md:block" />
-          </div>
-        </div>
-
-        {/* Capacidade restante */}
-        <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm font-medium mb-1">
-              Capacidade Restante
-            </p>
-            <h3
-              className={`text-xl md:text-3xl font-bold text-slate-800 dark:text-white ${sessionsLoading ? "animate-pulse text-slate-400" : ""}`}
-            >
-              {sessionsLoading ? "—" : capacidadeRestante}
-            </h3>
-          </div>
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <BarChart2 size={22} className="md:hidden" />
-            <BarChart2 size={28} className="hidden md:block" />
-          </div>
-        </div>
-      </div>
-
-      {/* sessions table */}
-      {metricsError && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          {metricsError}
-        </div>
-      )}
-
-      {/* quick action cards */}
-      <section className="mb-10">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">
-          Acesso Rápido
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {quickActions.map((action) => (
-            <button
-              key={action.path}
-              type="button"
-              onClick={() => navigate(action.path)}
-              className="group flex flex-col items-start gap-3 bg-white dark:bg-slate-800 p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
-            >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}
-              >
-                <action.icon size={20} />
-              </div>
+      <div className="mx-auto w-full max-w-6xl">
+        {/* Greeting hero */}
+        <section className="mb-8">
+          <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
+            <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                  {action.label}
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
+                  Olá, {displayName}
+                </h2>
+                <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
+                  Dashboard Administrativo — Centro de Controle TACF‑Digital.
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug line-clamp-2">
-                  {action.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* upcoming sessions strip */}
-      <section>
-        <div className="flex items-center justify-between mb-4 px-1">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Próximas Turmas Abertas
-          </h3>
-          <button
-            type="button"
-            onClick={() => navigate("/app/turmas")}
-            className="text-xs text-primary dark:text-sky-400 font-semibold hover:underline"
-          >
-            Ver todas →
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {sessionsLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-slate-800 rounded-2xl p-5 animate-pulse h-28 border border-slate-100 dark:border-slate-700"
-              />
-            ))
-          ) : upcomingSessions.length === 0 ? (
-            <div className="col-span-3 bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700">
-              <Shield size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-sm text-slate-400">
-                Nenhuma turma aberta nos próximos dias.
-              </p>
-            </div>
-          ) : (
-            upcomingSessions.map((s) => {
-              const occupied = s.occupied_count;
-              const max = s.max_capacity;
-              const percent = max ? Math.round((occupied / max) * 100) : 0;
-              const statusColor =
-                percent >= 95
-                  ? "border-l-slate-400"
-                  : percent >= 50
-                    ? "border-l-military-gold"
-                    : "border-l-primary";
-              return (
-                <div
-                  key={s.session_id}
-                  className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 border-l-4 ${statusColor} flex flex-col gap-3`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        {s.session_id.slice(0, 8).toUpperCase()}
-                      </p>
-                      <p className="text-sm font-bold text-slate-800 dark:text-white mt-0.5">
-                        {format(parseISO(s.date), "EEEE, dd 'de' MMMM", {
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
-                    <span className="text-xs bg-primary/10 text-primary dark:bg-primary/20 px-2 py-0.5 rounded-full font-semibold">
-                      {s.period}
+                {statusLabel === "Apto" && (
+                  <div
+                    className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${statusColor}`}
+                  >
+                    <AppIcon icon={CheckCircle} size="sm" ariaLabel="Status" />
+                    <span className="text-xs font-bold uppercase tracking-widest">
+                      Status: {statusLabel}
                     </span>
                   </div>
-                  <div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
-                      <span>Ocupação</span>
-                      <span>
-                        {occupied}/{max} — {percent}%
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  className="p-2 bg-bg-card rounded-full shadow-sm text-text-muted hover:text-primary transition-colors"
+                  aria-label="Notificações"
+                  title="Notificações"
+                >
+                  <AppIcon icon={Bell} size="md" decorative />
+                </button>
+                {profile && (
+                  <div className="flex items-center gap-2 ml-2">
+                    <div
+                      role="img"
+                      aria-label={`Avatar de ${displayName}`}
+                      className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center border border-white/20"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="text-xs font-bold text-white"
+                      >
+                        {(profile.war_name ?? profile.full_name ?? "?")
+                          .slice(0, 2)
+                          .toUpperCase()}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <progress
-                        value={occupied}
-                        max={max || 1}
-                        aria-label="Ocupação da turma"
-                        className={`h-full w-full rounded-full [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${
-                          percent >= 95
-                            ? "[&::-webkit-progress-value]:bg-slate-400"
-                            : percent >= 50
-                              ? "[&::-webkit-progress-value]:bg-amber-400"
-                              : "[&::-webkit-progress-value]:bg-primary"
-                        }`}
-                      />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* stats grid (DRY via StatCard) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <StatCard
+            title="Total Inscritos"
+            value={totalInscritos}
+            loading={metricsLoading}
+            icon={Users}
+          />
+
+          <StatCard
+            title="Aptos (Mês)"
+            value={aptosMonth}
+            loading={metricsLoading}
+            icon={CheckCircle}
+            className="border-b-4 border-success/30"
+            iconBg="bg-success/10"
+            iconColor="text-success"
+          />
+
+          <StatCard
+            title="Pendências"
+            value={pendencias}
+            loading={metricsLoading}
+            icon={AlertTriangle}
+            className="border-b-4 border-error/30"
+            iconBg="bg-error/10"
+            iconColor="text-error"
+          />
+
+          <StatCard
+            title="Capacidade Restante"
+            value={capacidadeRestante}
+            loading={sessionsLoading}
+            icon={BarChart2}
+          />
+        </div>
+
+        {/* sessions table */}
+        {metricsError && (
+          <div className="mb-6 rounded-2xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
+            {metricsError}
+          </div>
+        )}
+
+        {/* quick action cards */}
+        <section className="mb-10">
+          <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 px-1">
+            Acesso Rápido
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
+            {quickActions.map((action) => (
+              <QuickActionButton key={action.path} action={action} />
+            ))}
+          </div>
+        </section>
+
+        {/* upcoming sessions strip */}
+        <section>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+              Próximas Turmas Abertas
+            </h3>
+            <button
+              type="button"
+              onClick={() => navigate("/app/turmas")}
+              className="text-xs text-primary font-semibold hover:underline"
+            >
+              Ver todas →
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {sessionsLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`${sessionCardBaseClass} h-28 animate-pulse`}
+                />
+              ))
+            ) : upcomingSessions.length === 0 ? (
+              <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-border-default bg-bg-card p-8 text-center">
+                <AppIcon
+                  icon={Shield}
+                  size="lg"
+                  className="mx-auto text-text-muted mb-2"
+                  decorative
+                />
+                <p className="text-sm text-text-muted">
+                  Nenhuma turma aberta nos próximos dias.
+                </p>
+              </div>
+            ) : (
+              upcomingSessions.map((s) => {
+                const occupied = s.occupied_count;
+                const max = s.max_capacity;
+                const percent = max ? Math.round((occupied / max) * 100) : 0;
+                const capacityColor =
+                  percent >= 95
+                    ? "border-l-error"
+                    : percent >= 50
+                      ? "border-l-secondary"
+                      : "border-l-primary";
+                return (
+                  <div
+                    key={s.session_id}
+                    className={`${sessionCardBaseClass} border-l-4 ${capacityColor} flex flex-col gap-3`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-text-muted uppercase tracking-wider">
+                          {s.session_id.slice(0, 8).toUpperCase()}
+                        </p>
+                        <p className="text-sm font-bold text-text-body mt-0.5">
+                          {format(parseISO(s.date), "EEEE, dd 'de' MMMM", {
+                            locale: ptBR,
+                          })}
+                        </p>
+                      </div>
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                        {formatSessionPeriod(s.period)}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-text-muted mb-1">
+                        <span>Ocupação</span>
+                        <span>
+                          {occupied}/{max} — {percent}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-border-default rounded-full overflow-hidden">
+                        <progress
+                          value={occupied}
+                          max={max || 1}
+                          aria-label="Ocupação da turma"
+                          className={`h-full w-full rounded-full [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${
+                            percent >= 95
+                              ? "[&::-webkit-progress-value]:bg-error"
+                              : percent >= 50
+                                ? "[&::-webkit-progress-value]:bg-secondary"
+                                : "[&::-webkit-progress-value]:bg-primary"
+                          }`}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </section>
+                );
+              })
+            )}
+          </div>
+        </section>
+      </div>
     </Layout>
   );
 };

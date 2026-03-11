@@ -1,9 +1,16 @@
-﻿import Breadcrumbs from "@/components/Breadcrumbs";
-import PageSkeleton from "@/components/PageSkeleton";
+/**
+ * @page AuditLog
+ * @description Exibição do registro de auditoria do sistema.
+ * @path src/pages/AuditLog.tsx
+ */
+
+
+
+import FullPageLoading from "@/components/FullPageLoading";
+import AppIcon from "@/components/atomic/AppIcon";
+import StatCard from "@/components/atomic/StatCard";
+import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
-import Layout from "@/layout/Layout";
-import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -19,11 +26,13 @@ import {
   Timer,
   Trash2,
   X,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type AuditLogRow = Database["public"]["Tables"]["audit_logs"]["Row"];
+type AuditLogRow = DBAuditLogRow;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -72,7 +81,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-bg-default text-text-muted border border-border-default">
       {action ?? "—"}
     </span>
   );
@@ -84,7 +93,7 @@ function rowAccent(action: string | null | undefined): string {
     return "border-l-emerald-500";
   if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-amber-400";
   if (a.includes("DELETE")) return "border-l-red-500";
-  return "border-l-slate-300 dark:border-l-slate-700";
+  return "border-l-border-default dark:border-l-border-default";
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -176,96 +185,79 @@ export default function AuditLog() {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [detailRecord]);
 
-  if (loading) return <PageSkeleton rows={8} />;
+  if (loading) {
+    return (
+      <FullPageLoading
+        message="Carregando logs de auditoria"
+        description="Aguarde enquanto carregamos os registros de auditoria."
+      />
+    );
+  }
 
   return (
     <Layout>
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <Breadcrumbs
-              items={["Administração", "Governança", "Logs de Auditoria"]}
-            />
-            <div>
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
-                Log de Auditoria
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Rastreabilidade de todas as ações no sistema.{" "}
-                <span className="font-semibold text-primary dark:text-sky-400">
-                  {records.length} registros carregados
-                </span>
-              </p>
+        {/* hero */}
+        <section>
+          <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                  Log de Auditoria
+                </h2>
+                <p className="mt-2 text-sm text-white/85 md:text-base">
+                  Rastreabilidade e histórico das ações do sistema.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+              >
+                <AppIcon icon={Download} size="sm" decorative />
+                Exportar
+              </button>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm"
-            >
-              <Download size={16} />
-              Exportar CSV/PDF
-            </button>
-          </div>
-        </header>
+        </section>
 
-        {/* Summary Widgets */}
+        {/* Summary Widgets (StatCard) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
-              <Shield size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest truncate">
-                Total de Eventos
-              </p>
-              <h3 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white">
-                {records.length}
-              </h3>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-red-500/10 flex items-center justify-center text-red-600 flex-shrink-0">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest truncate">
-                Deleções
-              </p>
-              <h3 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white">
-                {statsDelete}
-              </h3>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 flex-shrink-0">
-              <Timer size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest truncate">
-                Usuários Distintos
-              </p>
-              <h3 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white">
-                {uniqueUsers}
-              </h3>
-            </div>
-          </div>
+          <StatCard
+            title="Total de Eventos"
+            value={records.length}
+            icon={Shield}
+          />
+          <StatCard
+            title="Deleções"
+            value={statsDelete}
+            icon={AlertTriangle}
+            iconBg="bg-red-500/10"
+            iconColor="text-red-600"
+          />
+          <StatCard
+            title="Usuários Distintos"
+            value={uniqueUsers}
+            icon={Timer}
+            iconBg="bg-emerald-500/10"
+            iconColor="text-emerald-600"
+          />
         </div>
 
         {/* Filters */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
+        <section className="bg-bg-card rounded-2xl border border-border-default p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
                 Usuário / SARAM
               </label>
               <div className="relative">
                 <Search
                   size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
                 />
                 <input
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/40 dark:text-white font-mono"
+                  className="w-full pl-9 pr-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40 font-mono"
                   placeholder="Ex: 7234567 ou Nome"
                   value={filterUser}
                   onChange={(e) => {
@@ -277,11 +269,11 @@ export default function AuditLog() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
                 Tipo de Ação
               </label>
               <select
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/40 dark:text-white"
+                className="w-full px-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40"
                 value={filterAction}
                 onChange={(e) => {
                   setFilterAction(e.target.value);
@@ -300,11 +292,11 @@ export default function AuditLog() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
                 Módulo / Entidade
               </label>
               <select
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/40 dark:text-white"
+                className="w-full px-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40"
                 value={filterModule}
                 onChange={(e) => {
                   setFilterModule(e.target.value);
@@ -335,13 +327,13 @@ export default function AuditLog() {
         </section>
 
         {/* Table */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <section className="bg-bg-card rounded-2xl border border-border-default overflow-hidden">
           {pageItems.length === 0 ? (
-            <div className="px-5 py-14 text-center text-slate-400 text-sm">
+            <div className="px-5 py-14 text-center text-text-muted text-sm">
               Nenhum registro encontrado para os filtros aplicados.
             </div>
           ) : isCompactViewport ? (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="divide-y divide-border-default dark:divide-slate-800">
               {pageItems.map((r) => (
                 <article
                   key={r.id}
@@ -349,12 +341,12 @@ export default function AuditLog() {
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      <p className="text-sm font-bold text-text-body dark:text-text-inverted">
                         {new Date(r.created_at ?? "").toLocaleDateString(
                           "pt-BR",
                         )}
                       </p>
-                      <p className="text-xs font-mono text-slate-500">
+                      <p className="text-xs font-mono text-text-muted">
                         {new Date(r.created_at ?? "").toLocaleTimeString(
                           "pt-BR",
                         )}
@@ -370,17 +362,17 @@ export default function AuditLog() {
                         .toUpperCase() || "—"}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                      <span className="text-sm font-semibold text-text-body dark:text-text-inverted">
                         {r.user_name ?? "—"}
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-text-muted">
                         {r.entity ?? "—"}
                       </span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-4">
-                    <div className="text-xs font-mono text-slate-500">
-                      <span className="font-semibold text-slate-400 uppercase tracking-widest block text-[10px]">
+                    <div className="text-xs font-mono text-text-muted">
+                      <span className="font-semibold text-text-muted uppercase tracking-widest block text-[10px]">
                         IP
                       </span>
                       {extractIp(r.details)}
@@ -403,40 +395,40 @@ export default function AuditLog() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
+                  <tr className="bg-bg-default border-b border-border-default">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider w-36">
                       Data / Hora
                     </th>
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
                       Usuário
                     </th>
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
                       Ação
                     </th>
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
                       Módulo
                     </th>
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
                       IP de Origem
                     </th>
-                    <th className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+                    <th className="px-5 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">
                       Detalhes
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-border-default dark:divide-slate-800">
                   {pageItems.map((r) => (
                     <tr
                       key={r.id}
-                      className={`border-l-4 ${rowAccent(r.action)} hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors`}
+                      className={`border-l-4 ${rowAccent(r.action)} hover:bg-bg-default/60 dark:hover:bg-bg-default/70 transition-colors`}
                     >
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <span className="text-sm font-semibold text-slate-900 dark:text-white block">
+                        <span className="text-sm font-semibold text-text-body dark:text-text-inverted block">
                           {new Date(r.created_at ?? "").toLocaleDateString(
                             "pt-BR",
                           )}
                         </span>
-                        <span className="text-xs text-slate-500 font-mono">
+                        <span className="text-xs text-text-muted font-mono">
                           {new Date(r.created_at ?? "").toLocaleTimeString(
                             "pt-BR",
                           )}
@@ -451,7 +443,7 @@ export default function AuditLog() {
                               ?.slice(0, 2)
                               .toUpperCase() || "—"}
                           </div>
-                          <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                          <span className="text-sm font-semibold text-text-body dark:text-text-inverted">
                             {r.user_name ?? "—"}
                           </span>
                         </div>
@@ -462,13 +454,13 @@ export default function AuditLog() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bg-default text-text-body dark:bg-bg-default dark:text-text-muted">
                           {r.entity ?? "—"}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="text-xs font-mono text-slate-500">
+                        <span className="text-xs font-mono text-text-muted">
                           {extractIp(r.details)}
                         </span>
                       </td>
@@ -493,17 +485,17 @@ export default function AuditLog() {
           )}
 
           {/* Pagination footer */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800">
-            <span className="text-sm text-slate-500">
+          <div className="bg-bg-default px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border-default">
+            <span className="text-sm text-text-muted">
               {filtered.length > 0 ? (
                 <>
                   Exibindo{" "}
-                  <strong className="text-slate-900 dark:text-white">
+                  <strong className="text-text-body dark:text-text-inverted">
                     {(currentPage - 1) * perPage + 1}–
                     {Math.min(currentPage * perPage, filtered.length)}
                   </strong>{" "}
                   de{" "}
-                  <strong className="text-slate-900 dark:text-white">
+                  <strong className="text-text-body dark:text-text-inverted">
                     {filtered.length}
                   </strong>{" "}
                   registros
@@ -515,7 +507,7 @@ export default function AuditLog() {
 
             <div className="flex items-center gap-1 overflow-x-auto sm:overflow-visible w-full sm:w-auto justify-center">
               <button
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(1)}
                 aria-label="Primeira página"
@@ -523,7 +515,7 @@ export default function AuditLog() {
                 <ChevronsLeft size={16} />
               </button>
               <button
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 aria-label="Página anterior"
@@ -544,7 +536,7 @@ export default function AuditLog() {
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
                       page === currentPage
                         ? "bg-primary text-white"
-                        : "hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400"
+                        : "hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted dark:text-text-muted"
                     }`}
                     onClick={() => setCurrentPage(page)}
                   >
@@ -554,7 +546,7 @@ export default function AuditLog() {
               })}
 
               <button
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
                 disabled={currentPage === totalPages}
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
@@ -564,7 +556,7 @@ export default function AuditLog() {
                 <ChevronRight size={16} />
               </button>
               <button
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(totalPages)}
                 aria-label="Última página"
@@ -584,30 +576,30 @@ export default function AuditLog() {
             onClick={() => setDetailRecord(null)}
           >
             <div
-              className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+              className="bg-bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <div className="px-6 py-4 bg-bg-default border-b border-border-default flex justify-between items-center">
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                  <h4 className="font-bold text-text-body dark:text-text-inverted flex items-center gap-2 text-sm">
                     <Code2 size={16} className="text-primary" />
                     Detalhes da Alteração
                   </h4>
-                  <p className="text-xs text-slate-500 mt-0.5 font-mono">
+                  <p className="text-xs text-text-muted mt-0.5 font-mono">
                     {detailRecord.action} · {detailRecord.entity} ·{" "}
                     {detailRecord.user_name}
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-muted hover:bg-bg-default dark:hover:bg-bg-default/80 transition-colors"
                   onClick={() => setDetailRecord(null)}
                   aria-label="Fechar"
                 >
                   <X size={18} />
                 </button>
               </div>
-              <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950/60">
+              <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body dark:text-text-inverted bg-bg-default dark:bg-bg-default/80">
                 {formatJson(detailRecord.details ?? "")}
               </pre>
             </div>

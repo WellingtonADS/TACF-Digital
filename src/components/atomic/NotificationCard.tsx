@@ -1,3 +1,11 @@
+/**
+ * @page NotificationCard
+ * @description Card para exibir notificações e alertas.
+ * @path src/components/atomic/NotificationCard.tsx
+ */
+
+
+
 import type { ReactNode } from "react";
 
 type Props = {

@@ -1,17 +1,28 @@
+/**
+ * @page OmScheduleEditor
+ * @description Edição de cronogramas e horários das OM.
+ * @path src/pages/OmScheduleEditor.tsx
+ */
+
+
+
+import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
-import Layout from "@/layout/Layout";
-import supabase from "@/services/supabase";
-import type { LocationSchedule } from "@/types/database.types";
 import {
   ArrowLeft,
+  Building2,
   CalendarDays,
   Clock3,
   Loader2,
   Moon,
   Save,
+  Search,
   Sun,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import type { LocationSchedule } from "@/types/database.types";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -45,6 +56,8 @@ type SlotState = {
   start_time: string;
   is_active: boolean;
 };
+
+type DayFilter = "all" | "active" | "inactive";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -81,6 +94,201 @@ function mergeDbSlots(
   return merged;
 }
 
+function PageHero({
+  locationName,
+  activeCount,
+  onBack,
+}: {
+  locationName: string;
+  activeCount: number;
+  onBack: () => void;
+}) {
+  return (
+    <section className="mb-6">
+      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Horários Disponíveis
+            </h1>
+            <p className="mt-2 text-sm text-white/85 md:text-base">
+              Controle operacional de turnos e janelas de atendimento para{" "}
+              <span className="font-semibold">{locationName}</span>.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+              {activeCount} turno{activeCount === 1 ? "" : "s"} ativo
+              {activeCount === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
+            >
+              <ArrowLeft size={16} />
+              Voltar
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Toolbar({
+  query,
+  setQuery,
+  filter,
+  setFilter,
+}: {
+  query: string;
+  setQuery: (value: string) => void;
+  filter: DayFilter;
+  setFilter: (value: DayFilter) => void;
+}) {
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
+      <div className="flex flex-col items-stretch justify-between gap-3 border-b border-border-default p-3 md:flex-row md:items-center md:p-5">
+        <div className="relative w-full md:flex-1 md:min-w-0">
+          <input
+            type="text"
+            placeholder="Buscar dia ou turno..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-full rounded-xl border-none bg-bg-default py-2 pl-10 pr-4 text-sm text-text-body placeholder:text-text-muted focus:ring-2 focus:ring-primary/20"
+          />
+          <Search
+            size={16}
+            className="absolute left-3 top-2.5 text-text-muted"
+          />
+        </div>
+
+        <div
+          className="flex w-full items-center gap-1 overflow-x-auto rounded-xl bg-bg-default p-1 no-scrollbar md:w-auto"
+          role="group"
+          aria-label="Filtrar horários"
+        >
+          {(
+            [
+              ["all", "Todos"],
+              ["active", "Ativos"],
+              ["inactive", "Inativos"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors md:px-3 ${
+                filter === value
+                  ? "bg-primary/10 text-primary shadow-sm"
+                  : "text-text-muted hover:text-text-body"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  locationName,
+  activeCount,
+  morningCount,
+  afternoonCount,
+}: {
+  locationName: string;
+  activeCount: number;
+  morningCount: number;
+  afternoonCount: number;
+}) {
+  return (
+    <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+      <div className="border-b border-border-default px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
+          Resumo da Agenda
+        </p>
+      </div>
+
+      <div className="space-y-5 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Building2 size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-bold text-text-body">{locationName}</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Distribuição atual de disponibilidade por turno.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+              Total Ativo
+            </p>
+            <p className="mt-1 text-lg font-bold text-text-body">
+              {activeCount}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                Manhã
+              </p>
+              <p className="mt-1 text-lg font-bold text-text-body">
+                {morningCount}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                Tarde
+              </p>
+              <p className="mt-1 text-lg font-bold text-text-body">
+                {afternoonCount}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function GuidanceCard() {
+  return (
+    <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+      <div className="border-b border-border-default px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
+          Orientações
+        </p>
+      </div>
+
+      <div className="space-y-3 p-5 text-sm text-text-muted">
+        <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+          Manhã representa o turno matutino. Tarde representa o turno
+          vespertino.
+        </div>
+        <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+          Ative apenas os turnos realmente disponíveis para evitar conflito em
+          agendamentos.
+        </div>
+        <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+          Fins de semana permanecem indisponíveis e não entram na grade
+          operacional.
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export default function OmScheduleEditor() {
@@ -92,6 +300,8 @@ export default function OmScheduleEditor() {
     useState<Record<SlotKey, SlotState>>(buildDefaultSlots);
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<DayFilter>("all");
 
   // Carrega dados da OM
   useEffect(() => {
@@ -152,172 +362,207 @@ export default function OmScheduleEditor() {
     }
   }
 
-  const activeCount = Object.values(slots).filter((s) => s.is_active).length;
+  const activeCount = useMemo(
+    () => Object.values(slots).filter((s) => s.is_active).length,
+    [slots],
+  );
+
+  const morningCount = useMemo(
+    () =>
+      Object.values(slots).filter((s) => s.period === "morning" && s.is_active)
+        .length,
+    [slots],
+  );
+
+  const afternoonCount = useMemo(
+    () =>
+      Object.values(slots).filter(
+        (s) => s.period === "afternoon" && s.is_active,
+      ).length,
+    [slots],
+  );
+
+  const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+
+  const filteredDays = useMemo(() => {
+    return DAYS.filter((day) => {
+      const daySlots = PERIODS.map(
+        (period) => slots[`${day.num}-${period.key}`],
+      );
+      const hasActiveSlot = daySlots.some((slot) => slot.is_active);
+
+      const matchesFilter =
+        filter === "all"
+          ? true
+          : filter === "active"
+            ? hasActiveSlot
+            : !hasActiveSlot;
+
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        day.long.toLocaleLowerCase("pt-BR").includes(normalizedQuery) ||
+        day.short.toLocaleLowerCase("pt-BR").includes(normalizedQuery) ||
+        PERIODS.some((period) =>
+          period.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery),
+        );
+
+      return matchesFilter && matchesQuery;
+    });
+  }, [filter, normalizedQuery, slots]);
+
+  if (isLoading) {
+    return (
+      <FullPageLoading
+        message="Carregando horários"
+        description="Aguarde enquanto consolidamos a agenda operacional da OM."
+      />
+    );
+  }
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-4xl pb-16">
-        {/* Header */}
-        <header className="mb-8 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <button
-              type="button"
-              onClick={() => navigate("/app/om-locations")}
-              className="mt-1 rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <Clock3 className="text-primary" size={24} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                Horários Disponíveis
-              </h1>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {isLoading
-                  ? "Carregando…"
-                  : location
-                    ? location.name
-                    : "OM não encontrada"}
-              </p>
-            </div>
-          </div>
-          {activeCount > 0 && (
-            <span className="mt-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-              {activeCount} turno{activeCount !== 1 ? "s" : ""} ativo
-              {activeCount !== 1 ? "s" : ""}
-            </span>
-          )}
-        </header>
+      <div className="mx-auto w-full max-w-6xl pb-16">
+        <PageHero
+          locationName={location?.name ?? "OM não encontrada"}
+          activeCount={activeCount}
+          onBack={() => navigate("/app/om-locations")}
+        />
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24 text-slate-400">
-            <Loader2 className="animate-spin" size={28} />
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-3xl border border-slate-200/50 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-            {/* Legenda de períodos */}
-            <div className="border-b border-slate-100 px-8 py-4 dark:border-slate-800">
-              <div className="flex items-center gap-6 text-xs text-slate-500">
+        <Toolbar
+          query={query}
+          setQuery={setQuery}
+          filter={filter}
+          setFilter={setFilter}
+        />
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+            <div className="border-b border-border-default px-6 py-4 md:px-8">
+              <div className="flex flex-col gap-3 text-xs text-text-muted md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="flex items-center gap-1.5">
+                    <Sun size={14} className="text-secondary" />
+                    Manhã — turno matutino
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Moon size={14} className="text-primary" />
+                    Tarde — turno vespertino
+                  </span>
+                </div>
                 <span className="flex items-center gap-1.5">
-                  <Sun size={14} className="text-amber-400" />
-                  Manhã — turno matutino
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Moon size={14} className="text-indigo-400" />
-                  Tarde — turno vespertino
-                </span>
-                <span className="ml-auto flex items-center gap-1.5 text-slate-400">
                   <CalendarDays size={13} />
-                  Fins de semana sempre indisponíveis
+                  Fins de semana permanecem indisponíveis
                 </span>
               </div>
             </div>
 
-            {/* Grade */}
-            <div className="p-6 md:p-10">
-              {/* Cabeçalho das colunas */}
+            <div className="p-6 md:p-8">
               <div className="mb-3 grid grid-cols-3 gap-4">
-                <div /> {/* espaço dos dias */}
-                {PERIODS.map((p) => (
+                <div />
+                {PERIODS.map((period) => (
                   <div
-                    key={p.key}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                    key={period.key}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-bg-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted"
                   >
-                    {p.key === "morning" ? (
-                      <Sun size={14} className="text-amber-400" />
+                    {period.key === "morning" ? (
+                      <Sun size={14} className="text-secondary" />
                     ) : (
-                      <Moon size={14} className="text-indigo-400" />
+                      <Moon size={14} className="text-primary" />
                     )}
-                    {p.label}
+                    {period.label}
                   </div>
                 ))}
               </div>
 
-              {/* Linhas por dia */}
-              <div className="space-y-3">
-                {DAYS.map((day) => (
-                  <div
-                    key={day.num}
-                    className="grid grid-cols-3 items-center gap-4"
-                  >
-                    {/* Nome do dia */}
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      <span className="hidden md:block">{day.long}</span>
-                      <span className="block md:hidden">{day.short}</span>
+              {filteredDays.length === 0 ? (
+                <div className="rounded-2xl border border-border-default bg-bg-default px-6 py-10 text-center">
+                  <p className="text-sm font-semibold text-text-body">
+                    Nenhum horário encontrado para os filtros atuais.
+                  </p>
+                  <p className="mt-2 text-sm text-text-muted">
+                    Ajuste a busca ou altere o filtro para visualizar outros
+                    turnos.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredDays.map((day) => (
+                    <div
+                      key={day.num}
+                      className="grid grid-cols-3 items-center gap-4"
+                    >
+                      <div className="text-sm font-semibold text-text-body">
+                        <span className="hidden md:block">{day.long}</span>
+                        <span className="block md:hidden">{day.short}</span>
+                      </div>
+
+                      {PERIODS.map((period) => {
+                        const key: SlotKey = `${day.num}-${period.key}`;
+                        const slot = slots[key];
+
+                        return (
+                          <div
+                            key={key}
+                            className={`flex flex-col gap-3 rounded-xl border p-3 transition-all ${
+                              slot.is_active
+                                ? "border-primary/20 bg-primary/5"
+                                : "border-border-default bg-bg-default"
+                            }`}
+                          >
+                            <label className="flex cursor-pointer items-center justify-between gap-2">
+                              <span
+                                className={`text-xs font-semibold ${slot.is_active ? "text-primary" : "text-text-muted"}`}
+                              >
+                                {slot.is_active ? "Ativo" : "Inativo"}
+                              </span>
+                              <div className="relative inline-flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="peer sr-only"
+                                  checked={slot.is_active}
+                                  onChange={(event) =>
+                                    updateSlot(key, {
+                                      is_active: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <div className="h-5 w-10 rounded-full bg-border-default transition peer-checked:bg-primary" />
+                                <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
+                              </div>
+                            </label>
+
+                            {slot.is_active && (
+                              <div className="flex items-center gap-1.5">
+                                <Clock3
+                                  size={12}
+                                  className="shrink-0 text-text-muted"
+                                />
+                                <input
+                                  type="time"
+                                  value={slot.start_time}
+                                  onChange={(event) =>
+                                    updateSlot(key, {
+                                      start_time: event.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-border-default bg-bg-card px-3 py-2 text-xs text-text-body focus-ring"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    {/* Célula por período */}
-                    {PERIODS.map((p) => {
-                      const key: SlotKey = `${day.num}-${p.key}`;
-                      const slot = slots[key];
-
-                      return (
-                        <div
-                          key={key}
-                          className={`flex flex-col gap-2 rounded-xl border p-3 transition-all ${
-                            slot.is_active
-                              ? "border-primary/30 bg-primary/5 dark:bg-primary/10"
-                              : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40"
-                          }`}
-                        >
-                          {/* Toggle ativo */}
-                          <label className="flex cursor-pointer items-center justify-between gap-2">
-                            <span
-                              className={`text-xs font-semibold ${slot.is_active ? "text-primary" : "text-slate-400"}`}
-                            >
-                              {slot.is_active ? "Ativo" : "Inativo"}
-                            </span>
-                            <div className="relative inline-flex items-center">
-                              <input
-                                type="checkbox"
-                                className="peer sr-only"
-                                checked={slot.is_active}
-                                onChange={(e) =>
-                                  updateSlot(key, {
-                                    is_active: e.target.checked,
-                                  })
-                                }
-                              />
-                              <div className="h-5 w-10 rounded-full bg-slate-200 transition peer-checked:bg-primary dark:bg-slate-600" />
-                              <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
-                            </div>
-                          </label>
-
-                          {/* Hora de início */}
-                          {slot.is_active && (
-                            <div className="flex items-center gap-1.5">
-                              <Clock3
-                                size={12}
-                                className="shrink-0 text-slate-400"
-                              />
-                              <input
-                                type="time"
-                                value={slot.start_time}
-                                onChange={(e) =>
-                                  updateSlot(key, {
-                                    start_time: e.target.value,
-                                  })
-                                }
-                                className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Rodapé */}
-            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-slate-200/50 bg-slate-50 px-8 py-6 md:flex-row md:px-10 dark:border-slate-800 dark:bg-slate-800/30">
+            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-8 py-6 md:flex-row md:px-10">
               <button
                 type="button"
                 onClick={() => navigate("/app/om-locations")}
-                className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 transition hover:text-slate-900 md:w-auto dark:text-slate-400 dark:hover:text-white"
+                className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
               >
                 Cancelar
               </button>
@@ -338,7 +583,17 @@ export default function OmScheduleEditor() {
               </button>
             </div>
           </div>
-        )}
+
+          <div className="space-y-6">
+            <SummaryCard
+              locationName={location?.name ?? "OM não encontrada"}
+              activeCount={activeCount}
+              morningCount={morningCount}
+              afternoonCount={afternoonCount}
+            />
+            <GuidanceCard />
+          </div>
+        </div>
       </div>
     </Layout>
   );

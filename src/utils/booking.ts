@@ -9,6 +9,8 @@ export const formatDatePtBr = (dateStr: string) =>
 
 export const formatSessionPeriod = (period: string) => {
   const normalized = (period ?? "").toString().trim().toLowerCase();
+  if (normalized === "manha") return "Manhã";
+  if (normalized === "tarde") return "Tarde";
   if (normalized === "morning") return "Manhã";
   if (normalized === "afternoon") return "Tarde";
   return period;
@@ -82,7 +84,7 @@ export async function fetchExistingSemesterBooking(
       .from("bookings")
       .select("id, test_date")
       .eq("user_id", userId)
-      .eq("status", "confirmed")
+      .eq("status", "agendado")
       .eq("semester", semester)
       .maybeSingle<{ id: string; test_date: string }>();
 
@@ -92,3 +94,5 @@ export async function fetchExistingSemesterBooking(
     return null;
   }
 }
+
+

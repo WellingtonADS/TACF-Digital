@@ -1,7 +1,18 @@
+/**
+ * @page Login
+ * @description Tela de autenticação de usuários.
+ * @path src/pages/Login.tsx
+ */
+
+
+
 import AuthLayout from "@/components/AuthLayout";
+import { Button } from "@/components/atomic/Button";
+import { Input } from "@/components/atomic/Input";
+import PasswordInput from "@/components/atomic/PasswordInput";
+import { Loader2, Plane } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { Loader2, Plane } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -127,20 +138,20 @@ export default function Login() {
     <AuthLayout>
       <>
         <div className="flex items-center gap-3 mb-10">
-          <div className="bg-primary text-white p-2 rounded-lg">
+          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
             <Plane
               className="w-6 h-6 transform -rotate-45"
               fill="currentColor"
             />
           </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
             TACF-Digital
           </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           <div className="space-y-1">
-            <input
+            <Input
               id="email"
               name="tacf-auth-email"
               type="email"
@@ -148,21 +159,14 @@ export default function Login() {
               placeholder="Ex.: joao.silva@fab.mil.br"
               value={formData.email}
               autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
+              onChange={(v: string) => setFormData({ ...formData, email: v })}
             />
           </div>
 
           <div className="space-y-1">
-            <input
+            <PasswordInput
               id="password"
               name="tacf-auth-password"
-              type="password"
               required
               placeholder="Digite sua senha"
               value={formData.password}
@@ -170,16 +174,14 @@ export default function Login() {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
             />
           </div>
 
           {isSignUp && (
             <div className="space-y-1">
-              <input
+              <PasswordInput
                 id="confirmPassword"
                 name="tacf-auth-confirm-password"
-                type="password"
                 required
                 placeholder="Confirme sua senha"
                 value={formData.confirmPassword}
@@ -187,27 +189,26 @@ export default function Login() {
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
-                className="w-full px-5 py-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-xl border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none font-medium"
               />
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-[#1B365D] hover:bg-[#152a48] text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               "ENTRAR"
             )}
-          </button>
+          </Button>
 
           <div className="flex justify-end pt-2">
             <Link
               to="/forgot"
-              className="text-sm font-medium text-gray-500 hover:text-primary underline decoration-transparent hover:decoration-primary transition-all"
+              className="text-sm font-medium text-text-muted hover:text-primary underline decoration-transparent hover:decoration-primary transition-all"
             >
               Esqueceu a senha?
             </Link>
@@ -215,10 +216,10 @@ export default function Login() {
         </form>
 
         <div className="text-center pt-4">
-          <p className="text-sm text-slate-600">Ainda não tem acesso?</p>
+          <p className="text-sm text-text-muted">Ainda não tem acesso?</p>
           <Link
             to="/register"
-            className="text-primary font-bold text-sm hover:underline mt-1 inline-block focus:outline-none"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
             Cadastre-se aqui
           </Link>
@@ -232,7 +233,7 @@ export default function Login() {
                 <button
                   onClick={retryAutoLogin}
                   disabled={retryingAutoLogin}
-                  className="btn btn-sm bg-primary text-white px-3 py-1 rounded"
+                  className="btn btn-sm bg-primary text-primary-foreground px-3 py-1 rounded"
                   type="button"
                 >
                   {retryingAutoLogin ? "Tentando..." : "Tentar login novamente"}
@@ -249,7 +250,7 @@ export default function Login() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-xs text-gray-300 font-medium">
+          <p className="text-xs text-text-muted font-medium">
             © 2026 HACO — Força Aérea Brasileira
           </p>
         </div>

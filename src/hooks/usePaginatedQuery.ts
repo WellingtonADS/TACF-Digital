@@ -73,3 +73,5 @@ export default function usePaginatedQuery<T = unknown>(
     reset,
   } as const;
 }
+
+

@@ -1,97 +1,146 @@
-# Documentação do Projeto: TACF Digital - HACO
+# Documentacao do Projeto: TACF Digital - HACO
 
-## 1. Folha de Requisitos (Business Requirements Document)
+## 0. Resumo Executivo
 
-Baseado no documento oficial do Hospital da Aeronáutica de Canoas (HACO).
+O TACF Digital e uma plataforma web para agendamento e gestao de sessoes no contexto militar.
+A interface facilita operacoes para Militar, Coordenador e Admin, enquanto as regras de negocio
+criticas (capacidade, quorum, concorrencia e auditoria) sao garantidas no banco via Supabase RPCs,
+migrations e politicas RLS.
 
-| ID     | Requisito           | Descrição Técnica                                                                                                               | Criticidade |
-| ------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| REQ-01 | Turnos e Capacidade | O sistema não usa horários fixos, apenas turnos (Manhã/Tarde). Capacidade dinâmica entre 8 e 21 pessoas por turno.              | Alta        |
-| REQ-02 | Sazonalidade        | O sistema opera em campanhas (Fev-Mai e Set-Nov). Fora desses períodos, deve estar fechado ou em modo leitura.                  | Média       |
-| REQ-03 | Segurança de Dados  | Um militar não pode ver quem mais está agendado no mesmo dia (Privacidade/LGPD). Apenas o Admin vê a lista nominal.             | Crítica     |
-| REQ-04 | Fluxo de Troca      | O militar não pode alterar a data sozinho após confirmada. Deve solicitar troca para aprovação do Coordenador (Auditabilidade). | Alta        |
-| REQ-05 | Gestão de Sessão    | O Coordenador deve inserir nomes dos Aplicadores (Sgt X, Ten Y) no dia para constar na impressão.                               | Média       |
+Objetivos principais:
+
+- Simplificar o agendamento por turno (manha/tarde).
+- Garantir privacidade de dados conforme LGPD.
+- Manter rastreabilidade completa de alteracoes e decisoes.
+- Dar previsibilidade operacional ao HACO com relatorios e governanca.
 
 ---
 
-## 2. Arquitetura da Solução
+## 1. Folha de Requisitos (Business Requirements Document)
 
-### Diagrama de Fluxo (Mermaid)
+Baseado no contexto operacional do Hospital da Aeronautica de Canoas (HACO).
+
+| ID     | Requisito            | Descricao Tecnica                                                                                                                               | Criticidade |
+| ------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------: |
+| REQ-01 | Turnos e Capacidade  | O sistema opera por turnos (Manha/Tarde), sem horario fixo por pessoa. Capacidade por turno configuravel entre 8 e 21.                          |        Alta |
+| REQ-02 | Sazonalidade         | Agendamento habilitado em campanhas (Fev-Mai e Set-Nov). Fora do periodo, sistema em modo leitura/fechado para novos agendamentos.              |       Media |
+| REQ-03 | Privacidade de Dados | Militar nao pode ver lista nominal de outros militares no mesmo dia/turno. Apenas perfis autorizados (Admin/Coordenador) acessam lista nominal. |     Critica |
+| REQ-04 | Fluxo de Troca       | Militar nao altera data confirmada diretamente. Deve abrir solicitacao de troca, sujeita a aprovacao do Coordenador.                            |        Alta |
+| REQ-05 | Gestao de Sessao     | Coordenador registra aplicadores da sessao e observacoes operacionais para uso em impressao e relatorios.                                       |       Media |
+| REQ-06 | Notificacoes         | Sistema envia comunicacoes de confirmacao, cancelamento e troca (aprovada/rejeitada).                                                           |       Media |
+| REQ-07 | Usabilidade          | Fluxo de agendamento deve ser simples, claro e com feedback imediato em cada etapa.                                                             |       Media |
+| REQ-08 | Relatorios           | Admin visualiza relatorios por periodo/local/status para suporte a decisao operacional.                                                         |       Baixa |
+| REQ-09 | Seguranca e Acesso   | Autenticacao e autorizacao por perfil com RLS no banco e menor privilegio por recurso.                                                          |     Critica |
+| REQ-10 | Auditabilidade       | Decisoes e mudancas de estado devem ser registradas com usuario, data/hora e motivo.                                                            |        Alta |
+| REQ-11 | Concorrencia         | Criacao de reservas deve ser atomica no banco para evitar overbooking em cenarios concorrentes.                                                 |        Alta |
+
+---
+
+## 2. Arquitetura da Solucao
+
+### 2.1 Diagrama de Alto Nivel (Mermaid)
 
 ```mermaid
 graph TD
-    User((Militar)) -->|Acessa web responsivo| Front[React + Vite + Tailwind]
-    Admin((Coordenador)) -->|Acessa Admin| Front
+    Militar((Militar)) -->|Agendamento web| Front[Frontend React + Vite + TypeScript]
+    Coord((Coordenador/Admin)) -->|Painel de gestao| Front
 
     subgraph "Frontend (Vercel)"
-        Front -->|Gera PDF| PDFLib[jsPDF]
+        Front -->|PDF| PDF[jsPDF + AutoTable]
     end
 
     subgraph "Backend (Supabase)"
         Front -->|Auth| Auth[Supabase Auth]
-        Front -->|Data| DB[(PostgreSQL)]
-        Front -->|Logic| RPC[Database Functions]
+        Front -->|Queries| DB[(PostgreSQL)]
+        Front -->|Regras de dominio| RPC[RPCs SQL]
     end
 
-    subgraph "Segurança"
-        DB -->|Protege| RLS[Row Level Security]
-        RPC -->|Garante| Transaction[Anti-Race Condition]
+    subgraph "Seguranca e Confiabilidade"
+        DB --> RLS[Row Level Security]
+        RPC --> TX[Transacoes anti-concorrencia]
+        DB --> AUD[Auditoria]
     end
 ```
 
-### Stack Tecnológica Definida
+### 2.2 Stack Tecnologica
 
-- **Frontend**: React 18, TypeScript 5.9, Vite, TailwindCSS v4, Lucide Icons
-- **Backend**: Supabase (BaaS)
-- **Banco de Dados**: PostgreSQL 15+
-- **Hospedagem**: Vercel (Front) + Supabase Cloud (Back)
-- **CI/CD**: GitHub Actions
-- **Bibliotecas Especiais**:
-- `jspdf` + `jspdf-autotable` - Geração de PDF
-  - Design responsivo: abordagens mobile-first e testes em dispositivos
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS.
+- Backend/BaaS: Supabase (Auth, PostgreSQL, RPC).
+- Banco de dados: PostgreSQL.
+- Hospedagem: Vercel (frontend) + Supabase Cloud (backend).
+- CI/CD: GitHub Actions.
+- Bibliotecas relevantes:
+  - `jspdf` + `jspdf-autotable` para geracao de PDF.
+  - `react-qr-code` para representacao de comprovante quando aplicavel.
 
-- **CI/CD**: GitHub Actions (lint, typecheck, build, testes)
-- **Bibliotecas Especiais**:
-  - `jspdf` + `jspdf-autotable` — geração de PDFs (listas de chamada)
-  - Design responsivo: abordagens mobile-first e testes em dispositivos
+### 2.3 Principios Arquiteturais
+
+- Regras de dominio ficam no banco (`supabase/rpc/`, `supabase/migrations/`).
+- Frontend nao implementa validacao critica de negocio, apenas orquestra UX e exibe feedback.
+- Integracao com banco centralizada no wrapper `src/services/supabase.ts`.
+- Seguranca por camadas: Auth, autorizacao por perfil e RLS.
 
 ---
 
-## Build, Test e CI
+## 3. Build, Teste e CI
 
-- **TypeScript strict:** o projeto deve usar `strict: true` no `tsconfig.json`. Como verificação automática, a pipeline deve rodar `npx tsc --noEmit`.
-- **Comandos mínimos em CI:**
+### 3.1 Qualidade Minima Obrigatoria
 
-```
+- TypeScript em modo strict (`strict: true`).
+- Lint sem erros.
+- Build de producao concluindo sem falhas.
+
+### 3.2 Comandos recomendados na pipeline
+
+```bash
 yarn lint
 npx tsc --noEmit
 yarn test
 yarn build
 ```
 
-- **Jobs sugeridos (GitHub Actions):** `lint`, `typecheck`, `test`, `build` — todos obrigatórios antes do merge de PR.
-- **Auditoria de dependências (opcional):** `yarn audit`/`npm audit` para capturar vulnerabilidades conhecidas.
+### 3.3 Jobs sugeridos no GitHub Actions
 
-- **Regras para alterações em `supabase/`:** quaisquer mudanças em `supabase/migrations`, `supabase/policies` ou `supabase/rpc` devem ser acompanhadas por uma _issue_ descrevendo a motivação, incluir migration SQL versionada em `supabase/migrations/` e requerer revisão explícita do coordenador (HACO) antes do merge (ver AGENTS.md para processo).
+- `lint`
+- `typecheck`
+- `test`
+- `build`
 
-## 3. Modelagem de Banco de Dados (ER Diagram)
+Todos bloqueantes para merge em PR.
 
-Estrutura relacional para atender os requisitos de auditoria e limites.
+### 3.4 Observacao sobre E2E
+
+A automacao E2E com Playwright foi removida nesta branch de trabalho; reintroduzir em PR dedicado quando necessario.
+
+### 3.5 Regras para alteracoes em `supabase/`
+
+Mudancas em `supabase/migrations`, `supabase/policies` ou `supabase/rpc` devem:
+
+- ter motivacao documentada;
+- incluir SQL versionado;
+- receber revisao humana explicita do coordenador (HACO) antes do merge.
+
+---
+
+## 4. Modelagem de Banco de Dados (Visao Conceitual)
+
+Estrutura relacional para suportar agendamento, trocas e trilha de auditoria.
 
 ```mermaid
 erDiagram
     profiles ||--o{ bookings : "faz"
+    sessions ||--o{ bookings : "recebe"
+    bookings ||--o{ swap_requests : "origina"
+
     profiles {
         uuid id PK
-        string saram UK "Nº Ordem"
+        string saram UK
         string full_name
-        string rank "Posto/Grad"
-        enum role "admin/user"
-        enum semester "1/2"
+        string rank
+        enum role "admin/coordinator/user"
         timestamp created_at
     }
 
-    sessions ||--o{ bookings : "contém"
     sessions {
         uuid id PK
         date date
@@ -103,13 +152,11 @@ erDiagram
         timestamp created_at
     }
 
-    bookings ||--o{ swap_requests : "gera"
     bookings {
         uuid id PK
         uuid user_id FK
         uuid session_id FK
         enum status "confirmed/pending_swap/cancelled"
-        string swap_reason
         timestamp created_at
         timestamp updated_at
     }
@@ -118,176 +165,148 @@ erDiagram
         uuid id PK
         uuid booking_id FK
         uuid requested_by FK
+        uuid processed_by FK
         string reason
         string admin_response
-        uuid processed_by FK
         enum status "pending/approved/rejected"
         timestamp created_at
         timestamp processed_at
     }
 ```
 
-### Constraints Críticos
+### 4.1 Constraints Criticos
 
-1. **UNIQUE(user_id, semester)** em `bookings` - Um militar só pode ter 1 agendamento ativo por semestre
-2. **CHECK(max_capacity BETWEEN 8 AND 21)** em `sessions` - Limite de capacidade validado no banco
-3. **RLS Policies**:
-   - `profiles`: Usuários veem apenas o próprio perfil; Admins veem todos
-   - `sessions`: Qualquer um vê datas/períodos (sem nomes); Admins veem detalhes completos
-   - `bookings`: Usuários veem apenas os próprios; Admins veem todos
-
----
-
-## 4. Planejamento de Sprints (Backlog)
-
-Para organizar o desenvolvimento e o ensino posterior, dividiremos em 3 fases:
-
-### Fase 1: Fundação (Setup & DB)
-
-**Sprint 1-2 (2 semanas)**
-
-- [ ] Configuração do Repositório Git
-  - Estrutura de pastas (src/, docs/, public/)
-  - ESLint + Prettier configurado
-  - GitHub Actions básico (lint + build)
-- [ ] Setup do Supabase
-  - Criar projeto no Supabase Cloud
-  - Configurar variáveis de ambiente (.env.local)
-- [ ] Criação das Tabelas
-  - Script SQL para `profiles`, `sessions`, `bookings`, `swap_requests`
-  - Migração versionada (migrations/)
-- [ ] Implementação do RLS (Segurança)
-  - Policies para cada tabela
-  - Testes de acesso (Admin vs User)
-
-**Entregável**: Banco de dados funcional com RLS + CI/CD básico
+1. `UNIQUE(user_id, campaign_or_semester)` em `bookings` para evitar mais de um agendamento ativo no mesmo ciclo.
+2. `CHECK(max_capacity BETWEEN 8 AND 21)` em `sessions`.
+3. RLS em tabelas sensiveis:
+   - `profiles`: usuario ve o proprio perfil; admin/coordenador conforme privilegio.
+   - `sessions`: usuario ve disponibilidade; dados nominais somente para perfis autorizados.
+   - `bookings`: usuario ve apenas os proprios registros.
+4. Integridade e concorrencia tratadas em RPC transacional para reserva e troca.
 
 ---
 
-### Fase 2: Core (O Agendamento)
+## 5. Planejamento de Entregas (Roadmap)
 
-**Sprint 3-5 (3 semanas)**
+### Fase 1: Fundacao (Setup + Banco)
 
-- [ ] Autenticação
-  - Login com SARAM (número de ordem)
-  - Proteção de rotas (PrivateRoute component)
-  - Logout e refresh de sessão
-- [ ] Visualização do Calendário
-  - Componente `Calendar.tsx` (React hooks)
-  - Lógica de cores: Verde (disponível) / Vermelho (lotado)
-  - Integração com Supabase (fetch sessions + bookings)
-- [ ] Lógica de Agendamento
-  - Validação de capacidade (8-21)
-  - Checagem de duplicidade (1 booking/semestre)
-  - Confirmação visual (modal + QR Code do SARAM)
-  - Tratamento de race conditions (usar Supabase RPC)
+Escopo:
 
-**Entregável**: Usuário consegue agendar e visualizar calendário funcional
+- Estrutura de repositorio e padroes de qualidade.
+- Provisionamento Supabase e variaveis de ambiente.
+- Migrations iniciais e RLS.
+
+Entregavel:
+
+- Banco funcional com politicas de seguranca e pipeline basica ativa.
+
+### Fase 2: Core de Agendamento
+
+Escopo:
+
+- Autenticacao e protecao de rotas.
+- Calendario de sessoes com disponibilidade por turno.
+- Reserva via RPC com tratamento de concorrencia.
+
+Entregavel:
+
+- Militar agenda e consulta status com comprovante e feedback claro.
+
+### Fase 3: Operacao Administrativa
+
+Escopo:
+
+- Painel de Coordenador/Admin para sessoes e aplicadores.
+- Fluxo completo de solicitacao/aprovacao de troca.
+- Relatorios e exportacoes operacionais.
+
+Entregavel:
+
+- Operacao fim a fim com governanca, rastreabilidade e visao analitica.
+
+### Fase 4: Hardening e Escala
+
+Escopo:
+
+- Observabilidade e alertas.
+- Otimizacoes de performance e custo.
+- Fortalecimento de testes de regressao.
+
+Entregavel:
+
+- Plataforma estavel e preparada para ciclos recorrentes de campanha.
 
 ---
 
-### Fase 3: Admin & Refino
+## 6. Fluxogramas de Processos Criticos
 
-**Sprint 6-8 (3 semanas)**
-
-- [ ] Painel do Coordenador
-  - Componente `AdminSessionManager.tsx`
-  - Edição de capacidade (slider 8-21)
-  - Adição de Aplicadores (input de array)
-  - Visualização da Lista Nominal (respeitando privacidade)
-- [ ] Fluxo de Aprovação de Trocas
-  - Tela de solicitação (user)
-  - Tela de aprovação (admin)
-  - Notificações de status
-- [ ] Impressão de PDF
-  - Função `generateCallList.ts`
-  - Formato: Data, Turno, Aplicadores, Lista (SARAM + Nome)
-  - Download automático
-- [ ] Web responsivo
-- Implementação mobile-first e testes em dispositivos
-- Meta tags e ícones para integração com navegadores (não PWA)
-- Estratégias de cache e performance (HTTP caching, CDN)
-- QR Code para acesso rápido (opcional)
-- [ ] Testes e Deploy
-  - Testes E2E com Playwright (opcional)
-  - Deploy no Vercel
-  - Configuração de domínio (se aplicável)
-
-**Entregável**: Sistema completo em produção, responsivo para web (não PWA)
-
----
-
-## 5. Fluxogramas de Processos Críticos
-
-### Processo: Agendamento de Militar
+### 6.1 Agendamento de Militar
 
 ```mermaid
 flowchart TD
-    A[Militar acessa calendário] --> B{Tem agendamento ativo?}
-    B -->|Sim| C[Mostra agendamento atual]
-    B -->|Não| D[Seleciona data]
+    A[Militar acessa calendario] --> B{Ja possui agendamento ativo?}
+    B -->|Sim| C[Exibe agendamento e opcao de solicitar troca]
+    B -->|Nao| D[Seleciona data e turno]
     D --> E{Turno tem vaga?}
-    E -->|Não| F[Exibe mensagem: Lotado]
+    E -->|Nao| F[Exibe lotado e sugere alternativa]
     E -->|Sim| G[Confirma agendamento]
-    G --> H{Sucesso?}
-    H -->|Sim| I[Gera comprovante QR Code]
-    H -->|Não| J[Erro: Outra pessoa ocupou]
-    C --> K[Opção: Solicitar troca]
+    G --> H{Reserva via RPC concluida?}
+    H -->|Sim| I[Gera comprovante e envia notificacao]
+    H -->|Nao| J[Erro concorrente e nova tentativa]
 ```
 
-### Processo: Aprovação de Troca (Coordenador)
+### 6.2 Aprovacao de Troca (Coordenador)
 
 ```mermaid
 flowchart TD
-    A[Coordenador acessa painel] --> B[Lista de solicitações pendentes]
-    B --> C{Há solicitações?}
-    C -->|Não| D[Dashboard vazio]
-    C -->|Sim| E[Visualiza detalhes]
-    E --> F{Aprovar ou Rejeitar?}
-    F -->|Aprovar| G[Cancela booking antigo]
-    G --> H[Cria novo booking]
-    H --> I[Notifica militar]
-    F -->|Rejeitar| J[Adiciona motivo]
+    A[Coordenador acessa painel] --> B[Lista solicitacoes pendentes]
+    B --> C{Existe solicitacao?}
+    C -->|Nao| D[Sem pendencias]
+    C -->|Sim| E[Analisa motivo e disponibilidade]
+    E --> F{Aprovar ou rejeitar?}
+    F -->|Aprovar| G[Cancela agendamento antigo]
+    G --> H[Cria novo agendamento via RPC]
+    H --> I[Notifica militar com detalhes]
+    F -->|Rejeitar| J[Registra motivo da rejeicao]
     J --> I
 ```
 
 ---
 
-## 6. Matriz de Riscos
+## 7. Matriz de Riscos
 
-| Risco                                | Probabilidade | Impacto | Mitigação                                      |
-| ------------------------------------ | ------------- | ------- | ---------------------------------------------- |
-| Race condition em agendamento        | Média         | Alto    | Usar transações SQL via Supabase RPC           |
-| Militar vê lista de outros           | Baixa         | Crítico | RLS rigoroso + Code review obrigatório         |
-| Supabase fora do ar                  | Baixa         | Alto    | Monitoramento + Fallback em cache local        |
-| Compatibilidade mobile e navegadores | Média         | Médio   | Testes em múltiplos navegadores e dispositivos |
-| Capacidade de 21 excedida            | Média         | Médio   | CHECK constraint no DB + validação no front    |
-
----
-
-## 7. Checklist de Definição de Pronto (DoD)
-
-Para considerar uma funcionalidade concluída:
-
-- [ ] Código TypeScript com tipos explícitos
-- [ ] Testes manuais em Chrome e Safari (mobile)
-- [ ] RLS validado (user não vê dados de outros)
-- [ ] ESLint sem erros
-- [ ] Build (`yarn build`) sem falhas
-- [ ] Documentação atualizada (se necessário)
-- [ ] Deploy em preview (Vercel)
+| Risco                                         | Probabilidade | Impacto | Mitigacao                                                          |
+| --------------------------------------------- | ------------- | ------- | ------------------------------------------------------------------ |
+| Corrida de concorrencia em horario disputado  | Media         | Alto    | Reserva atomica em RPC + transacao + lock adequado                 |
+| Exposicao indevida de dados de militares      | Baixa         | Critico | RLS rigoroso + revisao de queries + testes de permissao            |
+| Indisponibilidade parcial do Supabase         | Baixa         | Alto    | Monitoramento, retry controlado e comunicacao de indisponibilidade |
+| Problemas de UX em mobile                     | Media         | Medio   | Validacao responsiva, testes em diferentes tamanhos e navegadores  |
+| Divergencia entre regra de negocio e frontend | Media         | Alto    | Centralizar regra no banco e revisar contratos de RPC              |
 
 ---
 
-## 8. Referências e Links Úteis
+## 8. Definicao de Pronto (DoD)
 
-- [Supabase Auth Documentation](https://supabase.com/docs/guides/auth)
-- [jsPDF Documentation](https://github.com/parallax/jsPDF)
-- [Row Level Security (RLS)](https://supabase.com/docs/guides/auth/row-level-security)
-- [React 18 Release Notes](https://react.dev/blog/2024/04/25/react-18-release-notes)
+Uma entrega so e considerada pronta quando:
+
+- Tipagem TypeScript clara e sem uso indevido de `any`.
+- Lint e typecheck aprovados.
+- Build de producao concluida.
+- Fluxo funcional validado manualmente no caminho principal.
+- Regras de permissao e privacidade validadas (RLS).
+- Documentacao tecnica atualizada quando houver impacto.
 
 ---
 
-**Última atualização**: 17 de fevereiro de 2026
-**Responsável**: Equipe TACF Digital
-**Stakeholder**: Hospital da Aeronáutica de Canoas (HACO)
+## 9. Referencias
+
+- [Supabase Auth](https://supabase.com/docs/guides/auth)
+- [Supabase RLS](https://supabase.com/docs/guides/auth/row-level-security)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [jsPDF](https://github.com/parallax/jsPDF)
+
+---
+
+Ultima atualizacao: 06 de marco de 2026
+Responsavel: Equipe TACF Digital
+Stakeholder: Hospital da Aeronautica de Canoas (HACO)

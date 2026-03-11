@@ -5,3 +5,5 @@ export const formatDate = (d?: string | Date) => {
 };
 
 export default { formatDate };
+
+

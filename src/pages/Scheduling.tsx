@@ -1,11 +1,16 @@
+/**
+ * @page Scheduling
+ * @description Interface de agendamento de sessões.
+ * @path src/pages/Scheduling.tsx
+ */
+
+
+
+import FullPageLoading from "@/components/FullPageLoading";
+import Layout from "@/components/layout/Layout";
+import TicketModal from "@/components/TicketModal";
+import useDashboard from "@/hooks/useDashboard";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import supabase from "@/services/supabase";
-import {
-  fetchBookedDatesForUser,
-  formatDatePtBr,
-  formatSessionPeriod,
-} from "@/utils/booking";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
 import {
   Calendar,
   Check,
@@ -16,20 +21,31 @@ import {
   Hash,
   HelpCircle,
   MapPin,
-} from "lucide-react";
+} from "@/icons";
+import supabase from "@/services/supabase";
+import {
+  fetchBookedDatesForUser,
+  formatDatePtBr,
+  formatSessionPeriod,
+} from "@/utils/booking";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import AppIcon from "../components/atomic/AppIcon";
 import PageSkeleton from "../components/PageSkeleton";
-import Layout from "../layout/Layout";
+
+type SessionLocation = {
+  name: string | null;
+  address: string | null;
+};
+
+const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export const Scheduling = () => {
   const navigate = useNavigate();
-
-  type SessionLocation = {
-    name: string | null;
-    address: string | null;
-  };
+  useDashboard();
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   const [viewDate, setViewDate] = useState(() => new Date());
   const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
@@ -161,15 +177,18 @@ export const Scheduling = () => {
     };
   }, [startStr, endStr]);
 
+  if (loading) return <FullPageLoading message="Carregando sessões" />;
+
   return (
     <Layout>
       <main>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-0">
-          <header className="mb-6 sm:mb-8">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary dark:text-white">
+        <div className="mx-auto max-w-5xl">
+          <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Novo Agendamento
-            </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            </h1>
+            {/* botão de abrir bilhete removido */}
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
               Selecione uma data disponível para a realização do seu Teste de
               Avaliação de Condicionamento Físico.
             </p>
@@ -177,13 +196,13 @@ export const Scheduling = () => {
 
           {/* Stepper */}
           <div className="mb-8 sm:mb-10">
-            <div className="max-w-4xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm px-4 py-5 sm:px-6 sm:py-6">
+            <div className="max-w-4xl mx-auto rounded-2xl border border-border-default bg-bg-card shadow-sm px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex items-center justify-between relative">
-                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 dark:bg-slate-700 -translate-y-1/2 z-0" />
+                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-border-default -translate-y-1/2 z-0" />
 
                 <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white ring-8 ring-white dark:ring-slate-900">
-                    <Calendar size={16} />
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground ring-8 ring-bg-card">
+                    <AppIcon icon={Calendar} size="sm" tone="inverse" />
                   </div>
                   <span className="mt-2 text-xs font-bold text-primary uppercase tracking-wider">
                     Data e Hora
@@ -191,19 +210,19 @@ export const Scheduling = () => {
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-300 ring-8 ring-white dark:ring-slate-900">
-                    <Check size={16} />
+                  <div className="w-10 h-10 rounded-full bg-border-default flex items-center justify-center text-text-muted ring-8 ring-bg-card">
+                    <AppIcon icon={Check} size="sm" tone="muted" />
                   </div>
-                  <span className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-300 uppercase tracking-wider">
+                  <span className="mt-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
                     Confirmação
                   </span>
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-300 ring-8 ring-white dark:ring-slate-900">
-                    <Hash size={16} />
+                  <div className="w-10 h-10 rounded-full bg-border-default flex items-center justify-center text-text-muted ring-8 ring-bg-card">
+                    <AppIcon icon={Hash} size="sm" tone="muted" />
                   </div>
-                  <span className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-300 uppercase tracking-wider">
+                  <span className="mt-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
                     Ticket
                   </span>
                 </div>
@@ -214,13 +233,13 @@ export const Scheduling = () => {
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
             {/* Left: Calendar */}
-            <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="lg:col-span-8 bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
+              <div className="p-4 sm:p-6 border-b border-border-default flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-xl font-bold text-text-body">
                     Calendário de Testes
                   </h3>
-                  <p className="text-sm text-slate-400 dark:text-slate-500">
+                  <p className="text-sm text-text-muted">
                     {viewDate.toLocaleString("pt-BR", {
                       month: "long",
                       year: "numeric",
@@ -238,9 +257,9 @@ export const Scheduling = () => {
                         ),
                       )
                     }
-                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
                   >
-                    <ChevronLeft size={18} />
+                    <AppIcon icon={ChevronLeft} size="md" tone="muted" />
                   </button>
                   <button
                     onClick={() =>
@@ -252,25 +271,23 @@ export const Scheduling = () => {
                         ),
                       )
                     }
-                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
                   >
-                    <ChevronRight size={18} />
+                    <AppIcon icon={ChevronRight} size="md" tone="muted" />
                   </button>
                 </div>
               </div>
 
               <div className="p-4 sm:p-6">
                 <div className="grid grid-cols-7 gap-1 mb-4 text-center">
-                  {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
-                    (d) => (
-                      <div
-                        key={d}
-                        className="py-2 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase"
-                      >
-                        {d}
-                      </div>
-                    ),
-                  )}
+                  {WEEK_DAYS.map((d) => (
+                    <div
+                      key={d}
+                      className="py-2 text-xs font-bold text-text-muted uppercase"
+                    >
+                      {d}
+                    </div>
+                  ))}
                 </div>
 
                 {loading ? (
@@ -279,7 +296,7 @@ export const Scheduling = () => {
                       (_, i) => (
                         <div
                           key={i}
-                          className="aspect-square bg-slate-100 dark:bg-slate-800 rounded animate-pulse"
+                          className="aspect-square bg-bg-default rounded animate-pulse"
                         />
                       ),
                     )}
@@ -305,7 +322,7 @@ export const Scheduling = () => {
                         return (
                           <div
                             key={i}
-                            className="aspect-square rounded-xl flex items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50/60 dark:bg-slate-800/40"
+                            className="aspect-square rounded-xl flex items-center justify-center text-text-muted bg-bg-default/60"
                           >
                             {day}
                           </div>
@@ -323,12 +340,12 @@ export const Scheduling = () => {
                           }}
                           className={`aspect-square relative rounded-xl flex items-center justify-center font-medium transition-all ${
                             isSelected
-                              ? "bg-primary text-white shadow-sm ring-2 ring-primary/25"
+                              ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/25"
                               : isBooked
-                                ? "text-amber-700 bg-amber-50/80 cursor-not-allowed"
+                                ? "text-error bg-error/10 cursor-not-allowed"
                                 : hasSessions
-                                  ? "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                  : "text-slate-300 dark:text-slate-600 bg-slate-50/60 dark:bg-slate-800/40 cursor-not-allowed"
+                                  ? "text-text-body hover:bg-bg-default"
+                                  : "text-text-muted bg-bg-default/60 cursor-not-allowed"
                           }`}
                           disabled={!hasSessions || isBooked}
                         >
@@ -337,7 +354,7 @@ export const Scheduling = () => {
                             <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
                           )}
                           {isBooked && (
-                            <span className="absolute bottom-2 w-2 h-2 rounded-full bg-amber-400 border border-amber-200" />
+                            <span className="absolute bottom-2 w-2 h-2 rounded-full bg-error border border-error/30" />
                           )}
                         </button>
                       );
@@ -346,30 +363,29 @@ export const Scheduling = () => {
                 )}
               </div>
 
-              <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-800/50 flex flex-wrap gap-4 sm:gap-6 items-center justify-center border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <div className="p-4 sm:p-6 bg-bg-default flex flex-wrap gap-4 sm:gap-6 items-center justify-center border-t border-border-default">
+                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
                   <div className="w-3 h-3 rounded-full bg-primary" />{" "}
                   Selecionado
                 </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  <div className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-600" />{" "}
+                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
+                  <div className="w-3 h-3 rounded-full bg-border-default" />{" "}
                   Disponível
                 </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  <div className="w-3 h-3 rounded-full bg-slate-100 dark:bg-slate-700 opacity-60" />{" "}
+                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
+                  <div className="w-3 h-3 rounded-full bg-bg-default opacity-60" />{" "}
                   Indisponível
                 </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-amber-700">
-                  <div className="w-3 h-3 rounded-full bg-amber-400" /> Já
-                  agendado
+                <div className="flex items-center gap-2 text-xs font-semibold text-error">
+                  <div className="w-3 h-3 rounded-full bg-error" /> Já agendado
                 </div>
               </div>
             </div>
 
             {/* Right: Details */}
             <div className="lg:col-span-4 space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-                <div className="p-6 bg-primary text-white">
+              <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
+                <div className="p-6 bg-primary text-primary-foreground">
                   <p className="text-[10px] font-bold tracking-[0.2em] opacity-80 mb-1 uppercase">
                     Detalhes da Sessão
                   </p>
@@ -381,21 +397,21 @@ export const Scheduling = () => {
                 </div>
 
                 <div className="p-6 space-y-6">
-                  <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 flex gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-primary">
-                      <MapPin size={20} />
+                  <div className="rounded-2xl border border-border-default bg-bg-default/60 p-4 flex gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-bg-card flex items-center justify-center text-primary">
+                      <AppIcon icon={MapPin} size="lg" tone="primary" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <p className="text-xs font-bold text-text-muted uppercase tracking-widest">
                         Localização
                       </p>
-                      <p className="text-slate-900 dark:text-white font-semibold">
+                      <p className="text-text-body font-semibold">
                         {locationLoading
                           ? "Carregando local..."
                           : (sessionLocation?.name ?? "Local não informado")}
                       </p>
                       {sessionLocation?.address && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-text-muted">
                           {sessionLocation.address}
                         </p>
                       )}
@@ -403,17 +419,17 @@ export const Scheduling = () => {
                   </div>
 
                   <div>
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">
                       Horários Disponíveis
                     </p>
                     {loading ? (
                       <PageSkeleton rows={3} />
                     ) : !selectedDate ? (
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                      <div className="text-sm text-text-muted">
                         Selecione uma data no calendário.
                       </div>
                     ) : sessionsForSelected.length === 0 ? (
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                      <div className="text-sm text-text-muted">
                         Nenhuma sessão disponível nesta data.
                       </div>
                     ) : (
@@ -425,25 +441,24 @@ export const Scheduling = () => {
                             disabled={s.available_count <= 0}
                             className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 ${
                               selectedSession === s.session_id
-                                ? "border-primary bg-primary/5 dark:bg-primary/10"
-                                : "border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70"
+                                ? "border-primary bg-primary/5"
+                                : "border-border-default hover:bg-bg-default"
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <Clock
-                                size={18}
-                                className={
-                                  s.available_count > 0
-                                    ? "text-primary"
-                                    : "text-slate-300 dark:text-slate-600"
+                              <AppIcon
+                                icon={Clock}
+                                size="md"
+                                tone={
+                                  s.available_count > 0 ? "primary" : "muted"
                                 }
                               />
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                              <span className="font-semibold text-text-body">
                                 {formatSessionPeriod(s.period)}
                               </span>
                             </div>
                             <div
-                              className={`px-3 py-1 text-[10px] font-bold text-white rounded-full uppercase tracking-wider ${s.available_count > 0 ? "bg-military-green" : "bg-military-red"}`}
+                              className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${s.available_count > 0 ? "bg-success text-success-foreground" : "bg-error text-error-foreground"}`}
                             >
                               {s.available_count > 0
                                 ? `Vagas: ${s.available_count}/${s.max_capacity}`
@@ -463,46 +478,41 @@ export const Scheduling = () => {
                   prefetchRoute("/app/agendamentos/confirmacao")
                 }
                 disabled={!selectedSession}
-                className="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 CONTINUAR PARA CONFIRMAÇÃO
-                <ChevronRight size={18} />
+                <AppIcon icon={ChevronRight} size="md" tone="inverse" />
               </button>
 
-              <p className="text-center text-xs text-slate-400 dark:text-slate-500 px-4">
+              <p className="text-center text-xs text-text-muted px-4">
                 Ao continuar, você reserva provisoriamente este horário. A
                 confirmação final será gerada na próxima etapa.
               </p>
             </div>
           </div>
 
-          <footer className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 pb-10 sm:pb-12">
+          <footer className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border-default flex flex-col md:flex-row justify-between items-center gap-4 pb-10 sm:pb-12">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 sm:gap-6">
               <div className="flex items-center gap-2">
-                <HelpCircle
-                  size={16}
-                  className="text-slate-400 dark:text-slate-500"
-                />
-                <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                <AppIcon icon={HelpCircle} size="sm" tone="muted" />
+                <span className="text-xs sm:text-sm text-text-muted font-medium">
                   Suporte Técnico
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <FileText
-                  size={16}
-                  className="text-slate-400 dark:text-slate-500"
-                />
-                <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                <AppIcon icon={FileText} size="sm" tone="muted" />
+                <span className="text-xs sm:text-sm text-text-muted font-medium">
                   ICA 54-2
                 </span>
               </div>
             </div>
-            <div className="text-[11px] sm:text-sm text-slate-400 dark:text-slate-500 italic text-center md:text-right">
-              SISTEMA DE AVALIAÇÃO DO CONDICIONAMENTO FÍSICO DIGITAL © 2023
-            </div>
           </footer>
         </div>
       </main>
+      <TicketModal
+        open={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+      />
     </Layout>
   );
 };

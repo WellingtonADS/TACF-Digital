@@ -16,7 +16,7 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'session_period') THEN
-    CREATE TYPE session_period AS ENUM ('morning', 'afternoon');
+    CREATE TYPE session_period AS ENUM ('manha', 'tarde');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'session_status') THEN
@@ -24,11 +24,15 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'booking_status') THEN
-    CREATE TYPE booking_status AS ENUM ('confirmed', 'pending_swap', 'cancelled');
+    CREATE TYPE booking_status AS ENUM ('agendado', 'cancelado', 'remarcado');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'swap_status') THEN
-    CREATE TYPE swap_status AS ENUM ('pending', 'approved', 'rejected');
+    CREATE TYPE swap_status AS ENUM ('solicitado', 'aprovado', 'cancelado');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appeal_status') THEN
+    CREATE TYPE appeal_status AS ENUM ('deferido','indeferido');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'semester_type') THEN
@@ -73,9 +77,12 @@ END$$;
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date DATE NOT NULL,
-  period session_period NOT NULL,
+  starts_at TIMESTAMPTZ NOT NULL,
+  -- convenience columns (populados a partir de starts_at)
+  date DATE,
+  period session_period,
   max_capacity INTEGER NOT NULL CHECK (max_capacity >= 8 AND max_capacity <= 21),
+  capacity INTEGER NOT NULL DEFAULT 0,
   applicators TEXT[] DEFAULT '{}' NOT NULL,
   status session_status DEFAULT 'open' NOT NULL,
   coordinator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -89,8 +96,8 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 -- Indexes for performance (created only if not present)
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_sessions_date' AND relkind = 'i') THEN
-    CREATE INDEX idx_sessions_date ON public.sessions(date);
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_sessions_starts_at' AND relkind = 'i') THEN
+    CREATE INDEX idx_sessions_starts_at ON public.sessions(starts_at);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_sessions_status' AND relkind = 'i') THEN
     CREATE INDEX idx_sessions_status ON public.sessions(status);
@@ -107,7 +114,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id UUID NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
-  status booking_status DEFAULT 'confirmed' NOT NULL,
+  status booking_status DEFAULT 'agendado' NOT NULL,
   attendance_confirmed BOOLEAN NOT NULL DEFAULT false,
   swap_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -143,7 +150,7 @@ CREATE TABLE IF NOT EXISTS public.swap_requests (
   requested_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   new_session_id UUID NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
   reason TEXT NOT NULL,
-  status swap_status DEFAULT 'pending' NOT NULL,
+  status swap_status DEFAULT 'solicitado' NOT NULL,
   processed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   processed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -190,7 +197,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   organization_name TEXT NOT NULL,
   min_capacity INTEGER NOT NULL DEFAULT 8,
   max_capacity INTEGER NOT NULL DEFAULT 21,
-  default_periods session_period[] NOT NULL DEFAULT '{morning,afternoon}',
+  default_periods session_period[] NOT NULL DEFAULT '{manha,tarde}',
   allow_swaps BOOLEAN NOT NULL DEFAULT true,
   require_quorum BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -199,33 +206,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   UNIQUE(is_global)
 );
 
--- ----------------------------------------------------------------------------
--- Access Profiles and Permissions
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.access_profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT,
-  role user_role NOT NULL,
-  icon TEXT NOT NULL DEFAULT 'shield',
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.permissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.access_profile_permissions (
-  access_profile_id UUID NOT NULL REFERENCES public.access_profiles(id) ON DELETE CASCADE,
-  permission_id UUID NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  PRIMARY KEY (access_profile_id, permission_id)
-);
+-- Access profiles and permissions removed by YAGNI (managed by fixed roles)
 
 -- ----------------------------------------------------------------------------
 -- Audit Logs
@@ -242,18 +223,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_access_profiles_name' AND relkind = 'i') THEN
-    CREATE UNIQUE INDEX idx_access_profiles_name ON public.access_profiles(name);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_permissions_name' AND relkind = 'i') THEN
-    CREATE UNIQUE INDEX idx_permissions_name ON public.permissions(name);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_access_profiles_role' AND relkind = 'i') THEN
-    CREATE INDEX idx_access_profiles_role ON public.access_profiles(role);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_access_profile_permissions_permission' AND relkind = 'i') THEN
-    CREATE INDEX idx_access_profile_permissions_permission ON public.access_profile_permissions(permission_id);
-  END IF;
+  -- permission tables removed intentionally
   IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'idx_audit_logs_created_at' AND relkind = 'i') THEN
     CREATE INDEX idx_audit_logs_created_at ON public.audit_logs(created_at);
   END IF;
@@ -316,12 +286,7 @@ BEGIN
       EXECUTE FUNCTION update_updated_at_column();
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_access_profiles_updated_at') THEN
-    CREATE TRIGGER update_access_profiles_updated_at
-      BEFORE UPDATE ON public.access_profiles
-      FOR EACH ROW
-      EXECUTE FUNCTION update_updated_at_column();
-  END IF;
+  -- access_profiles triggers removed
 END$$;
 
 -- ============================================================================

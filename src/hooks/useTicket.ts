@@ -1,4 +1,5 @@
 import supabase from "@/services/supabase";
+import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import useAuth from "./useAuth";
@@ -120,13 +121,17 @@ export default function useTicket(initial?: TicketData) {
           date: sessionData?.date
             ? formatTicketDate(sessionData.date)
             : (prev?.date ?? ""),
-          time: sessionData?.period ?? prev?.time ?? "",
+          time: sessionData?.period
+            ? formatSessionPeriod(sessionData.period)
+            : (prev?.time ?? ""),
           code:
             bookingData.order_number ??
             routeState?.orderNumber ??
             prev?.code ??
             "",
-          confirmed: bookingData.status === "confirmed",
+          confirmed:
+            bookingData.status === "agendado" ||
+            bookingData.status === "remarcado",
         }));
       } finally {
         if (!cancelled) setLoading(false);
@@ -154,3 +159,5 @@ function formatTicketDate(date: string): string {
     .replace(".", "")
     .toUpperCase();
 }
+
+

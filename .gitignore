@@ -90,6 +90,7 @@ supabase/dump-*.sql
 *.sql.gz
 *.dump
 *.backup
+*.zip
 
 # Vercel local configuration
 .vercel/

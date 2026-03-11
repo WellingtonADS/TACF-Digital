@@ -10,9 +10,7 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.swap_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.access_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.access_profile_permissions ENABLE ROW LEVEL SECURITY;
+-- Access control tables removed; RLS entries omitted for access_profiles/permissions
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
 
@@ -172,56 +170,7 @@ CREATE POLICY system_settings_admin_only
 -- =========================================================================
 -- access_profiles + permissions: admin-only access
 -- =========================================================================
-DROP POLICY IF EXISTS access_profiles_admin_only ON public.access_profiles;
-CREATE POLICY access_profiles_admin_only
-  ON public.access_profiles
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  );
-
-DROP POLICY IF EXISTS permissions_admin_only ON public.permissions;
-CREATE POLICY permissions_admin_only
-  ON public.permissions
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  );
-
-DROP POLICY IF EXISTS access_profile_permissions_admin_only ON public.access_profile_permissions;
-CREATE POLICY access_profile_permissions_admin_only
-  ON public.access_profile_permissions
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
-    )
-  );
+-- Policies for access_profiles/permissions removed (tables were deleted by migration)
 
 -- =========================================================================
 -- audit_logs: admin read only

@@ -74,3 +74,5 @@ export function table<Table extends keyof Database["public"]["Tables"]>(
 ) {
   return supabase.from(String(name));
 }
+
+
