@@ -1,2 +1,0 @@
-id,user_id,session_id,semester,swap_reason,created_at,updated_at,order_number,attendance_confirmed,metadata,score,result_details,test_date,status
-94ff8577-958c-49cf-bad0-248dac454b47,a3c39e60-b4d9-4b2f-9555-85b436ebcf57,d9bf7dfb-2c26-46a0-994b-6b4b16b8ca4f,1,,Thu Mar 05 2026 07:11:55 GMT-0400 (Horário Padrão do Amazonas),Mon Mar 09 2026 10:59:32 GMT-0400 (Horário Padrão do Amazonas),2026-1-0012,false,[object Object],,[object Object],,agendado
