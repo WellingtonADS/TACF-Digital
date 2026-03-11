@@ -1,3 +1,11 @@
+/**
+ * @page AppointmentConfirmation
+ * @description Confirmação e detalhes de agendamento.
+ * @path src/pages/AppointmentConfirmation.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "@/icons";
 import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";

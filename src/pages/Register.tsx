@@ -1,3 +1,11 @@
+/**
+ * @page Register
+ * @description Tela de registro de novos usuários.
+ * @path src/pages/Register.tsx
+ */
+
+
+
 import { Input } from "@/components/atomic/Input";
 import PasswordInput from "@/components/atomic/PasswordInput";
 import AuthLayout from "@/components/AuthLayout";

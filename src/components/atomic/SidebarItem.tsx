@@ -1,3 +1,11 @@
+/**
+ * @page SidebarItem
+ * @description Item reutilizável do menu lateral.
+ * @path src/components/atomic/SidebarItem.tsx
+ */
+
+
+
 import type { ReactNode } from "react";
 
 type Props = {

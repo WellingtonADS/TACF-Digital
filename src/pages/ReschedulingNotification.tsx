@@ -1,3 +1,11 @@
+/**
+ * @page ReschedulingNotification
+ * @description Notificações e detalhes de reagendamentos.
+ * @path src/pages/ReschedulingNotification.tsx
+ */
+
+
+
 import PageSkeleton from "@/components/PageSkeleton";
 import Layout from "@/components/layout/Layout";
 import { ArrowRight } from "@/icons";

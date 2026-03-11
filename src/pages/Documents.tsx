@@ -1,3 +1,11 @@
+/**
+ * @page Documents
+ * @description Gerenciamento e listagem de documentos.
+ * @path src/pages/Documents.tsx
+ */
+
+
+
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import {

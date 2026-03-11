@@ -1,3 +1,11 @@
+/**
+ * @page TicketModal
+ * @description Modal para visualizar ou baixar bilhetes.
+ * @path src/components/TicketModal.tsx
+ */
+
+
+
 import useTicket from "@/hooks/useTicket";
 import { useCallback } from "react";
 import { createPortal } from "react-dom";

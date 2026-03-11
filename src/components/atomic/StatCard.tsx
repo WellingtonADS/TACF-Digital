@@ -1,3 +1,11 @@
+/**
+ * @page StatCard
+ * @description Cartão para exibir métricas e estatísticas.
+ * @path src/components/atomic/StatCard.tsx
+ */
+
+
+
 import type { LucideIcon } from "@/icons";
 import AppIcon from "./AppIcon";
 

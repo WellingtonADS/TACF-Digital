@@ -1,3 +1,11 @@
+/**
+ * @page OmLocationManager
+ * @description Gerenciamento de locais/Organizações Militares.
+ * @path src/pages/OmLocationManager.tsx
+ */
+
+
+
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";

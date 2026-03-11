@@ -1,3 +1,11 @@
+/**
+ * @page PageSkeleton
+ * @description Esqueleto de página visível durante carregamento.
+ * @path src/components/PageSkeleton.tsx
+ */
+
+
+
 type Props = {
   rows?: number;
   fullPage?: boolean;

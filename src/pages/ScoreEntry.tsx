@@ -1,3 +1,11 @@
+/**
+ * @page ScoreEntry
+ * @description Registro de notas e avaliações.
+ * @path src/pages/ScoreEntry.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon"; // wrapper for all icons, per visual contract
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";

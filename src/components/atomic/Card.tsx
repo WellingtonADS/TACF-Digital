@@ -1,3 +1,11 @@
+/**
+ * @page Card
+ * @description Cartão reutilizável com elevação e estados.
+ * @path src/components/atomic/Card.tsx
+ */
+
+
+
 import type { ReactNode } from "react";
 
 type Props = { children?: ReactNode; className?: string };

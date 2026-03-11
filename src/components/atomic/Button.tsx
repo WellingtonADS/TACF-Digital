@@ -1,3 +1,11 @@
+/**
+ * @page Button
+ * @description Componente de botão atômico com variantes.
+ * @path src/components/atomic/Button.tsx
+ */
+
+
+
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
   variant?: string;

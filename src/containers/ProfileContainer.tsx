@@ -1,3 +1,11 @@
+/**
+ * @page ProfileContainer
+ * @description Container para visualização e edição do perfil do usuário.
+ * @path src/containers/ProfileContainer.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 
 export const ProfileContainer = () => {

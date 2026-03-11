@@ -1,3 +1,11 @@
+/**
+ * @page Scheduling
+ * @description Interface de agendamento de sessões.
+ * @path src/pages/Scheduling.tsx
+ */
+
+
+
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import TicketModal from "@/components/TicketModal";

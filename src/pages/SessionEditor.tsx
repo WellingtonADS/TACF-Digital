@@ -1,3 +1,11 @@
+/**
+ * @page SessionEditor
+ * @description Edição de detalhes de sessão.
+ * @path src/pages/SessionEditor.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import {

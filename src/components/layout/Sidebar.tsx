@@ -1,3 +1,9 @@
+/**
+ * @page Sidebar
+ * @description Menu lateral de navegação.
+ * @path src/components/layout/Sidebar.tsx
+ */
+
 // implementation previously located in src/layout/Sidebar.tsx
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
@@ -72,7 +78,7 @@ export const Sidebar = ({
 
   return (
     <aside
-      className={`w-64 lg:w-72 bg-primary text-white flex flex-col fixed h-full z-50 transition-transform duration-300 shadow-lg md:shadow-none ${translateClass}`}
+      className={`w-64 lg:w-72 bg-primary text-white flex flex-col fixed h-screen overflow-hidden z-50 transition-transform duration-300 shadow-lg md:shadow-none ${translateClass}`}
     >
       <div className="p-8 flex items-center gap-3">
         <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
@@ -96,7 +102,7 @@ export const Sidebar = ({
         </button>
       </div>
 
-      <nav className="flex-1 mt-2 px-4 space-y-1">
+      <nav className="flex-1 min-h-0 mt-2 px-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <Link
             key={item.path}

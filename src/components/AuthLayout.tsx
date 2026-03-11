@@ -1,3 +1,11 @@
+/**
+ * @page AuthLayout
+ * @description Layout usado nas telas de autenticação.
+ * @path src/components/AuthLayout.tsx
+ */
+
+
+
 import React from "react";
 
 export default function AuthLayout({

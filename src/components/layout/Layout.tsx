@@ -1,3 +1,11 @@
+/**
+ * @page Layout
+ * @description Layout principal com sidebar, topbar e conteúdo.
+ * @path src/components/layout/Layout.tsx
+ */
+
+
+
 // original implementation moved from src/layout/Layout.tsx
 import { useResponsive } from "@/hooks/useResponsive";
 import type { ReactNode } from "react";

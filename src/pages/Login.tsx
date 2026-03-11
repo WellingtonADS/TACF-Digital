@@ -1,3 +1,11 @@
+/**
+ * @page Login
+ * @description Tela de autenticação de usuários.
+ * @path src/pages/Login.tsx
+ */
+
+
+
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";

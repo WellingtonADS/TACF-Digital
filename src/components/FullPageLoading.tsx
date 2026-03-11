@@ -1,3 +1,11 @@
+/**
+ * @page FullPageLoading
+ * @description Componente de carregamento em tela cheia.
+ * @path src/components/FullPageLoading.tsx
+ */
+
+
+
 import { Loader2 } from "@/icons";
 import AppIcon from "./atomic/AppIcon";
 

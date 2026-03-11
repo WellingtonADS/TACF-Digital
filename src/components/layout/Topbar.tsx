@@ -1,3 +1,11 @@
+/**
+ * @page Topbar
+ * @description Barra superior com navegação e ações rápidas.
+ * @path src/components/layout/Topbar.tsx
+ */
+
+
+
 // implementation moved from src/layout/Topbar.tsx
 import AppIcon from "@/components/atomic/AppIcon";
 import { Menu } from "@/icons";

@@ -1,3 +1,11 @@
+/**
+ * @page AnalyticsDashboard
+ * @description Visualização analítica de indicadores e relatórios.
+ * @path src/pages/AnalyticsDashboard.tsx
+ */
+
+
+
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";

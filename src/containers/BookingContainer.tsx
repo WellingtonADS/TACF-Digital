@@ -1,3 +1,11 @@
+/**
+ * @page BookingContainer
+ * @description Container para fluxos de reserva e agendamento.
+ * @path src/containers/BookingContainer.tsx
+ */
+
+
+
 import { Card } from "../components/atomic/Card";
 
 export const BookingContainer = () => {

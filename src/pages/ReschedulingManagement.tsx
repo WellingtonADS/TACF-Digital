@@ -1,3 +1,11 @@
+/**
+ * @page ReschedulingManagement
+ * @description Gestão de pedidos de reagendamento.
+ * @path src/pages/ReschedulingManagement.tsx
+ */
+
+
+
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";

@@ -199,7 +199,7 @@
   }
 
   .dashboard-hero-texture {
-    background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDurxoPOc3Gb_jppt_qbvSWXqBih_aeg1LoSiESxVH3iJGYCSoMaA9waLCd3MIT1EZ3FClUucmFoCyljmJkdLQYTPHfTNTpKHEYR_pax-Ze2Qan-F67pJLx0cCAAupmkCGWWM26S2qOhmzQi4Npm5BOwlMbb-oV9gyz5pQCblYHEOq2VLi6huOJgg8oNkSH9oop3-LoOVdgnr-fj24xfHvreAzGNpbVbN0mw9sq_DvUSA2yZuWRo7p1PuHRcSx2Er5");
+    background-image: url("/images/dashboard-hero-texture.jpg");
     background-size: cover;
     background-position: center;
   }
@@ -232,32 +232,15 @@
   .revalidation-progress[data-pct="33"] {
     width: 33%;
   }
-  .revalidation-progress[data-pct="40"] {
-    width: 40%;
+  .revalidation-progress {
+    /* Base value; can be overridden via data attribute or inline style */
+    --pct: 0;
+    width: calc(1% * var(--pct));
   }
-  .revalidation-progress[data-pct="50"] {
-    width: 50%;
-  }
-  .revalidation-progress[data-pct="60"] {
-    width: 60%;
-  }
-  .revalidation-progress[data-pct="67"] {
-    width: 67%;
-  }
-  .revalidation-progress[data-pct="70"] {
-    width: 70%;
-  }
-  .revalidation-progress[data-pct="75"] {
-    width: 75%;
-  }
-  .revalidation-progress[data-pct="80"] {
-    width: 80%;
-  }
-  .revalidation-progress[data-pct="90"] {
-    width: 90%;
-  }
-  .revalidation-progress[data-pct="100"] {
-    width: 100%;
+
+  /* Optionally derive the percentage directly from the data attribute */
+  .revalidation-progress[data-pct] {
+    --pct: attr(data-pct number);
   }
 
   /* Disabled state */

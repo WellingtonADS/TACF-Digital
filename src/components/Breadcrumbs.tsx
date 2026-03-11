@@ -1,3 +1,11 @@
+/**
+ * @page Breadcrumbs
+ * @description Componente de breadcrumbs para navegação.
+ * @path src/components/Breadcrumbs.tsx
+ */
+
+
+
 export default function Breadcrumbs({ items }: { items: string[] }) {
   return (
     <nav className="text-sm text-slate-500 mb-3" aria-label="breadcrumb">

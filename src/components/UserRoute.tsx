@@ -1,3 +1,11 @@
+/**
+ * @page UserRoute
+ * @description Guard de rota para usuários comuns.
+ * @path src/components/UserRoute.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
 import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";

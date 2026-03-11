@@ -1,3 +1,11 @@
+/**
+ * @page OperationalDashboard
+ * @description Painel operacional com estado e ações rápidas.
+ * @path src/pages/OperationalDashboard.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";

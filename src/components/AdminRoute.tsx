@@ -1,3 +1,11 @@
+/**
+ * @page AdminRoute
+ * @description Guard de rota para acessos administrativos.
+ * @path src/components/AdminRoute.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
 import { canAccessRoute } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";

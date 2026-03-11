@@ -1,3 +1,11 @@
+/**
+ * @page PersonnelManagement
+ * @description Listagem e gestão de pessoal.
+ * @path src/pages/PersonnelManagement.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";

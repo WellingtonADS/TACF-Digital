@@ -1,3 +1,9 @@
+/**
+ * @page main
+ * @description Ponto de entrada da aplicação e configuração de providers/rotas.
+ * @path src/main.tsx
+ */
+
 /* eslint-disable react-refresh/only-export-components */
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
@@ -23,7 +29,9 @@ const routeFallback = <FullPageLoading message="Carregando modulo" />;
 
 const appRoutableEntries = getRoutableAppRoutes().map((route) => ({
   ...route,
-  Component: React.lazy(route.lazyLoader!),
+  Component: React.lazy(
+    route.lazyLoader! as () => Promise<{ default: React.ComponentType }>
+  ),
 }));
 
 function withAccessGuard(access: RouteAccess, element: React.ReactElement) {
@@ -106,16 +114,7 @@ createRoot(document.getElementById("root")!).render(
             </UserRoute>
           }
         />
-        <Route
-          path="/*"
-          element={
-            <UserRoute>
-              <Suspense fallback={routeFallback}>
-                <OperationalDashboard />
-              </Suspense>
-            </UserRoute>
-          }
-        />
+
       </Routes>
       <Toaster
         position="top-right"

@@ -1,3 +1,11 @@
+/**
+ * @page AuditLog
+ * @description Exibição do registro de auditoria do sistema.
+ * @path src/pages/AuditLog.tsx
+ */
+
+
+
 import FullPageLoading from "@/components/FullPageLoading";
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";

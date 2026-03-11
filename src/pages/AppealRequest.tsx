@@ -1,3 +1,11 @@
+/**
+ * @page AppealRequest
+ * @description Formulário para solicitações de recurso/apelação.
+ * @path src/pages/AppealRequest.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import {
   AlertCircle,

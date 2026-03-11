@@ -1,3 +1,11 @@
+/**
+ * @page OmLocationEditor
+ * @description Edição de locais/Organizações Militares (OM).
+ * @path src/pages/OmLocationEditor.tsx
+ */
+
+
+
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";

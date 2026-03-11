@@ -1,3 +1,11 @@
+/**
+ * @page SessionsManagement
+ * @description Administração geral das sessões.
+ * @path src/pages/SessionsManagement.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";

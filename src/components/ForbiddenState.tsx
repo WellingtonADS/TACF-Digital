@@ -1,3 +1,11 @@
+/**
+ * @page ForbiddenState
+ * @description Tela/estado exibido quando acesso é proibido.
+ * @path src/components/ForbiddenState.tsx
+ */
+
+
+
 import { Link } from "react-router-dom";
 
 type ForbiddenStateProps = {

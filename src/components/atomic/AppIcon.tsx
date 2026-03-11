@@ -1,3 +1,11 @@
+/**
+ * @page AppIcon
+ * @description Wrapper de ícones do design system.
+ * @path src/components/atomic/AppIcon.tsx
+ */
+
+
+
 import type { LucideIcon, LucideProps } from "@/icons";
 import clsx from "clsx";
 

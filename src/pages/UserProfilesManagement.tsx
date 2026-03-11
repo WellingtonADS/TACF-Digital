@@ -1,3 +1,11 @@
+/**
+ * @page UserProfilesManagement
+ * @description Gestão de perfis de usuário e papéis/roles.
+ * @path src/pages/UserProfilesManagement.tsx
+ */
+
+
+
 import PasswordInput from "@/components/atomic/PasswordInput";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";

@@ -1,3 +1,11 @@
+/**
+ * @page PasswordInput
+ * @description Campo de senha com toggle de visibilidade.
+ * @path src/components/atomic/PasswordInput.tsx
+ */
+
+
+
 import { Eye, EyeOff } from "@/icons";
 import React, { useState } from "react";
 

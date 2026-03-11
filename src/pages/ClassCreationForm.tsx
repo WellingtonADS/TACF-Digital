@@ -1,3 +1,11 @@
+/**
+ * @page ClassCreationForm
+ * @description Formulário para criação de turmas/sessões.
+ * @path src/pages/ClassCreationForm.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";

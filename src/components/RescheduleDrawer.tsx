@@ -1,3 +1,11 @@
+/**
+ * @page RescheduleDrawer
+ * @description Drawer para solicitar ou visualizar trocas de sessão.
+ * @path src/components/RescheduleDrawer.tsx
+ */
+
+
+
 import { createSwapRequest } from "@/services/bookings";
 import supabase from "@/services/supabase";
 import { useEffect, useState } from "react";

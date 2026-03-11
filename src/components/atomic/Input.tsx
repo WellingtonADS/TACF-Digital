@@ -1,3 +1,11 @@
+/**
+ * @page Input
+ * @description Campo de entrada reutilizável com tipagem.
+ * @path src/components/atomic/Input.tsx
+ */
+
+
+
 import type { ChangeEvent } from "react";
 
 type Native = Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange">;

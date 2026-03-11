@@ -1,3 +1,11 @@
+/**
+ * @page SessionBookingsManagement
+ * @description Gestão de reservas por sessão.
+ * @path src/pages/SessionBookingsManagement.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import {
   ArrowLeft,

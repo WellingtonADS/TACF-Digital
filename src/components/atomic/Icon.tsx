@@ -1,3 +1,11 @@
+/**
+ * @page Icon
+ * @description Componente SVG genérico para ícones.
+ * @path src/components/atomic/Icon.tsx
+ */
+
+
+
 import type { SVGProps } from "react";
 
 export const Icon = (props: SVGProps<SVGSVGElement>) => (

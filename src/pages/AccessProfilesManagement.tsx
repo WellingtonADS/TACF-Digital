@@ -1,162 +1,242 @@
+/**
+ * @page AccessProfilesManagement
+ * @description Gestão de perfis de acesso e suas permissões.
+ * @path src/pages/AccessProfilesManagement.tsx
+ */
+
 import FullPageLoading from "@/components/FullPageLoading";
+import AppIcon from "@/components/atomic/AppIcon";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart2,
+  Calendar,
+  ClipboardList,
+  ClipboardPen,
+  FileText,
+  LayoutDashboard,
+  MapPin,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Ticket,
+  User,
+  Users,
+  type LucideIcon,
+} from "@/icons";
 import supabase from "@/services/supabase";
-import type { AccessProfile, Permission } from "@/types";
-import { useEffect, useState } from "react";
+import type {
+  ProfileRole,
+  SidebarIconKey,
+  Profile as UserProfile,
+} from "@/types";
+import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// types imported from src/types
+const ROLE_ORDER: ProfileRole[] = ["admin", "coordinator", "user"];
+const PAGE_SIZE = 10;
+
+const ROLE_META: Record<
+  ProfileRole,
+  { label: string; description: string; icon: LucideIcon }
+> = {
+  admin: {
+    label: "Administrador",
+    description: "Acesso completo aos fluxos administrativos.",
+    icon: Shield,
+  },
+  coordinator: {
+    label: "Coordenador",
+    description: "Acesso operacional ampliado para execução e lançamento.",
+    icon: ShieldCheck,
+  },
+  user: {
+    label: "Militar",
+    description: "Acesso aos fluxos pessoais e de agendamento.",
+    icon: User,
+  },
+};
+
+const sidebarIconMap: Record<SidebarIconKey, LucideIcon> = {
+  "layout-dashboard": LayoutDashboard,
+  calendar: Calendar,
+  "file-text": FileText,
+  ticket: Ticket,
+  "clipboard-list": ClipboardList,
+  user: User,
+  users: Users,
+  "map-pin": MapPin,
+  "clipboard-pen": ClipboardPen,
+  "bar-chart-2": BarChart2,
+  settings: Settings,
+  shield: Shield,
+};
+
+function PageHero({
+  selectedRole,
+  totalProfiles,
+  totalModules,
+}: {
+  selectedRole: string;
+  totalProfiles: number;
+  totalModules: number;
+}) {
+  return (
+    <section>
+      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Gestão de Perfis de Acesso
+            </h1>
+            <p className="mt-2 text-sm text-white/85 md:text-base">
+              Perfil selecionado: {selectedRole}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+              {totalProfiles} usuários
+            </span>
+            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+              {totalModules} módulos
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function AccessProfilesManagement() {
   const { profile, loading: authLoading } = useAuth();
   const canView = profile?.role === "admin";
 
-  const [profiles, setProfiles] = useState<AccessProfile[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
-    null,
-  );
-  const [profilePermissions, setProfilePermissions] = useState<Set<string>>(
-    new Set(),
-  );
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [selectedRole, setSelectedRole] = useState<ProfileRole>("admin");
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
-  const [loadingPerms, setLoadingPerms] = useState<boolean>(false);
+  const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (canView) loadAllData();
-  }, [canView]);
-
-  useEffect(() => {
-    if (selectedProfileId) {
-      loadProfilePermissions(selectedProfileId);
-    } else {
-      setProfilePermissions(new Set());
-    }
-  }, [selectedProfileId]);
-
-  async function loadAllData() {
+  const loadAllData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const [{ data: pData, error: pErr }, { data: permData, error: permErr }] =
-        await Promise.all([
-          supabase.from("access_profiles").select("*").order("name"),
-          supabase.from("permissions").select("*").order("name"),
-        ]);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, email, rank, role, active, updated_at, created_at",
+        )
+        .order("role")
+        .order("full_name");
 
-      if (pErr) throw pErr;
-      if (permErr) throw permErr;
+      if (error) throw error;
 
-      setProfiles((pData as AccessProfile[]) || []);
-      setPermissions((permData as Permission[]) || []);
+      const nextProfiles = (data as UserProfile[]) || [];
+      setProfiles(nextProfiles);
+      setSelectedRole((currentRole) => {
+        if (nextProfiles.some((item) => item.role === currentRole)) {
+          return currentRole;
+        }
 
-      // automatically select first profile if exists
-      if (pData && pData.length > 0) {
-        setSelectedProfileId(pData[0].id);
-      }
+        return (
+          ROLE_ORDER.find((roleOption) =>
+            nextProfiles.some((item) => item.role === roleOption),
+          ) || "user"
+        );
+      });
     } catch (err: unknown) {
       console.error(err);
-      toast.error("Falha ao carregar perfis e permissões.");
+      const message = err instanceof Error ? err.message : "Erro ao carregar.";
+      setLoadError(message);
+      toast.error("Falha ao carregar perfis do banco.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function loadProfilePermissions(profileId: string) {
-    setLoadingPerms(true);
+  useEffect(() => {
+    if (canView) loadAllData();
+  }, [canView, loadAllData]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedRole]);
+
+  async function updateUserRole(profileId: string, nextRole: ProfileRole) {
+    setSavingProfileId(profileId);
     try {
       const { data, error } = await supabase
-        .from("access_profile_permissions")
-        .select("permission_id")
-        .eq("access_profile_id", profileId);
-
-      if (error) throw error;
-
-      const set = new Set<string>();
-      (data as Array<{ permission_id: string }> | null)?.forEach((row) => {
-        if (row.permission_id) set.add(row.permission_id);
-      });
-
-      setProfilePermissions(set);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao carregar permissões do perfil selecionado.");
-      setProfilePermissions(new Set());
-    } finally {
-      setLoadingPerms(false);
-    }
-  }
-
-  async function togglePermission(permissionId: string, enable: boolean) {
-    if (!selectedProfileId) return;
-    try {
-      if (enable) {
-        const { error } = await supabase
-          .from("access_profile_permissions")
-          .insert({
-            access_profile_id: selectedProfileId,
-            permission_id: permissionId,
-          });
-        if (error) throw error;
-        setProfilePermissions((prev) => new Set(prev).add(permissionId));
-      } else {
-        const { error } = await supabase
-          .from("access_profile_permissions")
-          .delete()
-          .eq("access_profile_id", selectedProfileId)
-          .eq("permission_id", permissionId);
-        if (error) throw error;
-        setProfilePermissions((prev) => {
-          const clone = new Set(prev);
-          clone.delete(permissionId);
-          return clone;
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Falha ao atualizar permissão.");
-    }
-  }
-
-  async function createProfile() {
-    const name = prompt("Nome do novo perfil");
-    if (!name) return;
-    try {
-      const { data, error } = await supabase
-        .from("access_profiles")
-        .insert({ name, role: "user", icon: "shield", is_active: true })
-        .select()
+        .from("profiles")
+        .update({ role: nextRole })
+        .eq("id", profileId)
+        .select("id, role, updated_at")
         .maybeSingle();
+
       if (error) throw error;
-      if (data) {
-        setProfiles((prev) => [...prev, data]);
-        setSelectedProfileId(data.id);
-        toast.success("Perfil criado com sucesso.");
-      }
+
+      setProfiles((currentProfiles) =>
+        currentProfiles.map((item) =>
+          item.id === profileId
+            ? {
+                ...item,
+                role: nextRole,
+                updated_at: data?.updated_at ?? item.updated_at,
+              }
+            : item,
+        ),
+      );
+
+      toast.success("Perfil de acesso atualizado.");
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao criar perfil.");
+      toast.error("Falha ao atualizar o perfil de acesso.");
+    } finally {
+      setSavingProfileId(null);
     }
   }
 
-  const selectedProfile =
-    profiles.find((p) => p.id === selectedProfileId) || null;
+  const isPageLoading = authLoading || (canView && loading);
+  const selectedRoleMeta = ROLE_META[selectedRole];
+  const selectedRoleProfiles = profiles.filter(
+    (item) => item.role === selectedRole,
+  );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(selectedRoleProfiles.length / PAGE_SIZE),
+  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRoleProfiles = selectedRoleProfiles.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE,
+  );
+  const rangeStart = selectedRoleProfiles.length
+    ? (safeCurrentPage - 1) * PAGE_SIZE + 1
+    : 0;
+  const rangeEnd = Math.min(
+    safeCurrentPage * PAGE_SIZE,
+    selectedRoleProfiles.length,
+  );
+  const visibleModules = Array.from(
+    new Map(
+      getSidebarRoutesForRole(selectedRole)
+        .filter((route) => route.sidebarLabel && route.sidebarIcon)
+        .map((route) => [
+          route.path,
+          {
+            label: route.sidebarLabel!,
+            icon: sidebarIconMap[route.sidebarIcon!],
+          },
+        ]),
+    ).values(),
+  );
 
-  function iconForPermission(name: string): string {
-    if (name.toLowerCase().includes("agend")) return "event";
-    if (name.toLowerCase().includes("nota")) return "grade";
-    if (name.toLowerCase().includes("configur")) return "settings";
-    if (name.toLowerCase().includes("relat")) return "analytics";
-    if (name.toLowerCase().includes("usuario")) return "admin_panel_settings";
-    if (name.toLowerCase().includes("troca")) return "swap_horiz";
-    if (name.toLowerCase().includes("perfil")) return "verified_user";
-    if (name.toLowerCase().includes("lista")) return "list";
-    if (name.toLowerCase().includes("fazer")) return "edit_calendar";
-    return "shield";
-  }
-
-  if (authLoading) {
-    return <FullPageLoading message="Validando acesso" />;
+  if (isPageLoading) {
+    return <FullPageLoading message="Carregando perfis de acesso" />;
   }
 
   if (!canView) {
@@ -171,203 +251,383 @@ export default function AccessProfilesManagement() {
 
   return (
     <Layout>
-      {loading ? (
-        <FullPageLoading message="Carregando perfis" />
-      ) : (
-        <div className="max-w-6xl mx-auto flex flex-col gap-6 lg:flex-row lg:gap-8">
-          {/* sidebar */}
-          <aside className="w-full lg:w-80 lg:flex-shrink-0 flex flex-col gap-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                Perfis Cadastrados
-              </h2>
-              <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {profiles.filter((p) => p.is_active).length} ATIVOS
-              </span>
-            </div>
-            <div className="space-y-3">
-              {profiles.map((profile) => (
-                <button
-                  key={profile.id}
-                  onClick={() => setSelectedProfileId(profile.id)}
-                  className={`w-full text-left p-4 rounded-xl shadow-sm flex items-center gap-3 transition-all ${
-                    profile.id === selectedProfileId
-                      ? "bg-bg-card border-2 border-primary"
-                      : "bg-bg-card border border-border-default hover:border-primary/50 group"
-                  }`}
-                >
-                  <div
-                    className={`${
-                      profile.id === selectedProfileId
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-bg-default text-text-muted group-hover:text-primary"
-                    } p-2 rounded-lg`}
-                  >
-                    <span className="material-icons-outlined text-sm">
-                      {profile.icon}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-text-body text-sm">
-                      {profile.name}
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {profile.description}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={createProfile}
-              className="mt-4 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-border-default rounded-xl text-text-muted font-medium hover:bg-bg-default transition-all text-sm"
-            >
-              <span className="material-icons-outlined text-sm">add</span>
-              Novo Perfil
-            </button>
-          </aside>
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0">
+        <PageHero
+          selectedRole={selectedRoleMeta.label}
+          totalProfiles={selectedRoleProfiles.length}
+          totalModules={visibleModules.length}
+        />
 
-          {/* main content */}
-          <div className="flex-1 flex flex-col gap-6 overflow-y-auto lg:pr-2">
-            <div className="bg-bg-card rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-border-default">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-text-body flex items-center gap-2">
-                    <span className="material-icons-outlined text-primary">
-                      settings
-                    </span>
-                    Permissões do Perfil: {selectedProfile?.name || "--"}
-                  </h2>
-                  <p className="text-text-muted text-sm">
-                    Defina os níveis de acesso para cada módulo do TACF-Digital.
-                  </p>
-                </div>
-                {selectedProfile?.updated_at && (
-                  <div className="bg-primary/5 px-4 py-2 rounded-lg">
-                    <span className="text-xs font-semibold text-primary">
-                      Última alteração:{" "}
-                      {new Date(selectedProfile.updated_at).toLocaleString()}
-                    </span>
-                  </div>
-                )}
+        <div className="space-y-6">
+          <aside className="rounded-3xl border border-border-default bg-bg-card shadow-sm">
+            <div className="space-y-5 p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
+                  Perfis do Sistema
+                </h2>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                  {profiles.length} usuários
+                </span>
               </div>
-              {/* permissions table */}
-              <div className="border border-border-default rounded-xl">
-                <div className="space-y-2 p-3 md:hidden">
-                  {permissions.map((perm) => {
-                    const enabled = profilePermissions.has(perm.id);
-                    const name = perm.name;
 
-                    return (
-                      <article
-                        key={perm.id}
-                        className="rounded-lg border border-border-default bg-bg-card p-3"
-                      >
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-default text-text-muted">
-                            <span className="material-icons-outlined text-sm">
-                              {iconForPermission(name)}
+              <nav className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-3">
+                {ROLE_ORDER.map((roleOption) => {
+                  const meta = ROLE_META[roleOption];
+                  const count = profiles.filter(
+                    (item) => item.role === roleOption,
+                  ).length;
+                  const active = roleOption === selectedRole;
+
+                  return (
+                    <button
+                      key={roleOption}
+                      type="button"
+                      onClick={() => setSelectedRole(roleOption)}
+                      className={`min-w-[240px] flex-1 rounded-2xl border px-4 py-4 text-left transition-all sm:min-w-0 ${
+                        active
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border-default bg-bg-card hover:border-primary/30 hover:bg-bg-default/60"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                            active
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-bg-default text-text-muted"
+                          }`}
+                        >
+                          <AppIcon icon={meta.icon} size="sm" decorative />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-bold text-text-body">
+                              {meta.label}
+                            </p>
+                            <span className="rounded-full bg-bg-default px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
+                              {count}
                             </span>
                           </div>
-                          <span className="text-sm font-semibold text-text-body">
-                            {name}
-                          </span>
+                          <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                            {meta.description}
+                          </p>
                         </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          {["Visualizar", "Criar", "Editar", "Excluir"].map(
-                            (label, idx) => (
-                              <label
-                                key={label}
-                                className="flex items-center justify-between rounded-md border border-border-default px-2 py-1.5 text-xs"
-                              >
-                                <span className="text-text-muted">{label}</span>
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 rounded border-border-default text-primary focus:ring-primary"
-                                  checked={enabled}
-                                  disabled={!selectedProfileId || loadingPerms}
-                                  onChange={(e) =>
-                                    togglePermission(perm.id, e.target.checked)
-                                  }
-                                  aria-label={`${label} - ${name}`}
-                                  data-col={idx}
-                                />
-                              </label>
-                            ),
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[760px] text-left">
-                    <thead className="bg-bg-default/80">
-                      <tr>
-                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase">
-                          Módulo
-                        </th>
-                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
-                          Visualizar
-                        </th>
-                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
-                          Criar
-                        </th>
-                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
-                          Editar
-                        </th>
-                        <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase text-center">
-                          Excluir
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-default">
-                      {permissions.map((perm) => {
-                        const enabled = profilePermissions.has(perm.id);
-                        const name = perm.name;
-                        return (
-                          <tr
-                            key={perm.id}
-                            className="hover:bg-bg-default/70 transition-colors"
-                          >
-                            <td className="px-6 py-5 font-semibold text-text-body">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-bg-default flex items-center justify-center text-text-muted">
-                                  <span className="material-icons-outlined text-sm">
-                                    {iconForPermission(name)}
-                                  </span>
-                                </div>
-                                <span className="font-semibold text-sm">
-                                  {name}
-                                </span>
-                              </div>
-                            </td>
-                            {[1, 2, 3, 4].map((col) => (
-                              <td key={col} className="px-6 py-5 text-center">
-                                <input
-                                  type="checkbox"
-                                  className="w-5 h-5 rounded border-border-default text-primary focus:ring-primary"
-                                  checked={enabled}
-                                  disabled={!selectedProfileId || loadingPerms}
-                                  onChange={(e) =>
-                                    togglePermission(perm.id, e.target.checked)
-                                  }
-                                />
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+          <div className="min-w-0 space-y-6">
+            <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-2xl">
+              <div className="border-b border-border-default px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="flex items-center gap-2 text-lg font-bold text-text-body sm:text-xl">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <AppIcon
+                          icon={selectedRoleMeta.icon}
+                          size="sm"
+                          decorative
+                        />
+                      </span>
+                      Perfil: {selectedRoleMeta.label}
+                    </h2>
+                    <p className="mt-1 text-sm text-text-muted">
+                      {selectedRoleMeta.description}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-primary/5 px-4 py-2">
+                    <span className="text-xs font-semibold text-primary">
+                      {selectedRoleProfiles.length} usuários vinculados
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+                <div className="min-w-0 overflow-hidden rounded-2xl border border-border-default bg-bg-card/50">
+                  <div className="flex items-center justify-between border-b border-border-default bg-bg-default/40 px-4 py-2.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                      Usuários do perfil
+                    </span>
+                    <span className="text-[11px] font-semibold text-primary">
+                      {selectedRoleProfiles.length} itens
+                    </span>
+                  </div>
+
+                  {loadError ? (
+                    <div className="space-y-3 px-4 py-6">
+                      <p className="text-sm font-semibold text-error">
+                        Não foi possível carregar os perfis do banco.
+                      </p>
+                      <p className="text-sm text-text-muted">{loadError}</p>
+                      <button
+                        type="button"
+                        onClick={loadAllData}
+                        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
+                  ) : selectedRoleProfiles.length === 0 ? (
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-sm font-semibold text-text-body">
+                        Nenhum usuário com este perfil.
+                      </p>
+                      <p className="mt-2 text-sm text-text-muted">
+                        Selecione outro perfil ou altere o papel de um usuário
+                        quando houver registros.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2 p-3 lg:hidden">
+                        {paginatedRoleProfiles.map((item) => {
+                          const fullName =
+                            item.full_name || item.email || item.id;
+
+                          return (
+                            <article
+                              key={item.id}
+                              className="rounded-xl border border-border-default bg-bg-card p-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-text-body">
+                                    {fullName}
+                                  </p>
+                                  <p className="mt-1 truncate text-xs text-text-muted">
+                                    {item.email || "E-mail não informado"}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                    item.active
+                                      ? "bg-success/10 text-success"
+                                      : "bg-error/10 text-error"
+                                  }`}
+                                >
+                                  {item.active ? "Ativo" : "Inativo"}
+                                </span>
+                              </div>
+
+                              <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-text-muted">
+                                <div className="rounded-lg border border-border-default px-3 py-2">
+                                  Posto/Graduação: {item.rank || "--"}
+                                </div>
+                                <label className="rounded-lg border border-border-default px-3 py-2">
+                                  <span className="mb-1 block">Perfil</span>
+                                  <select
+                                    value={item.role}
+                                    disabled={savingProfileId === item.id}
+                                    onChange={(event) =>
+                                      updateUserRole(
+                                        item.id,
+                                        event.target.value as ProfileRole,
+                                      )
+                                    }
+                                    className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
+                                  >
+                                    {ROLE_ORDER.map((roleOption) => (
+                                      <option
+                                        key={roleOption}
+                                        value={roleOption}
+                                      >
+                                        {ROLE_META[roleOption].label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      <div className="hidden w-full overflow-x-auto lg:block">
+                        <table className="w-full min-w-[820px] text-left">
+                          <thead className="bg-bg-default/80">
+                            <tr>
+                              <th className="min-w-[260px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
+                                Militar
+                              </th>
+                              <th className="min-w-[140px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
+                                Posto
+                              </th>
+                              <th className="min-w-[120px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
+                                Situação
+                              </th>
+                              <th className="min-w-[210px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
+                                Perfil
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border-default">
+                            {paginatedRoleProfiles.map((item) => {
+                              const fullName =
+                                item.full_name || item.email || item.id;
+
+                              return (
+                                <tr
+                                  key={item.id}
+                                  className="align-top transition-colors hover:bg-bg-default/60"
+                                >
+                                  <td className="px-4 py-4 lg:px-6">
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-text-body">
+                                        {fullName}
+                                      </p>
+                                      <p className="mt-1 truncate text-xs text-text-muted">
+                                        {item.email || "E-mail não informado"}
+                                      </p>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-sm text-text-body lg:px-6">
+                                    {item.rank || "--"}
+                                  </td>
+                                  <td className="px-4 py-4 lg:px-6">
+                                    <span
+                                      className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                                        item.active
+                                          ? "bg-success/10 text-success"
+                                          : "bg-error/10 text-error"
+                                      }`}
+                                    >
+                                      {item.active ? "Ativo" : "Inativo"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 lg:px-6">
+                                    <select
+                                      value={item.role}
+                                      disabled={savingProfileId === item.id}
+                                      onChange={(event) =>
+                                        updateUserRole(
+                                          item.id,
+                                          event.target.value as ProfileRole,
+                                        )
+                                      }
+                                      className="min-w-[190px] rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
+                                    >
+                                      {ROLE_ORDER.map((roleOption) => (
+                                        <option
+                                          key={roleOption}
+                                          value={roleOption}
+                                        >
+                                          {ROLE_META[roleOption].label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="flex flex-col gap-3 border-t border-border-default bg-bg-default/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+                        <p className="text-sm text-text-muted">
+                          Mostrando {rangeStart}-{rangeEnd} de{" "}
+                          {selectedRoleProfiles.length} usuários
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCurrentPage((page) => Math.max(1, page - 1))
+                            }
+                            disabled={safeCurrentPage === 1}
+                            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border-default bg-bg-card px-3 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <AppIcon icon={ArrowLeft} size="xs" decorative />
+                            Anterior
+                          </button>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {Array.from(
+                              { length: totalPages },
+                              (_, index) => index + 1,
+                            ).map((page) => {
+                              const active = page === safeCurrentPage;
+
+                              return (
+                                <button
+                                  key={page}
+                                  type="button"
+                                  onClick={() => setCurrentPage(page)}
+                                  className={`flex h-9 min-w-9 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition-colors ${
+                                    active
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border-default bg-bg-card text-text-body hover:bg-bg-default"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCurrentPage((page) =>
+                                Math.min(totalPages, page + 1),
+                              )
+                            }
+                            disabled={safeCurrentPage === totalPages}
+                            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border-default bg-bg-card px-3 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Próxima
+                            <AppIcon icon={ArrowRight} size="xs" decorative />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <aside className="overflow-hidden rounded-2xl border border-border-default bg-bg-card">
+                  <div className="border-b border-border-default px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
+                      Módulos liberados
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {visibleModules.length === 0 ? (
+                      <p className="text-sm text-text-muted">
+                        Nenhum módulo de navegação disponível para este perfil.
+                      </p>
+                    ) : (
+                      visibleModules.map((moduleItem) => (
+                        <div
+                          key={moduleItem.label}
+                          className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-default px-3 py-2.5"
+                        >
+                          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <AppIcon
+                              icon={moduleItem.icon}
+                              size="xs"
+                              decorative
+                            />
+                          </span>
+                          <p className="text-sm font-semibold text-text-body">
+                            {moduleItem.label}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </aside>
+              </div>
+            </section>
           </div>
         </div>
-      )}
+      </div>
     </Layout>
   );
 }

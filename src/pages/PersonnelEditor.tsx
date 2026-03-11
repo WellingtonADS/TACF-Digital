@@ -1,3 +1,11 @@
+/**
+ * @page PersonnelEditor
+ * @description Edição de informações de pessoal.
+ * @path src/pages/PersonnelEditor.tsx
+ */
+
+
+
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import Layout from "@/components/layout/Layout";

@@ -1,3 +1,11 @@
+/**
+ * @page ForgotPassword
+ * @description Fluxo de recuperação de senha.
+ * @path src/pages/ForgotPassword.tsx
+ */
+
+
+
 import AuthLayout from "@/components/AuthLayout";
 import { AlertCircle, ArrowLeft, KeyRound, Mail } from "@/icons";
 import { supabase } from "@/services/supabase";

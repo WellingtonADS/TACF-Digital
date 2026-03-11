@@ -1,3 +1,11 @@
+/**
+ * @page ResultsHistory
+ * @description Histórico de resultados e avaliações.
+ * @path src/pages/ResultsHistory.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon";
 import {
   CARD_ELEVATED_CLASS,

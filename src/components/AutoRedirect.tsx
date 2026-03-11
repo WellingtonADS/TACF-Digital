@@ -1,3 +1,11 @@
+/**
+ * @page AutoRedirect
+ * @description Redirecionamento automático baseado em estado ou papel.
+ * @path src/components/AutoRedirect.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
 import { getDefaultHomeByRole } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";

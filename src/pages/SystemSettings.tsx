@@ -1,3 +1,11 @@
+/**
+ * @page SystemSettings
+ * @description Configurações globais e parâmetros do sistema.
+ * @path src/pages/SystemSettings.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon";
 import Button from "@/components/atomic/Button";
 import FullPageLoading from "@/components/FullPageLoading";

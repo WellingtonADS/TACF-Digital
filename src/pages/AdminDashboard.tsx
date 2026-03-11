@@ -1,3 +1,11 @@
+/**
+ * @page AdminDashboard
+ * @description Painel administrativo com métricas e atalhos.
+ * @path src/pages/AdminDashboard.tsx
+ */
+
+
+
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import StatCard from "@/components/atomic/StatCard";

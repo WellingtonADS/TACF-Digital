@@ -1,3 +1,11 @@
+/**
+ * @page TicketsListModal
+ * @description Modal com lista de tickets vinculados ao usuário.
+ * @path src/components/TicketsListModal.tsx
+ */
+
+
+
 import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";

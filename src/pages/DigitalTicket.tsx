@@ -1,3 +1,11 @@
+/**
+ * @page DigitalTicket
+ * @description Geração e visualização de bilhete digital (QR/PDF).
+ * @path src/pages/DigitalTicket.tsx
+ */
+
+
+
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
