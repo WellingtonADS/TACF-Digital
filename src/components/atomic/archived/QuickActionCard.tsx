@@ -1,10 +1,10 @@
 /**
- * @page QuickActionCard
- * @description Cartão de ação rápida com ícone e texto.
- * @path src/components/atomic/QuickActionCard.tsx
+ * ARCHIVED: QuickActionCard
+ * Reason: Arquivado porque não está sendo importado em `src/` e para evitar
+ * manter componentes não utilizados no diretório `atomic`.
+ * TODO: Remover permanentemente se não houver plano de uso; caso contrário,
+ * mover de volta para `atomic/` e atualizar chamadas.
  */
-
-
 
 import type { ReactNode } from "react";
 

@@ -1,10 +1,10 @@
 /**
- * @page SidebarItem
- * @description Item reutilizável do menu lateral.
- * @path src/components/atomic/SidebarItem.tsx
+ * ARCHIVED: SidebarItem
+ * Reason: Arquivado porque não está sendo importado em `src/` e evita
+ * manter código morto no diretório ativo de componentes.
+ * TODO: Remover permanentemente se não houver plano de uso; caso contrário,
+ * mover de volta para `atomic/` e atualizar chamadas.
  */
-
-
 
 import type { ReactNode } from "react";
 
