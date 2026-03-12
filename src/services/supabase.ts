@@ -1,3 +1,10 @@
+/**
+ * @module Supabase Service
+ * @description Cliente Supabase centralizado e helpers para autenticação,
+ * consulttas a banco de dados e RPCs. Toda integração com Supabase passa por este arquivo.
+ * @path src/services/supabase.ts
+ */
+
 import type { Database } from "@/types/database.types";
 import { createClient } from "@supabase/supabase-js";
 
@@ -74,5 +81,3 @@ export function table<Table extends keyof Database["public"]["Tables"]>(
 ) {
   return supabase.from(String(name));
 }
-
-

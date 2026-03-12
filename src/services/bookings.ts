@@ -1,7 +1,9 @@
+import type { Database } from "@/types/database.types";
 import supabase, { confirmarAgendamentoRPC } from "./supabase";
 
 export async function getSessions() {
-  // placeholder: implement real call to supabase RPC or table
+  // Placeholder: implementar apenas quando houver uso real.
+  // Mantido como lembrete, mas evite implementações até que sejam necessárias.
   return [] as unknown[];
 }
 
@@ -18,7 +20,10 @@ export async function fetchSwapRequests() {
   return data ?? [];
 }
 
-export async function updateBookingStatus(bookingId: string, status: string) {
+export async function updateBookingStatus(
+  bookingId: string,
+  status: Database["public"]["Tables"]["bookings"]["Update"]["status"],
+) {
   const { data, error } = await supabase
     .from("bookings")
     .update({ status })
@@ -35,6 +40,7 @@ interface SwapRequestParams {
   attachment?: File;
 }
 
+// `createSwapRequest` é consumido por `RescheduleDrawer` (src/components/RescheduleDrawer.tsx)
 export async function createSwapRequest(params: SwapRequestParams) {
   let attachmentUrl: string | null = null;
 
@@ -53,11 +59,12 @@ export async function createSwapRequest(params: SwapRequestParams) {
     attachmentUrl = urlData.publicUrl;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const payload: any = {
+  type SwapInsertStrict =
+    Database["public"]["Tables"]["swap_requests"]["Insert"];
+
+  const payload: Partial<SwapInsertStrict> = {
     booking_id: params.bookingId,
     requested_by: params.requestedBy,
-    new_session_id: null,
     reason: JSON.stringify({
       text: params.reasonText,
       new_date: params.newDate,
@@ -65,9 +72,14 @@ export async function createSwapRequest(params: SwapRequestParams) {
     }),
   };
 
+  // only include new_session_id when available (DB types may differ between generated types and runtime)
+  if (params.newDate) {
+    // here we don't have a session id, so we intentionally omit new_session_id (keeps compatibility)
+  }
+
   const { data, error } = await supabase
     .from("swap_requests")
-    .insert([payload]);
+    .insert([payload as SwapInsertStrict]);
   if (error) throw error;
   return data;
 }
@@ -78,5 +90,3 @@ export default {
   fetchSwapRequests,
   updateBookingStatus,
 };
-
-

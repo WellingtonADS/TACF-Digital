@@ -1,3 +1,10 @@
+/**
+ * @module Icons
+ * @page index
+ * @description Re-exports ícones do Lucide React para uso centralizado na aplicação.
+ * @path src/icons/index.ts
+ */
+
 /* eslint-disable no-restricted-imports -- allowed here as this file re-exports icons for the rest of the app */
 export {
   AlertCircle,
@@ -70,8 +77,8 @@ export {
   User,
   UserCheck,
   UserCircle2,
-  UserX,
   Users,
+  UserX,
   View,
   X,
   XCircle,

@@ -81,6 +81,12 @@ export default {
         "text-muted": "rgb(var(--color-text-muted) / <alpha-value>)",
         "text-inverted": "rgb(var(--color-text-inverted) / <alpha-value>)",
         "border-default": "rgb(var(--color-border-default) / <alpha-value>)",
+        /* convenience semantic alias backed by tokens.css */
+        "text-accent": "rgb(var(--color-primary) / <alpha-value>)",
+        accent: {
+          DEFAULT: "rgb(var(--color-primary) / <alpha-value>)",
+          foreground: "rgb(var(--color-primary-foreground) / <alpha-value>)",
+        },
 
         // Compatibility aliases so existing pages follow the new palette.
         emerald: scaleFromVar("--color-success"),

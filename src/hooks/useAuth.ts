@@ -1,3 +1,4 @@
+import { SESSION_PROFILE_KEY } from "@/constants/storage";
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Profile as DBProfile, Database } from "@/types";
 import type { Session, User } from "@supabase/supabase-js";
@@ -11,7 +12,7 @@ export default function useAuth() {
   const [profile, setProfile] = useState<Profile>(() => {
     try {
       if (typeof window === "undefined") return null;
-      const raw = sessionStorage.getItem("tacf_profile");
+      const raw = sessionStorage.getItem(SESSION_PROFILE_KEY);
       return raw ? (JSON.parse(raw) as Profile) : null;
     } catch {
       return null;
@@ -40,7 +41,7 @@ export default function useAuth() {
           setProfile(val);
           try {
             if (typeof window !== "undefined")
-              sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+              sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
           } catch (_: unknown) {
             /* sessionStorage can throw in restricted contexts */
           }
@@ -71,7 +72,7 @@ export default function useAuth() {
         setProfile(val);
         try {
           if (typeof window !== "undefined")
-            sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
         } catch (_: unknown) {
           /* sessionStorage can throw in restricted contexts */
         }
@@ -80,7 +81,7 @@ export default function useAuth() {
         setProfile(val);
         try {
           if (typeof window !== "undefined")
-            sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
         } catch (_: unknown) {
           /* sessionStorage can throw in restricted contexts */
         }
@@ -102,7 +103,7 @@ export default function useAuth() {
         setProfile(null);
         try {
           if (typeof window !== "undefined")
-            sessionStorage.removeItem("tacf_profile");
+            sessionStorage.removeItem(SESSION_PROFILE_KEY);
         } catch (_: unknown) {
           /* sessionStorage can throw in restricted contexts */
         }
@@ -121,7 +122,7 @@ export default function useAuth() {
       setProfile(val);
       try {
         if (typeof window !== "undefined")
-          sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+          sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
       } catch (_: unknown) {
         /* sessionStorage can throw in restricted contexts */
       }
@@ -150,7 +151,7 @@ export default function useAuth() {
     setProfile(null);
     try {
       if (typeof window !== "undefined")
-        sessionStorage.removeItem("tacf_profile");
+        sessionStorage.removeItem(SESSION_PROFILE_KEY);
     } catch (_: unknown) {
       /* sessionStorage can throw in restricted contexts */
     }
@@ -164,7 +165,7 @@ export default function useAuth() {
       try {
         const val = up?.data ?? null;
         if (typeof window !== "undefined")
-          sessionStorage.setItem("tacf_profile", JSON.stringify(val));
+          sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
       } catch (_: unknown) {
         /* sessionStorage can throw in restricted contexts */
       }
@@ -176,5 +177,3 @@ export default function useAuth() {
 
   return { user, profile, loading, error, signOut, updateProfile } as const;
 }
-
-
