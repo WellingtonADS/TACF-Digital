@@ -189,7 +189,8 @@ export const Scheduling = () => {
             </h1>
             {/* botão de abrir bilhete removido */}
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/80">
-              Escolha uma data e horário disponíveis para realizar seu Teste de Avaliação (TACF).
+              Escolha uma data e horário disponíveis para realizar seu Teste de
+              Avaliação (TACF).
             </p>
           </header>
 
@@ -500,4 +501,3 @@ export const Scheduling = () => {
 };
 
 export default Scheduling;
-
