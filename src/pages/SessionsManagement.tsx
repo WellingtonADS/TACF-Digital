@@ -19,7 +19,6 @@ import {
   Filter,
   LayoutGrid,
   LayoutList,
-  Plus,
   Search,
   Settings,
 } from "@/icons";
@@ -166,14 +165,7 @@ export const SessionsManagement = () => {
                   Controle operacional das sessões de avaliação física.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate("/app/turmas/nova")}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-              >
-                <AppIcon icon={Plus} size="sm" decorative />
-                Nova Turma
-              </button>
+              <div />
             </div>
           </div>
         </section>

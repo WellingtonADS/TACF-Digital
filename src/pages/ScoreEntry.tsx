@@ -54,9 +54,9 @@ type ScoreEntryRow = {
 };
 
 function PageHero({
-  selectedSession,
-  launchedCount,
-  totalRows,
+  selectedSession: _selectedSession,
+  launchedCount: _launchedCount,
+  totalRows: _totalRows,
 }: {
   selectedSession: SessionRow | null;
   launchedCount: number;
@@ -73,19 +73,6 @@ function PageHero({
             </h1>
             <p className="mt-2 text-sm text-white/85 md:text-base">
               Painel administrativo de lançamento de nota final TACF Digital.
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
-              Turma Selecionada
-            </p>
-            <p className="font-semibold">
-              {selectedSession
-                ? `${selectedSession.date} • ${formatSessionPeriod(selectedSession.period)}`
-                : "Sem turma selecionada"}
-            </p>
-            <p className="mt-1 text-xs text-white/80">
-              {launchedCount}/{totalRows} lançamentos concluídos
             </p>
           </div>
         </div>

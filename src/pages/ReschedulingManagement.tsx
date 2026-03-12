@@ -7,6 +7,9 @@
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import useReschedulingManagement, {
+  type SwapStatus,
+} from "@/hooks/useReschedulingManagement";
 import {
   AlertTriangle,
   Calendar,
@@ -18,33 +21,6 @@ import {
   X,
   XCircle,
 } from "@/icons";
-import {
-  fetchSwapRequests,
-  updateSwapRequestStatus,
-} from "@/services/bookings";
-import supabase from "@/services/supabase";
-import type { Database } from "@/types/database.types";
-import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-type SwapRequestRow = Database["public"]["Tables"]["swap_requests"]["Row"];
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
-type SwapStatus = SwapRequestRow["status"];
-
-type RequestRow = {
-  id: string;
-  bookingId: string;
-  status: SwapStatus;
-  reasonText: string;
-  attachmentUrl: string | null;
-  originalDate: string | null;
-  newDate: string | null;
-  fullName: string;
-  warName: string;
-  saram: string;
-};
-
-type FilterStatus = "pendentes" | "aprovados" | "recusados";
 
 const STATUS_META: Record<SwapStatus, { label: string; badgeClass: string }> = {
   solicitado: {
@@ -61,46 +37,15 @@ const STATUS_META: Record<SwapStatus, { label: string; badgeClass: string }> = {
   },
 };
 
-const FILTER_OPTIONS: Array<{ value: FilterStatus; label: string }> = [
-  { value: "pendentes", label: "Pendentes" },
-  { value: "aprovados", label: "Aprovados" },
-  { value: "recusados", label: "Recusados" },
+const FILTER_OPTIONS: Array<{ value: SwapStatus; label: string }> = [
+  { value: "solicitado", label: "Pendentes" },
+  { value: "aprovado", label: "Aprovados" },
+  { value: "cancelado", label: "Recusados" },
 ];
 
-const FILTER_TO_STATUS: Record<FilterStatus, SwapStatus> = {
-  pendentes: "solicitado",
-  aprovados: "aprovado",
-  recusados: "cancelado",
-};
-
-function parseSwapReason(reason: string): {
-  text: string;
-  newDate: string | null;
-  attachmentUrl: string | null;
-} {
-  try {
-    const parsed = JSON.parse(reason) as {
-      text?: string;
-      new_date?: string;
-      attachment_url?: string;
-    };
-    return {
-      text: parsed.text ?? reason,
-      newDate: parsed.new_date ?? null,
-      attachmentUrl: parsed.attachment_url ?? null,
-    };
-  } catch {
-    return {
-      text: reason,
-      newDate: null,
-      attachmentUrl: null,
-    };
-  }
-}
-
-function PageHero({ total }: { total: number }) {
+function PageHero({ total: _total }: { total: number }) {
   return (
-    <section>
+    <section className="mb-6">
       <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
         <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
         <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -112,9 +57,7 @@ function PageHero({ total }: { total: number }) {
               Analise, defira ou indefira pedidos de reagendamento
             </p>
           </div>
-          <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/95">
-            Total: {total}
-          </div>
+          {/* hero intentionally kept minimal: only title + subtitle per project standard */}
         </div>
       </div>
     </section>
@@ -129,8 +72,8 @@ function Toolbar({
 }: {
   query: string;
   setQuery: (value: string) => void;
-  statusFilter: FilterStatus;
-  setStatusFilter: (value: FilterStatus) => void;
+  statusFilter: SwapStatus;
+  setStatusFilter: (value: SwapStatus) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
@@ -185,7 +128,7 @@ function ReasonButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-extrabold uppercase tracking-tighter text-primary hover:underline"
+      className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold uppercase tracking-tight text-primary hover:underline"
     >
       <Eye size={12} />
       Ver justificativa
@@ -193,22 +136,46 @@ function ReasonButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function EmptyRequestsState() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border-default bg-bg-default/70 px-4 py-10 text-center">
+      <p className="text-sm font-semibold text-text-body">
+        Nenhuma solicitacao encontrada.
+      </p>
+      <p className="mt-1 text-sm text-text-muted">
+        Ajuste os filtros ou aguarde novas solicitacoes de reagendamento.
+      </p>
+    </div>
+  );
+}
+
 function ActionButtons({
   canAct,
   onApprove,
   onReject,
+  orientation = "stacked",
 }: {
   canAct: boolean;
   onApprove: () => void;
   onReject: () => void;
+  orientation?: "stacked" | "inline";
 }) {
+  const isInline = orientation === "inline";
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div
+      className={
+        isInline
+          ? "flex items-center justify-end gap-3"
+          : "grid grid-cols-1 gap-2 sm:grid-cols-2"
+      }
+    >
       <button
         type="button"
         onClick={onApprove}
         disabled={!canAct}
-        className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-success px-3 py-2 text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        className={`flex items-center justify-center gap-1 rounded-lg bg-success text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${
+          isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
+        }`}
       >
         <CheckCircle size={12} />
         Deferir
@@ -217,7 +184,9 @@ function ActionButtons({
         type="button"
         onClick={onReject}
         disabled={!canAct}
-        className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-error px-3 py-2 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className={`flex items-center justify-center gap-1 rounded-lg border border-error text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50 ${
+          isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
+        }`}
       >
         <XCircle size={12} />
         Indeferir
@@ -227,190 +196,19 @@ function ActionButtons({
 }
 
 export default function ReschedulingManagement() {
-  const [rows, setRows] = useState<RequestRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>("pendentes");
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<RequestRow | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const swaps = (await fetchSwapRequests()) as SwapRequestRow[];
-
-        if (swaps.length === 0) {
-          setRows([]);
-          return;
-        }
-
-        const bookingIds = Array.from(
-          new Set(swaps.map((swap) => swap.booking_id)),
-        ).filter((id): id is string => Boolean(id));
-
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from("bookings")
-          .select("id,user_id,session_id")
-          .in("id", bookingIds);
-
-        if (bookingsError) throw bookingsError;
-
-        const bookings = (bookingsData ?? []) as Pick<
-          BookingRow,
-          "id" | "user_id" | "session_id"
-        >[];
-
-        const bookingsById = new Map<string, (typeof bookings)[number]>();
-        bookings.forEach((booking) => bookingsById.set(booking.id, booking));
-
-        const sessionIds = Array.from(
-          new Set([
-            ...bookings.map((booking) => booking.session_id),
-            ...swaps.map((swap) => swap.new_session_id),
-          ]),
-        ).filter((id): id is string => Boolean(id));
-
-        const sessionsById = new Map<string, string>();
-        if (sessionIds.length > 0) {
-          const { data: sessionsData, error: sessionsError } = await supabase
-            .from("sessions")
-            .select("id,date")
-            .in("id", sessionIds);
-
-          if (sessionsError) throw sessionsError;
-
-          sessionsData?.forEach((session) =>
-            sessionsById.set(session.id, session.date),
-          );
-        }
-
-        const userIds = Array.from(
-          new Set(bookings.map((booking) => booking.user_id)),
-        );
-
-        const profilesByUser = new Map<
-          string,
-          { full_name: string; war_name: string; saram: string }
-        >();
-        if (userIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id,full_name,war_name,saram")
-            .in("id", userIds);
-
-          if (profilesError) throw profilesError;
-
-          profilesData?.forEach((profile) =>
-            profilesByUser.set(profile.id, {
-              full_name: profile.full_name ?? "",
-              war_name: profile.war_name ?? "",
-              saram: profile.saram ?? "",
-            }),
-          );
-        }
-
-        setRows(
-          swaps.map((swap) => {
-            const booking = bookingsById.get(swap.booking_id);
-            const profile = booking
-              ? profilesByUser.get(booking.user_id)
-              : undefined;
-            const parsedReason = parseSwapReason(swap.reason);
-
-            return {
-              id: swap.id,
-              bookingId: swap.booking_id,
-              status: swap.status,
-              reasonText: parsedReason.text,
-              attachmentUrl: parsedReason.attachmentUrl,
-              originalDate: booking
-                ? (sessionsById.get(booking.session_id) ?? null)
-                : null,
-              newDate:
-                sessionsById.get(swap.new_session_id) ?? parsedReason.newDate,
-              fullName: profile?.full_name ?? "",
-              warName: profile?.war_name ?? "",
-              saram: profile?.saram ?? "",
-            };
-          }),
-        );
-      } catch (err) {
-        console.error(err);
-        toast.error("Falha ao carregar solicitações");
-        setRows([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, []);
-
-  const counts = useMemo(() => {
-    return rows.reduce(
-      (acc, row) => {
-        if (row.status === "solicitado") acc.pendentes += 1;
-        if (row.status === "aprovado") acc.aprovados += 1;
-        if (row.status === "cancelado") acc.recusados += 1;
-        return acc;
-      },
-      { pendentes: 0, aprovados: 0, recusados: 0 },
-    );
-  }, [rows]);
-
-  const visibleRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const statusToShow = FILTER_TO_STATUS[statusFilter];
-
-    return rows.filter((row) => {
-      if (row.status !== statusToShow) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const target =
-        `${row.fullName} ${row.warName} ${row.saram}`.toLowerCase();
-      return target.includes(normalizedQuery);
-    });
-  }, [rows, query, statusFilter]);
-
-  async function changeStatus(
-    requestId: string,
-    bookingId: string,
-    status: Extract<SwapStatus, "aprovado" | "cancelado">,
-  ) {
-    try {
-      const { data } = await supabase.auth.getUser();
-      const adminId = data.user?.id;
-
-      await updateSwapRequestStatus(requestId, status, adminId);
-
-      if (status === "aprovado") {
-        await supabase
-          .from("bookings")
-          .update({ status: "remarcado" })
-          .eq("id", bookingId);
-      }
-
-      toast.success("Registro atualizado");
-      setRows((currentRows) =>
-        currentRows.map((row) =>
-          row.id === requestId ? { ...row, status } : row,
-        ),
-      );
-      setSelected((currentSelected) =>
-        currentSelected?.id === requestId
-          ? { ...currentSelected, status }
-          : currentSelected,
-      );
-    } catch (err) {
-      console.error(err);
-      toast.error("Falha ao atualizar solicitação");
-    }
-  }
+  const {
+    rows,
+    loading,
+    statusFilter,
+    setStatusFilter,
+    query,
+    setQuery,
+    selected,
+    setSelected,
+    counts,
+    visibleRows,
+    changeStatus,
+  } = useReschedulingManagement();
 
   if (loading) {
     return (
@@ -423,14 +221,14 @@ export default function ReschedulingManagement() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-0">
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <PageHero total={rows.length} />
 
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Total" value={rows.length} icon={GitMerge} />
           <StatCard
             title="Pendentes"
-            value={counts.pendentes}
+            value={counts.solicitado}
             icon={AlertTriangle}
             className="border-b-4 border-secondary/30"
             iconBg="bg-secondary/10"
@@ -438,7 +236,7 @@ export default function ReschedulingManagement() {
           />
           <StatCard
             title="Aprovados"
-            value={counts.aprovados}
+            value={counts.aprovado}
             icon={CheckCircle}
             className="border-b-4 border-success/30"
             iconBg="bg-success/10"
@@ -446,7 +244,7 @@ export default function ReschedulingManagement() {
           />
           <StatCard
             title="Recusados"
-            value={counts.recusados}
+            value={counts.cancelado}
             icon={XCircle}
             className="border-b-4 border-error/30"
             iconBg="bg-error/10"
@@ -460,32 +258,28 @@ export default function ReschedulingManagement() {
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
         />
+        <p className="mt-3 px-1 text-xs text-text-muted">
+          Exibindo {visibleRows.length} de {rows.length} solicitacoes no filtro
+          atual.
+        </p>
 
-        <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
-          <div className="space-y-2 p-3 md:hidden">
+        <section className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+          <div className="space-y-3 p-4 md:hidden">
             {visibleRows.length === 0 ? (
-              <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-8 text-center">
-                <p className="text-sm font-semibold text-text-body">
-                  Nenhuma solicitação encontrada.
-                </p>
-                <p className="mt-2 text-sm text-text-muted">
-                  Ajuste os filtros ou aguarde novas solicitações de
-                  reagendamento.
-                </p>
-              </div>
+              <EmptyRequestsState />
             ) : (
               visibleRows.map((row) => (
                 <article
                   key={row.id}
-                  className="rounded-xl border border-border-default bg-bg-card p-3"
+                  className="rounded-xl border border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-default/40"
                 >
-                  <p className="text-sm font-bold uppercase text-text-body">
+                  <p className="text-[13px] font-bold uppercase text-text-body">
                     {row.fullName || "(desconhecido)"}
                   </p>
-                  <p className="mt-1 font-mono text-xs font-semibold text-text-muted">
+                  <p className="mt-1 font-mono text-[11px] font-semibold text-text-muted">
                     SARAM: {row.saram || "----"}
                   </p>
-                  <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                  <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
                     <p className="flex items-center gap-2 text-text-muted">
                       <Calendar size={12} />
                       Data original: {row.originalDate ?? "--"}
@@ -515,8 +309,8 @@ export default function ReschedulingManagement() {
             )}
           </div>
 
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full min-w-[980px] border-collapse text-left">
+          <div className="hidden w-full overflow-x-auto lg:block">
+            <table className="w-full border-collapse text-left">
               <thead className="border-b border-border-default bg-bg-default/60">
                 <tr>
                   <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
@@ -545,11 +339,8 @@ export default function ReschedulingManagement() {
               <tbody className="divide-y divide-border-default">
                 {visibleRows.length === 0 ? (
                   <tr>
-                    <td
-                      className="px-6 py-10 text-sm text-text-muted"
-                      colSpan={7}
-                    >
-                      Nenhuma solicitação encontrada para os filtros atuais.
+                    <td className="px-6 py-8" colSpan={7}>
+                      <EmptyRequestsState />
                     </td>
                   </tr>
                 ) : (
@@ -587,30 +378,16 @@ export default function ReschedulingManagement() {
                         <StatusBadge status={row.status} />
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              changeStatus(row.id, row.bookingId, "aprovado")
-                            }
-                            disabled={row.status !== "solicitado"}
-                            className="flex items-center gap-1 rounded-lg bg-success px-4 py-1.5 text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <CheckCircle size={12} />
-                            Deferir
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              changeStatus(row.id, row.bookingId, "cancelado")
-                            }
-                            disabled={row.status !== "solicitado"}
-                            className="flex items-center gap-1 rounded-lg border border-error px-4 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <XCircle size={12} />
-                            Indeferir
-                          </button>
-                        </div>
+                        <ActionButtons
+                          orientation="inline"
+                          canAct={row.status === "solicitado"}
+                          onApprove={() =>
+                            changeStatus(row.id, row.bookingId, "aprovado")
+                          }
+                          onReject={() =>
+                            changeStatus(row.id, row.bookingId, "cancelado")
+                          }
+                        />
                       </td>
                     </tr>
                   ))

@@ -4,10 +4,7 @@
  * @path src/pages/AuditLog.tsx
  */
 
-
-
 import FullPageLoading from "@/components/FullPageLoading";
-import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
@@ -18,7 +15,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Code2,
-  Download,
   Filter,
   Plus,
   Search,
@@ -201,7 +197,7 @@ export default function AuditLog() {
         <section>
           <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10">
               <div>
                 <h2 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
                   Log de Auditoria
@@ -210,13 +206,6 @@ export default function AuditLog() {
                   Rastreabilidade e histórico das ações do sistema.
                 </p>
               </div>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-              >
-                <AppIcon icon={Download} size="sm" decorative />
-                Exportar
-              </button>
             </div>
           </div>
         </section>

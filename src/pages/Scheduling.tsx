@@ -14,9 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  FileText,
   Hash,
-  HelpCircle,
   MapPin,
 } from "@/icons";
 import supabase from "@/services/supabase";
@@ -36,6 +34,13 @@ type SessionLocation = {
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export const Scheduling = () => {
   const navigate = useNavigate();
   // useDashboard was previously called here but its return value was unused.
@@ -49,8 +54,8 @@ export const Scheduling = () => {
     viewDate.getMonth() + 1,
     0,
   );
-  const startStr = startOfMonth.toISOString().split("T")[0];
-  const endStr = endOfMonth.toISOString().split("T")[0];
+  const startStr = toDateKey(startOfMonth);
+  const endStr = toDateKey(endOfMonth);
 
   const { sessions, loading } = useSessions(startStr, endStr);
 
@@ -304,7 +309,7 @@ export const Scheduling = () => {
                         viewDate.getMonth(),
                         day,
                       );
-                      const dateKey = dateObj.toISOString().split("T")[0];
+                      const dateKey = toDateKey(dateObj);
                       const hasSessions =
                         (sessionsByDate[dateKey] || []).length > 0;
                       const isBooked = bookedDates.has(dateKey);
@@ -495,3 +500,4 @@ export const Scheduling = () => {
 };
 
 export default Scheduling;
+

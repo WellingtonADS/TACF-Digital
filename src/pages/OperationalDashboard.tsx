@@ -14,12 +14,10 @@ import useDashboard from "@/hooks/useDashboard";
 import {
   Award,
   CalendarPlus,
-  CheckCircle,
   ClipboardList,
   FileText,
   Info,
   MoreHorizontal,
-  Shield,
 } from "@/icons";
 import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
@@ -38,9 +36,9 @@ export const OperationalDashboard = () => {
     bookingsCount,
     resultsCount,
     nextSession,
-    latestOrderNumber,
+    latestOrderNumber: _latestOrderNumber,
     notifications: derivedNotifications,
-    inspsauStatus,
+    inspsauStatus: _inspsauStatus,
     loading: dashboardLoading,
   } = useDashboard();
 
@@ -51,10 +49,6 @@ export const OperationalDashboard = () => {
     typedProfile?.war_name ||
     user?.email ||
     "Usuário";
-
-  // use derived INSPSAU status computed by the dashboard hook
-  const statusLabel = inspsauStatus.label;
-  const statusColor = inspsauStatus.color;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
@@ -150,7 +144,7 @@ export const OperationalDashboard = () => {
       <section className="mb-8">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="relative z-10">
             <div>
               <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
                 Olá, {displayName}
@@ -158,35 +152,6 @@ export const OperationalDashboard = () => {
               <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                 Seja bem-vindo ao portal de agendamento do HACO
               </p>
-              {/* Status Chip */}
-              <div
-                className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${statusColor}`}
-              >
-                <AppIcon icon={CheckCircle} size="sm" ariaLabel="Status" />
-                <span className="text-xs font-bold uppercase tracking-widest">
-                  Status: {loading ? "Carregando" : statusLabel}
-                </span>
-              </div>
-
-              {/* Bilhete (se disponível) */}
-              {latestOrderNumber && (
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-sm">
-                    Bilhete: {latestOrderNumber}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="hidden lg:block">
-              <div className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center">
-                <AppIcon
-                  icon={Shield}
-                  size={48}
-                  className="text-white/40"
-                  ariaLabel="Seguranca"
-                  decorative={false}
-                />
-              </div>
             </div>
           </div>
         </div>

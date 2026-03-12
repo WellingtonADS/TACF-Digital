@@ -28,7 +28,6 @@ export async function callRpcWithRetry<T = unknown>(
 
       // Promise.race - if timeout fires, treat as transient error and retry
       // Note: supabase.rpc cannot be aborted; we simply ignore late resolution.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = (await Promise.race([rpcPromise, timeoutPromise])) as {
         data: T | null;
         error: { message: string } | null;
@@ -48,7 +47,6 @@ export async function callRpcWithRetry<T = unknown>(
         return { data: null, error: { message }, durationMs };
       }
       // backoff before retry
-      // eslint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, backoffMs * attempt));
     }
   }

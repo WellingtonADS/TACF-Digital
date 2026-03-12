@@ -16,6 +16,7 @@ import {
   UserX,
   XCircle,
 } from "@/icons";
+import { updateBookingStatus } from "@/services/bookings";
 import supabase from "@/services/supabase";
 import type { BookingRow as DBBookingRow, Profile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
@@ -48,24 +49,22 @@ type SessionInfo = {
   location_id: string | null;
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<BookingRow["status"], string> = {
   agendado: "Agendado",
   remarcado: "Remarcado",
   cancelado: "Cancelado",
-  no_show: "Não compareceu",
 };
 
-const STATUS_CLASSES: Record<string, string> = {
+const STATUS_CLASSES: Record<BookingRow["status"], string> = {
   agendado:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   remarcado:
     "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   cancelado:
     "bg-bg-default text-text-muted dark:bg-bg-default dark:text-text-muted",
-  no_show: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-type StatusFilterOption = "all" | "agendado" | "remarcado" | "cancelado";
+type StatusFilterOption = "all" | BookingRow["status"];
 
 export default function SessionBookingsManagement() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -155,24 +154,24 @@ export default function SessionBookingsManagement() {
     });
   }, [bookings, statusFilter, searchQuery]);
 
-  const counts = useMemo(
-    () => ({
-      all: bookings.length,
-      agendado: bookings.filter((b) => b.status === "agendado").length,
-      remarcado: bookings.filter((b) => b.status === "remarcado").length,
-      cancelado: bookings.filter((b) => b.status === "cancelado").length,
-    }),
-    [bookings],
-  );
+  const counts = useMemo(() => {
+    return bookings.reduce(
+      (acc, booking) => {
+        acc.all += 1;
+        acc[booking.status] += 1;
+        return acc;
+      },
+      { all: 0, agendado: 0, remarcado: 0, cancelado: 0 },
+    );
+  }, [bookings]);
 
-  async function handleStatusChange(bookingId: string, newStatus: string) {
+  async function handleStatusChange(
+    bookingId: string,
+    newStatus: BookingRow["status"],
+  ) {
     setUpdating(bookingId);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: newStatus })
-        .eq("id", bookingId);
-      if (error) throw error;
+      await updateBookingStatus(bookingId, newStatus);
       toast.success("Status atualizado.");
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
@@ -391,8 +390,7 @@ export default function SessionBookingsManagement() {
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span
                           className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            STATUS_CLASSES[b.status] ??
-                            STATUS_CLASSES["cancelled"]
+                            STATUS_CLASSES[b.status]
                           }`}
                         >
                           {STATUS_LABELS[b.status] ?? b.status}
@@ -417,10 +415,10 @@ export default function SessionBookingsManagement() {
                           />
                         ) : (
                           <>
-                            {b.status !== "confirmed" && (
+                            {b.status !== "agendado" && (
                               <button
                                 onClick={() =>
-                                  handleStatusChange(b.id, "confirmed")
+                                  handleStatusChange(b.id, "agendado")
                                 }
                                 className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
                                 title="Confirmar agendamento"
@@ -428,10 +426,10 @@ export default function SessionBookingsManagement() {
                                 <CheckCircle2 size={15} />
                               </button>
                             )}
-                            {b.status !== "cancelled" && (
+                            {b.status !== "cancelado" && (
                               <button
                                 onClick={() =>
-                                  handleStatusChange(b.id, "cancelled")
+                                  handleStatusChange(b.id, "cancelado")
                                 }
                                 className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                                 title="Cancelar agendamento"
@@ -531,8 +529,7 @@ export default function SessionBookingsManagement() {
                           <td className="px-4 py-3 text-center">
                             <span
                               className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                STATUS_CLASSES[b.status] ??
-                                STATUS_CLASSES["cancelled"]
+                                STATUS_CLASSES[b.status]
                               }`}
                             >
                               {STATUS_LABELS[b.status] ?? b.status}
@@ -557,10 +554,10 @@ export default function SessionBookingsManagement() {
                                 />
                               ) : (
                                 <>
-                                  {b.status !== "confirmed" && (
+                                  {b.status !== "agendado" && (
                                     <button
                                       onClick={() =>
-                                        handleStatusChange(b.id, "confirmed")
+                                        handleStatusChange(b.id, "agendado")
                                       }
                                       className="p-1.5 rounded-lg text-text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
                                       title="Confirmar agendamento"
@@ -568,10 +565,10 @@ export default function SessionBookingsManagement() {
                                       <CheckCircle2 size={15} />
                                     </button>
                                   )}
-                                  {b.status !== "cancelled" && (
+                                  {b.status !== "cancelado" && (
                                     <button
                                       onClick={() =>
-                                        handleStatusChange(b.id, "cancelled")
+                                        handleStatusChange(b.id, "cancelado")
                                       }
                                       className="p-1.5 rounded-lg text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                       title="Cancelar agendamento"

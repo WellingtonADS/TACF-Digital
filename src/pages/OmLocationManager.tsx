@@ -4,8 +4,6 @@
  * @path src/pages/OmLocationManager.tsx
  */
 
-
-
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
@@ -124,10 +122,11 @@ function LocationCard({
   onNavigate,
 }: {
   loc: Location;
-  onNavigate: (p: string) => void;
+  onNavigate: (path: string) => void;
 }) {
   const meta =
     OM_STATUS[loc.status as keyof typeof OM_STATUS] ?? OM_STATUS.inactive;
+
   return (
     <article
       className={`${CARD_INTERACTIVE_CLASS} rounded-2xl border-l-4 ${meta.accent} flex flex-col overflow-hidden`}
@@ -144,9 +143,11 @@ function LocationCard({
           </span>
         </div>
 
-        <div>
-          <h3 className="font-bold text-text-body leading-snug">{loc.name}</h3>
-          <p className="text-[11px] text-text-muted mt-0.5 flex items-center gap-1">
+        <div className="space-y-1">
+          <h3 className="text-sm font-bold text-text-body line-clamp-2">
+            {loc.name}
+          </h3>
+          <p className="flex items-center gap-1.5 text-xs text-text-muted">
             <MapPin size={11} />
             {loc.address || "Endereço não informado"}
           </p>

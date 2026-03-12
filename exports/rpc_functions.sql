@@ -1290,7 +1290,7 @@ BEGIN
     (s.max_capacity - COUNT(b.id)) AS available_count
   FROM public.sessions s
   LEFT JOIN public.bookings b
-    ON b.session_id = s.id AND b.status = 'confirmed'
+    ON b.session_id = s.id AND b.status::text IN ('agendado', 'remarcado')
   WHERE s.date >= p_start AND s.date <= p_end
   GROUP BY s.id, s.date, s.period, s.max_capacity
   ORDER BY s.date;

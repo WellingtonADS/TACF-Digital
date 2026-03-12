@@ -594,16 +594,7 @@ export default function AnalyticsDashboard() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={exportFullCSV}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
-                >
-                  <Download size={14} />
-                  EXPORTAR RELATÓRIO
-                </button>
-              </div>
+              <div />
             </div>
           </div>
         </section>

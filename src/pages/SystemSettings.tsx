@@ -1,13 +1,10 @@
 /**
  * @page SystemSettings
- * @description Configurações globais e parâmetros do sistema.
+ * @description Configurações centrais do sistema.
  * @path src/pages/SystemSettings.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon";
-import Button from "@/components/atomic/Button";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -373,12 +370,13 @@ export default function SystemSettings() {
               página dedicada. Utilize o botão abaixo para acessar a ferramenta
               completa.
             </p>
-            <Button
-              variant="primary"
+            <button
+              type="button"
               onClick={() => window.location.assign("/app/om-locations")}
+              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
             >
               Ir para Gestão de Locais e OMs
-            </Button>
+            </button>
           </div>
         );
       case "profiles":
@@ -387,12 +385,13 @@ export default function SystemSettings() {
             <p className="mb-4">
               A gestão de Perfis de Acesso agora possui tela dedicada.
             </p>
-            <Button
-              variant="primary"
+            <button
+              type="button"
               onClick={() => navigate("/app/configuracoes/perfis")}
+              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
             >
               Ir para Gestão de Perfis de Acesso
-            </Button>
+            </button>
           </div>
         );
       case "audit":

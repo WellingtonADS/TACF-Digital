@@ -4,13 +4,10 @@
  * @path src/pages/OmLocationEditor.tsx
  */
 
-
-
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import {
-  ArrowLeft,
   Building2,
   CheckCircle,
   Loader2,
@@ -29,7 +26,7 @@ import { toast } from "sonner";
 function PageHero({
   isNew,
   title,
-  onBack,
+  onBack: _onBack,
 }: {
   isNew: boolean;
   title: string;
@@ -39,7 +36,7 @@ function PageHero({
     <section className="mb-6">
       <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
         <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative z-10">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               {isNew
@@ -48,14 +45,6 @@ function PageHero({
             </h1>
             <p className="mt-2 text-sm text-white/85 md:text-base">{title}</p>
           </div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
-          >
-            <ArrowLeft size={16} />
-            Voltar
-          </button>
         </div>
       </div>
     </section>

@@ -49,8 +49,8 @@ const ROLE_META: Record<
 
 function PageHero({
   selectedRole,
-  totalProfiles,
-  totalModules,
+  totalProfiles: _totalProfiles,
+  totalModules: _totalModules,
 }: {
   selectedRole: string;
   totalProfiles: number;
@@ -60,7 +60,7 @@ function PageHero({
     <section>
       <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
         <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="relative z-10">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Gestão de Perfis de Acesso
@@ -68,14 +68,6 @@ function PageHero({
             <p className="mt-2 text-sm text-white/85 md:text-base">
               Perfil selecionado: {selectedRole}
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-              {totalProfiles} usuários
-            </span>
-            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-              {totalModules} módulos
-            </span>
           </div>
         </div>
       </div>

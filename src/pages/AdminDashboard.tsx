@@ -25,39 +25,19 @@ import {
   Shield,
   Users,
 } from "@/icons";
+import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
-import { format, isAfter, isValid, parseISO } from "date-fns";
+import { format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
 
-export const AdminDashboard = () => {
+const AdminDashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-
-  const typedProfile = profile as Record<string, unknown> | null;
-
   const displayName = String(
-    typedProfile?.full_name ?? typedProfile?.war_name ?? "Administrador",
+    profile?.war_name || profile?.full_name || "Admin",
   );
-
-  const inspsau = typedProfile?.inspsau_valid_until as
-    | string
-    | null
-    | undefined;
-  let statusLabel = "Inapto";
-  let statusColor = "text-white bg-error border border-error";
-
-  if (inspsau) {
-    const date = parseISO(inspsau);
-    if (isValid(date) && isAfter(date, new Date())) {
-      statusLabel = "Apto";
-      statusColor = "text-white bg-success border border-success";
-    }
-  }
-
-  // (clock removed) hero shows status chip instead to match OperationalDashboard
 
   // metrics
   const [totalInscritos, setTotalInscritos] = useState<number>(0);
@@ -232,16 +212,6 @@ export const AdminDashboard = () => {
                 <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                   Visão Greal — TACF‑Digital.
                 </p>
-                {statusLabel === "Apto" && (
-                  <div
-                    className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${statusColor}`}
-                  >
-                    <AppIcon icon={CheckCircle} size="sm" ariaLabel="Status" />
-                    <span className="text-xs font-bold uppercase tracking-widest">
-                      Status: {statusLabel}
-                    </span>
-                  </div>
-                )}
               </div>
               <div className="flex items-center gap-4">
                 <button

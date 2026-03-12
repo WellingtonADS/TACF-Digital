@@ -13,7 +13,6 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
-  Download,
   FileText,
   Loader2,
   Mail,
@@ -30,7 +29,6 @@ import {
 } from "@/icons";
 import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
-import { downloadCSV } from "@/utils/csv";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -432,32 +430,6 @@ export default function PersonnelManagement() {
     return { apto, vencido, inapto, testsThisMonth, aptoPercent };
   }, [rows]);
 
-  function exportCsv() {
-    const headers = [
-      "nome",
-      "nome_guerra",
-      "posto_graduacao",
-      "setor",
-      "saram",
-      "ultimo_teste",
-      "score",
-      "status",
-    ];
-
-    const rows = filteredRows.map((row) => [
-      row.fullName,
-      row.warName ?? "",
-      row.rank ?? "",
-      row.sector ?? "",
-      row.saram ?? "",
-      dateLabel(row.lastTestDate),
-      row.lastScore ?? "",
-      row.status,
-    ]);
-
-    downloadCSV("efetivo-tacf.csv", rows, headers);
-  }
-
   if (loading) {
     return <FullPageLoading message="Carregando efetivo" />;
   }
@@ -478,15 +450,6 @@ export default function PersonnelManagement() {
                   sessão TACF.
                 </p>
               </div>
-
-              <button
-                type="button"
-                onClick={exportCsv}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
-              >
-                <AppIcon icon={Download} size="sm" decorative />
-                EXPORTAR RELATÓRIO
-              </button>
             </div>
           </div>
         </section>

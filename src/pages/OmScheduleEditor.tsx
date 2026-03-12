@@ -8,7 +8,6 @@ import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import {
-  ArrowLeft,
   Building2,
   CalendarDays,
   Clock3,
@@ -94,8 +93,8 @@ function mergeDbSlots(
 
 function PageHero({
   locationName,
-  activeCount,
-  onBack,
+  activeCount: _activeCount,
+  onBack: _onBack,
 }: {
   locationName: string;
   activeCount: number;
@@ -105,7 +104,7 @@ function PageHero({
     <section className="mb-6">
       <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
         <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative z-10">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Horários Disponíveis
@@ -114,21 +113,6 @@ function PageHero({
               Controle operacional de turnos e janelas de atendimento para{" "}
               <span className="font-semibold">{locationName}</span>.
             </p>
-          </div>
-
-          <div className="flex flex-col items-start gap-3 sm:items-end">
-            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
-              {activeCount} turno{activeCount === 1 ? "" : "s"} ativo
-              {activeCount === 1 ? "" : "s"}
-            </span>
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
-            >
-              <ArrowLeft size={16} />
-              Voltar
-            </button>
           </div>
         </div>
       </div>
