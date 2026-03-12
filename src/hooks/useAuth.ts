@@ -1,3 +1,10 @@
+/**
+ * @module Domínio
+ * @page useAuth
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\useAuth.ts
+ */
+
 import { SESSION_PROFILE_KEY } from "@/constants/storage";
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Profile as DBProfile, Database } from "@/types";

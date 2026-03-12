@@ -1,5 +1,20 @@
+/**
+ * @module Domínio
+ * @page usePaginatedQuery
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\usePaginatedQuery.ts
+ */
+
+
+import { callRpcWithRetry } from "@/utils/rpc";
 import { useCallback, useState } from "react";
-import supabase from "../services/supabase";
+
+/*
+  Expected RPC contract for paginated RPCs used with this hook:
+  - returns an object: { rows: T[], next_cursor?: string|null, has_more?: boolean }
+  - the hook validates that `rows` is an array before updating state
+  - Use cursor-based RPCs that accept params: p_limit, p_cursor, p_from, p_to
+*/
 
 type PaginatedResult<T> = {
   rows: T[];
@@ -35,22 +50,26 @@ export default function usePaginatedQuery<T = unknown>(
         p_to: opts?.to ?? null,
       };
 
-      const { data: rpcRaw, error } = await supabase.rpc(
-        rpcName as never,
-        {
-          ...params,
-        } as never,
+      const { data: rpcRaw, error } = await callRpcWithRetry<unknown>(
+        rpcName,
+        { ...params } as Record<string, unknown>,
+        { timeoutMs: 3000, retries: 1 },
       );
-      const data = rpcRaw as unknown;
 
       if (error) {
-        console.error(error);
+        console.error(error.message);
         setLoading(false);
         return;
       }
 
-      const payload = data as unknown as PaginatedResult<T>;
-      const rows = payload?.rows ?? [];
+      const payload = rpcRaw as unknown as PaginatedResult<T> | null;
+      if (!payload || !Array.isArray(payload.rows)) {
+        console.error("Paginated RPC returned unexpected shape", payload);
+        setLoading(false);
+        return;
+      }
+
+      const rows = payload.rows ?? [];
       setItems((prev) => [...prev, ...rows]);
       setCursor(payload?.next_cursor ?? null);
       setHasMore(!!payload?.has_more);
@@ -73,5 +92,3 @@ export default function usePaginatedQuery<T = unknown>(
     reset,
   } as const;
 }
-
-

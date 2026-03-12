@@ -5,9 +5,8 @@
  * @path src\hooks\useDashboard.ts
  */
 
-
-import { supabase } from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
+import { callRpcWithRetry } from "@/utils/rpc";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAuth from "./useAuth";
@@ -56,9 +55,12 @@ export default function useDashboard() {
       setLoading(true);
       try {
         /* try single RPC first to minimize round-trips */
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "get_user_dashboard_summary",
-        );
+        const { data: rpcData, error: rpcError } =
+          await callRpcWithRetry<unknown>(
+            "get_user_dashboard_summary",
+            {},
+            { timeoutMs: 3000, retries: 1 },
+          );
         if (!rpcError && rpcData) {
           const payloadCandidate = Array.isArray(rpcData)
             ? rpcData[0]

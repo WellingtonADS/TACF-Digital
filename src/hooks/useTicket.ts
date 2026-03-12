@@ -1,3 +1,10 @@
+/**
+ * @module Domínio
+ * @page useTicket
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\useTicket.ts
+ */
+
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";

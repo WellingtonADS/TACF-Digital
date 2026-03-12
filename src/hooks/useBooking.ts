@@ -1,3 +1,10 @@
+/**
+ * @module Domínio
+ * @page useBooking
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\useBooking.ts
+ */
+
 import useAuth from "@/hooks/useAuth";
 import supabase from "@/services/supabase";
 import { useState } from "react";

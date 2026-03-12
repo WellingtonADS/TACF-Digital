@@ -4,8 +4,6 @@
  * @path src/pages/SessionsManagement.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
@@ -54,9 +52,7 @@ export const SessionsManagement = () => {
   const [page, setPage] = useState(1);
   const isCompactViewport = isMobile || isTablet;
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    typeof window !== "undefined" && window.innerWidth < 1024
-      ? "cards"
-      : "table",
+    isCompactViewport ? "cards" : "table",
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const pageSize = 10;

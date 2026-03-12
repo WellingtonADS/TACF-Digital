@@ -1,3 +1,11 @@
+/**
+ * @module Domínio
+ * @page usePersonnel
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\usePersonnel.ts
+ */
+
+
 import supabase from "@/services/supabase";
 import type { Profile } from "@/types";
 
@@ -20,6 +28,4 @@ export async function updateProfile(id: string, payload: Partial<Profile>) {
   return true;
 }
 
-export default { getProfileById, updateProfile };
-
-
+// Named exports are defined above.

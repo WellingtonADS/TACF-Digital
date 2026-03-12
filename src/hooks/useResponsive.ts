@@ -1,3 +1,11 @@
+/**
+ * @module Domínio
+ * @page useResponsive
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\useResponsive.ts
+ */
+
+
 import { useEffect, useState } from "react";
 
 function getBreakpoints() {

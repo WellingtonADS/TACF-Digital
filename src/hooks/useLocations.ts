@@ -1,3 +1,13 @@
+/**
+ * @module Hooks
+ * @hook useLocations
+ * @description Hook customizado para gerenciar operações CRUD de unidades/locais (locations).
+ * Fornece funcionalidades de busca, paginação, criação, atualização e remoção de locations.
+ * Utiliza RPCs do Supabase para validação e persistência no banco de dados.
+ * Sincroniza estado entre abas através de CustomEvent.
+ * @path src/hooks/useLocations.ts
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import supabase from "../services/supabase";
 import type { Location } from "../types/database.types";
@@ -160,5 +170,3 @@ export default function useLocations(): UseLocationsResult {
 
   return { locations, total, loading, error, fetch, create, update, remove };
 }
-
-
