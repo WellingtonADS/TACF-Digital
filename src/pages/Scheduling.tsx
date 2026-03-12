@@ -7,7 +7,6 @@
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import TicketModal from "@/components/TicketModal";
-import useDashboard from "@/hooks/useDashboard";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import {
   Calendar,
@@ -39,7 +38,8 @@ const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export const Scheduling = () => {
   const navigate = useNavigate();
-  useDashboard();
+  // useDashboard was previously called here but its return value was unused.
+  // Removed to avoid unnecessary work (hook runs only where its data is consumed).
   const [showTicketModal, setShowTicketModal] = useState(false);
 
   const [viewDate, setViewDate] = useState(() => new Date());

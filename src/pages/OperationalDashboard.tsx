@@ -4,8 +4,6 @@
  * @path src/pages/OperationalDashboard.tsx
  */
 
-
-
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
@@ -27,7 +25,7 @@ import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { format, isAfter, isValid, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -42,6 +40,7 @@ export const OperationalDashboard = () => {
     nextSession,
     latestOrderNumber,
     notifications: derivedNotifications,
+    inspsauStatus,
     loading: dashboardLoading,
   } = useDashboard();
 
@@ -53,19 +52,9 @@ export const OperationalDashboard = () => {
     user?.email ||
     "Usuário";
 
-  // derive status from inspsau_valid_until when available (client-side fallback only)
-  const inspsau = (typedProfile as unknown as Record<string, unknown>)
-    ?.inspsau_valid_until as string | null | undefined;
-  let statusLabel = "Inapto";
-  let statusColor = "text-white bg-error border border-error";
-
-  if (inspsau) {
-    const date = parseISO(inspsau);
-    if (isValid(date) && isAfter(date, new Date())) {
-      statusLabel = "Apto";
-      statusColor = "text-white bg-success border border-success";
-    }
-  }
+  // use derived INSPSAU status computed by the dashboard hook
+  const statusLabel = inspsauStatus.label;
+  const statusColor = inspsauStatus.color;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);

@@ -1,3 +1,11 @@
+/**
+ * @module Domínio
+ * @page useDashboard
+ * @description Descrição concisa da funcionalidade.
+ * @path src\hooks\useDashboard.ts
+ */
+
+
 import { supabase } from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
@@ -9,11 +17,6 @@ type SessionInfo = {
   date: string; // ISO date
   period: string;
   max_capacity?: number | null;
-};
-
-type BookingInfo = {
-  id: string;
-  session_id: string;
 };
 
 type NotificationItem = {
@@ -78,33 +81,45 @@ export default function useDashboard() {
             toast.error(
               "Resposta inesperada do servidor ao carregar o resumo do dashboard.",
             );
-            // fallthrough to manual queries below
+            // do not run client-side fallbacks here; prefer a single source of truth (RPC)
+            setBookingsCount(0);
+            setResultsCount(0);
+            setNextSession(null);
+            setLatestOrderNumber(null);
+            // derive minimal notifications from profile only
+            const notes: NotificationItem[] = [];
+            const inspsau = (
+              profile as { inspsau_valid_until?: string | null } | null
+            )?.inspsau_valid_until;
+            if (inspsau) {
+              const d = new Date(
+                typeof inspsau === "string" ? inspsau : inspsau,
+              );
+              const now = new Date();
+              const days = Math.ceil(
+                (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+              );
+              if (days <= 0)
+                notes.push({
+                  title: "Inspeção de Saúde vencida",
+                  description:
+                    "Sua INSPSAU está vencida — procure a OM para atualizar.",
+                  level: "warning",
+                });
+              else if (days <= 45)
+                notes.push({
+                  title: "Inspeção de Saúde próxima",
+                  description: `Sua INSPSAU vence em ${days} dias.`,
+                  level: "info",
+                });
+            }
+            setNotifications(notes);
+            setLoading(false);
+            return;
           } else {
             const payload = payloadCandidate as DashboardPayload;
             setBookingsCount(Number(payload?.bookings_count ?? 0));
             setResultsCount(Number(payload?.results_count ?? 0));
-            // If RPC reports 0 bookings, double-check client-side in case RPC
-            // is out-of-date or the payload missed generated order_numbers.
-            // Do a lightweight check and override if we find records.
-            try {
-              const uid =
-                user?.id ??
-                (profile && (profile as { id?: string })?.id) ??
-                null;
-              if (uid && Number(payload?.bookings_count ?? 0) === 0) {
-                const { data: manualBookings } = await supabase
-                  .from("bookings")
-                  .select("id")
-                  .eq("user_id", uid)
-                  .not("order_number", "is", null);
-                const manualCount = Array.isArray(manualBookings)
-                  ? manualBookings.length
-                  : 0;
-                if (manualCount > 0) setBookingsCount(manualCount);
-              }
-            } catch (err) {
-              console.error("Erro ao revalidar contagem de bilhetes:", err);
-            }
             if (payload?.next_session) {
               setNextSession({
                 id: payload.next_session.session_id,
@@ -169,147 +184,6 @@ export default function useDashboard() {
             return;
           }
         }
-
-        const uid =
-          user?.id ?? (profile && (profile as { id?: string })?.id) ?? null;
-        if (!uid) {
-          setBookingsCount(0);
-          setResultsCount(0);
-          setNextSession(null);
-          setNotifications([]);
-          return;
-        }
-
-        // 1) bookings count: prior behavior counted only `status = 'agendado'`.
-        // The tickets modal and other places treat a booking with an `order_number`
-        // as a generated bilhete. Count bookings that have an `order_number` to
-        // reflect the number shown in the Bilhetes UI.
-        // Count bookings that have an order_number (bilhetes gerados)
-        const { data: bookingsWithOrder } = await supabase
-          .from("bookings")
-          .select("id")
-          .eq("user_id", uid)
-          .not("order_number", "is", null);
-        const withOrderCount = Array.isArray(bookingsWithOrder)
-          ? bookingsWithOrder.length
-          : 0;
-
-        // Additionally include bookings that are still `agendado` but have no
-        // order_number yet, to avoid showing 0 when user has scheduled tests.
-        const { data: agendadoData } = await supabase
-          .from("bookings")
-          .select("id, order_number")
-          .eq("user_id", uid)
-          .eq("status", "agendado");
-        const agendadoWithoutOrder = Array.isArray(agendadoData)
-          ? agendadoData.filter(
-              (b: { order_number: string | null; id: string }) =>
-                b.order_number == null,
-            ).length
-          : 0;
-
-        const localBookingsCount = withOrderCount + agendadoWithoutOrder;
-        setBookingsCount(localBookingsCount);
-
-        // 2) results count (bookings with score)
-        const { data: resultsData } = await supabase
-          .from("bookings")
-          .select("id")
-          .not("score", "is", null)
-          .eq("user_id", uid);
-        const localResultsCount = Array.isArray(resultsData)
-          ? resultsData.length
-          : 0;
-        setResultsCount(localResultsCount);
-
-        // 3) next session: fetch user's bookings -> fetch sessions and pick next by date
-        const { data: bookingsData } = await supabase
-          .from("bookings")
-          .select("id, session_id")
-          .eq("user_id", uid);
-
-        const bookingRows: BookingInfo[] = Array.isArray(bookingsData)
-          ? bookingsData.map((b: { id: string; session_id: string }) => ({
-              id: b.id,
-              session_id: b.session_id,
-            }))
-          : [];
-
-        let localNextSession: SessionInfo | null = null;
-        if (bookingRows.length > 0) {
-          const sessionIds = bookingRows.map((b) => b.session_id);
-          const today = new Date().toISOString().slice(0, 10);
-          const { data: sessions } = await supabase
-            .from("sessions")
-            .select("id, date, period, max_capacity")
-            .in("id", sessionIds)
-            .gte("date", today)
-            .order("date", { ascending: true })
-            .limit(1);
-
-          if (Array.isArray(sessions) && sessions.length > 0) {
-            const s = sessions[0] as {
-              id: string;
-              date: string;
-              period: string;
-              max_capacity?: number | null;
-            };
-            localNextSession = {
-              id: s.id,
-              date: s.date,
-              period: s.period,
-              max_capacity: s.max_capacity,
-            };
-            setNextSession(localNextSession);
-          } else {
-            setNextSession(null);
-          }
-        } else {
-          setNextSession(null);
-        }
-
-        // 4) notifications derived from profile data and bookings
-        const notes: NotificationItem[] = [];
-        const inspsau = (
-          profile as { inspsau_valid_until?: string | null } | null
-        )?.inspsau_valid_until;
-        if (inspsau) {
-          const d = new Date(typeof inspsau === "string" ? inspsau : inspsau);
-          const now = new Date();
-          const days = Math.ceil(
-            (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          if (days <= 0) {
-            notes.push({
-              title: "Inspeção de Saúde vencida",
-              description:
-                "Sua INSPSAU está vencida — procure a OM para atualizar.",
-              level: "warning",
-            });
-          } else if (days <= 45) {
-            notes.push({
-              title: "Inspeção de Saúde próxima",
-              description: `Sua INSPSAU vence em ${days} dias.`,
-              level: "info",
-            });
-          }
-        }
-
-        if (localNextSession) {
-          notes.push({
-            title: "Próximo Agendamento",
-            description: `Você tem agendamento em ${localNextSession.date} (${formatSessionPeriod(localNextSession.period)}).`,
-            level: "info",
-          });
-        } else if (localBookingsCount === 0) {
-          notes.push({
-            title: "Sem agendamentos",
-            description: "Você ainda não tem agendamento confirmado.",
-            level: "info",
-          });
-        }
-
-        setNotifications(notes);
       } catch (err) {
         console.error(err);
       } finally {
@@ -330,6 +204,27 @@ export default function useDashboard() {
     nextSession,
     latestOrderNumber,
     notifications,
+    // Derived status for INSPSAU to avoid duplicating presentation logic in components
+    inspsauStatus: (() => {
+      const inspsau = (
+        profile as { inspsau_valid_until?: string | null } | null
+      )?.inspsau_valid_until;
+      const defaultStatus = {
+        label: "Inapto",
+        color: "text-white bg-error border border-error",
+      } as const;
+
+      if (!inspsau) return defaultStatus;
+      const parsed = new Date(typeof inspsau === "string" ? inspsau : inspsau);
+      if (isNaN(parsed.getTime())) return defaultStatus;
+      if (parsed.getTime() > Date.now())
+        return {
+          label: "Apto",
+          color: "text-white bg-success border border-success",
+        } as const;
+      return defaultStatus;
+    })(),
+
     refresh: async () => {},
   } as const;
 }
