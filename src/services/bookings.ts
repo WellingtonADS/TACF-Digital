@@ -13,11 +13,35 @@ export async function confirmBooking(userId: string, sessionId: string) {
 
 export async function fetchSwapRequests() {
   const { data, error } = await supabase
-    .from("bookings")
+    .from("swap_requests")
     .select("*")
-    .not("swap_reason", "is", null);
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function updateSwapRequestStatus(
+  requestId: string,
+  status: Database["public"]["Tables"]["swap_requests"]["Update"]["status"],
+  processedBy?: string,
+) {
+  const payload: Database["public"]["Tables"]["swap_requests"]["Update"] = {
+    status,
+    processed_at: new Date().toISOString(),
+  };
+
+  if (processedBy) {
+    payload.processed_by = processedBy;
+  }
+
+  const { data, error } = await supabase
+    .from("swap_requests")
+    .update(payload)
+    .eq("id", requestId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 export async function updateBookingStatus(
@@ -88,5 +112,6 @@ export default {
   getSessions,
   confirmBooking,
   fetchSwapRequests,
+  updateSwapRequestStatus,
   updateBookingStatus,
 };

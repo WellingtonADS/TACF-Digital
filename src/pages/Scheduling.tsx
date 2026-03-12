@@ -183,9 +183,8 @@ export const Scheduling = () => {
               Novo Agendamento
             </h1>
             {/* botão de abrir bilhete removido */}
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
-              Selecione uma data disponível para a realização do seu Teste de
-              Avaliação de Condicionamento Físico.
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/80">
+              Escolha uma data e horário disponíveis para realizar seu Teste de Avaliação (TACF).
             </p>
           </header>
 
@@ -485,23 +484,6 @@ export const Scheduling = () => {
               </p>
             </div>
           </div>
-
-          <footer className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border-default flex flex-col md:flex-row justify-between items-center gap-4 pb-10 sm:pb-12">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 sm:gap-6">
-              <div className="flex items-center gap-2">
-                <AppIcon icon={HelpCircle} size="sm" tone="muted" />
-                <span className="text-xs sm:text-sm text-text-muted font-medium">
-                  Suporte Técnico
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <AppIcon icon={FileText} size="sm" tone="muted" />
-                <span className="text-xs sm:text-sm text-text-muted font-medium">
-                  ICA 54-2
-                </span>
-              </div>
-            </div>
-          </footer>
         </div>
       </main>
       <TicketModal

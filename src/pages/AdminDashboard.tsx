@@ -230,7 +230,7 @@ export const AdminDashboard = () => {
                   Olá, {displayName}
                 </h2>
                 <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
-                  Dashboard Administrativo — Centro de Controle TACF‑Digital.
+                  Visão Greal — TACF‑Digital.
                 </p>
                 {statusLabel === "Apto" && (
                   <div
@@ -304,7 +304,7 @@ export const AdminDashboard = () => {
           />
 
           <StatCard
-            title="Capacidade Restante"
+            title="Vagas Restante"
             value={capacidadeRestante}
             loading={sessionsLoading}
             icon={BarChart2}

@@ -31,8 +31,6 @@ import { toast } from "sonner";
 const PAGE_SIZE = 12;
 
 function PageHero({
-  loading,
-  total,
   onNavigate,
 }: {
   loading: boolean;
@@ -46,13 +44,10 @@ function PageHero({
         <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-              Gestão de OMs e Locais
+              Gestão de locais de avaliação
             </h1>
             <p className="mt-2 text-sm text-white/85 md:text-base">
-              Organizações Militares e infraestrutura cadastrada.{" "}
-              <span className="font-semibold">
-                {loading ? "—" : total} registros
-              </span>
+              Locais e infraestruturas cadastradas.
             </p>
           </div>
           <button
