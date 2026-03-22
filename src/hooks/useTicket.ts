@@ -7,6 +7,7 @@
 
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
+import { formatDateTicket } from "@/utils/date";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import useAuth from "./useAuth";
@@ -126,7 +127,7 @@ export default function useTicket(initial?: TicketData) {
           saram: profileData?.saram ?? prev?.saram ?? "",
           location: locName ?? prev?.location ?? "",
           date: sessionData?.date
-            ? formatTicketDate(sessionData.date)
+            ? formatDateTicket(sessionData.date)
             : (prev?.date ?? ""),
           time: sessionData?.period
             ? formatSessionPeriod(sessionData.period)
@@ -154,17 +155,3 @@ export default function useTicket(initial?: TicketData) {
 
   return { ticket, loading } as const;
 }
-
-// utilidade isolada para manter o hook enxuto
-function formatTicketDate(date: string): string {
-  return new Date(date)
-    .toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-    .replace(".", "")
-    .toUpperCase();
-}
-
-

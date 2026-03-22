@@ -10,6 +10,7 @@ import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import type { Profile } from "@/types";
+import { formatDateShortPtBr, formatDateTimePtBr } from "@/utils/date";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
 import type { FormEvent } from "react";
@@ -81,25 +82,9 @@ export default function UserProfilesManagement() {
 
       if (error) {
         console.error(error);
-        setProfile({
-          id: user.id,
-          full_name:
-            typeof user.user_metadata?.full_name === "string"
-              ? user.user_metadata.full_name
-              : null,
-          email: user.email ?? null,
-        });
+        setProfile(null);
       } else {
-        setProfile(
-          data ?? {
-            id: user.id,
-            full_name:
-              typeof user.user_metadata?.full_name === "string"
-                ? user.user_metadata.full_name
-                : null,
-            email: user.email ?? null,
-          },
-        );
+        setProfile(data);
       }
     } catch (err) {
       console.error(err);
@@ -230,7 +215,7 @@ export default function UserProfilesManagement() {
   }
 
   const lastAccess = user?.last_sign_in_at
-    ? new Date(user.last_sign_in_at).toLocaleString("pt-BR")
+    ? formatDateTimePtBr(user.last_sign_in_at)
     : "--";
 
   // avoid flicker: if we already have a profile to show, render it
@@ -508,9 +493,9 @@ export default function UserProfilesManagement() {
                         </p>
                         <p className="font-semibold text-text-body">
                           {profile?.inspsau_last_inspection
-                            ? new Date(
+                            ? formatDateShortPtBr(
                                 profile.inspsau_last_inspection,
-                              ).toLocaleDateString("pt-BR")
+                              )
                             : "--"}
                         </p>
                       </div>
@@ -525,9 +510,7 @@ export default function UserProfilesManagement() {
                         </p>
                         <p className="font-semibold text-text-body">
                           {profile?.inspsau_valid_until
-                            ? new Date(
-                                profile.inspsau_valid_until,
-                              ).toLocaleDateString("pt-BR")
+                            ? formatDateShortPtBr(profile.inspsau_valid_until)
                             : "--"}
                         </p>
                       </div>

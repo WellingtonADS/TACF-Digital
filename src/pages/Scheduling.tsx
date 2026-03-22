@@ -76,16 +76,26 @@ export const Scheduling = () => {
     return map;
   }, [sessions]);
 
-  // pick first available date (and keep selection in sync when sessions change)
+  // pick first FUTURE available date (and keep selection in sync when sessions change)
   useEffect(() => {
-    if (sessions && sessions.length > 0) {
-      // if we have no date selected yet, or the current selection disappeared
-      if (!selectedDate || !sessionsByDate[selectedDate]) {
-        setSelectedDate(sessions[0].date as string);
+    const todayStr = toDateKey(new Date());
+    // only consider sessions from today forward
+    const futureSessions = (sessions ?? []).filter(
+      (s) => (s.date as string) >= todayStr,
+    );
+
+    if (futureSessions.length > 0) {
+      // reset selection if: nothing selected, current selection is gone, or it's in the past
+      if (
+        !selectedDate ||
+        !sessionsByDate[selectedDate] ||
+        selectedDate < todayStr
+      ) {
+        setSelectedDate(futureSessions[0].date as string);
         setSelectedSession(null);
       }
     } else {
-      // no sessions at all, clear selection
+      // no future sessions this month, clear selection
       setSelectedDate(null);
       setSelectedSession(null);
     }
@@ -303,6 +313,12 @@ export const Scheduling = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-7 gap-2 sm:gap-3">
+                    {/* células vazias para alinhar o dia 1 ao dia da semana correto */}
+                    {Array.from({ length: startOfMonth.getDay() }).map(
+                      (_, i) => (
+                        <div key={`pad-${i}`} />
+                      ),
+                    )}
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                       const day = i + 1;
                       const dateObj = new Date(
@@ -322,7 +338,7 @@ export const Scheduling = () => {
                         return (
                           <div
                             key={i}
-                            className="aspect-square rounded-xl flex items-center justify-center text-text-muted bg-bg-default/60"
+                            className="aspect-square rounded-xl flex items-center justify-center text-text-muted/40 bg-bg-default/40 text-sm"
                           >
                             {day}
                           </div>
@@ -338,23 +354,24 @@ export const Scheduling = () => {
                               setSelectedSession(null);
                             }
                           }}
-                          className={`aspect-square relative rounded-xl flex items-center justify-center font-medium transition-all ${
+                          className={`aspect-square relative rounded-xl flex items-center justify-center font-medium text-sm transition-all ${
                             isSelected
                               ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/25"
                               : isBooked
-                                ? "text-error bg-error/10 cursor-not-allowed"
+                                ? "text-error bg-error/15 cursor-not-allowed"
                                 : hasSessions
-                                  ? "text-text-body hover:bg-bg-default"
-                                  : "text-text-muted bg-bg-default/60 cursor-not-allowed"
+                                  ? "text-text-body bg-border-default/20 hover:bg-border-default/40 cursor-pointer"
+                                  : "text-text-muted/50 bg-transparent cursor-not-allowed"
                           }`}
                           disabled={!hasSessions || isBooked}
                         >
                           {day}
-                          {hasSessions && !isBooked && (
-                            <span className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />
+                          {/* indicador de sessão disponível (cinza = disponível, não confunde com selecionado) */}
+                          {hasSessions && !isBooked && !isSelected && (
+                            <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-text-muted/60" />
                           )}
                           {isBooked && (
-                            <span className="absolute bottom-2 w-2 h-2 rounded-full bg-error border border-error/30" />
+                            <span className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-error" />
                           )}
                         </button>
                       );
@@ -369,11 +386,11 @@ export const Scheduling = () => {
                   Selecionado
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-border-default" />{" "}
+                  <div className="w-3 h-3 rounded-full bg-border-default/60 border border-border-default" />{" "}
                   Disponível
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-bg-default opacity-60" />{" "}
+                  <div className="w-3 h-3 rounded-full bg-transparent border border-border-default/30" />{" "}
                   Indisponível
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-error">

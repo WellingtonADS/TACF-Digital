@@ -11,69 +11,30 @@ import {
 } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
-import {
-  CalendarClock,
-  CheckCircle,
-  ChevronRight,
-  ClipboardList,
-  ExternalLink,
-  MapPin,
-  MinusCircle,
-  XCircle,
-} from "@/icons";
+import ResultStatusBadge from "@/components/Results/ResultStatusBadge";
+import { ChevronRight, ClipboardList, ExternalLink, MapPin } from "@/icons";
 import supabase from "@/services/supabase";
+import {
+  canOpenAppeal,
+  normalizeResultSummary,
+  type ResultSummary,
+} from "@/utils/results";
 import { isAfter, parseISO } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import PageSkeleton from "../components/PageSkeleton";
 import RescheduleDrawer from "../components/RescheduleDrawer";
 import usePaginatedQuery from "../hooks/usePaginatedQuery";
 import useResponsive from "../hooks/useResponsive";
 import { prefetchRoute } from "../utils/prefetchRoutes";
 
-type Result = {
-  id: string;
+type Result = ResultSummary & {
   profile_id?: string | null;
   full_name?: string | null;
   saram?: string | null;
-  test_date?: string | null;
-  score?: string | null;
-  created_at?: string | null;
-  location?: string | null;
-  concept?: string | null;
-  result_status?: "apto" | "inapto" | "pendente" | null;
+  result_details?: unknown;
+  status?: string | null;
 };
-
-function StatusBadge({ status }: { status: Result["result_status"] }) {
-  if (status === "apto") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-inverted">
-        <AppIcon icon={CheckCircle} size="xs" tone="inverse" /> APTO
-      </span>
-    );
-  }
-
-  if (status === "inapto") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-error px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-inverted">
-        <AppIcon icon={XCircle} size="xs" tone="inverse" /> INAPTO
-      </span>
-    );
-  }
-
-  if (status === "pendente") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-bg-default px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-body">
-        <AppIcon icon={CalendarClock} size="xs" tone="muted" /> PENDENTE
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-bg-default px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
-      <AppIcon icon={MinusCircle} size="xs" tone="muted" /> SEM STATUS
-    </span>
-  );
-}
 
 export default function ResultsHistory() {
   const { isMobile, isTablet } = useResponsive();
@@ -94,55 +55,11 @@ export default function ResultsHistory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  type RawRow = Result & {
-    result_details?: unknown;
-    concept?: string | null;
-    location?: string | null;
-  };
-
   const rows = useMemo(() => {
-    return items.map((r) => {
-      // attempt to normalize result_details which can be JSONB or text
-      let detail: Record<string, unknown> | null = null;
-      try {
-        const raw = (r as RawRow).result_details;
-        if (typeof raw === "string") {
-          try {
-            detail = JSON.parse(raw) as Record<string, unknown>;
-          } catch (_err) {
-            detail = null;
-          }
-        } else if (raw && typeof raw === "object") {
-          detail = raw as Record<string, unknown>;
-        }
-      } catch (_e) {
-        detail = null;
-      }
-
-      const detailObj = detail;
-
-      const concept =
-        detailObj && typeof detailObj["concept"] === "string"
-          ? (detailObj["concept"] as string)
-          : ((r as RawRow).concept ?? null);
-
-      const location =
-        detailObj && typeof detailObj["location"] === "string"
-          ? (detailObj["location"] as string)
-          : ((r as RawRow).location ?? null);
-
-      const result_status =
-        detailObj && typeof detailObj["result_status"] === "string"
-          ? (detailObj["result_status"] as Result["result_status"])
-          : (((r as RawRow).result_status as Result["result_status"]) ?? null);
-
-      return {
-        ...r,
-        concept,
-        location,
-        result_status,
-      } as Result & { concept?: string | null; location?: string | null };
-    });
+    return items.map((r) => ({
+      ...(r as Result),
+      ...normalizeResultSummary(r as Result),
+    }));
   }, [items]);
 
   // deduplicate rows by id to avoid duplicate React keys
@@ -224,6 +141,7 @@ export default function ResultsHistory() {
                 const isFuture = r.test_date
                   ? isAfter(parseISO(r.test_date), new Date())
                   : false;
+                const canAppeal = canOpenAppeal(r);
                 const dateLabel = r.test_date
                   ? new Date(r.test_date)
                       .toLocaleDateString("pt-BR", {
@@ -253,7 +171,7 @@ export default function ResultsHistory() {
                           {dateLabel}
                         </p>
                       </div>
-                      <StatusBadge status={r.result_status ?? null} />
+                      <ResultStatusBadge status={r.result_status ?? null} />
                     </div>
 
                     <div className="mb-3 flex items-center gap-2 text-sm text-text-muted">
@@ -278,14 +196,30 @@ export default function ResultsHistory() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 border-t border-border-default pt-3">
-                      <a
-                        href={`/app/recurso?result=${r.id}`}
-                        onMouseEnter={() => prefetchRoute("/app/recurso")}
+                      <Link
+                        to={`/app/resultados/${r.id}`}
+                        onMouseEnter={() =>
+                          prefetchRoute("/app/resultados/:resultId")
+                        }
                         className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary transition-colors hover:text-primary/80"
                       >
-                        Visualizar Detalhes
-                        <AppIcon icon={ExternalLink} size="xs" tone="primary" />
-                      </a>
+                        Ver Resultado
+                        <AppIcon icon={ChevronRight} size="xs" tone="primary" />
+                      </Link>
+                      {canAppeal && (
+                        <Link
+                          to={`/app/recurso?result=${r.id}`}
+                          onMouseEnter={() => prefetchRoute("/app/recurso")}
+                          className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-tighter text-primary transition-colors hover:text-primary/80"
+                        >
+                          Solicitar Recurso
+                          <AppIcon
+                            icon={ExternalLink}
+                            size="xs"
+                            tone="primary"
+                          />
+                        </Link>
+                      )}
                       {isFuture && (
                         <button
                           onClick={() => {
@@ -335,6 +269,7 @@ export default function ResultsHistory() {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
+                    const canAppeal = canOpenAppeal(r);
                     const dateLabel = r.test_date
                       ? new Date(r.test_date)
                           .toLocaleDateString("pt-BR", {
@@ -376,22 +311,40 @@ export default function ResultsHistory() {
                           )}
                         </td>
                         <td className="px-4 py-5 text-center sm:px-6">
-                          <StatusBadge status={r.result_status ?? null} />
+                          <ResultStatusBadge status={r.result_status ?? null} />
                         </td>
                         <td className="px-4 py-5 text-right sm:px-6">
                           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                            <a
-                              href={`/app/recurso?result=${r.id}`}
-                              onMouseEnter={() => prefetchRoute("/app/recurso")}
+                            <Link
+                              to={`/app/resultados/${r.id}`}
+                              onMouseEnter={() =>
+                                prefetchRoute("/app/resultados/:resultId")
+                              }
                               className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
                             >
-                              Visualizar Detalhes
+                              Ver Resultado
                               <AppIcon
-                                icon={ExternalLink}
+                                icon={ChevronRight}
                                 size="xs"
                                 tone="primary"
                               />
-                            </a>
+                            </Link>
+                            {canAppeal && (
+                              <Link
+                                to={`/app/recurso?result=${r.id}`}
+                                onMouseEnter={() =>
+                                  prefetchRoute("/app/recurso")
+                                }
+                                className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80"
+                              >
+                                Solicitar Recurso
+                                <AppIcon
+                                  icon={ExternalLink}
+                                  size="xs"
+                                  tone="primary"
+                                />
+                              </Link>
+                            )}
                             {isFuture && (
                               <button
                                 onClick={() => {

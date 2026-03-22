@@ -72,6 +72,14 @@ export const appRouteRegistry: AppRouteMeta[] = [
     sidebarOrder: 50,
   },
   {
+    path: "/app/resultados/:resultId",
+    access: "user",
+    section: "resultados",
+    showInSidebar: false,
+    prefetch: true,
+    lazyLoader: () => import("../pages/ResultDetails"),
+  },
+  {
     path: "/app/documentos",
     access: "user",
     section: "documentos",

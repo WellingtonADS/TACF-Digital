@@ -4,11 +4,10 @@
  * @path src/pages/AppealRequest.tsx
  */
 
-
-
+import FullPageLoading from "@/components/FullPageLoading";
+import ResultSummaryCard from "@/components/Results/ResultSummaryCard";
 import Layout from "@/components/layout/Layout";
 import {
-  AlertCircle,
   ArrowLeft,
   CheckCircle,
   FileText,
@@ -16,10 +15,12 @@ import {
   Loader2,
   Paperclip,
 } from "@/icons";
-import { type FormEvent, useState } from "react";
+import { fetchResultById } from "@/services/results";
+import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { canOpenAppeal, type ResultSummary } from "@/utils/results";
+import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import Breadcrumbs from "../components/Breadcrumbs";
 
 const MOTIVOS = [
   "Erro no registro do resultado",
@@ -40,6 +41,8 @@ export default function AppealRequest() {
   const [searchParams] = useSearchParams();
   const resultId = searchParams.get("result");
 
+  const [loadingContext, setLoadingContext] = useState(true);
+  const [result, setResult] = useState<ResultSummary | null>(null);
   const [form, setForm] = useState<FormState>({
     motivo: "",
     justificativa: "",
@@ -47,6 +50,48 @@ export default function AppealRequest() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadContext() {
+      if (!resultId) {
+        setResult(null);
+        setLoadingContext(false);
+        return;
+      }
+
+      setLoadingContext(true);
+
+      try {
+        const data = await fetchResultById(resultId);
+        if (active) {
+          setResult(data);
+        }
+      } catch (error) {
+        console.error(error);
+        if (active) {
+          setResult(null);
+          toast.error("Não foi possível carregar o contexto do resultado.");
+        }
+      } finally {
+        if (active) {
+          setLoadingContext(false);
+        }
+      }
+    }
+
+    void loadContext();
+
+    return () => {
+      active = false;
+    };
+  }, [resultId]);
+
+  const detailPath = resultId
+    ? `/app/resultados/${resultId}`
+    : "/app/resultados";
+  const appealAllowed = result ? canOpenAppeal(result) : false;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -71,26 +116,46 @@ export default function AppealRequest() {
     }
   }
 
+  if (loadingContext) {
+    return <FullPageLoading message="Carregando contexto do recurso" />;
+  }
+
   if (submitted) {
     return (
       <Layout>
-        <div className="max-w-2xl mx-auto py-16 text-center">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="text-emerald-600" size={40} />
-          </div>
-          <h2 className="text-2xl font-black text-text-body mb-3">
-            Solicitação Registrada
-          </h2>
-          <p className="text-text-muted max-w-sm mx-auto leading-relaxed">
-            Sua solicitação de revisão foi registrada e será analisada pelo
-            setor responsável (HACO). Você será notificado sobre a decisão.
-          </p>
-          <button
-            onClick={() => navigate("/app/resultados")}
-            className="mt-8 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg hover:bg-primary/90 transition-colors"
-          >
-            Voltar ao Histórico
-          </button>
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+          <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Solicitação de Recurso
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+              O pedido foi registrado no fluxo de revisão do resultado.
+            </p>
+          </header>
+
+          <section className="mx-auto max-w-3xl rounded-3xl border border-border-default bg-bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10 text-success">
+              <CheckCircle size={40} />
+            </div>
+            <h2 className="mb-3 text-2xl font-black text-text-body">
+              Solicitação Registrada
+            </h2>
+            <p className="mx-auto max-w-sm leading-relaxed text-text-muted">
+              Sua solicitação de revisão foi registrada e será analisada pelo
+              setor responsável (HACO). Você será notificado sobre a decisão.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onMouseEnter={() => prefetchRoute("/app/resultados")}
+                onClick={() => navigate("/app/resultados")}
+                className="inline-flex items-center gap-2 rounded-xl border border-border-default px-6 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
+              >
+                <ArrowLeft size={16} />
+                Voltar ao Histórico
+              </button>
+            </div>
+          </section>
         </div>
       </Layout>
     );
@@ -98,159 +163,218 @@ export default function AppealRequest() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto">
-        <Breadcrumbs items={["Histórico", "Recurso"]} />
-
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-text-body tracking-tight">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
             Solicitação de Revisão de Resultado
           </h1>
-          <p className="text-text-muted mt-1">
-            Preencha o formulário abaixo para contestar um resultado do TACF.
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+            Registre a contestação formal somente após revisar os dados
+            consolidados da avaliação.
           </p>
         </header>
 
-        {/* Context card */}
-        {resultId && (
-          <div className="bg-bg-card rounded-2xl border border-border-default p-6 mb-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="text-red-500" size={20} />
-              <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
-                Resultado Contestado
-              </span>
-              <span className="ml-auto text-[10px] font-bold px-3 py-1 rounded-full bg-red-100 text-red-700 uppercase tracking-widest">
-                Em análise
-              </span>
-            </div>
-            <p className="text-sm text-text-muted">
-              Referente ao resultado de ID:{" "}
-              <span className="font-mono font-bold text-text-body">
-                {resultId}
-              </span>
+        {!result ? (
+          <section className="rounded-3xl border border-border-default bg-bg-card p-8 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
+              Contexto indisponível
             </p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-text-body">
+              Nenhum resultado válido foi informado para esta solicitação.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-muted">
+              Volte ao histórico, abra o resultado desejado e use a ação de
+              recurso a partir do registro correto.
+            </p>
+            <div className="mt-6">
+              <button
+                type="button"
+                onMouseEnter={() => prefetchRoute("/app/resultados")}
+                onClick={() => navigate("/app/resultados")}
+                className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
+              >
+                <ArrowLeft size={16} />
+                Voltar ao Histórico
+              </button>
+            </div>
+          </section>
+        ) : (
+          <div className="space-y-6">
+            <ResultSummaryCard
+              result={result}
+              eyebrow="Resultado em análise"
+              title="Confirme os dados antes de recorrer"
+              description="O recurso deve ser aberto com base no resultado final já disponibilizado no sistema."
+              actions={
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    onMouseEnter={() =>
+                      prefetchRoute("/app/resultados/:resultId")
+                    }
+                    onClick={() => navigate(detailPath)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
+                  >
+                    <ArrowLeft size={16} />
+                    Voltar ao Resultado
+                  </button>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                    Recurso disponível apenas para resultado final
+                  </p>
+                </div>
+              }
+            />
+
+            {!appealAllowed ? (
+              <section className="rounded-3xl border border-border-default bg-bg-card p-6 shadow-sm">
+                <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                  <Info
+                    className="mt-0.5 flex-shrink-0 text-primary"
+                    size={18}
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-text-body">
+                      Recurso indisponível neste momento
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-text-muted">
+                      A abertura de recurso fica disponível somente quando o
+                      resultado final estiver classificado como apto ou inapto.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm"
+              >
+                <div className="border-b border-border-default bg-bg-default/50 p-6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
+                    Formulário de contestação
+                  </p>
+                  <h2 className="mt-2 text-xl font-bold tracking-tight text-text-body">
+                    Fundamente o pedido de revisão
+                  </h2>
+                </div>
+
+                <div className="space-y-8 p-8">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                      Motivo do Recurso *
+                    </label>
+                    <select
+                      value={form.motivo}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, motivo: e.target.value }))
+                      }
+                      required
+                      title="Motivo do Recurso"
+                      aria-label="Motivo do Recurso"
+                      className="w-full rounded-xl border border-border-default bg-bg-default p-3.5 text-text-body transition focus:border-primary focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Selecione o motivo...</option>
+                      {MOTIVOS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                      Justificativa *
+                    </label>
+                    <textarea
+                      value={form.justificativa}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          justificativa: e.target.value.slice(0, 2000),
+                        }))
+                      }
+                      required
+                      rows={6}
+                      placeholder="Descreva detalhadamente os fatos que embasam a solicitação de revisão..."
+                      className="w-full resize-none rounded-xl border border-border-default bg-bg-default p-3.5 text-text-body transition focus:border-primary focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-right text-[10px] font-medium text-text-muted">
+                      {form.justificativa.length}/2000
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                      Comprovante / Documento (opcional)
+                    </label>
+                    <label
+                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border-default bg-bg-default p-4 transition hover:border-primary/50"
+                      htmlFor="appeal-file"
+                    >
+                      <Paperclip className="text-text-muted" size={20} />
+                      <span className="text-sm font-medium text-text-muted">
+                        {form.file
+                          ? form.file.name
+                          : "Clique para anexar (PDF, JPG, PNG — máx 5MB)"}
+                      </span>
+                    </label>
+                    <input
+                      id="appeal-file"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="sr-only"
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          file: e.target.files?.[0] ?? null,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex gap-3 rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                    <Info
+                      className="mt-0.5 flex-shrink-0 text-primary"
+                      size={18}
+                    />
+                    <p className="text-xs leading-relaxed text-text-muted">
+                      O prazo para interposição de recurso é de{" "}
+                      <strong>5 dias úteis</strong> após a divulgação dos
+                      resultados, conforme previsto na{" "}
+                      <strong>ICA 54-2 (art. 28 e seguintes)</strong>. Recursos
+                      fora do prazo não serão conhecidos.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-between gap-4 border-t border-border-default bg-bg-default px-8 py-5 sm:flex-row">
+                  <button
+                    type="button"
+                    onMouseEnter={() =>
+                      prefetchRoute("/app/resultados/:resultId")
+                    }
+                    onClick={() => navigate(detailPath)}
+                    className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-text-muted transition-colors hover:text-text-body"
+                  >
+                    <ArrowLeft size={16} /> Voltar ao Resultado
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center gap-3 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {submitting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <FileText size={18} />
+                    )}
+                    {submitting ? "Enviando..." : "Enviar Solicitação"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
-
-        <form
-          onSubmit={handleSubmit}
-          className="bg-bg-card rounded-3xl shadow-xl border border-border-default overflow-hidden"
-        >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
-
-          <div className="p-8 space-y-8">
-            {/* Motivo */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
-                Motivo do Recurso *
-              </label>
-              <select
-                value={form.motivo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, motivo: e.target.value }))
-                }
-                required
-                title="Motivo do Recurso"
-                aria-label="Motivo do Recurso"
-                className="w-full bg-bg-default border border-border-default rounded-xl p-3.5 text-text-body focus:ring-2 focus:ring-primary focus:border-primary transition"
-              >
-                <option value="">Selecione o motivo...</option>
-                {MOTIVOS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Justificativa */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
-                Justificativa *
-              </label>
-              <textarea
-                value={form.justificativa}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    justificativa: e.target.value.slice(0, 2000),
-                  }))
-                }
-                required
-                rows={6}
-                placeholder="Descreva detalhadamente os fatos que embasam a solicitação de revisão..."
-                className="w-full bg-bg-default border border-border-default rounded-xl p-3.5 text-text-body focus:ring-2 focus:ring-primary focus:border-primary transition resize-none"
-              />
-              <p className="text-right text-[10px] text-text-muted font-medium">
-                {form.justificativa.length}/2000
-              </p>
-            </div>
-
-            {/* Comprovante */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
-                Comprovante / Documento (opcional)
-              </label>
-              <label
-                className="flex items-center gap-3 bg-bg-default border border-dashed border-border-default rounded-xl p-4 cursor-pointer hover:border-primary/50 transition"
-                htmlFor="appeal-file"
-              >
-                <Paperclip className="text-text-muted" size={20} />
-                <span className="text-sm text-text-muted font-medium">
-                  {form.file
-                    ? form.file.name
-                    : "Clique para anexar (PDF, JPG, PNG — máx 5MB)"}
-                </span>
-              </label>
-              <input
-                id="appeal-file"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="sr-only"
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    file: e.target.files?.[0] ?? null,
-                  }))
-                }
-              />
-            </div>
-
-            {/* ICA 54-2 note */}
-            <div className="flex gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-              <Info className="text-primary flex-shrink-0 mt-0.5" size={18} />
-              <p className="text-xs text-text-muted leading-relaxed">
-                O prazo para interposição de recurso é de{" "}
-                <strong>5 dias úteis</strong> após a divulgação dos resultados,
-                conforme previsto na{" "}
-                <strong>ICA 54-2 (art. 28 e seguintes)</strong>. Recursos fora
-                do prazo não serão conhecidos.
-              </p>
-            </div>
-          </div>
-
-          {/* Footer actions */}
-          <div className="bg-bg-default border-t border-border-default px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-text-muted font-bold text-sm uppercase tracking-wider hover:text-text-body transition-colors"
-            >
-              <ArrowLeft size={16} /> Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <FileText size={18} />
-              )}
-              {submitting ? "Enviando..." : "Enviar Solicitação"}
-            </button>
-          </div>
-        </form>
       </div>
     </Layout>
   );

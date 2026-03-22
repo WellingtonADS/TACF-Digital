@@ -210,7 +210,7 @@ const AdminDashboard = () => {
                   Olá, {displayName}
                 </h2>
                 <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
-                  Visão Greal — TACF‑Digital.
+                  Visão Geral — TACF‑Digital.
                 </p>
               </div>
               <div className="flex items-center gap-4">

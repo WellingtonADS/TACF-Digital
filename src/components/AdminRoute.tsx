@@ -4,13 +4,11 @@
  * @path src/components/AdminRoute.tsx
  */
 
-
-
 import useAuth from "@/hooks/useAuth";
 import { canAccessRoute } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
 import ForbiddenState from "./ForbiddenState";
-import PageSkeleton from "./PageSkeleton";
+import FullPageLoading from "./FullPageLoading";
 
 /**
  * Protects routes that require administrator or coordinator privileges.
@@ -25,7 +23,7 @@ export default function AdminRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton fullPage />;
+    return <FullPageLoading />;
   }
 
   if (!user) {

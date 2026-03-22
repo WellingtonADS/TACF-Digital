@@ -425,7 +425,7 @@ export default function SystemSettings() {
                         Usuário: {log.user_name}
                       </p>
                       <p className="text-xs text-text-muted">
-                        {new Date(log.created_at ?? "").toLocaleString()}
+                        {formatDateTimePtBr(log.created_at ?? "")}
                       </p>
                     </article>
                   ))}
@@ -459,7 +459,7 @@ export default function SystemSettings() {
                           <td className="px-4 py-2 text-sm">{log.entity}</td>
                           <td className="px-4 py-2 text-sm">{log.user_name}</td>
                           <td className="px-4 py-2 text-sm">
-                            {new Date(log.created_at ?? "").toLocaleString()}
+                            {formatDateTimePtBr(log.created_at ?? "")}
                           </td>
                         </tr>
                       ))}

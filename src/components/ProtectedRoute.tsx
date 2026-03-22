@@ -4,11 +4,9 @@
  * @path src/components/ProtectedRoute.tsx
  */
 
-
-
 import useAuth from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
-import PageSkeleton from "./PageSkeleton";
+import FullPageLoading from "./FullPageLoading";
 
 export default function ProtectedRoute({
   children,
@@ -18,7 +16,7 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton fullPage rows={6} />;
+    return <FullPageLoading />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

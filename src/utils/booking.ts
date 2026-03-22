@@ -4,6 +4,9 @@ export const formatSessionPeriod = (period: string) => {
   const normalized = (period ?? "").toString().trim().toLowerCase();
   if (normalized === "manha") return "Manhã";
   if (normalized === "tarde") return "Tarde";
+  // fallback para valores legados em inglês (dados ainda não migrados no banco)
+  if (normalized === "morning") return "Manhã";
+  if (normalized === "afternoon") return "Tarde";
   return period;
 };
 

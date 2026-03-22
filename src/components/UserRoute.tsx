@@ -4,12 +4,10 @@
  * @path src/components/UserRoute.tsx
  */
 
-
-
 import useAuth from "@/hooks/useAuth";
 import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
-import PageSkeleton from "./PageSkeleton";
+import FullPageLoading from "./FullPageLoading";
 
 /**
  * Protege rotas exclusivas do usuário comum (militar).
@@ -24,7 +22,7 @@ export default function UserRoute({
   const { user, profile, loading } = useAuth();
 
   if (loading) {
-    return <PageSkeleton fullPage />;
+    return <FullPageLoading />;
   }
 
   if (!user) {
