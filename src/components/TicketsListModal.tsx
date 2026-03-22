@@ -5,27 +5,11 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import supabase from "@/services/supabase";
+import { fetchUserTickets, type TicketRow } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import QR from "react-qr-code";
-
-type TicketRow = {
-  id: string;
-  order_number: string | null;
-  status: string | null;
-  session?: {
-    date?: string | null;
-    period?: string | null;
-    location?: { name?: string | null } | null;
-  } | null;
-  profile?: {
-    war_name?: string | null;
-    full_name?: string | null;
-    saram?: string | null;
-  } | null;
-};
 
 export default function TicketsListModal({
   open,
@@ -50,18 +34,9 @@ export default function TicketsListModal({
           return;
         }
 
-        const { data, error } = await supabase
-          .from("bookings")
-          .select(
-            "id, order_number, status, session: sessions(date, period, location:locations(name)), profile: profiles(war_name, full_name, saram)",
-          )
-          .eq("user_id", uid)
-          .not("order_number", "is", null)
-          .order("created_at", { ascending: false });
-
-        if (error) console.error("Erro ao buscar bilhetes:", error);
+        const data = await fetchUserTickets(uid);
         if (!mounted) return;
-        setTickets(Array.isArray(data) ? (data as TicketRow[]) : []);
+        setTickets(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
       } finally {

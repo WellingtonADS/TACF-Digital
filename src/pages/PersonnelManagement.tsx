@@ -202,96 +202,7 @@ export default function PersonnelManagement() {
     });
     setLoadingDetail(true);
     try {
-      const [{ data, error }, { data: bookings, error: bookingError }] =
-        await Promise.all([
-          supabase
-            .from("profiles")
-            .select(
-              "id, full_name, war_name, rank, sector, saram, email, phone_number, role, active, created_at",
-            )
-            .eq("id", row.id)
-            .maybeSingle(),
-          supabase
-            .from("bookings")
-            .select("id, test_date, score, status, created_at")
-            .eq("user_id", row.id)
-            .neq("status", "cancelled")
-            .order("test_date", { ascending: false, nullsFirst: false })
-            .limit(10),
-        ]);
-
-      if (error) {
-        console.warn("[openProfile] profiles query error:", error);
-      }
-      if (bookingError) {
-        console.warn("[openProfile] bookings query error:", bookingError);
-      }
-
-      const history: TestRecord[] = (
-        (bookings ?? []) as {
-          id: string;
-          test_date?: string | null;
-          score?: number | null;
-          status: string;
-          created_at?: string | null;
-        }[]
-      ).map((b) => ({
-        id: b.id,
-        date: b.test_date ?? b.created_at ?? null,
-        score: b.score ?? null,
-        status: b.status,
-      }));
-
-      // Mescla com os dados extras do banco, se disponíveis
-      setUserDetail((prev) => ({
-        ...(prev ?? {}),
-        id: row.id,
-        full_name:
-          (data as { full_name?: string | null } | null)?.full_name ??
-          row.fullName,
-        war_name:
-          (data as { war_name?: string | null } | null)?.war_name ??
-          row.warName,
-        rank: (data as { rank?: string | null } | null)?.rank ?? row.rank,
-        sector:
-          (data as { sector?: string | null } | null)?.sector ?? row.sector,
-        saram: (data as { saram?: string | null } | null)?.saram ?? row.saram,
-        email: (data as { email?: string | null } | null)?.email ?? null,
-        phone_number:
-          (data as { phone_number?: string | null } | null)?.phone_number ??
-          null,
-        role: (data as { role?: string | null } | null)?.role ?? null,
-        active:
-          data !== null
-            ? Boolean((data as { active?: boolean }).active)
-            : row.active,
-        birth_date:
-          (data as { birth_date?: string | null } | null)?.birth_date ?? null,
-        physical_group:
-          (data as { physical_group?: string | null } | null)?.physical_group ??
-          null,
-        inspsau_valid_until:
-          (data as { inspsau_valid_until?: string | null } | null)
-            ?.inspsau_valid_until ?? null,
-        inspsau_last_inspection:
-          (data as { inspsau_last_inspection?: string | null } | null)
-            ?.inspsau_last_inspection ?? null,
-        created_at:
-          (data as { created_at?: string | null } | null)?.created_at ?? null,
-        lastTestDate: row.lastTestDate,
-        lastScore: row.lastScore,
-        status: row.status,
-        testHistory: history,
-      }));
-    } catch (err) {
-      console.error("[openProfile] unexpected error:", err);
-      // userDetail já foi populado com dados básicos acima; não limpa
-    } finally {
-      setLoadingDetail(false);
-    setLoadingDetail(true);
-    try {
       const detail = await getProfileWithHistory(row.id);
-      // Mescla com os dados extras do banco, se disponíveis
       setUserDetail((prev) => ({
         ...(prev ?? {}),
         id: row.id,
@@ -314,8 +225,79 @@ export default function PersonnelManagement() {
         status: row.status,
         testHistory: detail?.testHistory ?? [],
       }));
-      rows.length > 0 ? Math.round((apto / rows.length) * 100) : 0;
+    } catch (err) {
+      console.error("[openProfile] unexpected error:", err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
 
+  function closeDrawer() {
+    setSelectedUser(null);
+    setUserDetail(null);
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    fetchPersonnelList()
+      .then(({ profiles, latestBookings }) => {
+        const mapped: PersonnelRow[] = profiles.map((profile) => {
+          const latest = latestBookings.get(profile.id);
+          const lastDate = latest?.test_date ?? latest?.created_at ?? null;
+          const status = deriveStatus(
+            Boolean(profile.active),
+            lastDate,
+            latest?.score ?? null,
+          );
+          return {
+            id: profile.id,
+            fullName: profile.full_name ?? "Sem nome",
+            warName: profile.war_name ?? null,
+            rank: profile.rank ?? null,
+            sector: profile.sector ?? null,
+            saram: profile.saram ?? null,
+            active: Boolean(profile.active),
+            lastTestDate: lastDate,
+            lastScore: latest?.score ?? null,
+            status,
+          };
+        });
+        setRows(mapped);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        row.fullName.toLowerCase().includes(normalizedQuery) ||
+        (row.warName ?? "").toLowerCase().includes(normalizedQuery) ||
+        (row.saram ?? "").includes(normalizedQuery);
+      const matchesRank = rankFilter === "Todos" || row.rank === rankFilter;
+      const matchesStatus =
+        statusFilter === "Todos" || row.status === statusFilter;
+      return matchesQuery && matchesRank && matchesStatus;
+    });
+  }, [rows, query, rankFilter, statusFilter]);
+
+  const summary = useMemo(() => {
+    const apto = rows.filter((row) => row.status === "APTO").length;
+    const vencido = rows.filter((row) => row.status === "VENCIDO").length;
+    const inapto = rows.filter((row) => row.status === "INAPTO").length;
+    const now = new Date();
+    const testsThisMonth = rows.filter((row) => {
+      if (!row.lastTestDate) return false;
+      const date = new Date(row.lastTestDate);
+      return (
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
+      );
+    }).length;
+    const aptoPercent =
+      rows.length > 0 ? Math.round((apto / rows.length) * 100) : 0;
     return { apto, vencido, inapto, testsThisMonth, aptoPercent };
   }, [rows]);
 

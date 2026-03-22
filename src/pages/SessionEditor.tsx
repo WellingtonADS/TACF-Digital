@@ -22,19 +22,13 @@ import { PT_MONTHS } from "@/utils/ptMonths";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { type Coordinator, fetchCoordinators } from "../hooks/usePersonnel";
+import { fetchSessionForEdit, updateSession } from "../services/sessions";
 import type {
   Database,
   SessionPeriod,
   SessionStatus,
 } from "../types/database.types";
-import {
-  type Coordinator,
-  fetchCoordinators,
-} from "../hooks/usePersonnel";
-import {
-  fetchSessionForEdit,
-  updateSession,
-} from "../services/sessions";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -210,34 +204,35 @@ export default function SessionEditor() {
     if (!sessionId) return;
     setLoading(true);
 
-    Promise.all([
-      fetchSessionForEdit(sessionId)
-        .then(({ session, bookedCount }) => {
-          const s = session as DBSessionRow;
-          setForm({
-            date: s.date ?? "",
-            dateMode: "single",
-            weekValue: "",
-            monthValue: "",
-            startTime: periodToDefaultTime(s.period ?? "manha"),
-            location_id: s.location_id ?? "",
-            instructor_id:
-              Array.isArray(s.applicators) && s.applicators.length > 0
-                ? s.applicators[0]
-                : "",
-            maxCapacity: s.max_capacity ?? 15,
-            status: deriveStatus(
-              s.date ?? "",
-              (s.status as SessionStatus) ?? "open",
-            ),
-          });
-          setOccupiedCount(bookedCount);
-          setLoading(false);
-        })
-        .catch(() => {
-          toast.error("Turma não encontrada.");
-          navigate("/app/turmas");
+    fetchSessionForEdit(sessionId)
+      .then(({ session, bookedCount }) => {
+        const s = session as DBSessionRow;
+        setForm({
+          date: s.date ?? "",
+          dateMode: "single",
+          weekValue: "",
+          monthValue: "",
+          startTime: periodToDefaultTime(s.period ?? "manha"),
+          location_id: s.location_id ?? "",
+          instructor_id:
+            Array.isArray(s.applicators) && s.applicators.length > 0
+              ? s.applicators[0]
+              : "",
+          maxCapacity: s.max_capacity ?? 15,
+          status: deriveStatus(
+            s.date ?? "",
+            (s.status as SessionStatus) ?? "open",
+          ),
         });
+        setOccupiedCount(bookedCount);
+      })
+      .catch(() => {
+        toast.error("Turma não encontrada.");
+        navigate("/app/turmas");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [sessionId, navigate]);
 
   // ── Salvar ───────────────────────────────────────────────────────────────

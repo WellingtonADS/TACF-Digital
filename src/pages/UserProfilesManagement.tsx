@@ -8,6 +8,7 @@ import PasswordInput from "@/components/atomic/PasswordInput";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import { getProfileById } from "@/hooks/usePersonnel";
 import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import type { Profile } from "@/types";
 import { formatDateShortPtBr, formatDateTimePtBr } from "@/utils/date";
@@ -16,7 +17,7 @@ import { differenceInYears, isAfter, parseISO } from "date-fns";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import supabase, { upsertProfile } from "../services/supabase";
+import { supabase, upsertProfile } from "../services/supabase";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
@@ -68,24 +69,8 @@ export default function UserProfilesManagement() {
 
     setLoading(true);
     try {
-      const profileSelect =
-        "id, saram, full_name, rank, role, created_at, updated_at, phone_number, email, active, war_name, sector, metadata, inspsau_valid_until, inspsau_last_inspection, birth_date, physical_group";
-
-      const result = await supabase
-        .from("profiles")
-        .select(profileSelect)
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const data = (result.data as UserProfileView | null) ?? null;
-      const error = result.error;
-
-      if (error) {
-        console.error(error);
-        setProfile(null);
-      } else {
-        setProfile(data);
-      }
+      const data = (await getProfileById(user.id)) as UserProfileView | null;
+      setProfile(data ?? null);
     } catch (err) {
       console.error(err);
       setProfile(null);

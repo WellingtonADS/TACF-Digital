@@ -17,7 +17,11 @@ import {
   XCircle,
 } from "@/icons";
 import { updateBookingStatus } from "@/services/bookings";
-import supabase from "@/services/supabase";
+import {
+  fetchSessionBookingsWithProfiles,
+  fetchSessionById,
+  updateBookingAttendance,
+} from "@/services/sessions";
 import type { BookingRow as DBBookingRow, Profile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
@@ -82,41 +86,18 @@ export default function SessionBookingsManagement() {
     if (!sessionId) return;
     setLoading(true);
     try {
-      // Load session
-      const { data: sessionData, error: sessionError } = await supabase
-        .from("sessions")
-        .select("id,date,period,max_capacity,location_id")
-        .eq("id", sessionId)
-        .single();
-
-      if (sessionError) throw sessionError;
+      const sessionData = await fetchSessionById(sessionId);
+      if (!sessionData) {
+        throw new Error("Sessão não encontrada.");
+      }
       setSession(sessionData as SessionInfo);
 
-      // Load bookings for this session
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("order_number", { ascending: true, nullsFirst: false });
-
-      if (bookingsError) throw bookingsError;
-      const booksRaw = (bookingsData ?? []) as unknown as BookingRow[];
-
-      // Load profiles
-      const userIds = Array.from(new Set(booksRaw.map((b) => b.user_id)));
-      const profilesById = new Map<string, ProfileLookup>();
-      if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id,full_name,war_name,saram,rank,email")
-          .in("id", userIds);
-        (profilesData ?? []).forEach((p) =>
-          profilesById.set(p.id, p as ProfileLookup),
-        );
-      }
+      const { bookings: bookingsData, profilesById } =
+        await fetchSessionBookingsWithProfiles(sessionId);
+      const booksRaw = bookingsData as BookingRow[];
 
       const enriched: BookingWithProfile[] = booksRaw.map((b) => {
-        const p = profilesById.get(b.user_id);
+        const p = profilesById.get(b.user_id) as ProfileLookup | undefined;
         return {
           ...b,
           full_name: p?.full_name ?? null,
@@ -189,11 +170,7 @@ export default function SessionBookingsManagement() {
   ) {
     setUpdating(bookingId);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ attendance_confirmed: !current })
-        .eq("id", bookingId);
-      if (error) throw error;
+      await updateBookingAttendance(bookingId, !current);
       toast.success(!current ? "Presença confirmada." : "Presença removida.");
       setBookings((prev) =>
         prev.map((b) =>

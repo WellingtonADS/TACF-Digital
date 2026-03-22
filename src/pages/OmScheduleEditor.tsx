@@ -17,7 +17,10 @@ import {
   Search,
   Sun,
 } from "@/icons";
-import supabase from "@/services/supabase";
+import {
+  fetchLocationSchedules,
+  upsertLocationSchedules,
+} from "@/services/locations";
 import type { LocationSchedule, SessionPeriod } from "@/types/database.types";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -294,19 +297,15 @@ export default function OmScheduleEditor() {
   useEffect(() => {
     if (!id) return;
     setLoadingSchedules(true);
-    supabase
-      .from("location_schedules")
-      .select("*")
-      .eq("location_id", id)
-      .then(({ data, error }) => {
-        if (error) {
-          toast.error("Erro ao carregar horários.");
-          console.error(error);
-        } else {
-          setSlots((prev) =>
-            mergeDbSlots(prev, (data ?? []) as LocationSchedule[]),
-          );
-        }
+    fetchLocationSchedules(id)
+      .then((data) => {
+        setSlots((prev) => mergeDbSlots(prev, data as LocationSchedule[]));
+      })
+      .catch((error) => {
+        toast.error("Erro ao carregar horários.");
+        console.error(error);
+      })
+      .finally(() => {
         setLoadingSchedules(false);
       });
   }, [id]);
@@ -330,11 +329,7 @@ export default function OmScheduleEditor() {
         is_active: s.is_active,
       }));
 
-      const { error } = await supabase
-        .from("location_schedules")
-        .upsert(rows, { onConflict: "location_id,day_of_week,period" });
-
-      if (error) throw error;
+      await upsertLocationSchedules(rows);
       toast.success("Horários salvos com sucesso.");
     } catch (err) {
       console.error(err);

@@ -63,7 +63,7 @@ export async function fetchSessionForEdit(sessionId: string): Promise<{
       .from("bookings")
       .select("*", { count: "exact", head: true })
       .eq("session_id", sessionId)
-      .neq("status", "cancelled"),
+      .neq("status", "cancelado"),
   ]);
   if (error) throw error;
   if (!data) throw new Error("Turma não encontrada.");

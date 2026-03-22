@@ -8,6 +8,7 @@ import FullPageLoading from "@/components/FullPageLoading";
 import AppIcon from "@/components/atomic/AppIcon";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import { fetchAllProfilesForAccess, updateProfile } from "@/hooks/usePersonnel";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +17,6 @@ import {
   User,
   type LucideIcon,
 } from "@/icons";
-import supabase from "@/services/supabase";
 import type { ProfileRole, Profile as UserProfile } from "@/types";
 import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import { sidebarIconMap } from "@/utils/sidebarIcons";
@@ -90,17 +90,7 @@ export default function AccessProfilesManagement() {
     setLoading(true);
     setLoadError(null);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "id, full_name, email, rank, role, active, updated_at, created_at",
-        )
-        .order("role")
-        .order("full_name");
-
-      if (error) throw error;
-
-      const nextProfiles = (data as UserProfile[]) || [];
+      const nextProfiles = (await fetchAllProfilesForAccess()) as UserProfile[];
       setProfiles(nextProfiles);
       setSelectedRole((currentRole) => {
         if (nextProfiles.some((item) => item.role === currentRole)) {
@@ -134,14 +124,7 @@ export default function AccessProfilesManagement() {
   async function updateUserRole(profileId: string, nextRole: ProfileRole) {
     setSavingProfileId(profileId);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ role: nextRole })
-        .eq("id", profileId)
-        .select("id, role, updated_at")
-        .maybeSingle();
-
-      if (error) throw error;
+      await updateProfile(profileId, { role: nextRole });
 
       setProfiles((currentProfiles) =>
         currentProfiles.map((item) =>
@@ -149,7 +132,6 @@ export default function AccessProfilesManagement() {
             ? {
                 ...item,
                 role: nextRole,
-                updated_at: data?.updated_at ?? item.updated_at,
               }
             : item,
         ),

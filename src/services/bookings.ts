@@ -257,6 +257,188 @@ export async function fetchAdminMetrics(): Promise<{
   };
 }
 
+export type AppointmentBookingPreview = Pick<
+  Database["public"]["Tables"]["bookings"]["Row"],
+  | "id"
+  | "user_id"
+  | "session_id"
+  | "status"
+  | "test_date"
+  | "order_number"
+  | "score"
+  | "result_details"
+>;
+
+export type AppointmentSessionPreview = Pick<
+  Database["public"]["Tables"]["sessions"]["Row"],
+  "id" | "date" | "period" | "max_capacity"
+> & {
+  location_name?: string | null;
+  location_address?: string | null;
+};
+
+export type AppointmentProfilePreview = Pick<
+  Database["public"]["Tables"]["profiles"]["Row"],
+  "id" | "full_name" | "war_name" | "saram" | "rank" | "sector"
+>;
+
+export async function fetchAppointmentContext(params: {
+  bookingId: string | null;
+  sessionIdInput: string | null;
+  userId: string | null;
+}): Promise<{
+  booking: AppointmentBookingPreview | null;
+  session: AppointmentSessionPreview | null;
+  profile: AppointmentProfilePreview | null;
+  existingBookingForDate: AppointmentBookingPreview | null;
+  resolvedSessionId: string | null;
+}> {
+  let localBooking: AppointmentBookingPreview | null = null;
+  let localSessionId = params.sessionIdInput;
+  let localUserId = params.userId;
+
+  if (params.bookingId) {
+    const { data: bData, error: bErr } = await supabase
+      .from("bookings")
+      .select(
+        "id, user_id, session_id, status, test_date, order_number, score, result_details",
+      )
+      .eq("id", params.bookingId)
+      .maybeSingle<AppointmentBookingPreview>();
+
+    if (bErr || !bData) {
+      return {
+        booking: null,
+        session: null,
+        profile: null,
+        existingBookingForDate: null,
+        resolvedSessionId: params.sessionIdInput,
+      };
+    }
+
+    localBooking = bData;
+    localSessionId = bData.session_id;
+    localUserId = bData.user_id;
+  }
+
+  const sessionPromise = localSessionId
+    ? supabase
+        .from("sessions")
+        .select(
+          "id, date, period, max_capacity, location:locations(name, address), location_id",
+        )
+        .eq("id", localSessionId)
+        .maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+
+  const profilePromise = localUserId
+    ? supabase
+        .from("profiles")
+        .select("id, full_name, war_name, saram, rank, sector")
+        .eq("id", localUserId)
+        .maybeSingle<AppointmentProfilePreview>()
+    : Promise.resolve({ data: null, error: null });
+
+  const [{ data: sData }, { data: pData }] = await Promise.all([
+    sessionPromise,
+    profilePromise,
+  ]);
+
+  let session: AppointmentSessionPreview | null = null;
+  let existingBookingForDate: AppointmentBookingPreview | null = null;
+
+  if (sData) {
+    let locName: string | null = null;
+    let locAddress: string | null = null;
+
+    const locRaw = sData.location as
+      | { name?: string | null; address?: string | null }[]
+      | { name?: string | null; address?: string | null }
+      | null;
+
+    const loc = Array.isArray(locRaw) ? locRaw[0] : locRaw;
+
+    if (loc && (loc.name || loc.address)) {
+      locName = loc.name ?? null;
+      locAddress = loc.address ?? null;
+    } else if ((sData as { location_id?: string | null }).location_id) {
+      const sessionLocationId = (sData as { location_id?: string | null })
+        .location_id;
+      if (sessionLocationId) {
+        const { data: locationRow, error: locationErr } = await supabase
+          .from("locations")
+          .select("name, address")
+          .eq("id", sessionLocationId)
+          .maybeSingle();
+        if (!locationErr && locationRow) {
+          locName = locationRow.name ?? null;
+          locAddress = locationRow.address ?? null;
+        }
+      }
+    }
+
+    session = {
+      id: sData.id,
+      date: sData.date,
+      period: sData.period,
+      max_capacity: sData.max_capacity,
+      location_name: locName,
+      location_address: locAddress,
+    };
+
+    if (localUserId) {
+      const { data: existing, error: existingErr } = await supabase
+        .from("bookings")
+        .select("id, user_id, session_id, status, test_date, order_number")
+        .eq("user_id", localUserId)
+        .eq("test_date", sData.date)
+        .maybeSingle<AppointmentBookingPreview>();
+
+      if (!existingErr && existing) {
+        existingBookingForDate = existing;
+      }
+    }
+  }
+
+  return {
+    booking: localBooking,
+    session,
+    profile: pData ?? null,
+    existingBookingForDate,
+    resolvedSessionId: sData?.id ?? localSessionId ?? null,
+  };
+}
+
+export type TicketRow = {
+  id: string;
+  order_number: string | null;
+  status: string | null;
+  session?: {
+    date?: string | null;
+    period?: string | null;
+    location?: { name?: string | null } | null;
+  } | null;
+  profile?: {
+    war_name?: string | null;
+    full_name?: string | null;
+    saram?: string | null;
+  } | null;
+};
+
+export async function fetchUserTickets(userId: string): Promise<TicketRow[]> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(
+      "id, order_number, status, session: sessions(date, period, location:locations(name)), profile: profiles(war_name, full_name, saram)",
+    )
+    .eq("user_id", userId)
+    .not("order_number", "is", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return Array.isArray(data) ? (data as TicketRow[]) : [];
+}
+
 export default {
   getSessions,
   confirmBooking,

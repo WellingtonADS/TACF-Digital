@@ -17,7 +17,7 @@ import {
   Hash,
   MapPin,
 } from "@/icons";
-import supabase from "@/services/supabase";
+import { fetchSessionLocationBySessionId } from "@/services/locations";
 import { fetchBookedDatesForUser, formatSessionPeriod } from "@/utils/booking";
 import { formatDatePtBr } from "@/utils/date";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
@@ -133,29 +133,8 @@ export const Scheduling = () => {
       setLocationLoading(true);
 
       try {
-        const { data, error } = await supabase
-          .from("sessions")
-          .select("location:locations(name, address)")
-          .eq("id", sessionId)
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        const locationRaw = data?.location as
-          | { name?: string | null; address?: string | null }
-          | { name?: string | null; address?: string | null }[]
-          | null;
-
-        const location = Array.isArray(locationRaw)
-          ? locationRaw[0]
-          : locationRaw;
-
-        setSessionLocation({
-          name: location?.name ?? null,
-          address: location?.address ?? null,
-        });
+        const location = await fetchSessionLocationBySessionId(sessionId);
+        setSessionLocation(location);
       } catch {
         setSessionLocation(null);
       } finally {

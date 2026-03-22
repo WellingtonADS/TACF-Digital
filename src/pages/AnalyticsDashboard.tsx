@@ -19,8 +19,11 @@ import {
   TrendingUp,
   Users,
 } from "@/icons";
-import supabase from "@/services/supabase";
-import type { BookingRow as DBBookingRow, Profile as DBProfile } from "@/types";
+import {
+  fetchAnalyticsData,
+  type AnalyticsBookingRow,
+  type AnalyticsProfileRow,
+} from "@/services/bookings";
 import { downloadCSV } from "@/utils/csv";
 import { isAdminLike } from "@/utils/routeAccess";
 import {
@@ -39,21 +42,9 @@ import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ProfileRow = Pick<
-  DBProfile,
-  "id" | "full_name" | "war_name" | "saram" | "rank" | "sector" | "active"
->;
+type ProfileRow = AnalyticsProfileRow;
 
-type BookingRow = Pick<
-  DBBookingRow,
-  | "id"
-  | "user_id"
-  | "score"
-  | "test_date"
-  | "created_at"
-  | "status"
-  | "result_details"
->;
+type BookingRow = AnalyticsBookingRow;
 
 type UnitMetric = {
   unit: string;
@@ -175,39 +166,11 @@ export default function AnalyticsDashboard() {
         const fromTs = `${fromDate}T00:00:00`;
         const toTs = `${toDate}T23:59:59`;
 
-        const [
-          { data: profileData, error: profileError },
-          { data: bookingData, error: bookingError },
-          { data: allBookingData, error: allBookingError },
-        ] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, full_name, war_name, saram, rank, sector, active"),
-          supabase
-            .from("bookings")
-            .select(
-              "id, user_id, score, test_date, created_at, status, result_details",
-            )
-            .eq("status", "agendado")
-            .gte("created_at", fromTs)
-            .lte("created_at", toTs),
-          supabase
-            .from("bookings")
-            .select(
-              "id, user_id, score, test_date, created_at, status, result_details",
-            )
-            .eq("status", "agendado")
-            .not("result_details", "is", null)
-            .order("created_at", { ascending: false }),
-        ]);
+        const data = await fetchAnalyticsData(fromTs, toTs);
 
-        if (profileError) throw profileError;
-        if (bookingError) throw bookingError;
-        if (allBookingError) throw allBookingError;
-
-        setProfiles((profileData ?? []) as ProfileRow[]);
-        setBookings((bookingData ?? []) as BookingRow[]);
-        setAllBookings((allBookingData ?? []) as BookingRow[]);
+        setProfiles(data.profiles as ProfileRow[]);
+        setBookings(data.bookings as BookingRow[]);
+        setAllBookings(data.allBookings as BookingRow[]);
       } catch (error) {
         console.error(error);
         setProfiles([]);

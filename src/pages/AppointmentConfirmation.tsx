@@ -6,12 +6,13 @@
 
 import Layout from "@/components/layout/Layout";
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin } from "@/icons";
-import supabase, { confirmarAgendamentoRPC } from "@/services/supabase";
-import type {
-  BookingRow as DBBookingRow,
-  Profile as DBProfile,
-  SessionRow as DBSessionRow,
-} from "@/types";
+import {
+  fetchAppointmentContext,
+  type AppointmentBookingPreview,
+  type AppointmentProfilePreview,
+  type AppointmentSessionPreview,
+} from "@/services/bookings";
+import { confirmarAgendamentoRPC, supabase } from "@/services/supabase";
 import {
   fetchExistingSemesterBooking,
   formatDatePtBr,
@@ -30,27 +31,9 @@ export const AppointmentConfirmation = () => {
   const location = useLocation();
   type LocationState = { bookingId?: string; sessionId?: string };
 
-  type BookingPreview = Pick<
-    DBBookingRow,
-    | "id"
-    | "user_id"
-    | "session_id"
-    | "status"
-    | "test_date"
-    | "order_number"
-    | "score"
-    | "result_details"
-  >;
-
-  type SessionPreview = Pick<
-    DBSessionRow,
-    "id" | "date" | "period" | "max_capacity"
-  > & { location_name?: string | null; location_address?: string | null };
-
-  type ProfilePreview = Pick<
-    DBProfile,
-    "id" | "full_name" | "war_name" | "saram" | "rank" | "sector"
-  >;
+  type BookingPreview = AppointmentBookingPreview;
+  type SessionPreview = AppointmentSessionPreview;
+  type ProfilePreview = AppointmentProfilePreview;
 
   const bookingIdFromState = (location.state as LocationState)?.bookingId;
   const sessionIdFromState = (location.state as LocationState)?.sessionId;
@@ -87,145 +70,21 @@ export const AppointmentConfirmation = () => {
 
       setLoading(true);
       try {
-        let localBooking: BookingPreview | null = null;
-        let localSessionId = sessionIdInput;
-        let localUserId: string | null = null;
+        const userResp = await supabase.auth.getUser();
+        const userId = userResp.data.user?.id ?? null;
+        const data = await fetchAppointmentContext({
+          bookingId,
+          sessionIdInput,
+          userId,
+        });
 
-        if (bookingId) {
-          const { data: bData, error: bErr } = await supabase
-            .from("bookings")
-            .select(
-              "id, user_id, session_id, status, test_date, order_number, score, result_details",
-            )
-            .eq("id", bookingId)
-            .maybeSingle<BookingPreview>();
-
-          if (bErr || !bData) {
-            setBooking(null);
-            setSession(null);
-            setProfile(null);
-            setResolvedSessionId(sessionIdInput);
-            return;
-          }
-
-          localBooking = bData;
-          localSessionId = bData.session_id;
-          localUserId = bData.user_id;
-          setBooking(bData);
-        } else {
-          setBooking(null);
-        }
-
-        if (!localUserId) {
-          const userResp = await supabase.auth.getUser();
-          localUserId = userResp.data.user?.id ?? null;
-        }
-
-        const sessionPromise = localSessionId
-          ? supabase
-              .from("sessions")
-              .select(
-                "id, date, period, max_capacity, location:locations(name, address)",
-              )
-              .eq("id", localSessionId)
-              .maybeSingle()
-          : Promise.resolve({ data: null });
-
-        const profilePromise = localUserId
-          ? supabase
-              .from("profiles")
-              .select("id, full_name, war_name, saram, rank, sector")
-              .eq("id", localUserId)
-              .maybeSingle<ProfilePreview>()
-          : Promise.resolve({ data: null });
-
-        const [{ data: sData }, { data: pData }] = await Promise.all([
-          sessionPromise,
-          profilePromise,
-        ]);
-
-        if (sData) {
-          // prefer nested location payload when present
-          let locName: string | null = null;
-          let locAddress: string | null = null;
-
-          const locRaw = sData.location as
-            | { name?: string | null; address?: string | null }[]
-            | { name?: string | null; address?: string | null }
-            | null;
-
-          const loc = Array.isArray(locRaw) ? locRaw[0] : locRaw;
-
-          if (loc && (loc.name || loc.address)) {
-            locName = loc.name ?? null;
-            locAddress = loc.address ?? null;
-          } else if ((sData as { location_id?: string | null }).location_id) {
-            // fallback: explicitly fetch from locations table by id
-            try {
-              const sessionLocationId = (
-                sData as { location_id?: string | null }
-              ).location_id!;
-              const { data: locationRow, error: locationErr } = await supabase
-                .from("locations")
-                .select("name, address")
-                .eq("id", sessionLocationId)
-                .maybeSingle();
-
-              if (!locationErr && locationRow) {
-                locName = locationRow.name ?? null;
-                locAddress = locationRow.address ?? null;
-              }
-            } catch {
-              // ignore location fetch errors and keep nulls
-            }
-          }
-
-          const enriched: SessionPreview = {
-            id: sData.id,
-            date: sData.date,
-            period: sData.period,
-            max_capacity: sData.max_capacity,
-            location_name: locName,
-            location_address: locAddress,
-          };
-          setSession(enriched);
-          setResolvedSessionId(sData.id);
-          // check if user already has a booking on this session date
-          if (localUserId) {
-            try {
-              const { data: existing, error: existingErr } = await supabase
-                .from("bookings")
-                .select(
-                  "id, user_id, session_id, status, test_date, order_number",
-                )
-                .eq("user_id", localUserId)
-                .eq("test_date", sData.date)
-                .maybeSingle<BookingPreview>();
-
-              if (!existingErr && existing) {
-                setExistingBookingForDate(existing as BookingPreview);
-              } else {
-                setExistingBookingForDate(null);
-              }
-            } catch {
-              setExistingBookingForDate(null);
-            }
-          } else {
-            setExistingBookingForDate(null);
-          }
-        } else if (localSessionId) {
-          setSession(null);
-          setResolvedSessionId(localSessionId);
-        } else {
-          setSession(null);
-          setResolvedSessionId(null);
-        }
-
-        setProfile(pData ?? null);
-
-        if (!localBooking) {
-          setBooking(null);
-        }
+        setBooking(data.booking as BookingPreview | null);
+        setSession(data.session as SessionPreview | null);
+        setProfile(data.profile as ProfilePreview | null);
+        setExistingBookingForDate(
+          data.existingBookingForDate as BookingPreview | null,
+        );
+        setResolvedSessionId(data.resolvedSessionId);
       } catch (err) {
         console.error(err);
       } finally {

@@ -13,7 +13,7 @@ import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import ResultStatusBadge from "@/components/Results/ResultStatusBadge";
 import { ChevronRight, ClipboardList, ExternalLink, MapPin } from "@/icons";
-import supabase from "@/services/supabase";
+import { fetchPendingSwapsByBookingIds } from "@/services/bookings";
 import {
   canOpenAppeal,
   normalizeResultSummary,
@@ -86,15 +86,7 @@ export default function ResultsHistory() {
         return;
       }
       try {
-        const { data, error } = await supabase
-          .from("swap_requests")
-          .select("booking_id")
-          .in("booking_id", ids)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase-generated types mismatch our enum
-          .eq("status", "solicitado" as any);
-        if (error) throw error;
-        const set = new Set<string>();
-        (data ?? []).forEach((r) => r.booking_id && set.add(r.booking_id));
+        const set = await fetchPendingSwapsByBookingIds(ids);
         setPendingSwaps(set);
       } catch (err) {
         console.error(err);

@@ -17,12 +17,12 @@ import {
   UserCheck,
   XCircle,
 } from "@/icons";
-import supabase from "@/services/supabase";
-import type {
-  BookingRow as DBBookingRow,
-  Profile as DBProfile,
-  SessionRow as DBSessionRow,
-} from "@/types";
+import {
+  fetchRecentSessions,
+  fetchSessionBookings,
+  updateBookingResult,
+} from "@/services/sessions";
+import type { SessionRow as DBSessionRow } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { isAdminLike } from "@/utils/routeAccess";
 import { useEffect, useMemo, useState } from "react";
@@ -30,16 +30,6 @@ import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 type SessionRow = Pick<DBSessionRow, "id" | "date" | "period">;
-
-type BookingRow = Pick<
-  DBBookingRow,
-  "id" | "session_id" | "user_id" | "result_details"
->;
-
-type ProfileRow = Pick<
-  DBProfile,
-  "id" | "full_name" | "war_name" | "saram" | "rank"
->;
 
 type AptStatus = "apto" | "inapto";
 
@@ -105,15 +95,7 @@ export default function ScoreEntry() {
     async function loadSessions() {
       setLoadingSessions(true);
       try {
-        const { data, error } = await supabase
-          .from("sessions")
-          .select("id, date, period")
-          .order("date", { ascending: false })
-          .limit(50);
-
-        if (error) throw error;
-
-        const typed = (data ?? []) as SessionRow[];
+        const typed = (await fetchRecentSessions(50)) as SessionRow[];
         setSessions(typed);
 
         if (typed.length > 0) {
@@ -148,39 +130,18 @@ export default function ScoreEntry() {
 
       setLoadingRows(true);
       try {
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select("id, session_id, user_id, result_details")
-          .eq("session_id", selectedSessionId)
-          .order("created_at", { ascending: true });
+        const { bookings, profilesById } =
+          await fetchSessionBookings(selectedSessionId);
 
-        if (bookingError) throw bookingError;
-
-        const bookings = (bookingData ?? []) as BookingRow[];
-        const userIds = [
-          ...new Set(bookings.map((booking) => booking.user_id)),
-        ];
-
-        if (userIds.length === 0) {
+        if (bookings.length === 0) {
           setRows([]);
           setSelectedUserId("");
           setAptStatus("apto");
           return;
         }
 
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, full_name, war_name, saram, rank")
-          .in("id", userIds);
-
-        if (profileError) throw profileError;
-
-        const profileMap = new Map(
-          ((profileData ?? []) as ProfileRow[]).map((item) => [item.id, item]),
-        );
-
         const mapped = bookings.map((booking) => {
-          const p = profileMap.get(booking.user_id);
+          const p = profilesById.get(booking.user_id);
           return {
             bookingId: booking.id,
             userId: booking.user_id,
@@ -265,12 +226,7 @@ export default function ScoreEntry() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ result_details: aptStatus })
-        .eq("id", selectedRow.bookingId);
-
-      if (error) throw error;
+      await updateBookingResult(selectedRow.bookingId, aptStatus);
 
       const updatedRows = rows.map((row) =>
         row.bookingId === selectedRow.bookingId
