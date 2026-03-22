@@ -345,12 +345,12 @@ export const Scheduling = () => {
                           disabled={!hasSessions || isBooked}
                         >
                           {day}
-                          {/* indicador de sessão disponível (cinza = disponível, não confunde com selecionado) */}
+                          {/* indicador de sessão disponível (bg-success = disponível, bg-error = agendado) */}
                           {hasSessions && !isBooked && !isSelected && (
-                            <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-text-muted/60" />
+                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-success" />
                           )}
                           {isBooked && (
-                            <span className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-error" />
+                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-error" />
                           )}
                         </button>
                       );
@@ -365,8 +365,7 @@ export const Scheduling = () => {
                   Selecionado
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-border-default/60 border border-border-default" />{" "}
-                  Disponível
+                  <div className="w-3 h-3 rounded-full bg-success" /> Disponível
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
                   <div className="w-3 h-3 rounded-full bg-transparent border border-border-default/30" />{" "}
