@@ -17,7 +17,6 @@ import {
   Save,
   XCircle,
 } from "@/icons";
-import supabase from "@/services/supabase";
 import type { SessionRow as DBSessionRow } from "@/types";
 import { PT_MONTHS } from "@/utils/ptMonths";
 import { useEffect, useMemo, useState } from "react";
@@ -28,6 +27,14 @@ import type {
   SessionPeriod,
   SessionStatus,
 } from "../types/database.types";
+import {
+  type Coordinator,
+  fetchCoordinators,
+} from "../hooks/usePersonnel";
+import {
+  fetchSessionForEdit,
+  updateSession,
+} from "../services/sessions";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -160,14 +167,7 @@ export default function SessionEditor() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [occupiedCount, setOccupiedCount] = useState<number | null>(null);
 
-  const [instructors, setInstructors] = useState<
-    {
-      id: string;
-      full_name?: string | null;
-      war_name?: string | null;
-      rank?: string | null;
-    }[]
-  >([]);
+  const [instructors, setInstructors] = useState<Coordinator[]>([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
 
   const {
@@ -195,21 +195,8 @@ export default function SessionEditor() {
     async function loadInstructors() {
       setLoadingInstructors(true);
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, full_name, war_name, rank")
-          .eq("role", "coordinator")
-          .eq("active", true)
-          .order("full_name", { ascending: true });
-        if (error) throw error;
-        setInstructors(
-          (data ?? []) as {
-            id: string;
-            full_name?: string | null;
-            war_name?: string | null;
-            rank?: string | null;
-          }[],
-        );
+        const data = await fetchCoordinators();
+        setInstructors(data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -224,45 +211,33 @@ export default function SessionEditor() {
     setLoading(true);
 
     Promise.all([
-      supabase
-        .from("sessions")
-        .select(
-          "id, date, period, max_capacity, location_id, applicators, status",
-        )
-        .eq("id", sessionId)
-        .single(),
-      supabase
-        .from("bookings")
-        .select("*", { count: "exact", head: true })
-        .eq("session_id", sessionId)
-        .neq("status", "cancelled"),
-    ]).then(([{ data, error }, { count }]) => {
-      if (error || !data) {
-        toast.error("Turma não encontrada.");
-        navigate("/app/turmas");
-        return;
-      }
-      const s = data as DBSessionRow;
-      setForm({
-        date: s.date ?? "",
-        dateMode: "single",
-        weekValue: "",
-        monthValue: "",
-        startTime: periodToDefaultTime(s.period ?? "manha"),
-        location_id: s.location_id ?? "",
-        instructor_id:
-          Array.isArray(s.applicators) && s.applicators.length > 0
-            ? s.applicators[0]
-            : "",
-        maxCapacity: s.max_capacity ?? 15,
-        status: deriveStatus(
-          s.date ?? "",
-          (s.status as SessionStatus) ?? "open",
-        ),
-      });
-      setOccupiedCount(count ?? null);
-      setLoading(false);
-    });
+      fetchSessionForEdit(sessionId)
+        .then(({ session, bookedCount }) => {
+          const s = session as DBSessionRow;
+          setForm({
+            date: s.date ?? "",
+            dateMode: "single",
+            weekValue: "",
+            monthValue: "",
+            startTime: periodToDefaultTime(s.period ?? "manha"),
+            location_id: s.location_id ?? "",
+            instructor_id:
+              Array.isArray(s.applicators) && s.applicators.length > 0
+                ? s.applicators[0]
+                : "",
+            maxCapacity: s.max_capacity ?? 15,
+            status: deriveStatus(
+              s.date ?? "",
+              (s.status as SessionStatus) ?? "open",
+            ),
+          });
+          setOccupiedCount(bookedCount);
+          setLoading(false);
+        })
+        .catch(() => {
+          toast.error("Turma não encontrada.");
+          navigate("/app/turmas");
+        });
   }, [sessionId, navigate]);
 
   // ── Salvar ───────────────────────────────────────────────────────────────
@@ -289,30 +264,24 @@ export default function SessionEditor() {
     setSaving(true);
     try {
       const period = derivePeriod(form.startTime);
-      const { error } = await supabase
-        .from("sessions")
-        .update({
-          date: form.date,
-          period,
-          max_capacity: form.maxCapacity,
-          status: form.status,
-          ...(form.location_id ? { location_id: form.location_id } : {}),
-          applicators: form.instructor_id ? [form.instructor_id] : [],
-        } as Database["public"]["Tables"]["sessions"]["Update"])
-        .eq("id", sessionId!);
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("Já existe turma no mesmo dia e turno.");
-        } else {
-          toast.error(error.message || "Não foi possível salvar a turma.");
-        }
-        return;
-      }
+      await updateSession(sessionId!, {
+        date: form.date,
+        period,
+        max_capacity: form.maxCapacity,
+        status: form.status,
+        ...(form.location_id ? { location_id: form.location_id } : {}),
+        applicators: form.instructor_id ? [form.instructor_id] : [],
+      } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma atualizada com sucesso.");
       navigate("/app/turmas");
     } catch (err) {
+      const pgErr = err as { code?: string; message?: string } | null;
+      if (pgErr?.code === "23505") {
+        toast.error("Já existe turma no mesmo dia e turno.");
+      } else {
+        toast.error(pgErr?.message || "Não foi possível salvar a turma.");
+      }
       console.error(err);
-      toast.error("Erro inesperado ao salvar turma.");
     } finally {
       setSaving(false);
     }
@@ -323,13 +292,9 @@ export default function SessionEditor() {
     setSaving(true);
     setShowCancelConfirm(false);
     try {
-      const { error } = await supabase
-        .from("sessions")
-        .update({
-          status: "closed",
-        } as Database["public"]["Tables"]["sessions"]["Update"])
-        .eq("id", sessionId);
-      if (error) throw error;
+      await updateSession(sessionId, {
+        status: "closed",
+      } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma cancelada (fechada).");
       navigate("/app/turmas");
     } catch {

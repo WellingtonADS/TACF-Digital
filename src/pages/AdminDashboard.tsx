@@ -25,7 +25,7 @@ import {
   Shield,
   Users,
 } from "@/icons";
-import supabase from "@/services/supabase";
+import { fetchAdminMetrics } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
 import { format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -88,36 +88,11 @@ const AdminDashboard = () => {
       setMetricsLoading(true);
       setMetricsError(null);
       try {
-        // total inscritos (all bookings)
-        const { count: totalCount, error: totalError } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true });
-
-        if (totalError) throw totalError;
-        setTotalInscritos(totalCount ?? 0);
-
-        // aptos no mês (bookings com score não nulo criados neste mês)
-        const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const { count: aptosCount, error: aptosError } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true })
-          .not("score", "is", null)
-          .gte("created_at", firstDay.toISOString())
-          .lt("created_at", nextMonth.toISOString());
-
-        if (aptosError) throw aptosError;
-        setAptosMonth(aptosCount ?? 0);
-
-        // pendências: qualquer booking que não esteja agendado
-        const { count: pendCount, error: pendError } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true })
-          .not("status", "eq", "agendado");
-
-        if (pendError) throw pendError;
-        setPendencias(pendCount ?? 0);
+        const { totalInscritos, aptosMonth, pendencias } =
+          await fetchAdminMetrics();
+        setTotalInscritos(totalInscritos);
+        setAptosMonth(aptosMonth);
+        setPendencias(pendencias);
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error

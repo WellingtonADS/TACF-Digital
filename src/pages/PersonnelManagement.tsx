@@ -9,6 +9,11 @@ import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import {
+  fetchPersonnelList,
+  getProfileWithHistory,
+  updateProfile,
+} from "@/hooks/usePersonnel";
+import {
   Award,
   Calendar,
   CheckCircle2,
@@ -27,19 +32,9 @@ import {
   X,
   XCircle,
 } from "@/icons";
-import supabase from "@/services/supabase";
-import type { Profile as DBProfile } from "@/types";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-type ProfileRow = DBProfile;
-type BookingQueryRow = {
-  user_id: string;
-  test_date: string | null;
-  score: number | null;
-  created_at: string | null;
-};
 
 type PersonnelRow = {
   id: string;
@@ -165,11 +160,7 @@ export default function PersonnelManagement() {
     if (!userDetail || !selectedUser) return;
     setSavingActive(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ active: newActive })
-        .eq("id", selectedUser.id);
-      if (error) throw error;
+      await updateProfile(selectedUser.id, { active: newActive });
       setUserDetail((prev) => (prev ? { ...prev, active: newActive } : prev));
       setRows((prev) =>
         prev.map((r) =>
@@ -297,134 +288,32 @@ export default function PersonnelManagement() {
       // userDetail já foi populado com dados básicos acima; não limpa
     } finally {
       setLoadingDetail(false);
-    }
-  }
-
-  function closeDrawer() {
-    setSelectedUser(null);
-    setUserDetail(null);
-  }
-
-  useEffect(() => {
-    async function loadPersonnel() {
-      setLoading(true);
-      try {
-        const profileSelect =
-          "id, full_name, war_name, rank, sector, saram, active";
-
-        const [
-          { data: profileData, error: profileError },
-          { data: bookingData, error: bookingError },
-        ] = await Promise.all([
-          supabase.from("profiles").select(profileSelect),
-          supabase
-            .from("bookings")
-            .select("user_id, test_date, score, created_at")
-            .order("test_date", { ascending: false, nullsFirst: false }),
-        ]);
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (bookingError) {
-          throw bookingError;
-        }
-
-        const latestByUser = new Map<
-          string,
-          Pick<BookingQueryRow, "test_date" | "score" | "created_at">
-        >();
-
-        ((bookingData ?? []) as BookingQueryRow[]).forEach((booking) => {
-          const userId = booking.user_id;
-          const current = latestByUser.get(userId);
-          const bookingDate = booking.test_date ?? booking.created_at;
-          const currentDate = current?.test_date ?? current?.created_at ?? null;
-
-          if (
-            !current ||
-            (bookingDate && (!currentDate || bookingDate > currentDate))
-          ) {
-            latestByUser.set(userId, {
-              test_date: booking.test_date,
-              score: booking.score,
-              created_at: booking.created_at,
-            });
-          }
-        });
-
-        const mapped: PersonnelRow[] = (profileData as ProfileRow[]).map(
-          (profile) => {
-            const latest = latestByUser.get(profile.id);
-            const lastDate = latest?.test_date ?? latest?.created_at ?? null;
-            const status = deriveStatus(
-              Boolean(profile.active),
-              lastDate,
-              latest?.score ?? null,
-            );
-
-            return {
-              id: profile.id,
-              fullName: profile.full_name ?? "Sem nome",
-              warName: profile.war_name ?? null,
-              rank: profile.rank ?? null,
-              sector: profile.sector ?? null,
-              saram: profile.saram ?? null,
-              active: Boolean(profile.active),
-              lastTestDate: lastDate,
-              lastScore: latest?.score ?? null,
-              status,
-            };
-          },
-        );
-
-        setRows(mapped);
-      } catch (error) {
-        console.error(error);
-        setRows([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadPersonnel();
-  }, []);
-
-  const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        row.fullName.toLowerCase().includes(normalizedQuery) ||
-        (row.warName ?? "").toLowerCase().includes(normalizedQuery) ||
-        (row.saram ?? "").includes(normalizedQuery);
-
-      const matchesRank = rankFilter === "Todos" || row.rank === rankFilter;
-      const matchesStatus =
-        statusFilter === "Todos" || row.status === statusFilter;
-
-      return matchesQuery && matchesRank && matchesStatus;
-    });
-  }, [rows, query, rankFilter, statusFilter]);
-
-  const summary = useMemo(() => {
-    const apto = rows.filter((row) => row.status === "APTO").length;
-    const vencido = rows.filter((row) => row.status === "VENCIDO").length;
-    const inapto = rows.filter((row) => row.status === "INAPTO").length;
-
-    const now = new Date();
-    const testsThisMonth = rows.filter((row) => {
-      if (!row.lastTestDate) return false;
-      const date = new Date(row.lastTestDate);
-      return (
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear()
-      );
-    }).length;
-
-    const aptoPercent =
+    setLoadingDetail(true);
+    try {
+      const detail = await getProfileWithHistory(row.id);
+      // Mescla com os dados extras do banco, se disponíveis
+      setUserDetail((prev) => ({
+        ...(prev ?? {}),
+        id: row.id,
+        full_name: detail?.full_name ?? row.fullName,
+        war_name: detail?.war_name ?? row.warName,
+        rank: detail?.rank ?? row.rank,
+        sector: detail?.sector ?? row.sector,
+        saram: detail?.saram ?? row.saram,
+        email: detail?.email ?? null,
+        phone_number: detail?.phone_number ?? null,
+        role: detail?.role ?? null,
+        active: detail != null ? detail.active : row.active,
+        birth_date: detail?.birth_date ?? null,
+        physical_group: detail?.physical_group ?? null,
+        inspsau_valid_until: detail?.inspsau_valid_until ?? null,
+        inspsau_last_inspection: detail?.inspsau_last_inspection ?? null,
+        created_at: detail?.created_at ?? null,
+        lastTestDate: row.lastTestDate,
+        lastScore: row.lastScore,
+        status: row.status,
+        testHistory: detail?.testHistory ?? [],
+      }));
       rows.length > 0 ? Math.round((apto / rows.length) * 100) : 0;
 
     return { apto, vencido, inapto, testsThisMonth, aptoPercent };

@@ -6,8 +6,9 @@
 
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
+import { fetchCoordinators, type Coordinator } from "@/hooks/usePersonnel";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
-import supabase from "@/services/supabase";
+import { createSessions } from "@/services/bookings";
 import { PT_MONTHS } from "@/utils/ptMonths";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -107,9 +108,7 @@ export default function ClassCreationForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
-  const [instructors, setInstructors] = useState<
-    { id: string; full_name?: string | null; war_name?: string | null }[]
-  >([]);
+  const [instructors, setInstructors] = useState<Coordinator[]>([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
   const {
     locations,
@@ -125,22 +124,8 @@ export default function ClassCreationForm() {
     async function loadInstructors() {
       setLoadingInstructors(true);
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, full_name, war_name, rank")
-          .eq("role", "coordinator")
-          .eq("active", true)
-          .order("full_name", { ascending: true });
-
-        if (error) throw error;
-        setInstructors(
-          (data ?? []) as {
-            id: string;
-            full_name?: string | null;
-            war_name?: string | null;
-            rank?: string | null;
-          }[],
-        );
+        const data = await fetchCoordinators();
+        setInstructors(data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -211,16 +196,7 @@ export default function ClassCreationForm() {
         ...(form.instructor_id ? { applicators: [form.instructor_id] } : {}),
       }));
 
-      const { error } = await supabase.from("sessions").insert(rows);
-
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("Já existe turma no mesmo dia e turno.");
-        } else {
-          toast.error(error.message || "Não foi possível criar a turma.");
-        }
-        return;
-      }
+      await createSessions(rows);
 
       const count = datesToCreate.length;
       toast.success(
@@ -229,9 +205,14 @@ export default function ClassCreationForm() {
           : `${count} turmas publicadas com sucesso.`,
       );
       navigate("/app/agendamentos");
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro inesperado ao publicar turma.");
+    } catch (error: unknown) {
+      const pg = error as { code?: string; message?: string };
+      if (pg.code === "23505") {
+        toast.error("Já existe turma no mesmo dia e turno.");
+      } else {
+        console.error(error);
+        toast.error(pg.message || "Erro inesperado ao publicar turma.");
+      }
     } finally {
       setSaving(false);
     }

@@ -8,6 +8,7 @@ import FullPageLoading from "@/components/FullPageLoading";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
+import { fetchFullAuditLog } from "@/hooks/useSystemSettings";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -23,7 +24,6 @@ import {
   Trash2,
   X,
 } from "@/icons";
-import supabase from "@/services/supabase";
 import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -112,20 +112,16 @@ export default function AuditLog() {
     let mounted = true;
     async function load() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (error) {
+      try {
+        const data = await fetchFullAuditLog(500);
+        if (mounted) setRecords(data);
+      } catch (error) {
         console.error(error);
         toast.error("Erro ao carregar logs de auditoria");
         if (mounted) setRecords([]);
-      } else {
-        if (mounted) setRecords((data as AuditLogRow[]) ?? []);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (mounted) setLoading(false);
     }
     load();
     return () => {

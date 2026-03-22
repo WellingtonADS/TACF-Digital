@@ -19,13 +19,12 @@ import {
   Info,
   MoreHorizontal,
 } from "@/icons";
-import supabase from "@/services/supabase";
 import type { Profile as DBProfile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export const OperationalDashboard = () => {
@@ -36,10 +35,13 @@ export const OperationalDashboard = () => {
     bookingsCount,
     resultsCount,
     nextSession,
+    nextSessionBookingId,
+    hasPendingSwap,
     latestOrderNumber: _latestOrderNumber,
     notifications: derivedNotifications,
     inspsauStatus: _inspsauStatus,
     loading: dashboardLoading,
+    refresh,
   } = useDashboard();
 
   const typedProfile = profile as DBProfile | null;
@@ -51,40 +53,6 @@ export const OperationalDashboard = () => {
     "Usuário";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
-  const [pendingSwap, setPendingSwap] = useState(false);
-
-  // check booking and pending swap when nextSession changes
-  useEffect(() => {
-    async function checkPending() {
-      setPendingSwap(false);
-      setDrawerBookingId(null);
-      if (!nextSession || !user?.id) return;
-      try {
-        // find booking id for this session
-        const { data: bookingData } = await supabase
-          .from("bookings")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("session_id", nextSession.id)
-          .eq("status", "agendado")
-          .maybeSingle();
-        const bid = bookingData?.id;
-        if (bid) {
-          setDrawerBookingId(bid);
-          const { data: swapData } = await supabase
-            .from("swap_requests")
-            .select("id")
-            .eq("booking_id", bid)
-            .eq("status", "solicitado");
-          setPendingSwap(Array.isArray(swapData) && swapData.length > 0);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    checkPending();
-  }, [nextSession, user]);
 
   const navigate = useNavigate();
 
@@ -213,10 +181,10 @@ export const OperationalDashboard = () => {
       {/* Drawer for rescheduling */}
       <RescheduleDrawer
         open={drawerOpen}
-        bookingId={drawerBookingId ?? ""}
+        bookingId={nextSessionBookingId ?? ""}
         currentDate={nextSession?.date ?? ""}
         onClose={() => setDrawerOpen(false)}
-        onSuccess={() => setPendingSwap(true)}
+        onSuccess={() => void refresh()}
       />
 
       {/* Bottom Section: Status & Notifications */}
@@ -296,7 +264,7 @@ export const OperationalDashboard = () => {
                         Ver agendamento
                       </a>
 
-                      {drawerBookingId && (
+                      {nextSessionBookingId && (
                         <button
                           onClick={() => setDrawerOpen(true)}
                           className="inline-flex items-center px-4 py-2 border border-primary text-primary rounded-lg font-semibold bg-white/5 hover:bg-white/10 transition-colors"
@@ -305,7 +273,7 @@ export const OperationalDashboard = () => {
                         </button>
                       )}
 
-                      {pendingSwap && (
+                      {hasPendingSwap && (
                         <span className="inline-flex items-center text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold">
                           Reagendamento Pendente
                         </span>

@@ -9,6 +9,11 @@ import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import {
+  fetchAuditLogs,
+  fetchSystemSettings,
+  saveSystemSettings,
+} from "@/hooks/useSystemSettings";
+import {
   BarChart2,
   Clock3,
   Download,
@@ -19,7 +24,6 @@ import {
   UserCircle2,
   type LucideIcon,
 } from "@/icons";
-import supabase from "@/services/supabase";
 import type {
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
@@ -67,19 +71,12 @@ export default function SystemSettings() {
       setSettingsLoading(true);
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("system_settings")
-          .select("*")
-          .limit(1)
-          .single();
-
-        if (error) {
-          console.error(error);
-          toast.error("Falha ao carregar configurações");
-        } else {
-          setSettings(data);
-          setFormState(data ?? {});
-        }
+        const data = await fetchSystemSettings();
+        setSettings(data);
+        setFormState(data ?? {});
+      } catch (err) {
+        console.error(err);
+        toast.error("Falha ao carregar configurações");
       } finally {
         setLoading(false);
         setSettingsLoading(false);
@@ -92,14 +89,15 @@ export default function SystemSettings() {
     if (activeTab === "audit" && canView) {
       const loadLogs = async () => {
         setAuditLoading(true);
-        const { data, error } = await supabase.rpc("get_audit_logs");
-        if (error) {
-          console.error(error);
+        try {
+          const data = await fetchAuditLogs();
+          setAuditLogs(data);
+        } catch (err) {
+          console.error(err);
           toast.error("Erro ao carregar logs de auditoria");
-        } else {
-          setAuditLogs((data as AuditLogRow[] | null) ?? []);
+        } finally {
+          setAuditLoading(false);
         }
-        setAuditLoading(false);
       };
 
       loadLogs();
@@ -109,25 +107,17 @@ export default function SystemSettings() {
   async function saveGeneral() {
     if (!settings) return;
     setLoading(true);
-    const { error } = await supabase
-      .from("system_settings")
-      .update(formState)
-      .eq("id", settings.id);
-    if (error) {
-      console.error(error);
-      toast.error("Falha ao salvar configurações");
-    } else {
+    try {
+      const updated = await saveSystemSettings(settings.id, formState);
       toast.success("Configurações salvas");
-      // reload
-      const { data } = await supabase
-        .from("system_settings")
-        .select("*")
-        .limit(1)
-        .single();
-      setSettings(data);
-      setFormState(data ?? {});
+      setSettings(updated);
+      setFormState(updated ?? {});
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao salvar configurações");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function renderContent() {

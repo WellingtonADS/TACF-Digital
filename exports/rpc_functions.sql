@@ -1302,54 +1302,89 @@ CREATE OR REPLACE FUNCTION public.get_user_dashboard_summary()
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
 AS $function$
 DECLARE
+  v_user_id uuid := auth.uid();
   v_bookings_count integer := 0;
   v_results_count integer := 0;
-  v_next RECORD;
   v_latest_order text := NULL;
-  v_result jsonb;
+  v_next RECORD;
 BEGIN
-  -- Count confirmed bookings for the current user
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'bookings_count', 0,
+      'results_count', 0,
+      'next_session', NULL,
+      'latest_order_number', NULL,
+      'next_session_booking_id', NULL,
+      'has_pending_swap', false
+    );
+  END IF;
+
   SELECT COUNT(*) INTO v_bookings_count
   FROM public.bookings b
-  WHERE b.user_id = auth.uid()::uuid
-    AND b.status = 'confirmed';
+  WHERE b.user_id = v_user_id
+    AND b.status::text IN ('agendado', 'remarcado');
 
-  -- Count bookings that have a score (results)
   SELECT COUNT(*) INTO v_results_count
   FROM public.bookings b
-  WHERE b.user_id = auth.uid()::uuid
+  WHERE b.user_id = v_user_id
     AND b.score IS NOT NULL;
 
-  -- Next session (by date) for confirmed bookings from today onwards
-  SELECT s.id AS session_id, s.date, s.period, s.max_capacity
+  SELECT
+    b.id AS booking_id,
+    s.id AS session_id,
+    s.date,
+    s.period,
+    s.max_capacity,
+    EXISTS (
+      SELECT 1
+      FROM public.swap_requests sr
+      WHERE sr.booking_id = b.id
+        AND sr.status::text = 'solicitado'
+    ) AS has_pending_swap
   INTO v_next
   FROM public.bookings b
   JOIN public.sessions s ON s.id = b.session_id
-  WHERE b.user_id = auth.uid()::uuid
-    AND b.status = 'confirmed'
+  WHERE b.user_id = v_user_id
+    AND b.status::text IN ('agendado', 'remarcado')
     AND s.date >= current_date
-  ORDER BY s.date ASC
+  ORDER BY
+    s.date ASC,
+    CASE s.period::text
+      WHEN 'manha' THEN 0
+      WHEN 'tarde' THEN 1
+      ELSE 2
+    END,
+    b.created_at ASC
   LIMIT 1;
 
-  -- Latest order number, if any (use most recent confirmed booking that has an order_number)
   SELECT b.order_number INTO v_latest_order
   FROM public.bookings b
-  WHERE b.user_id = auth.uid()::uuid
-    AND b.status = 'confirmed'
+  WHERE b.user_id = v_user_id
+    AND b.status::text IN ('agendado', 'remarcado')
     AND b.order_number IS NOT NULL
   ORDER BY b.created_at DESC
   LIMIT 1;
 
-  v_result := jsonb_build_object(
+  RETURN jsonb_build_object(
     'bookings_count', COALESCE(v_bookings_count, 0),
     'results_count', COALESCE(v_results_count, 0),
-    'next_session', CASE WHEN v_next IS NULL THEN NULL ELSE jsonb_build_object('session_id', v_next.session_id, 'date', v_next.date, 'period', v_next.period, 'max_capacity', v_next.max_capacity) END,
-    'latest_order_number', v_latest_order
+    'next_session',
+      CASE
+        WHEN v_next IS NULL THEN NULL
+        ELSE jsonb_build_object(
+          'session_id', v_next.session_id,
+          'date', v_next.date,
+          'period', v_next.period,
+          'max_capacity', v_next.max_capacity
+        )
+      END,
+    'latest_order_number', v_latest_order,
+    'next_session_booking_id', CASE WHEN v_next IS NULL THEN NULL ELSE v_next.booking_id END,
+    'has_pending_swap', COALESCE(v_next.has_pending_swap, false)
   );
-
-  RETURN v_result;
 END;
 $function$
 

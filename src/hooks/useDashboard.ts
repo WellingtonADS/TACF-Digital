@@ -36,6 +36,8 @@ type DashboardPayload = {
   results_count?: number | null;
   next_session?: NextSessionRpc | null;
   latest_order_number?: string | null;
+  next_session_booking_id?: string | null;
+  has_pending_swap?: boolean | null;
 };
 
 export default function useDashboard() {
@@ -44,12 +46,19 @@ export default function useDashboard() {
   const [bookingsCount, setBookingsCount] = useState<number>(0);
   const [resultsCount, setResultsCount] = useState<number>(0);
   const [nextSession, setNextSession] = useState<SessionInfo | null>(null);
+  const [nextSessionBookingId, setNextSessionBookingId] = useState<
+    string | null
+  >(null);
+  const [hasPendingSwap, setHasPendingSwap] = useState(false);
   const [latestOrderNumber, setLatestOrderNumber] = useState<string | null>(
     null,
   );
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       if (!user && !profile) return;
       setLoading(true);
@@ -87,6 +96,8 @@ export default function useDashboard() {
             setBookingsCount(0);
             setResultsCount(0);
             setNextSession(null);
+            setNextSessionBookingId(null);
+            setHasPendingSwap(false);
             setLatestOrderNumber(null);
             // derive minimal notifications from profile only
             const notes: NotificationItem[] = [];
@@ -115,23 +126,29 @@ export default function useDashboard() {
                   level: "info",
                 });
             }
+            if (cancelled) return;
             setNotifications(notes);
-            setLoading(false);
             return;
           } else {
             const payload = payloadCandidate as DashboardPayload;
-            setBookingsCount(Number(payload?.bookings_count ?? 0));
-            setResultsCount(Number(payload?.results_count ?? 0));
+            let resolvedNextSession: SessionInfo | null = null;
+
             if (payload?.next_session) {
-              setNextSession({
+              resolvedNextSession = {
                 id: payload.next_session.session_id,
                 date: payload.next_session.date,
                 period: payload.next_session.period,
                 max_capacity: payload.next_session.max_capacity ?? null,
-              });
-            } else {
-              setNextSession(null);
+              };
             }
+
+            if (cancelled) return;
+
+            setBookingsCount(Number(payload?.bookings_count ?? 0));
+            setResultsCount(Number(payload?.results_count ?? 0));
+            setNextSession(resolvedNextSession);
+            setNextSessionBookingId(payload?.next_session_booking_id ?? null);
+            setHasPendingSwap(Boolean(payload?.has_pending_swap));
 
             setLatestOrderNumber(payload?.latest_order_number ?? null);
 
@@ -182,20 +199,24 @@ export default function useDashboard() {
               });
 
             setNotifications(notes);
-            setLoading(false);
             return;
           }
         }
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     load();
     // refresh when auth/profile changes
-  }, [user, profile]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile, refreshTick]);
 
   return {
     user,
@@ -204,6 +225,8 @@ export default function useDashboard() {
     bookingsCount,
     resultsCount,
     nextSession,
+    nextSessionBookingId,
+    hasPendingSwap,
     latestOrderNumber,
     notifications,
     // Derived status for INSPSAU to avoid duplicating presentation logic in components
@@ -227,6 +250,8 @@ export default function useDashboard() {
       return defaultStatus;
     })(),
 
-    refresh: async () => {},
+    refresh: async () => {
+      setRefreshTick((current) => current + 1);
+    },
   } as const;
 }

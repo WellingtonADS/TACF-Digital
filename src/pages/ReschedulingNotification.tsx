@@ -4,36 +4,27 @@
  * @path src/pages/ReschedulingNotification.tsx
  */
 
-
-
 import PageSkeleton from "@/components/PageSkeleton";
 import Layout from "@/components/layout/Layout";
 import { ArrowRight } from "@/icons";
-import supabase from "@/services/supabase";
-import type { BookingRow as DBBookingRow } from "@/types";
+import {
+  fetchPendingSwapBookings,
+  type PendingSwapBooking,
+} from "@/services/bookings";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type BookingRow = DBBookingRow;
-
 export default function ReschedulingNotification() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<BookingRow[]>([]);
+  const [items, setItems] = useState<PendingSwapBooking[]>([]);
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("bookings")
-          .select(
-            "id,user_id,session_id,test_date,swap_reason,status,created_at",
-          )
-          .not("swap_reason", "is", null)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        if (mounted) setItems((data ?? []) as unknown as BookingRow[]);
+        const data = await fetchPendingSwapBookings();
+        if (mounted) setItems(data);
       } catch (err) {
         console.error(err);
         toast.error("Erro ao carregar notificações");
@@ -49,23 +40,11 @@ export default function ReschedulingNotification() {
     };
   }, []);
 
-  async function markAsRead(id: string) {
-    try {
-      // naive update: mark status as 'read' or 'notified' according to project convention
-      // supabase typing is strict; cast to any as in other pages
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payload: any = { status: "notified" };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from("bookings") as any)
-        .update(payload)
-        .eq("id", id);
-      if (error) throw error;
-      toast.success("Notificação marcada como lida");
-      setItems((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error(err);
-      toast.error("Falha ao atualizar notificação");
-    }
+  function markAsRead(id: string) {
+    // Descarta a notificação da UI — a gestão do status do reagendamento
+    // é feita pela página /app/reagendamentos via useReschedulingManagement.
+    setItems((prev) => prev.filter((p) => p.id !== id));
+    toast.success("Notificação descartada");
   }
 
   if (loading) return <PageSkeleton />;
