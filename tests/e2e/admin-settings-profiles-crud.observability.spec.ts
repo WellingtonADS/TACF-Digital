@@ -61,7 +61,7 @@ test.describe("Observabilidade: Configurações e Perfis de Acesso", () => {
       timeout: 15000,
     });
     await expect(
-      page.getByText(/Perfis do Sistema|perfis de acesso/i),
+      page.getByRole("heading", { name: /Perfis do Sistema/i }),
     ).toBeVisible({ timeout: 10000 });
   });
 });

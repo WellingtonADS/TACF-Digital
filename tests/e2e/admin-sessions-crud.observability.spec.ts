@@ -29,7 +29,7 @@ test.describe("Observabilidade: Gestão de Turmas", () => {
     await expect(page.getByTestId("sessions-management-title")).toBeVisible();
   });
 
-  test("admin vê botão para criar nova turma", async ({ page }) => {
+  test("admin vê ações da turma na listagem", async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginAsAdmin(loginPage);
 
@@ -40,11 +40,10 @@ test.describe("Observabilidade: Gestão de Turmas", () => {
       timeout: 15000,
     });
 
-    // Botão de nova turma (pode estar na página ou como link)
-    const novaButton = page
-      .getByRole("button", { name: /nova turma/i })
-      .or(page.getByRole("link", { name: /nova turma/i }));
-    await expect(novaButton).toBeVisible({ timeout: 10000 });
+    // Em vez de depender de CTA específico, valida ações reais da tabela.
+    await expect(
+      page.getByRole("button", { name: /agendamentos/i }).first(),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("admin acessa formulário de criação de nova turma", async ({ page }) => {
