@@ -26,13 +26,13 @@ test.describe("Observabilidade CRUD: Fluxos de Usuário", () => {
       timeout: 15000,
     });
 
-    // Pelo menos uma ação rápida deve estar visível
-    await expect(
-      page
-        .getByRole("button")
-        .filter({ hasText: /agendar|ticket|resultado/i })
-        .first(),
-    ).toBeVisible({ timeout: 10000 });
+    // Valida a presença dos cards/ações principais sem assumir semântica de botão.
+    await expect(page.getByText(/Marcar TACF/i)).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText(/Histórico/i).first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("usuário vê calendário de agendamentos com navegação de meses", async ({
@@ -84,7 +84,7 @@ test.describe("Observabilidade CRUD: Fluxos de Usuário", () => {
     await expect(
       page.getByRole("heading", { name: "Documentos e Normas" }),
     ).toBeVisible();
-    await expect(page.getByText("Normativos")).toBeVisible();
+    await expect(page.getByText(/^Normativos$/i)).toBeVisible();
   });
 
   test("usuário não consegue acessar rota administrativa", async ({ page }) => {
