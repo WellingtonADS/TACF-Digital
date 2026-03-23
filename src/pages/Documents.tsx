@@ -4,8 +4,6 @@
  * @path src/pages/Documents.tsx
  */
 
-
-
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import Layout from "@/components/layout/Layout";
 import {
@@ -57,7 +55,7 @@ const manuals: DocItem[] = [
 export default function Documents() {
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-5xl" data-testid="documents-page">
         <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
           <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
             Documentos e Normas

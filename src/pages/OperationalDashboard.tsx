@@ -109,7 +109,7 @@ export const OperationalDashboard = () => {
   ) : (
     <Layout>
       {/* Greeting Card */}
-      <section className="mb-8">
+      <section className="mb-8" data-testid="operational-dashboard">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10">

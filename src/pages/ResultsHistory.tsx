@@ -99,7 +99,10 @@ export default function ResultsHistory() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+      <div
+        className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0"
+        data-testid="results-history-page"
+      >
         <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
           <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
             Histórico de Avaliações

@@ -187,7 +187,10 @@ export default function AuditLog() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
+      <div
+        className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6"
+        data-testid="audit-log-page"
+      >
         {/* hero */}
         <section>
           <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">

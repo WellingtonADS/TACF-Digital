@@ -301,52 +301,54 @@ export default function OmLocationManager() {
 
   return (
     <Layout>
-      <PageHero loading={loading} total={total} onNavigate={navigate} />
+      <div data-testid="om-location-manager-page">
+        <PageHero loading={loading} total={total} onNavigate={navigate} />
 
-      <Toolbar
-        search={search}
-        setSearch={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        statusFilter={statusFilter}
-        setStatusFilter={(s) => {
-          setStatusFilter(s);
-          setPage(1);
-        }}
-      />
+        <Toolbar
+          search={search}
+          setSearch={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          statusFilter={statusFilter}
+          setStatusFilter={(s) => {
+            setStatusFilter(s);
+            setPage(1);
+          }}
+        />
 
-      {locations.length === 0 ? (
-        <EmptyState search={search} onNavigate={navigate} />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {locations.map((loc) => (
-            <LocationCard key={loc.id} loc={loc} onNavigate={navigate} />
-          ))}
+        {locations.length === 0 ? (
+          <EmptyState search={search} onNavigate={navigate} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {locations.map((loc) => (
+              <LocationCard key={loc.id} loc={loc} onNavigate={navigate} />
+            ))}
 
-          <button
-            type="button"
-            onClick={() => navigate("/app/om/new")}
-            className="group bg-bg-card rounded-2xl border-2 border-dashed border-border-default hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-2 py-10 transition-all"
-          >
-            <div className="w-10 h-10 rounded-xl bg-bg-default group-hover:bg-primary/10 flex items-center justify-center text-text-muted group-hover:text-primary transition-colors">
-              <Plus size={20} />
-            </div>
-            <span className="text-xs font-semibold text-text-muted group-hover:text-primary transition-colors">
-              Cadastrar nova OM
-            </span>
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={() => navigate("/app/om/new")}
+              className="group bg-bg-card rounded-2xl border-2 border-dashed border-border-default hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-2 py-10 transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-bg-default group-hover:bg-primary/10 flex items-center justify-center text-text-muted group-hover:text-primary transition-colors">
+                <Plus size={20} />
+              </div>
+              <span className="text-xs font-semibold text-text-muted group-hover:text-primary transition-colors">
+                Cadastrar nova OM
+              </span>
+            </button>
+          </div>
+        )}
 
-      <PaginationControls
-        loading={loading}
-        total={total}
-        displayedCount={locations.length}
-        page={page}
-        setPage={setPage}
-        pageSize={pageSize}
-      />
+        <PaginationControls
+          loading={loading}
+          total={total}
+          displayedCount={locations.length}
+          page={page}
+          setPage={setPage}
+          pageSize={pageSize}
+        />
+      </div>
     </Layout>
   );
 }

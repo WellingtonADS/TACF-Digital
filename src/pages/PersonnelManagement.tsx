@@ -307,7 +307,10 @@ export default function PersonnelManagement() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-0">
+      <div
+        className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-0"
+        data-testid="personnel-management-page"
+      >
         <section className="mb-8">
           <div className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8 lg:p-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />

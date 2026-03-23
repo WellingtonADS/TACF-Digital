@@ -195,7 +195,10 @@ export default function AccessProfilesManagement() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0">
+      <div
+        className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0"
+        data-testid="access-profiles-page"
+      >
         <PageHero
           selectedRole={selectedRoleMeta.label}
           totalProfiles={selectedRoleProfiles.length}
