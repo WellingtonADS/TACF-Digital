@@ -23,26 +23,26 @@ DROP POLICY IF EXISTS profiles_select_owner_or_admin ON public.profiles;
 CREATE POLICY profiles_select_owner_or_admin
   ON public.profiles
   FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
--- Allow users to INSERT a profile only for their own auth.uid()
+-- Allow users to INSERT a profile only for their own (select auth.uid())
 DROP POLICY IF EXISTS profiles_insert_owner ON public.profiles;
 CREATE POLICY profiles_insert_owner
   ON public.profiles
   FOR INSERT
-  WITH CHECK (auth.uid() = id);
+  WITH CHECK ((select auth.uid()) = id);
 
 -- Admins can UPDATE profiles; users cannot update role/other users
 DROP POLICY IF EXISTS profiles_update_admin_only ON public.profiles;
 CREATE POLICY profiles_update_admin_only
   ON public.profiles
   FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'));
 
 -- ============================================================================
 -- bookings: Users can see their bookings; admin sees all
--- Users can INSERT only for themselves (auth.uid() = user_id)
+-- Users can INSERT only for themselves ((select auth.uid()) = user_id)
 -- Deletions/updates reserved for admin, or via RPC workflows
 -- ============================================================================
 DROP POLICY IF EXISTS bookings_select_owner_or_admin ON public.bookings;
@@ -51,8 +51,8 @@ CREATE POLICY bookings_select_owner_or_admin
   ON public.bookings
   FOR SELECT
   USING (
-    auth.uid() = user_id OR (
-      EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','coordinator'))
+    (select auth.uid()) = user_id OR (
+      EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role IN ('admin','coordinator'))
     )
   );
 
@@ -60,20 +60,20 @@ DROP POLICY IF EXISTS bookings_insert_owner ON public.bookings;
 CREATE POLICY bookings_insert_owner
   ON public.bookings
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS bookings_update_admin_only ON public.bookings;
 CREATE POLICY bookings_update_admin_only
   ON public.bookings
   FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'));
 
 DROP POLICY IF EXISTS bookings_delete_admin_only ON public.bookings;
 CREATE POLICY bookings_delete_admin_only
   ON public.bookings
   FOR DELETE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'));
 
 -- ============================================================================
 -- sessions: Anyone can SELECT sessions (they are schedule metadata); admin can INSERT/UPDATE/DELETE
@@ -91,7 +91,7 @@ CREATE POLICY sessions_insert_admin_only
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -102,13 +102,13 @@ CREATE POLICY sessions_update_admin_only
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -119,7 +119,7 @@ CREATE POLICY sessions_delete_admin_only
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -130,22 +130,22 @@ DROP POLICY IF EXISTS swap_requests_insert_owner ON public.swap_requests;
 CREATE POLICY swap_requests_insert_owner
   ON public.swap_requests
   FOR INSERT
-  WITH CHECK (auth.uid() = requested_by);
+  WITH CHECK ((select auth.uid()) = requested_by);
 
 DROP POLICY IF EXISTS swap_requests_select_owner_or_admin ON public.swap_requests;
 CREATE POLICY swap_requests_select_owner_or_admin
   ON public.swap_requests
   FOR SELECT
-  USING (auth.uid() = requested_by OR (
-    EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','coordinator'))
+  USING ((select auth.uid()) = requested_by OR (
+    EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role IN ('admin','coordinator'))
   ));
 
 DROP POLICY IF EXISTS swap_requests_update_admin_only ON public.swap_requests;
 CREATE POLICY swap_requests_update_admin_only
   ON public.swap_requests
   FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (select auth.uid()) AND p.role = 'admin'));
 
 -- =========================================================================
 -- system_settings: admin-only access
@@ -157,13 +157,13 @@ CREATE POLICY system_settings_admin_only
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -182,7 +182,7 @@ CREATE POLICY audit_logs_admin_read
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -202,7 +202,7 @@ CREATE POLICY locations_insert_admin_only
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -213,13 +213,13 @@ CREATE POLICY locations_update_admin_only
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
@@ -230,10 +230,35 @@ CREATE POLICY locations_delete_admin_only
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
     )
   );
 
 -- Note:
--- After deploying functions (RPC) that run with SECURITY DEFINER, ensure the function owner is a trusted role
--- and that policies still enforce the desired restrictions.
+
+-- =========================================================================
+-- location_schedules: public select, admin-only mutations
+-- =========================================================================
+DROP POLICY IF EXISTS location_schedules_select_all ON public.location_schedules;
+CREATE POLICY location_schedules_select_all
+  ON public.location_schedules
+  FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS location_schedules_admin_write ON public.location_schedules;
+CREATE POLICY location_schedules_admin_write
+  ON public.location_schedules
+  FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = (select auth.uid()) AND p.role = 'admin'::user_role AND COALESCE(p.active, true) = true
+    )
+  );

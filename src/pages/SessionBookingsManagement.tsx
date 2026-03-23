@@ -60,12 +60,9 @@ const STATUS_LABELS: Record<BookingRow["status"], string> = {
 };
 
 const STATUS_CLASSES: Record<BookingRow["status"], string> = {
-  agendado:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  remarcado:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  cancelado:
-    "bg-bg-default text-text-muted dark:bg-bg-default dark:text-text-muted",
+  agendado: "border-success/40 bg-success/10 text-success",
+  remarcado: "border-alert/40 bg-alert/10 text-alert",
+  cancelado: "bg-bg-default text-text-muted",
 };
 
 type StatusFilterOption = "all" | BookingRow["status"];
@@ -239,70 +236,74 @@ export default function SessionBookingsManagement() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background dark:bg-bg-default px-4 py-6 max-w-7xl mx-auto">
-        {/* Breadcrumb / back */}
-        <button
-          onClick={() => navigate("/app/turmas")}
-          className="flex items-center gap-2 text-sm text-text-muted hover:text-primary mb-4 transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Voltar para Turmas
-        </button>
-
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-text-body dark:text-text-inverted flex items-center gap-2">
-              <CalendarClock size={20} className="text-primary" />
-              Agendamentos da Turma
-            </h1>
-            {session && (
-              <p className="text-sm text-text-muted mt-0.5">
-                {dateLabel} &bull; {periodLabel}
-                {session.max_capacity != null && (
-                  <> &bull; Capacidade: {session.max_capacity}</>
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4">
+        {/* Hero */}
+        <section className="mb-6">
+          <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                  Agendamentos da Turma
+                </h1>
+                {session ? (
+                  <p className="mt-2 text-sm text-white/85 md:text-base">
+                    {dateLabel} &bull; {periodLabel}
+                    {session.max_capacity != null && (
+                      <> &bull; Capacidade: {session.max_capacity}</>
+                    )}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-white/85 md:text-base">
+                    Carregando turma...
+                  </p>
                 )}
-              </p>
-            )}
-            {session && (
-              <p className="text-xs font-mono text-text-muted mt-0.5">
-                ID: {session.id}
-              </p>
-            )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/app/turmas")}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-white/20"
+                >
+                  <ArrowLeft size={15} />
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  aria-label="Gerar Lista de Presença"
+                  onClick={handleGenerateAttendancePdf}
+                  disabled={loading || generatingPdf || bookings.length === 0}
+                  className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-bg-card hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {generatingPdf ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown size={14} />
+                      Gerar Lista de Presença
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            aria-label="Gerar Lista de Presença"
-            onClick={handleGenerateAttendancePdf}
-            disabled={loading || generatingPdf || bookings.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {generatingPdf ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                <FileDown size={14} />
-                Gerar Lista de Presença
-              </>
-            )}
-          </button>
-        </div>
+        </section>
 
         {/* Filters row */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           {/* Status tabs */}
-          <div className="flex w-full gap-1 bg-bg-default dark:bg-bg-default rounded-lg p-1 overflow-x-auto">
+          <div className="flex w-full gap-1 bg-bg-default rounded-lg p-1 overflow-x-auto">
             {filterTabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setStatusFilter(tab.key)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
                   statusFilter === tab.key
-                    ? "bg-bg-card dark:bg-bg-default text-primary shadow-sm"
-                    : "text-text-muted hover:text-text-body dark:hover:text-text-body"
+                    ? "bg-bg-card text-primary shadow-sm"
+                    : "text-text-muted hover:text-text-body"
                 }`}
               >
                 {tab.label}
@@ -321,13 +322,13 @@ export default function SessionBookingsManagement() {
               placeholder="Buscar nome, guerra ou SARAM..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-border-default dark:border-border-default bg-bg-card dark:bg-bg-card text-text-body dark:text-text-inverted placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-border-default bg-bg-card text-text-body placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-bg-card dark:bg-bg-card rounded-xl border border-border-default dark:border-border-default overflow-hidden">
+        <div className="bg-bg-card rounded-xl border border-border-default overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center gap-2 text-text-muted py-16">
               <Loader2 size={18} className="animate-spin" />
@@ -346,11 +347,11 @@ export default function SessionBookingsManagement() {
                   return (
                     <article
                       key={b.id}
-                      className="rounded-xl border border-border-default bg-bg-card p-3 dark:border-border-default dark:bg-bg-card"
+                      className="rounded-xl border border-border-default bg-bg-card p-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-text-body dark:text-text-inverted">
+                          <p className="truncate text-sm font-semibold text-text-body">
                             {b.rank ? `${b.rank} ` : ""}
                             {b.full_name ?? "s/n"}
                           </p>
@@ -373,7 +374,7 @@ export default function SessionBookingsManagement() {
                           {STATUS_LABELS[b.status] ?? b.status}
                         </span>
                         {b.attendance_confirmed ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
                             <CheckCircle2 size={14} />
                             Presença confirmada
                           </span>
@@ -397,7 +398,7 @@ export default function SessionBookingsManagement() {
                                 onClick={() =>
                                   handleStatusChange(b.id, "agendado")
                                 }
-                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-success/10 hover:text-success"
                                 title="Confirmar agendamento"
                               >
                                 <CheckCircle2 size={15} />
@@ -408,7 +409,7 @@ export default function SessionBookingsManagement() {
                                 onClick={() =>
                                   handleStatusChange(b.id, "cancelado")
                                 }
-                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-error/10 hover:text-error"
                                 title="Cancelar agendamento"
                               >
                                 <XCircle size={15} />
@@ -423,8 +424,8 @@ export default function SessionBookingsManagement() {
                               }
                               className={`rounded-lg p-1.5 transition-colors ${
                                 b.attendance_confirmed
-                                  ? "text-emerald-500 hover:bg-bg-default hover:text-text-muted dark:hover:bg-bg-default/80"
-                                  : "text-text-muted hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                                  ? "text-success hover:bg-bg-default hover:text-text-muted"
+                                  : "text-text-muted hover:bg-success/10 hover:text-success"
                               }`}
                               title={
                                 b.attendance_confirmed
@@ -449,7 +450,7 @@ export default function SessionBookingsManagement() {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[920px] text-sm">
                   <thead>
-                    <tr className="border-b border-border-default dark:border-border-default bg-bg-default dark:bg-bg-default/60">
+                    <tr className="border-b border-border-default bg-bg-default">
                       <th className="px-4 py-3 text-left font-semibold text-xs text-text-muted uppercase tracking-wider w-12">
                         Nº
                       </th>
@@ -476,28 +477,28 @@ export default function SessionBookingsManagement() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-default dark:divide-slate-800">
+                  <tbody className="divide-y divide-border-default">
                     {filtered.map((b) => {
                       const isUpdating = updating === b.id;
                       return (
                         <tr
                           key={b.id}
-                          className="hover:bg-bg-default dark:hover:bg-bg-default/70 transition-colors"
+                          className="hover:bg-bg-default transition-colors"
                         >
                           <td className="px-4 py-3 font-mono text-xs text-text-muted">
                             {b.order_number ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-text-muted dark:text-text-muted font-medium text-xs whitespace-nowrap">
+                          <td className="px-4 py-3 text-text-muted font-medium text-xs whitespace-nowrap">
                             {b.rank ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-text-body dark:text-text-inverted font-medium whitespace-nowrap">
+                          <td className="px-4 py-3 text-text-body font-medium whitespace-nowrap">
                             {b.full_name ?? (
                               <span className="text-text-muted italic">
                                 s/n
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-text-muted dark:text-text-muted whitespace-nowrap">
+                          <td className="px-4 py-3 text-text-muted whitespace-nowrap">
                             {b.war_name ?? "—"}
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-text-muted">
@@ -514,7 +515,7 @@ export default function SessionBookingsManagement() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             {b.attendance_confirmed ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                              <span className="inline-flex items-center gap-1 text-success text-xs font-medium">
                                 <CheckCircle2 size={14} />
                                 Sim
                               </span>
@@ -536,7 +537,7 @@ export default function SessionBookingsManagement() {
                                       onClick={() =>
                                         handleStatusChange(b.id, "agendado")
                                       }
-                                      className="p-1.5 rounded-lg text-text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                                      className="p-1.5 rounded-lg text-text-muted hover:text-success hover:bg-success/10 transition-colors"
                                       title="Confirmar agendamento"
                                     >
                                       <CheckCircle2 size={15} />
@@ -547,7 +548,7 @@ export default function SessionBookingsManagement() {
                                       onClick={() =>
                                         handleStatusChange(b.id, "cancelado")
                                       }
-                                      className="p-1.5 rounded-lg text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                      className="p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-error/10 transition-colors"
                                       title="Cancelar agendamento"
                                     >
                                       <XCircle size={15} />
@@ -562,8 +563,8 @@ export default function SessionBookingsManagement() {
                                     }
                                     className={`p-1.5 rounded-lg transition-colors ${
                                       b.attendance_confirmed
-                                        ? "text-emerald-500 hover:text-text-muted hover:bg-bg-default dark:hover:bg-bg-default/80"
-                                        : "text-text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                        ? "text-success hover:text-text-muted hover:bg-bg-default"
+                                        : "text-text-muted hover:text-success hover:bg-success/10"
                                     }`}
                                     title={
                                       b.attendance_confirmed

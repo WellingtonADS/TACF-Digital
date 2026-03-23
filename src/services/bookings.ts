@@ -66,6 +66,7 @@ export async function updateBookingStatus(
 interface SwapRequestParams {
   bookingId: string;
   requestedBy: string;
+  newSessionId: string;
   newDate: string; // ISO string
   reasonText: string;
   attachment?: File;
@@ -93,9 +94,10 @@ export async function createSwapRequest(params: SwapRequestParams) {
   type SwapInsertStrict =
     Database["public"]["Tables"]["swap_requests"]["Insert"];
 
-  const payload: Partial<SwapInsertStrict> = {
+  const payload: SwapInsertStrict = {
     booking_id: params.bookingId,
     requested_by: params.requestedBy,
+    new_session_id: params.newSessionId,
     reason: JSON.stringify({
       text: params.reasonText,
       new_date: params.newDate,
@@ -103,14 +105,9 @@ export async function createSwapRequest(params: SwapRequestParams) {
     }),
   };
 
-  // only include new_session_id when available (DB types may differ between generated types and runtime)
-  if (params.newDate) {
-    // here we don't have a session id, so we intentionally omit new_session_id (keeps compatibility)
-  }
-
   const { data, error } = await supabase
     .from("swap_requests")
-    .insert([payload as SwapInsertStrict]);
+    .insert([payload]);
   if (error) throw error;
   return data;
 }

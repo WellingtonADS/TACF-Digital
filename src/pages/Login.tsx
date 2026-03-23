@@ -4,8 +4,6 @@
  * @path src/pages/Login.tsx
  */
 
-
-
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
@@ -225,7 +223,7 @@ export default function Login() {
           </Link>
 
           {autoLoginFailed && (
-            <div className="mt-4 p-3 rounded-xl bg-yellow-50 border border-yellow-100 text-sm flex items-center justify-between">
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-alert/20 bg-alert/10 p-3 text-sm">
               <div className="text-sm">
                 Conta criada, mas falha no login automático.
               </div>

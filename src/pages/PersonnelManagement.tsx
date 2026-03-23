@@ -70,14 +70,14 @@ const STATUS_OPTIONS = ["Todos", "APTO", "INAPTO", "VENCIDO"] as const;
 
 const STATUS_BADGE_CLASS: Record<PersonnelRow["status"], string> = {
   APTO: "bg-success/10 text-success",
-  VENCIDO: "bg-error/10 text-error",
-  INAPTO: "bg-primary/10 text-primary",
+  VENCIDO: "bg-alert/10 text-alert",
+  INAPTO: "bg-error/10 text-error",
 };
 
 const DETAIL_STATUS_BADGE_CLASS: Record<PersonnelRow["status"], string> = {
   APTO: "bg-success/10 text-success",
   INAPTO: "bg-error/10 text-error",
-  VENCIDO: "bg-primary/10 text-primary",
+  VENCIDO: "bg-alert/10 text-alert",
 };
 
 function deriveStatus(

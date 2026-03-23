@@ -34,14 +34,14 @@ export async function fetchAuditLogs(): Promise<AuditLogRow[]> {
   const { data, error } = await supabase.rpc("get_audit_logs");
   if (error) throw error;
   return (data as AuditLogRow[] | null) ?? [];
+}
 
-  export async function fetchFullAuditLog(limit = 500): Promise<AuditLogRow[]> {
-    const { data, error } = await supabase
-      .from("audit_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return (data as AuditLogRow[] | null) ?? [];
-  }
+export async function fetchFullAuditLog(limit = 500): Promise<AuditLogRow[]> {
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as AuditLogRow[] | null) ?? [];
 }

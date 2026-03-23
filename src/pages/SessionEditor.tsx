@@ -142,11 +142,9 @@ const STATUS_OPTIONS: { value: SessionStatus; label: string; desc: string }[] =
   ];
 
 const STATUS_STYLE: Record<SessionStatus, string> = {
-  open: "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300",
-  closed:
-    "border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300",
-  completed:
-    "border-border-default bg-bg-default text-text-muted dark:border-border-default dark:bg-bg-default dark:text-text-muted",
+  open: "border-success/40 bg-success/10 text-success",
+  closed: "border-alert/40 bg-alert/10 text-alert",
+  completed: "border-border-default bg-bg-default text-text-muted",
 };
 
 // ─── Componente ──────────────────────────────────────────────────────────────
@@ -303,33 +301,35 @@ export default function SessionEditor() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-4xl pb-16">
-        {/* Header */}
-        <header className="mb-8 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <CalendarDays className="text-primary" size={24} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-text-body dark:text-text-inverted">
-                Editar Turma
-              </h1>
-              <p className="text-sm text-text-muted dark:text-text-muted">
-                Atualize os dados da turma e salve as alterações.
-              </p>
+      <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 pb-16">
+        {/* Hero */}
+        <section className="mb-8">
+          <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                  Editar Turma
+                </h1>
+                <p className="mt-2 text-sm text-white/85 md:text-base">
+                  Atualize os dados da turma e salve as alterações.
+                </p>
+              </div>
+              {!loading && !loadingLocations && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/app/turmas/${sessionId}/agendamentos`)
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-bg-card hover:text-primary"
+                >
+                  <ClipboardList size={14} />
+                  Ver Agendamentos
+                </button>
+              )}
             </div>
           </div>
-          {!loading && !loadingLocations && (
-            <button
-              type="button"
-              onClick={() => navigate(`/app/turmas/${sessionId}/agendamentos`)}
-              className="flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5"
-            >
-              <ClipboardList size={14} />
-              Ver Agendamentos
-            </button>
-          )}
-        </header>
+        </section>
 
         {loading || loadingLocations ? (
           <div className="flex items-center justify-center gap-2 py-20 text-text-muted">
@@ -337,14 +337,14 @@ export default function SessionEditor() {
             Carregando turma...
           </div>
         ) : (
-          <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-2xl dark:border-border-default dark:bg-bg-card">
+          <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-2xl">
             <form className="flex flex-col" onSubmit={handleSubmit}>
               <div className="space-y-10 p-8 md:p-12">
                 {/* ── Seção 1: Informações Básicas ── */}
                 <section className="space-y-6">
-                  <div className="flex items-center gap-3 border-b border-border-default pb-3 dark:border-border-default">
-                    <AlertCircle className="text-primary/60" size={18} />
-                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body dark:text-text-inverted">
+                  <div className="flex items-center gap-3 border-b border-border-default pb-3">
+                    <CalendarDays className="text-primary/60" size={18} />
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body">
                       Informações Básicas
                     </h2>
                   </div>
@@ -352,7 +352,7 @@ export default function SessionEditor() {
                   <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                     {/* Local */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Local do Teste
                       </label>
                       <select
@@ -361,7 +361,7 @@ export default function SessionEditor() {
                           updateField("location_id", e.target.value)
                         }
                         disabled={loadingLocations}
-                        className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                       >
                         <option value="">
                           {loadingLocations
@@ -379,7 +379,7 @@ export default function SessionEditor() {
 
                     {/* Quem vai aplicar */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Quem vai aplicar
                       </label>
                       <select
@@ -388,7 +388,7 @@ export default function SessionEditor() {
                           updateField("instructor_id", e.target.value)
                         }
                         disabled={loadingInstructors}
-                        className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                       >
                         <option value="">
                           {loadingInstructors
@@ -407,19 +407,19 @@ export default function SessionEditor() {
 
                 {/* ── Seção 2: Data e Horário ── */}
                 <section className="space-y-6">
-                  <div className="flex items-center gap-3 border-b border-border-default pb-3 dark:border-border-default">
+                  <div className="flex items-center gap-3 border-b border-border-default pb-3">
                     <CalendarDays className="text-primary/60" size={18} />
-                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body dark:text-text-inverted">
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body">
                       Data e Horário
                     </h2>
                   </div>
 
                   {/* Seletor de modo */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                       Selecionar por
                     </label>
-                    <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1 dark:border-border-default dark:bg-bg-default">
+                    <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
                       {[
                         { mode: "single" as DateMode, label: "Um dia" },
                         { mode: "week" as DateMode, label: "Semana" },
@@ -434,8 +434,8 @@ export default function SessionEditor() {
                           }}
                           className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
                             form.dateMode === mode
-                              ? "bg-bg-card text-primary shadow-sm dark:bg-bg-card dark:text-primary"
-                              : "text-text-muted hover:text-text-body dark:text-text-muted dark:hover:text-text-inverted"
+                              ? "bg-bg-card text-primary shadow-sm"
+                              : "text-text-muted hover:text-text-body"
                           }`}
                         >
                           {label}
@@ -447,7 +447,7 @@ export default function SessionEditor() {
                   {/* Um dia */}
                   {form.dateMode === "single" && (
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Data da Turma
                       </label>
                       <input
@@ -464,7 +464,7 @@ export default function SessionEditor() {
                             updateField("date", v);
                           }
                         }}
-                        className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       <p className="text-[11px] text-text-muted">
                         Sábados e domingos são bloqueados automaticamente.
@@ -475,7 +475,7 @@ export default function SessionEditor() {
                   {/* Semana */}
                   {form.dateMode === "week" && (
                     <div className="space-y-3">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Selecione a semana
                       </label>
                       <input
@@ -485,7 +485,7 @@ export default function SessionEditor() {
                           updateField("weekValue", e.target.value);
                           updateField("date", "");
                         }}
-                        className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       {form.weekValue && (
                         <div className="space-y-2">
@@ -509,7 +509,7 @@ export default function SessionEditor() {
                             ))}
                           </div>
                           {form.date && (
-                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <p className="text-xs font-semibold text-success">
                               ✓ Nova data selecionada: {fmtDateChip(form.date)}
                             </p>
                           )}
@@ -524,7 +524,7 @@ export default function SessionEditor() {
                       const days = getMonthWeekdays(form.monthValue);
                       return (
                         <div className="space-y-3">
-                          <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                          <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                             Selecione o mês
                           </label>
                           <input
@@ -534,16 +534,16 @@ export default function SessionEditor() {
                               updateField("monthValue", e.target.value);
                               updateField("date", "");
                             }}
-                            className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                            className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
                           {form.monthValue && (
                             <div className="space-y-3">
-                              <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:bg-primary/10">
+                              <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                                 <CalendarDays
                                   size={18}
                                   className="shrink-0 text-primary"
                                 />
-                                <p className="text-sm text-text-body dark:text-text-inverted">
+                                <p className="text-sm text-text-body">
                                   <span className="font-bold text-primary">
                                     {days.length} dias úteis
                                   </span>{" "}
@@ -578,7 +578,7 @@ export default function SessionEditor() {
                                 ))}
                               </div>
                               {form.date && (
-                                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                <p className="text-xs font-semibold text-success">
                                   ✓ Nova data selecionada:{" "}
                                   {fmtDateChip(form.date)}
                                 </p>
@@ -591,7 +591,7 @@ export default function SessionEditor() {
 
                   {/* Horário de Início */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                    <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                       Horário de Início
                     </label>
                     <div className="relative max-w-xs">
@@ -606,7 +606,7 @@ export default function SessionEditor() {
                         onChange={(e) =>
                           updateField("startTime", e.target.value)
                         }
-                        className="w-full rounded-lg border border-border-default bg-bg-default py-3 pl-10 pr-4 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full rounded-lg border border-border-default bg-bg-default py-3 pl-10 pr-4 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                   </div>
@@ -614,9 +614,9 @@ export default function SessionEditor() {
 
                 {/* ── Seção 3: Capacidade e Status ── */}
                 <section className="space-y-6">
-                  <div className="flex items-center gap-3 border-b border-border-default pb-3 dark:border-border-default">
+                  <div className="flex items-center gap-3 border-b border-border-default pb-3">
                     <AlertCircle className="text-primary/60" size={18} />
-                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body dark:text-text-inverted">
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-text-body">
                       Capacidade e Status
                     </h2>
                   </div>
@@ -624,7 +624,7 @@ export default function SessionEditor() {
                   <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2">
                     {/* Vagas */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Limite de Vagas (8 a 21)
                       </label>
                       <input
@@ -639,16 +639,16 @@ export default function SessionEditor() {
                             Number(e.target.value || 0),
                           )
                         }
-                        className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-default dark:bg-bg-default/80 dark:text-text-inverted"
+                        className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       {!isValidCapacity && (
-                        <p className="text-xs text-red-500">
+                        <p className="text-xs text-error">
                           Capacidade fora do intervalo permitido.
                         </p>
                       )}
                       {occupiedCount !== null &&
                         form.maxCapacity < occupiedCount && (
-                          <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                          <div className="flex items-center gap-2 rounded-lg bg-alert/10 px-3 py-2 text-xs text-alert">
                             <AlertTriangle size={14} />
                             Capacidade menor que os inscritos atuais (
                             {occupiedCount}).
@@ -658,7 +658,7 @@ export default function SessionEditor() {
 
                     {/* Status */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted dark:text-text-muted">
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Status da Turma
                       </label>
                       <div className="flex flex-col gap-2">
@@ -670,7 +670,7 @@ export default function SessionEditor() {
                             className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-all ${
                               form.status === opt.value
                                 ? STATUS_STYLE[opt.value]
-                                : "border-border-default bg-bg-default text-text-muted hover:border-border-default dark:border-border-default dark:bg-bg-default/80 dark:text-text-muted"
+                                : "border-border-default bg-bg-default text-text-muted hover:border-border-default"
                             }`}
                           >
                             {opt.value === "open" && (
@@ -702,12 +702,12 @@ export default function SessionEditor() {
               </div>
 
               {/* Rodapé */}
-              <div className="flex flex-col-reverse items-center justify-between gap-4 border-t border-border-default bg-bg-default px-8 py-8 md:flex-row md:px-12 dark:border-border-default dark:bg-bg-default/50">
+              <div className="flex flex-col-reverse items-center justify-between gap-4 border-t border-border-default bg-bg-default px-8 py-8 md:flex-row md:px-12">
                 <button
                   type="button"
                   onClick={() => setShowCancelConfirm(true)}
                   disabled={saving || form.status === "closed"}
-                  className="w-full text-xs font-bold uppercase tracking-widest text-red-500 transition-colors hover:text-red-700 disabled:opacity-40 md:w-auto dark:text-red-400 dark:hover:text-red-300"
+                  className="w-full text-xs font-bold uppercase tracking-widest text-error transition-colors hover:text-error/80 disabled:opacity-40 md:w-auto"
                 >
                   Cancelar Turma
                 </button>
@@ -715,7 +715,7 @@ export default function SessionEditor() {
                   <button
                     type="button"
                     onClick={() => navigate("/app/turmas")}
-                    className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto dark:text-text-muted dark:hover:text-text-inverted"
+                    className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
                   >
                     Voltar
                   </button>
@@ -747,37 +747,34 @@ export default function SessionEditor() {
           onClick={() => setShowCancelConfirm(false)}
         >
           <div
-            className="mx-4 w-full max-w-sm overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-2xl dark:border-border-default dark:bg-bg-card"
+            className="mx-4 w-full max-w-sm overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-8">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-                  <AlertTriangle
-                    size={20}
-                    className="text-red-600 dark:text-red-400"
-                  />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-error/10">
+                  <AlertTriangle size={20} className="text-error" />
                 </div>
-                <h2 className="text-base font-bold text-text-body dark:text-text-inverted">
+                <h2 className="text-base font-bold text-text-body">
                   Cancelar turma?
                 </h2>
               </div>
-              <p className="text-sm text-text-muted dark:text-text-muted">
+              <p className="text-sm text-text-muted">
                 O status será alterado para <strong>Fechada</strong>. Nenhum
                 novo agendamento será aceito. Os agendamentos existentes{" "}
                 <em>não</em> serão removidos automaticamente.
               </p>
             </div>
-            <div className="flex gap-3 border-t border-border-default bg-bg-default px-8 py-6 dark:border-border-default dark:bg-bg-default/50">
+            <div className="flex gap-3 border-t border-border-default bg-bg-default px-8 py-6">
               <button
                 onClick={() => navigate("/app/turmas")}
-                className="flex-1 rounded-lg border border-border-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:bg-bg-default dark:border-border-default dark:text-text-muted dark:hover:bg-bg-default/80"
+                className="flex-1 rounded-lg border border-border-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:bg-bg-default"
               >
                 Voltar
               </button>
               <button
                 onClick={handleCancelSession}
-                className="flex-1 rounded-lg bg-red-600 py-3 text-xs font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-red-700"
+                className="flex-1 rounded-lg bg-error py-3 text-xs font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-error/90"
               >
                 Confirmar
               </button>

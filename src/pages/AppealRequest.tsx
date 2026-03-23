@@ -124,11 +124,11 @@ export default function AppealRequest() {
     return (
       <Layout>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
-          <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+          <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-primary-foreground shadow-2xl shadow-primary/20 md:px-8 md:py-8">
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Solicitação de Recurso
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-primary-foreground/85">
               O pedido foi registrado no fluxo de revisão do resultado.
             </p>
           </header>
@@ -164,11 +164,11 @@ export default function AppealRequest() {
   return (
     <Layout>
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
-        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8">
+        <header className="mb-8 rounded-3xl bg-primary px-5 py-6 text-primary-foreground shadow-2xl shadow-primary/20 md:px-8 md:py-8">
           <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
             Solicitação de Revisão de Resultado
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-primary-foreground/85">
             Registre a contestação formal somente após revisar os dados
             consolidados da avaliação.
           </p>

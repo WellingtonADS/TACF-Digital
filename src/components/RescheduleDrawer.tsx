@@ -4,10 +4,10 @@
  * @path src/components/RescheduleDrawer.tsx
  */
 
-
-
+import type { SessionAvailability } from "@/hooks/useSessions";
 import { createSwapRequest } from "@/services/bookings";
 import supabase from "@/services/supabase";
+import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,6 +27,11 @@ export default function RescheduleDrawer({
   onSuccess,
 }: Props) {
   const [newDate, setNewDate] = useState("");
+  const [availableSessions, setAvailableSessions] = useState<
+    SessionAvailability[]
+  >([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
   const [reason, setReason] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -34,26 +39,53 @@ export default function RescheduleDrawer({
   useEffect(() => {
     if (!open) {
       setNewDate("");
+      setAvailableSessions([]);
+      setSelectedSessionId("");
       setReason("");
       setFile(null);
     }
   }, [open]);
 
+  async function fetchSessionsForDate(date: string) {
+    setAvailableSessions([]);
+    setSelectedSessionId("");
+    if (!date) return;
+    setLoadingSessions(true);
+    try {
+      const { data, error } = await supabase.rpc("get_sessions_availability", {
+        p_start: date,
+        p_end: date,
+      });
+      if (error) throw error;
+      const sessions = ((data as SessionAvailability[] | null) ?? []).filter(
+        (s) => s.available_count > 0,
+      );
+      setAvailableSessions(sessions);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar sessões disponíveis");
+    } finally {
+      setLoadingSessions(false);
+    }
+  }
+
   async function handleSubmit() {
-    if (!newDate || !reason) {
-      toast.error("Data e justificativa são obrigatórios");
+    if (!newDate || !selectedSessionId || !reason) {
+      toast.error("Data, sessão e justificativa são obrigatórios");
       return;
     }
 
     setSaving(true);
     try {
-      const user = supabase.auth.getUser();
-      const userId = (await user).data.user?.id;
-      if (!userId) throw new Error("Usuário não autenticado");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error("Usuário não autenticado");
 
       await createSwapRequest({
         bookingId,
-        requestedBy: userId,
+        requestedBy: user.id,
+        newSessionId: selectedSessionId,
         newDate,
         reasonText: reason,
         attachment: file ?? undefined,
@@ -77,7 +109,7 @@ export default function RescheduleDrawer({
       }`}
     >
       <div
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-text-body/45 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <div
@@ -123,10 +155,49 @@ export default function RescheduleDrawer({
               id="new-date"
               type="date"
               value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
+              onChange={(e) => {
+                setNewDate(e.target.value);
+                void fetchSessionsForDate(e.target.value);
+              }}
               className="w-full mt-1 rounded-lg border border-border-default bg-bg-card text-text-body text-sm focus-ring"
             />
           </div>
+
+          {newDate && (
+            <div>
+              <label
+                htmlFor="session-select"
+                className="block text-sm font-medium text-text-body"
+              >
+                Sessão disponível
+              </label>
+              {loadingSessions ? (
+                <p className="mt-1 text-sm text-text-muted">
+                  Carregando sessões...
+                </p>
+              ) : availableSessions.length === 0 ? (
+                <p className="mt-1 text-sm text-error font-medium">
+                  Nenhuma sessão disponível nessa data.
+                </p>
+              ) : (
+                <select
+                  id="session-select"
+                  value={selectedSessionId}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                  className="w-full mt-1 rounded-lg border border-border-default bg-bg-card text-text-body text-sm focus-ring"
+                >
+                  <option value="">Selecione uma sessão</option>
+                  {availableSessions.map((s) => (
+                    <option key={s.session_id} value={s.session_id}>
+                      {formatSessionPeriod(s.period)} — {s.available_count}{" "}
+                      vaga(s) disponível(is)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           <div>
             <label
               htmlFor="reason"
@@ -165,8 +236,8 @@ export default function RescheduleDrawer({
             </button>
             <button
               onClick={handleSubmit}
+              disabled={saving || !selectedSessionId || !reason}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-              disabled={saving}
             >
               {saving ? "Enviando..." : "Enviar"}
             </button>

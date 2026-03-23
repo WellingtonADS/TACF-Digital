@@ -4,8 +4,6 @@
  * @path src/components/PageSkeleton.tsx
  */
 
-
-
 type Props = {
   rows?: number;
   fullPage?: boolean;
@@ -85,7 +83,7 @@ export default function PageSkeleton({
   return (
     <section role="status" aria-live="polite" aria-busy="true">
       {fullPage ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-body/30 p-4 backdrop-blur-sm">
           <div className={containerBase}>{content}</div>
         </div>
       ) : (

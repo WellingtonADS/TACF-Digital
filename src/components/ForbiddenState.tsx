@@ -4,8 +4,6 @@
  * @path src/components/ForbiddenState.tsx
  */
 
-
-
 import { Link } from "react-router-dom";
 
 type ForbiddenStateProps = {
@@ -22,13 +20,13 @@ export default function ForbiddenState({
   actionTo = "/app",
 }: ForbiddenStateProps) {
   return (
-    <section className="mx-auto mt-8 max-w-xl rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+    <section className="mx-auto mt-8 max-w-xl rounded-xl border border-error/30 bg-error/10 p-6 text-error">
       <h2 className="text-lg font-bold">{title}</h2>
       <p className="mt-2 text-sm leading-relaxed">{description}</p>
       <div className="mt-4">
         <Link
           to={actionTo}
-          className="inline-flex items-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+          className="inline-flex items-center rounded-lg bg-error px-4 py-2 text-sm font-semibold text-error-foreground hover:bg-error/90"
         >
           {actionLabel}
         </Link>

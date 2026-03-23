@@ -186,10 +186,10 @@ export const AppointmentConfirmation = () => {
             <div className="sm:hidden">
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col items-center gap-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-primary-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success text-sm font-bold text-primary-foreground">
                     <CheckCircle size={16} />
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-600">
+                  <span className="text-[11px] font-semibold text-success">
                     Seleção
                   </span>
                 </div>
@@ -214,14 +214,14 @@ export const AppointmentConfirmation = () => {
 
             <div className="hidden items-center justify-center gap-4 sm:flex">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-primary-foreground">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success text-sm font-bold text-primary-foreground">
                   <CheckCircle size={16} />
                 </div>
-                <span className="text-sm font-semibold text-emerald-600">
+                <span className="text-sm font-semibold text-success">
                   Seleção
                 </span>
               </div>
-              <div className="h-px w-12 bg-emerald-200" />
+              <div className="h-px w-12 bg-success/20" />
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                   2
@@ -317,15 +317,15 @@ export const AppointmentConfirmation = () => {
                       </label>
                       <ul className="space-y-2">
                         <li className="flex items-center gap-2 text-sm text-text-body">
-                          <CheckCircle className="text-emerald-500" size={16} />{" "}
+                          <CheckCircle className="text-success" size={16} />{" "}
                           Uniforme de TAF completo
                         </li>
                         <li className="flex items-center gap-2 text-sm text-text-body">
-                          <CheckCircle className="text-emerald-500" size={16} />{" "}
+                          <CheckCircle className="text-success" size={16} />{" "}
                           Documento de Identidade Original
                         </li>
                         <li className="flex items-center gap-2 text-sm text-text-body">
-                          <CheckCircle className="text-emerald-500" size={16} />{" "}
+                          <CheckCircle className="text-success" size={16} />{" "}
                           Atestado Médico (se aplicável)
                         </li>
                       </ul>
@@ -333,7 +333,7 @@ export const AppointmentConfirmation = () => {
                   </div>
 
                   {booking?.order_number && (
-                    <div className="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-700">
+                    <div className="mt-4 rounded-lg border border-success/20 bg-success/10 p-4 text-success">
                       Bilhete gerado: <strong>{booking.order_number}</strong>
                     </div>
                   )}
@@ -344,7 +344,7 @@ export const AppointmentConfirmation = () => {
             <div className="bg-bg-default p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border-default">
               {existingBookingForDate &&
                 existingBookingForDate.id !== booking?.id && (
-                  <div className="w-full mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <div className="mb-3 w-full rounded-lg border border-alert/20 bg-alert/10 p-3 text-sm text-alert">
                     Você já possui um agendamento nesta data (
                     {formatDatePtBr(existingBookingForDate.test_date ?? "")}).
                     Para agendar outra data, cancele primeiro o agendamento
@@ -353,7 +353,7 @@ export const AppointmentConfirmation = () => {
                 )}
               {existingSemesterBooking &&
                 existingSemesterBooking.id !== booking?.id && (
-                  <div className="w-full mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <div className="mb-3 w-full rounded-lg border border-alert/20 bg-alert/10 p-3 text-sm text-alert">
                     Você já possui um agendamento neste semestre (
                     {formatDatePtBr(existingSemesterBooking.test_date ?? "")}).
                     Cancele o agendamento existente para marcar outro.

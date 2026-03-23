@@ -4,17 +4,15 @@
  * @path src/components/Breadcrumbs.tsx
  */
 
-
-
 export default function Breadcrumbs({ items }: { items: string[] }) {
   return (
-    <nav className="text-sm text-slate-500 mb-3" aria-label="breadcrumb">
+    <nav className="mb-3 text-sm text-text-muted" aria-label="breadcrumb">
       <ol className="flex items-center gap-2">
         {items.map((it, idx) => (
           <li key={it} className="flex items-center">
             <span
               className={
-                idx === items.length - 1 ? "text-slate-700 font-medium" : ""
+                idx === items.length - 1 ? "font-medium text-text-body" : ""
               }
             >
               {it}

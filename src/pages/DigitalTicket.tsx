@@ -4,8 +4,6 @@
  * @path src/pages/DigitalTicket.tsx
  */
 
-
-
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
@@ -46,10 +44,15 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
     try {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
+      const qrColor = {
+        ["dark"]: "#000000",
+        ["light"]: "#ffffff",
+      };
+
       const qrDataUrl = await QRCode.toDataURL(ticketData.code, {
         margin: 0,
         width: 200,
-        color: { dark: "#000000", light: "#ffffff" },
+        color: qrColor,
       });
 
       // Header
@@ -203,16 +206,16 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           <header className="bg-primary px-5 py-6 text-white sm:px-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100/85">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-inverted/85">
                   Comprovante de Agendamento
                 </p>
                 <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">
                   Teste de Avaliação do Condicionamento Físico
                 </h1>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-green-300/30 bg-green-500/20 px-3 py-1.5">
-                <span className="h-2 w-2 rounded-full bg-green-300" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-green-50">
+              <div className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/20 px-3 py-1.5">
+                <span className="h-2 w-2 rounded-full bg-success" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-inverted">
                   {ticketData.confirmed ? "Confirmado" : "Agendado"}
                 </span>
               </div>

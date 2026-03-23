@@ -252,16 +252,16 @@ export default function UserProfilesManagement() {
                 </p>
                 {profile?.inspsau_valid_until ? (
                   isAfter(parseISO(profile.inspsau_valid_until), new Date()) ? (
-                    <div className="bg-emerald-50 border border-emerald-100 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
-                      <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="font-bold text-emerald-600 text-xs uppercase tracking-wide">
+                    <div className="flex items-center justify-center gap-2 rounded-2xl border border-success/20 bg-success/10 px-4 py-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-success">
                         Apto para o TACF
                       </span>
                     </div>
                   ) : (
-                    <div className="bg-red-50 border border-red-100 py-3 px-4 rounded-2xl flex items-center justify-center gap-2">
-                      <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                      <span className="font-bold text-red-600 text-xs uppercase tracking-wide">
+                    <div className="flex items-center justify-center gap-2 rounded-2xl border border-error/20 bg-error/10 px-4 py-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-error" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-error">
                         Inapto
                       </span>
                     </div>
@@ -487,7 +487,7 @@ export default function UserProfilesManagement() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-bg-card rounded-xl flex items-center justify-center shadow-sm border border-border-default">
-                        <CheckCircle className="w-6 h-6 text-emerald-500" />
+                        <CheckCircle className="h-6 w-6 text-success" />
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">

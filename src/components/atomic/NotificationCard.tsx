@@ -4,8 +4,6 @@
  * @path src/components/atomic/NotificationCard.tsx
  */
 
-
-
 import type { ReactNode } from "react";
 
 type Props = {
@@ -23,10 +21,10 @@ export const NotificationCard = ({
 }: Props) => {
   const base = "p-3 rounded-lg shadow-sm";
   const variants: Record<NonNullable<Props["variant"]>, string> = {
-    info: "bg-white",
-    success: "bg-emerald-50",
-    warning: "bg-amber-50",
-    error: "bg-rose-50",
+    info: "bg-bg-card",
+    success: "bg-success/10",
+    warning: "bg-alert/10",
+    error: "bg-error/10",
   };
 
   return (

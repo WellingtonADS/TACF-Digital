@@ -54,7 +54,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
   const a = (action ?? "").toUpperCase();
   if (a.includes("INSERT") || a.includes("CREATE")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-success/40 bg-success/10 text-success">
         <Plus size={11} />
         {action}
       </span>
@@ -62,7 +62,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
   }
   if (a.includes("UPDATE") || a.includes("EDIT")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-alert/40 bg-alert/10 text-alert">
         <Filter size={11} />
         {action}
       </span>
@@ -70,7 +70,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
   }
   if (a.includes("DELETE")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-error/40 bg-error/10 text-error">
         <Trash2 size={11} />
         {action}
       </span>
@@ -85,11 +85,10 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
 
 function rowAccent(action: string | null | undefined): string {
   const a = (action ?? "").toUpperCase();
-  if (a.includes("INSERT") || a.includes("CREATE"))
-    return "border-l-emerald-500";
-  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-amber-400";
-  if (a.includes("DELETE")) return "border-l-red-500";
-  return "border-l-border-default dark:border-l-border-default";
+  if (a.includes("INSERT") || a.includes("CREATE")) return "border-l-success";
+  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-alert";
+  if (a.includes("DELETE")) return "border-l-error";
+  return "border-l-border-default";
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -217,15 +216,15 @@ export default function AuditLog() {
             title="Deleções"
             value={statsDelete}
             icon={AlertTriangle}
-            iconBg="bg-red-500/10"
-            iconColor="text-red-600"
+            iconBg="bg-error/10"
+            iconColor="text-error"
           />
           <StatCard
             title="Usuários Distintos"
             value={uniqueUsers}
             icon={Timer}
-            iconBg="bg-emerald-500/10"
-            iconColor="text-emerald-600"
+            iconBg="bg-success/10"
+            iconColor="text-success"
           />
         </div>
 
@@ -301,7 +300,7 @@ export default function AuditLog() {
             <div className="flex items-end">
               <button
                 type="button"
-                className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 text-sm"
+                className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-primary/90 transition-colors flex justify-center items-center gap-2 text-sm"
                 onClick={() => setCurrentPage(1)}
               >
                 <Filter size={15} />
@@ -318,7 +317,7 @@ export default function AuditLog() {
               Nenhum registro encontrado para os filtros aplicados.
             </div>
           ) : isCompactViewport ? (
-            <div className="divide-y divide-border-default dark:divide-slate-800">
+            <div className="divide-y divide-border-default">
               {pageItems.map((r) => (
                 <article
                   key={r.id}
@@ -326,7 +325,7 @@ export default function AuditLog() {
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div>
-                      <p className="text-sm font-bold text-text-body dark:text-text-inverted">
+                      <p className="text-sm font-bold text-text-body">
                         {new Date(r.created_at ?? "").toLocaleDateString(
                           "pt-BR",
                         )}
@@ -347,7 +346,7 @@ export default function AuditLog() {
                         .toUpperCase() || "—"}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-text-body dark:text-text-inverted">
+                      <span className="text-sm font-semibold text-text-body">
                         {r.user_name ?? "—"}
                       </span>
                       <span className="text-xs text-text-muted">
@@ -365,7 +364,7 @@ export default function AuditLog() {
                     {r.details && (
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-blue-700 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
                         onClick={() => setDetailRecord(r)}
                       >
                         <Code2 size={13} />
@@ -401,14 +400,14 @@ export default function AuditLog() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-default dark:divide-slate-800">
+                <tbody className="divide-y divide-border-default">
                   {pageItems.map((r) => (
                     <tr
                       key={r.id}
-                      className={`border-l-4 ${rowAccent(r.action)} hover:bg-bg-default/60 dark:hover:bg-bg-default/70 transition-colors`}
+                      className={`border-l-4 ${rowAccent(r.action)} hover:bg-bg-default/60 transition-colors`}
                     >
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <span className="text-sm font-semibold text-text-body dark:text-text-inverted block">
+                        <span className="text-sm font-semibold text-text-body block">
                           {new Date(r.created_at ?? "").toLocaleDateString(
                             "pt-BR",
                           )}
@@ -428,7 +427,7 @@ export default function AuditLog() {
                               ?.slice(0, 2)
                               .toUpperCase() || "—"}
                           </div>
-                          <span className="text-sm font-semibold text-text-body dark:text-text-inverted">
+                          <span className="text-sm font-semibold text-text-body">
                             {r.user_name ?? "—"}
                           </span>
                         </div>
@@ -439,7 +438,7 @@ export default function AuditLog() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bg-default text-text-body dark:bg-bg-default dark:text-text-muted">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bg-default text-text-body">
                           {r.entity ?? "—"}
                         </span>
                       </td>
@@ -454,7 +453,7 @@ export default function AuditLog() {
                         {r.details && (
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-blue-700 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
                             onClick={() => setDetailRecord(r)}
                           >
                             <Code2 size={13} />
@@ -475,14 +474,12 @@ export default function AuditLog() {
               {filtered.length > 0 ? (
                 <>
                   Exibindo{" "}
-                  <strong className="text-text-body dark:text-text-inverted">
+                  <strong className="text-text-body">
                     {(currentPage - 1) * perPage + 1}–
                     {Math.min(currentPage * perPage, filtered.length)}
                   </strong>{" "}
                   de{" "}
-                  <strong className="text-text-body dark:text-text-inverted">
-                    {filtered.length}
-                  </strong>{" "}
+                  <strong className="text-text-body">{filtered.length}</strong>{" "}
                   registros
                 </>
               ) : (
@@ -492,7 +489,7 @@ export default function AuditLog() {
 
             <div className="flex items-center gap-1 overflow-x-auto sm:overflow-visible w-full sm:w-auto justify-center">
               <button
-                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(1)}
                 aria-label="Primeira página"
@@ -500,7 +497,7 @@ export default function AuditLog() {
                 <ChevronsLeft size={16} />
               </button>
               <button
-                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 aria-label="Página anterior"
@@ -521,7 +518,7 @@ export default function AuditLog() {
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
                       page === currentPage
                         ? "bg-primary text-white"
-                        : "hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted dark:text-text-muted"
+                        : "hover:bg-bg-default text-text-muted"
                     }`}
                     onClick={() => setCurrentPage(page)}
                   >
@@ -531,7 +528,7 @@ export default function AuditLog() {
               })}
 
               <button
-                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
                 disabled={currentPage === totalPages}
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
@@ -541,7 +538,7 @@ export default function AuditLog() {
                 <ChevronRight size={16} />
               </button>
               <button
-                className="p-1.5 rounded-lg hover:bg-bg-default dark:hover:bg-bg-default/80 text-text-muted disabled:opacity-30"
+                className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(totalPages)}
                 aria-label="Última página"
@@ -555,7 +552,7 @@ export default function AuditLog() {
         {/* JSON Detail Modal */}
         {detailRecord !== null && (
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-primary/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"
             onClick={() => setDetailRecord(null)}
@@ -566,7 +563,7 @@ export default function AuditLog() {
             >
               <div className="px-6 py-4 bg-bg-default border-b border-border-default flex justify-between items-center">
                 <div>
-                  <h4 className="font-bold text-text-body dark:text-text-inverted flex items-center gap-2 text-sm">
+                  <h4 className="font-bold text-text-body flex items-center gap-2 text-sm">
                     <Code2 size={16} className="text-primary" />
                     Detalhes da Alteração
                   </h4>
@@ -577,14 +574,14 @@ export default function AuditLog() {
                 </div>
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-text-muted hover:text-text-muted hover:bg-bg-default dark:hover:bg-bg-default/80 transition-colors"
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-muted hover:bg-bg-default transition-colors"
                   onClick={() => setDetailRecord(null)}
                   aria-label="Fechar"
                 >
                   <X size={18} />
                 </button>
               </div>
-              <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body dark:text-text-inverted bg-bg-default dark:bg-bg-default/80">
+              <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body bg-bg-default">
                 {formatJson(detailRecord.details ?? "")}
               </pre>
             </div>

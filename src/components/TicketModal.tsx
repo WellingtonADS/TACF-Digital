@@ -30,10 +30,10 @@ export default function TicketModal({ open, onClose }: Props) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 w-[min(900px,95%)] max-h-[90vh] overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="absolute inset-0 bg-text-body/50" onClick={onClose} />
+      <div className="relative z-10 max-h-[90vh] w-[min(900px,95%)] overflow-auto rounded-2xl border border-border-default bg-bg-card p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
-          <h3 className="text-lg font-bold">Bilhete Digital</h3>
+          <h3 className="text-lg font-bold text-text-body">Bilhete Digital</h3>
           <button onClick={onClose} className="text-sm text-text-muted">
             Fechar
           </button>
@@ -41,7 +41,9 @@ export default function TicketModal({ open, onClose }: Props) {
 
         <div className="mt-4">
           {loading ? (
-            <div className="py-20 text-center">Carregando bilhete...</div>
+            <div className="py-20 text-center text-text-body">
+              Carregando bilhete...
+            </div>
           ) : !ticketData ? (
             <div className="py-10 text-center text-text-muted">
               Nenhum agendamento encontrado.
@@ -49,10 +51,10 @@ export default function TicketModal({ open, onClose }: Props) {
           ) : (
             <div className="mx-auto max-w-3xl">
               <section className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm p-4">
-                <header className="bg-primary px-4 py-4 text-white rounded-t-lg">
+                <header className="rounded-t-lg bg-primary px-4 py-4 text-primary-foreground">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100/85">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-foreground/85">
                         Comprovante de Agendamento
                       </p>
                       <h1 className="mt-1 text-xl font-black tracking-tight">
@@ -108,13 +110,13 @@ export default function TicketModal({ open, onClose }: Props) {
                       <div className="mt-4 flex gap-2">
                         <button
                           onClick={copyValidationCode}
-                          className="flex-1 rounded-xl border px-3 py-2 text-sm"
+                          className="flex-1 rounded-xl border border-border-default px-3 py-2 text-sm text-text-body"
                         >
                           Copiar Código
                         </button>
                         <button
                           onClick={() => window.print()}
-                          className="rounded-xl border px-3 py-2 text-sm"
+                          className="rounded-xl border border-border-default px-3 py-2 text-sm text-text-body"
                         >
                           Imprimir
                         </button>
@@ -122,7 +124,7 @@ export default function TicketModal({ open, onClose }: Props) {
                           onClick={() => {
                             /* gerar PDF pode ficar para depois */
                           }}
-                          className="rounded-xl bg-primary text-white px-3 py-2 text-sm"
+                          className="rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground"
                         >
                           Salvar PDF
                         </button>

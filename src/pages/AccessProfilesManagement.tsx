@@ -188,9 +188,7 @@ export default function AccessProfilesManagement() {
   if (!canView) {
     return (
       <Layout>
-        <div className="p-6 text-amber-800">
-          Acesso restrito a administradores.
-        </div>
+        <div className="p-6 text-alert">Acesso restrito a administradores.</div>
       </Layout>
     );
   }

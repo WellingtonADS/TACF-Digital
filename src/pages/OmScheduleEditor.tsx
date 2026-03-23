@@ -503,7 +503,7 @@ export default function OmScheduleEditor() {
                                   }
                                 />
                                 <div className="h-5 w-10 rounded-full bg-border-default transition peer-checked:bg-primary" />
-                                <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
+                                <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-bg-card transition peer-checked:translate-x-5" />
                               </div>
                             </label>
 

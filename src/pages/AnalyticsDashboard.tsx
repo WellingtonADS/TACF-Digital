@@ -895,7 +895,7 @@ export default function AnalyticsDashboard() {
                       setFilterRank("");
                       setFilterStatus("");
                     }}
-                    className="mb-0.5 text-xs font-semibold text-red-500 hover:underline"
+                    className="mb-0.5 text-xs font-semibold text-error hover:underline"
                   >
                     Limpar filtros
                   </button>

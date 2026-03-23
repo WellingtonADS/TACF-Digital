@@ -4,8 +4,6 @@
  * @path src/pages/PersonnelEditor.tsx
  */
 
-
-
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import Layout from "@/components/layout/Layout";
@@ -63,7 +61,7 @@ export default function PersonnelEditor() {
     return (
       <Layout>
         {" "}
-        <div className="flex items-center justify-center h-64 text-slate-400">
+        <div className="flex items-center justify-center h-64 text-text-muted">
           {" "}
           <Loader2 size={28} className="animate-spin mr-3" /> Carregando
           dados...{" "}
@@ -77,14 +75,14 @@ export default function PersonnelEditor() {
         {" "}
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           {" "}
-          <p className="text-red-500 font-semibold">
+          <p className="text-error font-semibold">
             {" "}
             {loadError ?? "Militar nao encontrado."}{" "}
           </p>{" "}
           <Button
             type="button"
             onClick={() => navigate("/app/efetivo")}
-            className="flex items-center gap-2 rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-300"
+            className="flex items-center gap-2 rounded-xl bg-border-default px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:bg-border-default/80"
             icon={<ArrowLeft size={15} />}
           >
             {" "}
@@ -106,7 +104,7 @@ export default function PersonnelEditor() {
         <button
           type="button"
           onClick={() => navigate("/app/efetivo")}
-          className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-200"
+          className="rounded-xl p-2 text-text-muted transition-colors hover:bg-bg-default"
           aria-label="Voltar"
         >
           {" "}
@@ -114,17 +112,17 @@ export default function PersonnelEditor() {
         </button>{" "}
         <div>
           {" "}
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-text-body">
             Editar Status
           </h1>{" "}
-          <p className="text-sm text-slate-500 mt-0.5">{displayName}</p>{" "}
+          <p className="text-sm text-text-muted mt-0.5">{displayName}</p>{" "}
         </div>{" "}
       </header>{" "}
-      <div className="max-w-md space-y-6 rounded-2xl border border-slate-100 bg-white p-6">
+      <div className="max-w-md space-y-6 rounded-2xl border border-border-default bg-bg-card p-6">
         {" "}
         <div>
           {" "}
-          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted mb-2">
             {" "}
             <Building2 size={13} className="text-primary" /> OM / Setor{" "}
           </label>{" "}
@@ -137,7 +135,7 @@ export default function PersonnelEditor() {
         </div>{" "}
         <div>
           {" "}
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
             {" "}
             Status da Conta{" "}
           </p>{" "}
@@ -146,7 +144,7 @@ export default function PersonnelEditor() {
             <button
               type="button"
               onClick={() => setActive(true)}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 text-sm font-bold transition-all ${active ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-400 hover:border-emerald-300"}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 text-sm font-bold transition-all ${active ? "border-success/40 bg-success/10 text-success" : "border-border-default text-text-muted hover:border-success/30"}`}
             >
               {" "}
               <UserCheck size={18} /> Ativo{" "}
@@ -154,7 +152,7 @@ export default function PersonnelEditor() {
             <button
               type="button"
               onClick={() => setActive(false)}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 text-sm font-bold transition-all ${!active ? "border-red-400 bg-red-50 text-red-600" : "border-slate-200 text-slate-400 hover:border-red-300"}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 text-sm font-bold transition-all ${!active ? "border-error/40 bg-error/10 text-error" : "border-border-default text-text-muted hover:border-error/30"}`}
             >
               {" "}
               <UserX size={18} /> Inativo{" "}
@@ -166,7 +164,7 @@ export default function PersonnelEditor() {
           <Button
             type="button"
             onClick={() => navigate("/app/efetivo")}
-            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100"
+            className="flex-1 rounded-xl border border-border-default py-2.5 text-sm font-semibold text-text-muted transition-colors hover:bg-bg-default"
           >
             {" "}
             Cancelar{" "}
@@ -175,7 +173,7 @@ export default function PersonnelEditor() {
             type="button"
             disabled={saving}
             onClick={handleSave}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-60"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
             {" "}
             {saving ? (

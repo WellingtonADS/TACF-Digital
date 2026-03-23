@@ -267,14 +267,14 @@ export const OperationalDashboard = () => {
                       {nextSessionBookingId && (
                         <button
                           onClick={() => setDrawerOpen(true)}
-                          className="inline-flex items-center px-4 py-2 border border-primary text-primary rounded-lg font-semibold bg-white/5 hover:bg-white/10 transition-colors"
+                          className="inline-flex items-center rounded-lg border border-primary bg-primary/5 px-4 py-2 font-semibold text-primary transition-colors hover:bg-primary/10"
                         >
                           Solicitar Reagendamento
                         </button>
                       )}
 
                       {hasPendingSwap && (
-                        <span className="inline-flex items-center text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold">
+                        <span className="inline-flex items-center rounded-full bg-error/10 px-3 py-1 text-xs font-semibold text-error">
                           Reagendamento Pendente
                         </span>
                       )}

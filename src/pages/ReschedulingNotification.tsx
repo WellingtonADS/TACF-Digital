@@ -82,7 +82,7 @@ export default function ReschedulingNotification() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-semibold text-amber-600 uppercase">
+                    <span className="text-xs font-semibold uppercase text-alert">
                       Pendente
                     </span>
                   </div>

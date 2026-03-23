@@ -137,7 +137,7 @@ function LogoutButton() {
   return (
     <button
       onClick={handle}
-      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm font-bold uppercase tracking-wider border border-red-500/20"
+      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-error/10 text-error hover:bg-error hover:text-white transition-all text-sm font-bold uppercase tracking-wider border border-error/20"
       type="button"
     >
       <AppIcon icon={LogOut} size="lg" className="text-current" />

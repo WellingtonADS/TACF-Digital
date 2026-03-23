@@ -14,6 +14,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   ClipboardPen,
   Edit2,
   Filter,
@@ -391,6 +392,24 @@ export const SessionsManagement = () => {
                           <button
                             type="button"
                             onClick={() =>
+                              navigate(
+                                `/app/turmas/${s.session_id}/agendamentos`,
+                              )
+                            }
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                            title="Ver agendamentos"
+                            aria-label="Ver agendamentos"
+                          >
+                            <AppIcon
+                              icon={ClipboardList}
+                              size="sm"
+                              decorative
+                            />
+                            Agendamentos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
                               navigate("/app/lancamento-indices", {
                                 state: { sessionId: s.session_id },
                               })
@@ -502,28 +521,40 @@ export const SessionsManagement = () => {
                     />
                   </div>
 
-                  <div className="flex gap-2 pt-1 border-t border-border-default">
+                  <div className="flex flex-col gap-2 pt-1 border-t border-border-default">
                     <button
                       type="button"
                       onClick={() =>
-                        navigate("/app/lancamento-indices", {
-                          state: { sessionId: s.session_id },
-                        })
+                        navigate(`/app/turmas/${s.session_id}/agendamentos`)
                       }
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                      className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors"
                     >
-                      <AppIcon icon={ClipboardPen} size="sm" decorative />{" "}
-                      Índices
+                      <AppIcon icon={ClipboardList} size="sm" decorative />
+                      Ver Agendamentos
                     </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/app/turmas/${s.session_id}/editar`)
-                      }
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
-                    >
-                      <AppIcon icon={Edit2} size="sm" decorative /> Editar
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate("/app/lancamento-indices", {
+                            state: { sessionId: s.session_id },
+                          })
+                        }
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                      >
+                        <AppIcon icon={ClipboardPen} size="sm" decorative />{" "}
+                        Índices
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/app/turmas/${s.session_id}/editar`)
+                        }
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                      >
+                        <AppIcon icon={Edit2} size="sm" decorative /> Editar
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

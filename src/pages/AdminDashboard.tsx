@@ -201,11 +201,11 @@ const AdminDashboard = () => {
                     <div
                       role="img"
                       aria-label={`Avatar de ${displayName}`}
-                      className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center border border-white/20"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/20"
                     >
                       <span
                         aria-hidden="true"
-                        className="text-xs font-bold text-white"
+                        className="text-xs font-bold text-primary-foreground"
                       >
                         {(profile.war_name ?? profile.full_name ?? "?")
                           .slice(0, 2)

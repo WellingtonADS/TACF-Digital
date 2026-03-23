@@ -51,7 +51,7 @@ function PageHero({
           <button
             type="button"
             onClick={() => onNavigate("/app/om/new")}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-bg-card hover:text-primary"
           >
             <Plus size={16} />
             Nova OM
