@@ -7,6 +7,7 @@
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import useReschedulingManagement, {
   type SwapStatus,
 } from "@/hooks/useReschedulingManagement";
@@ -21,6 +22,7 @@ import {
   X,
   XCircle,
 } from "@/icons";
+import { toast } from "sonner";
 
 const STATUS_META: Record<SwapStatus, { label: string; badgeClass: string }> = {
   solicitado: {
@@ -151,16 +153,23 @@ function EmptyRequestsState() {
 
 function ActionButtons({
   canAct,
+  canMutate,
   onApprove,
   onReject,
   orientation = "stacked",
 }: {
   canAct: boolean;
+  canMutate: boolean;
   onApprove: () => void;
   onReject: () => void;
   orientation?: "stacked" | "inline";
 }) {
   const isInline = orientation === "inline";
+  const isDisabled = !canAct || !canMutate;
+  const title = canMutate
+    ? undefined
+    : "Perfil coordenador em modo leitura: ação indisponível.";
+
   return (
     <div
       className={
@@ -172,7 +181,8 @@ function ActionButtons({
       <button
         type="button"
         onClick={onApprove}
-        disabled={!canAct}
+        disabled={isDisabled}
+        title={title}
         className={`flex items-center justify-center gap-1 rounded-lg bg-success text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${
           isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
         }`}
@@ -183,7 +193,8 @@ function ActionButtons({
       <button
         type="button"
         onClick={onReject}
-        disabled={!canAct}
+        disabled={isDisabled}
+        title={title}
         className={`flex items-center justify-center gap-1 rounded-lg border border-error text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50 ${
           isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
         }`}
@@ -196,6 +207,7 @@ function ActionButtons({
 }
 
 export default function ReschedulingManagement() {
+  const { profile } = useAuth();
   const {
     rows,
     loading,
@@ -209,6 +221,14 @@ export default function ReschedulingManagement() {
     visibleRows,
     changeStatus,
   } = useReschedulingManagement();
+
+  const canMutate = profile?.role === "admin";
+
+  function handleUnauthorizedAction(action: "aprovar" | "indeferir") {
+    toast.error(
+      `Acesso negado: você não tem permissão para ${action} solicitações de reagendamento.`,
+    );
+  }
 
   if (loading) {
     return (
@@ -265,6 +285,12 @@ export default function ReschedulingManagement() {
           Exibindo {visibleRows.length} de {rows.length} solicitacoes no filtro
           atual.
         </p>
+        {!canMutate && (
+          <div className="mt-3 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+            Seu perfil está em modo somente leitura. Solicitações podem ser
+            visualizadas, mas apenas administradores podem deferir ou indeferir.
+          </div>
+        )}
 
         <section className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
           <div className="space-y-3 p-4 md:hidden">
@@ -299,12 +325,21 @@ export default function ReschedulingManagement() {
                   <div className="mt-3">
                     <ActionButtons
                       canAct={row.status === "solicitado"}
-                      onApprove={() =>
-                        changeStatus(row.id, row.bookingId, "aprovado")
-                      }
-                      onReject={() =>
-                        changeStatus(row.id, row.bookingId, "cancelado")
-                      }
+                      canMutate={canMutate}
+                      onApprove={() => {
+                        if (!canMutate) {
+                          handleUnauthorizedAction("aprovar");
+                          return;
+                        }
+                        changeStatus(row.id, row.bookingId, "aprovado");
+                      }}
+                      onReject={() => {
+                        if (!canMutate) {
+                          handleUnauthorizedAction("indeferir");
+                          return;
+                        }
+                        changeStatus(row.id, row.bookingId, "cancelado");
+                      }}
                     />
                   </div>
                 </article>
@@ -384,12 +419,21 @@ export default function ReschedulingManagement() {
                         <ActionButtons
                           orientation="inline"
                           canAct={row.status === "solicitado"}
-                          onApprove={() =>
-                            changeStatus(row.id, row.bookingId, "aprovado")
-                          }
-                          onReject={() =>
-                            changeStatus(row.id, row.bookingId, "cancelado")
-                          }
+                          canMutate={canMutate}
+                          onApprove={() => {
+                            if (!canMutate) {
+                              handleUnauthorizedAction("aprovar");
+                              return;
+                            }
+                            changeStatus(row.id, row.bookingId, "aprovado");
+                          }}
+                          onReject={() => {
+                            if (!canMutate) {
+                              handleUnauthorizedAction("indeferir");
+                              return;
+                            }
+                            changeStatus(row.id, row.bookingId, "cancelado");
+                          }}
                         />
                       </td>
                     </tr>

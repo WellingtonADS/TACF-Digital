@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "@/icons";
 import type { ProfileRole, Profile as UserProfile } from "@/types";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import { sidebarIconMap } from "@/utils/sidebarIcons";
 import { useCallback, useEffect, useState } from "react";
@@ -107,7 +108,11 @@ export default function AccessProfilesManagement() {
       console.error(err);
       const message = err instanceof Error ? err.message : "Erro ao carregar.";
       setLoadError(message);
-      toast.error("Falha ao carregar perfis do banco.");
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "visualizar perfis de acesso",
+      );
+      toast.error(authMessage ?? "Falha ao carregar perfis do banco.");
     } finally {
       setLoading(false);
     }
@@ -140,7 +145,11 @@ export default function AccessProfilesManagement() {
       toast.success("Perfil de acesso atualizado.");
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao atualizar o perfil de acesso.");
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "atualizar perfis de acesso",
+      );
+      toast.error(authMessage ?? "Falha ao atualizar o perfil de acesso.");
     } finally {
       setSavingProfileId(null);
     }

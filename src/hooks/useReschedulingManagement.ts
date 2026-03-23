@@ -5,6 +5,7 @@ import {
 } from "@/services/bookings";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -157,7 +158,11 @@ export default function useReschedulingManagement() {
       setRows(normalizedRows);
     } catch (error) {
       console.error(error);
-      toast.error("Falha ao carregar solicitações");
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "visualizar solicitações de reagendamento",
+      );
+      toast.error(authMessage ?? "Falha ao carregar solicitações");
       setRows([]);
     } finally {
       setLoading(false);
@@ -227,7 +232,12 @@ export default function useReschedulingManagement() {
         );
       } catch (error) {
         console.error(error);
-        toast.error("Falha ao atualizar solicitação");
+        const actionContext =
+          status === "aprovado"
+            ? "aprovar solicitações de reagendamento"
+            : "indeferir solicitações de reagendamento";
+        const authMessage = getAuthorizationErrorMessage(error, actionContext);
+        toast.error(authMessage ?? "Falha ao atualizar solicitação");
       }
     },
     [],

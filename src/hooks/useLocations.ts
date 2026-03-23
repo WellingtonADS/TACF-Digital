@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import supabase from "../services/supabase";
 import type { Location } from "../types/database.types";
+import { getAuthorizationErrorMessage } from "../utils/getAuthorizationErrorMessage";
 
 interface FetchParams {
   search?: string;
@@ -58,7 +59,9 @@ export default function useLocations(): UseLocationsResult {
       }
     } catch (err: unknown) {
       console.error("useLocations fetch error", err);
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg =
+        getAuthorizationErrorMessage(err, "visualizar unidades") ||
+        (err instanceof Error ? err.message : String(err));
       setError(msg || "Erro ao carregar unidades");
     } finally {
       setLoading(false);
@@ -103,7 +106,9 @@ export default function useLocations(): UseLocationsResult {
         return loc;
       } catch (err: unknown) {
         console.error("useLocations create error", err);
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg =
+          getAuthorizationErrorMessage(err, "criar unidades") ||
+          (err instanceof Error ? err.message : String(err));
         setError(msg || "Erro ao criar unidade");
         return null;
       } finally {
@@ -138,7 +143,9 @@ export default function useLocations(): UseLocationsResult {
       return loc as Location;
     } catch (err: unknown) {
       console.error("useLocations update error", err);
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg =
+        getAuthorizationErrorMessage(err, "atualizar unidades") ||
+        (err instanceof Error ? err.message : String(err));
       setError(msg || "Erro ao atualizar unidade");
       return null;
     } finally {
@@ -161,7 +168,9 @@ export default function useLocations(): UseLocationsResult {
       }
     } catch (err: unknown) {
       console.error("useLocations delete error", err);
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg =
+        getAuthorizationErrorMessage(err, "remover unidades") ||
+        (err instanceof Error ? err.message : String(err));
       setError(msg || "Erro ao remover unidade");
     } finally {
       setLoading(false);

@@ -5,6 +5,7 @@
  */
 
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import {
   ArrowLeft,
   CalendarClock,
@@ -24,6 +25,7 @@ import {
 } from "@/services/sessions";
 import type { BookingRow as DBBookingRow, Profile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -68,6 +70,7 @@ const STATUS_CLASSES: Record<BookingRow["status"], string> = {
 type StatusFilterOption = "all" | BookingRow["status"];
 
 export default function SessionBookingsManagement() {
+  const { profile } = useAuth();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
@@ -78,6 +81,7 @@ export default function SessionBookingsManagement() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const canMutate = profile?.role === "admin";
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -107,7 +111,11 @@ export default function SessionBookingsManagement() {
 
       setBookings(enriched);
     } catch (err) {
-      toast.error("Erro ao carregar agendamentos da turma.");
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "visualizar agendamentos da turma",
+      );
+      toast.error(authMessage ?? "Erro ao carregar agendamentos da turma.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -147,6 +155,13 @@ export default function SessionBookingsManagement() {
     bookingId: string,
     newStatus: BookingRow["status"],
   ) {
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para atualizar status de agendamentos.",
+      );
+      return;
+    }
+
     setUpdating(bookingId);
     try {
       await updateBookingStatus(bookingId, newStatus);
@@ -154,8 +169,12 @@ export default function SessionBookingsManagement() {
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
       );
-    } catch {
-      toast.error("Não foi possível atualizar o status.");
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "atualizar status de agendamentos",
+      );
+      toast.error(authMessage ?? "Não foi possível atualizar o status.");
     } finally {
       setUpdating(null);
     }
@@ -165,6 +184,13 @@ export default function SessionBookingsManagement() {
     bookingId: string,
     current: boolean | null,
   ) {
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para confirmar presença.",
+      );
+      return;
+    }
+
     setUpdating(bookingId);
     try {
       await updateBookingAttendance(bookingId, !current);
@@ -174,8 +200,12 @@ export default function SessionBookingsManagement() {
           b.id === bookingId ? { ...b, attendance_confirmed: !current } : b,
         ),
       );
-    } catch {
-      toast.error("Não foi possível atualizar a presença.");
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "confirmar presença",
+      );
+      toast.error(authMessage ?? "Não foi possível atualizar a presença.");
     } finally {
       setUpdating(null);
     }
@@ -327,6 +357,13 @@ export default function SessionBookingsManagement() {
           </div>
         </div>
 
+        {!canMutate && (
+          <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+            Seu perfil está em modo somente leitura. Apenas administradores
+            podem alterar status e presença dos agendamentos.
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-bg-card rounded-xl border border-border-default overflow-hidden">
           {loading ? (
@@ -398,8 +435,14 @@ export default function SessionBookingsManagement() {
                                 onClick={() =>
                                   handleStatusChange(b.id, "agendado")
                                 }
-                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-success/10 hover:text-success"
-                                title="Confirmar agendamento"
+                                className={`rounded-lg p-1.5 text-text-muted transition-colors hover:bg-success/10 hover:text-success ${
+                                  canMutate ? "" : "opacity-60"
+                                }`}
+                                title={
+                                  canMutate
+                                    ? "Confirmar agendamento"
+                                    : "Apenas administradores podem confirmar agendamento"
+                                }
                               >
                                 <CheckCircle2 size={15} />
                               </button>
@@ -409,8 +452,14 @@ export default function SessionBookingsManagement() {
                                 onClick={() =>
                                   handleStatusChange(b.id, "cancelado")
                                 }
-                                className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-error/10 hover:text-error"
-                                title="Cancelar agendamento"
+                                className={`rounded-lg p-1.5 text-text-muted transition-colors hover:bg-error/10 hover:text-error ${
+                                  canMutate ? "" : "opacity-60"
+                                }`}
+                                title={
+                                  canMutate
+                                    ? "Cancelar agendamento"
+                                    : "Apenas administradores podem cancelar agendamento"
+                                }
                               >
                                 <XCircle size={15} />
                               </button>
@@ -426,11 +475,13 @@ export default function SessionBookingsManagement() {
                                 b.attendance_confirmed
                                   ? "text-success hover:bg-bg-default hover:text-text-muted"
                                   : "text-text-muted hover:bg-success/10 hover:text-success"
-                              }`}
+                              } ${canMutate ? "" : "opacity-60"}`}
                               title={
-                                b.attendance_confirmed
-                                  ? "Remover confirmação de presença"
-                                  : "Confirmar presença"
+                                canMutate
+                                  ? b.attendance_confirmed
+                                    ? "Remover confirmação de presença"
+                                    : "Confirmar presença"
+                                  : "Apenas administradores podem confirmar presença"
                               }
                             >
                               {b.attendance_confirmed ? (
@@ -537,8 +588,14 @@ export default function SessionBookingsManagement() {
                                       onClick={() =>
                                         handleStatusChange(b.id, "agendado")
                                       }
-                                      className="p-1.5 rounded-lg text-text-muted hover:text-success hover:bg-success/10 transition-colors"
-                                      title="Confirmar agendamento"
+                                      className={`p-1.5 rounded-lg text-text-muted hover:text-success hover:bg-success/10 transition-colors ${
+                                        canMutate ? "" : "opacity-60"
+                                      }`}
+                                      title={
+                                        canMutate
+                                          ? "Confirmar agendamento"
+                                          : "Apenas administradores podem confirmar agendamento"
+                                      }
                                     >
                                       <CheckCircle2 size={15} />
                                     </button>
@@ -548,8 +605,14 @@ export default function SessionBookingsManagement() {
                                       onClick={() =>
                                         handleStatusChange(b.id, "cancelado")
                                       }
-                                      className="p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-error/10 transition-colors"
-                                      title="Cancelar agendamento"
+                                      className={`p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-error/10 transition-colors ${
+                                        canMutate ? "" : "opacity-60"
+                                      }`}
+                                      title={
+                                        canMutate
+                                          ? "Cancelar agendamento"
+                                          : "Apenas administradores podem cancelar agendamento"
+                                      }
                                     >
                                       <XCircle size={15} />
                                     </button>
@@ -565,11 +628,13 @@ export default function SessionBookingsManagement() {
                                       b.attendance_confirmed
                                         ? "text-success hover:text-text-muted hover:bg-bg-default"
                                         : "text-text-muted hover:text-success hover:bg-success/10"
-                                    }`}
+                                    } ${canMutate ? "" : "opacity-60"}`}
                                     title={
-                                      b.attendance_confirmed
-                                        ? "Remover confirmação de presença"
-                                        : "Confirmar presença"
+                                      canMutate
+                                        ? b.attendance_confirmed
+                                          ? "Remover confirmação de presença"
+                                          : "Confirmar presença"
+                                        : "Apenas administradores podem confirmar presença"
                                     }
                                   >
                                     {b.attendance_confirmed ? (

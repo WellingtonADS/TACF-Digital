@@ -7,13 +7,16 @@
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import { getProfileById, updateProfile } from "@/hooks/usePersonnel";
 import { ArrowLeft, Building2, Loader2, Save, UserCheck, UserX } from "@/icons";
 import type { Profile } from "@/types";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 export default function PersonnelEditor() {
+  const { profile: authProfile } = useAuth();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -22,6 +25,7 @@ export default function PersonnelEditor() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const canMutate = authProfile?.role === "admin";
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
@@ -45,14 +49,25 @@ export default function PersonnelEditor() {
   }, [userId]);
   async function handleSave() {
     if (!userId) return;
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para editar dados de efetivo.",
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       await updateProfile(userId, { active, sector: sector.trim() || null });
       toast.success(active ? "Militar ativado." : "Militar inativado.");
       navigate("/app/efetivo");
     } catch (err: unknown) {
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "editar dados de efetivo",
+      );
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Erro ao salvar: ${msg}`);
+      toast.error(authMessage ?? `Erro ao salvar: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -119,7 +134,12 @@ export default function PersonnelEditor() {
         </div>{" "}
       </header>{" "}
       <div className="max-w-md space-y-6 rounded-2xl border border-border-default bg-bg-card p-6">
-        {" "}
+        {!canMutate && (
+          <div className="rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+            Seu perfil está em modo somente leitura. Apenas administradores
+            podem alterar status e setor do efetivo.
+          </div>
+        )}{" "}
         <div>
           {" "}
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted mb-2">
@@ -171,8 +191,13 @@ export default function PersonnelEditor() {
           </Button>{" "}
           <Button
             type="button"
-            disabled={saving}
+            disabled={saving || !canMutate}
             onClick={handleSave}
+            title={
+              canMutate
+                ? "Salvar alterações"
+                : "Apenas administradores podem salvar alterações"
+            }
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
             {" "}

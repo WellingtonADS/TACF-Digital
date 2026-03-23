@@ -5,10 +5,12 @@
  */
 
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
 import { fetchCoordinators, type Coordinator } from "@/hooks/usePersonnel";
 import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
 import { createSessions } from "@/services/bookings";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -105,6 +107,7 @@ function derivePeriod(startTime: string): "manha" | "tarde" {
 }
 
 export default function ClassCreationForm() {
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
@@ -140,6 +143,7 @@ export default function ClassCreationForm() {
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
     [form.maxCapacity],
   );
+  const canMutate = profile?.role === "admin";
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -147,6 +151,11 @@ export default function ClassCreationForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!canMutate) {
+      toast.error("Acesso negado: você não tem permissão para criar turmas.");
+      return;
+    }
 
     let datesToCreate: string[];
 
@@ -210,8 +219,11 @@ export default function ClassCreationForm() {
       if (pg.code === "23505") {
         toast.error("Já existe turma no mesmo dia e turno.");
       } else {
+        const authMessage = getAuthorizationErrorMessage(error, "criar turmas");
         console.error(error);
-        toast.error(pg.message || "Erro inesperado ao publicar turma.");
+        toast.error(
+          (authMessage ?? pg.message) || "Erro inesperado ao publicar turma.",
+        );
       }
     } finally {
       setSaving(false);
@@ -237,6 +249,13 @@ export default function ClassCreationForm() {
             </div>
           </div>
         </header>
+
+        {!canMutate && (
+          <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+            Seu perfil está em modo somente leitura. Apenas administradores
+            podem publicar novas turmas.
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-3xl border border-border-default/50 bg-bg-card shadow-2xl">
           <form className="flex flex-col" onSubmit={handleSubmit}>
@@ -558,6 +577,11 @@ export default function ClassCreationForm() {
               <button
                 type="submit"
                 disabled={saving}
+                title={
+                  canMutate
+                    ? "Publicar turma"
+                    : "Apenas administradores podem publicar turmas"
+                }
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
               >
                 {saving ? <Save size={18} /> : <XCircle size={18} />}

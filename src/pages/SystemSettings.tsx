@@ -28,6 +28,7 @@ import type {
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
 } from "@/types";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -76,7 +77,11 @@ export default function SystemSettings() {
         setFormState(data ?? {});
       } catch (err) {
         console.error(err);
-        toast.error("Falha ao carregar configurações");
+        const authMessage = getAuthorizationErrorMessage(
+          err,
+          "visualizar configurações do sistema",
+        );
+        toast.error(authMessage ?? "Falha ao carregar configurações");
       } finally {
         setLoading(false);
         setSettingsLoading(false);
@@ -94,7 +99,11 @@ export default function SystemSettings() {
           setAuditLogs(data);
         } catch (err) {
           console.error(err);
-          toast.error("Erro ao carregar logs de auditoria");
+          const authMessage = getAuthorizationErrorMessage(
+            err,
+            "visualizar logs de auditoria",
+          );
+          toast.error(authMessage ?? "Erro ao carregar logs de auditoria");
         } finally {
           setAuditLoading(false);
         }
@@ -114,7 +123,11 @@ export default function SystemSettings() {
       setFormState(updated ?? {});
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao salvar configurações");
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "salvar configurações do sistema",
+      );
+      toast.error(authMessage ?? "Falha ao salvar configurações");
     } finally {
       setLoading(false);
     }

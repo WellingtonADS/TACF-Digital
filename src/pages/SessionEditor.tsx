@@ -5,6 +5,7 @@
  */
 
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
 import {
   AlertCircle,
@@ -18,6 +19,7 @@ import {
   XCircle,
 } from "@/icons";
 import type { SessionRow as DBSessionRow } from "@/types";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -150,6 +152,7 @@ const STATUS_STYLE: Record<SessionStatus, string> = {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export default function SessionEditor() {
+  const { profile } = useAuth();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
@@ -172,6 +175,7 @@ export default function SessionEditor() {
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
     [form.maxCapacity],
   );
+  const canMutate = profile?.role === "admin";
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -237,6 +241,11 @@ export default function SessionEditor() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canMutate) {
+      toast.error("Acesso negado: você não tem permissão para editar turmas.");
+      return;
+    }
+
     if (!form.date) {
       toast.error("Informe a data da turma.");
       return;
@@ -272,7 +281,10 @@ export default function SessionEditor() {
       if (pgErr?.code === "23505") {
         toast.error("Já existe turma no mesmo dia e turno.");
       } else {
-        toast.error(pgErr?.message || "Não foi possível salvar a turma.");
+        const authMessage = getAuthorizationErrorMessage(err, "editar turmas");
+        toast.error(
+          (authMessage ?? pgErr?.message) || "Não foi possível salvar a turma.",
+        );
       }
       console.error(err);
     } finally {
@@ -282,6 +294,14 @@ export default function SessionEditor() {
 
   async function handleCancelSession() {
     if (!sessionId) return;
+
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para cancelar turmas.",
+      );
+      return;
+    }
+
     setSaving(true);
     setShowCancelConfirm(false);
     try {
@@ -290,8 +310,12 @@ export default function SessionEditor() {
       } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma cancelada (fechada).");
       navigate("/app/turmas");
-    } catch {
-      toast.error("Erro ao cancelar a turma.");
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "cancelar turmas",
+      );
+      toast.error(authMessage ?? "Erro ao cancelar a turma.");
     } finally {
       setSaving(false);
     }
@@ -330,6 +354,13 @@ export default function SessionEditor() {
             </div>
           </div>
         </section>
+
+        {!canMutate && (
+          <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+            Seu perfil está em modo somente leitura. Apenas administradores
+            podem editar ou cancelar turmas.
+          </div>
+        )}
 
         {loading || loadingLocations ? (
           <div className="flex items-center justify-center gap-2 py-20 text-text-muted">
@@ -707,6 +738,11 @@ export default function SessionEditor() {
                   type="button"
                   onClick={() => setShowCancelConfirm(true)}
                   disabled={saving || form.status === "closed"}
+                  title={
+                    canMutate
+                      ? "Cancelar turma"
+                      : "Apenas administradores podem cancelar turmas"
+                  }
                   className="w-full text-xs font-bold uppercase tracking-widest text-error transition-colors hover:text-error/80 disabled:opacity-40 md:w-auto"
                 >
                   Cancelar Turma
@@ -722,6 +758,11 @@ export default function SessionEditor() {
                   <button
                     type="submit"
                     disabled={saving}
+                    title={
+                      canMutate
+                        ? "Salvar alterações"
+                        : "Apenas administradores podem editar turmas"
+                    }
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
                   >
                     {saving ? (
@@ -774,6 +815,11 @@ export default function SessionEditor() {
               </button>
               <button
                 onClick={handleCancelSession}
+                title={
+                  canMutate
+                    ? "Confirmar cancelamento"
+                    : "Apenas administradores podem cancelar turmas"
+                }
                 className="flex-1 rounded-lg bg-error py-3 text-xs font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-error/90"
               >
                 Confirmar
