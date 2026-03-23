@@ -221,7 +221,10 @@ export default function ReschedulingManagement() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div
+        className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8"
+        data-testid="rescheduling-management-page"
+      >
         <PageHero total={rows.length} />
 
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -4,8 +4,6 @@
  * @path src/components/FullPageLoading.tsx
  */
 
-
-
 import { Loader2 } from "@/icons";
 import AppIcon from "./atomic/AppIcon";
 
@@ -23,6 +21,7 @@ export default function FullPageLoading({
       role="status"
       aria-live="polite"
       aria-busy="true"
+      data-testid="full-page-loading"
       className="fixed inset-0 z-50 flex items-center justify-center bg-bg-default/90 px-4 backdrop-blur-sm"
     >
       <div className="card-surface-elevated w-full max-w-md rounded-3xl px-6 py-8 text-center shadow-lg">

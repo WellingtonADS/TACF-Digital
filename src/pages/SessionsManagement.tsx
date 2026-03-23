@@ -152,14 +152,20 @@ export const SessionsManagement = () => {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6">
+      <div
+        className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6"
+        data-testid="sessions-management-page"
+      >
         {/* hero */}
         <section>
           <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
             <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                <h2
+                  className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
+                  data-testid="sessions-management-title"
+                >
                   Gerenciar Turmas
                 </h2>
                 <p className="mt-2 text-sm text-white/85 md:text-base">

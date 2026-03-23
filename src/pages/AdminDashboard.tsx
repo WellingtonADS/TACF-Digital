@@ -60,10 +60,15 @@ const AdminDashboard = () => {
   };
 
   function QuickActionButton({ action }: { action: LocalAction }) {
+    const actionTestId = `admin-quick-action-${
+      action.path.replace(/^\/app\/?/, "").replace(/[:/]+/g, "-") || "dashboard"
+    }`;
+
     return (
       <button
         type="button"
         onClick={() => navigate(action.path)}
+        data-testid={actionTestId}
         className={`${CARD_INTERACTIVE_CLASS} group flex h-full min-h-[156px] w-full flex-col items-start justify-start gap-3 rounded-2xl p-4 text-left md:min-h-[168px] md:p-5`}
       >
         <div
@@ -174,7 +179,7 @@ const AdminDashboard = () => {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full max-w-6xl" data-testid="admin-dashboard">
         {/* Greeting hero */}
         <section className="mb-8">
           <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">

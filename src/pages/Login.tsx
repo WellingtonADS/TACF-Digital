@@ -147,7 +147,12 @@ export default function Login() {
           </h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+          autoComplete="off"
+          data-testid="login-form"
+        >
           <div className="space-y-1">
             <Input
               id="email"
@@ -157,6 +162,7 @@ export default function Login() {
               placeholder="Ex.: joao.silva@fab.mil.br"
               value={formData.email}
               autoComplete="off"
+              data-testid="login-email-input"
               onChange={(v: string) => setFormData({ ...formData, email: v })}
             />
           </div>
@@ -169,6 +175,7 @@ export default function Login() {
               placeholder="Digite sua senha"
               value={formData.password}
               autoComplete="new-password"
+              data-testid="login-password-input"
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
@@ -194,6 +201,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={isLoading}
+            data-testid="login-submit-button"
             className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {isLoading ? (
