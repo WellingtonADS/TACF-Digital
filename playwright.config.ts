@@ -75,8 +75,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command:
-      "yarn build && yarn preview --host 127.0.0.1 --port 4173 --strictPort",
+    command: "yarn dev --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

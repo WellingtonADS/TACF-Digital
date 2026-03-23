@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-import { Client } from "pg";
+const dotenv = require("dotenv");
+const { Client } = require("pg");
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ if (!connectionString) {
   process.exit(1);
 }
 
-function getCurrentSemester(date: Date) {
+function getCurrentSemester(date) {
   return date.getMonth() < 6 ? "1" : "2";
 }
 
@@ -38,7 +38,7 @@ async function setupTestData() {
       [E2E_SESSION_TITLE, tomorrowStr],
     );
 
-    let sessionId = existingSessionRes.rows[0]?.id as string | undefined;
+    let sessionId = existingSessionRes.rows[0]?.id;
 
     if (!sessionId) {
       const sessionRes = await client.query(
@@ -58,7 +58,7 @@ async function setupTestData() {
           $2,
           $3::date,
           'manha'::session_period,
-          30,
+          21,
           'open'::session_status,
           ARRAY[]::text[],
           jsonb_build_object('source', 'e2e-admin-setup')
@@ -72,7 +72,7 @@ async function setupTestData() {
         ],
       );
 
-      sessionId = sessionRes.rows[0]?.id as string | undefined;
+      sessionId = sessionRes.rows[0]?.id;
     }
 
     if (!sessionId) {
@@ -98,7 +98,7 @@ async function setupTestData() {
       process.exit(1);
     }
 
-    const userIds = usersRes.rows.map((row) => row.id as string);
+    const userIds = usersRes.rows.map((row) => row.id);
     console.log(`✓ Usuários encontrados: ${userIds.length}`);
 
     for (const userId of userIds) {
