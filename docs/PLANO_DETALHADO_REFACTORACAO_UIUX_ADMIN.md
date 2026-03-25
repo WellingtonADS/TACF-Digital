@@ -44,22 +44,44 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 - Presenca, resultado e excecoes ficam proximas no mesmo contexto de sessao.
 - Reagendamento continua com inbox global, mas com atalhos contextuais a partir da operacao da turma.
 
-## 6. Roadmap por Ondas
+## 6. Roadmap por Etapas Logicas
 
-## Onda 1 - Contexto Unico (baixo risco)
+### Etapa 1 - Baseline e Contrato Operacional
 
-### Objetivo
+#### Objetivo
 
-- Reduzir troca de contexto sem alterar arquitetura principal de rotas.
+- Estabelecer linha de base e contrato canonico de estados para guiar implementacao e QA.
 
-### Entregaveis
+#### Entregaveis
 
-- Melhorar CTA primario em Turmas para enfatizar operacao da sessao.
-- Propagar contexto da sessao entre telas operacionais com navegacao consistente.
-- Propagar contexto da sessao por URL params (query/path) e nao apenas `location.state`, preservando a sessao selecionada apos refresh.
-- Padronizar labels e microcopy operacional.
+- Definir baseline de operacao (tempo medio por ciclo, numero medio de navegacoes, pendencias por turma).
+- Publicar matriz oficial de transicao de estados com bloqueios e mensagens esperadas.
+- Alinhar frontend, backend e QA sobre a mesma definicao de regras operacionais.
 
-### Arquivos alvo
+#### Arquivos alvo
+
+- docs/PLANO_DETALHADO_REFACTORACAO_UIUX_ADMIN.md
+- docs/ContextRotaAdmin.md
+
+#### Criterios de aceite
+
+- Matriz de estados validada por produto, backend e frontend.
+- Baseline registrado para comparacao antes/depois.
+
+### Etapa 2 - Contexto de Sessao e Navegacao Confiavel
+
+#### Objetivo
+
+- Eliminar perda de contexto de turma por refresh, deep link e retorno de navegacao.
+
+#### Entregaveis
+
+- Propagar contexto da sessao por URL params (query/path), evitando dependencia exclusiva de `location.state`.
+- Manter fallback temporario com `location.state` durante transicao para evitar quebra de fluxo.
+- Padronizar labels e microcopy operacional entre desktop e mobile.
+- Atualizar contratos de rota no registro central e na documentacao.
+
+#### Arquivos alvo
 
 - src/pages/SessionsManagement.tsx
 - src/pages/SessionBookingsManagement.tsx
@@ -67,29 +89,26 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 - src/utils/routeRegistry.ts
 - docs/ContextRotaAdmin.md
 
-### Criterios de aceite
+#### Criterios de aceite
 
-- Operador consegue sair de Turmas e concluir presenca + resultado com menos navegacao.
-- Labels de acao ficam consistentes em desktop e mobile.
-- Refresh na tela de lancamento de indices preserva a turma em contexto sem exigir nova selecao manual.
+- Refresh na tela de lancamento preserva turma em contexto sem nova selecao manual.
+- Operador conclui presenca + resultado com menos troca de contexto.
 - Nenhuma rota administrativa existente deixa de funcionar.
 
-## Onda 2 - Integracao Funcional por Turma (medio risco)
+### Etapa 3 - Integracao Funcional por Turma
 
-### Objetivo
+#### Objetivo
 
-- Aproximar presenca, resultado e excecoes no fluxo da turma.
+- Aproximar presenca, resultado e excecoes no contexto da sessao.
 
-### Entregaveis
+#### Entregaveis
 
-- Incluir acao contextual de resultado dentro da operacao da turma.
+- Incluir acao contextual de resultado no fluxo da turma.
 - Exibir estado de reagendamento por participante quando aplicavel.
-- Manter pagina de Lancamento de Indices como fallback temporario.
-- Implementar regra de desbloqueio de reagendamento por falta confirmada via RPC/backend, com trilha de auditoria.
-- Padronizar tratamento de data/hora para timezone de Brasilia em todos os fluxos operacionais.
-- Centralizar formatacao e parse de data/hora administrativa em util compartilhada (`src/utils/date.ts`), evitando parse direto distribuido.
+- Implementar falta confirmada e elegibilidade de reagendamento via RPC/backend, com auditoria.
+- Manter fluxo legado de lancamento de indices como fallback temporario.
 
-### Arquivos alvo
+#### Arquivos alvo
 
 - src/pages/SessionBookingsManagement.tsx
 - src/pages/ScoreEntry.tsx
@@ -97,41 +116,85 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 - src/services/sessions.ts
 - src/services/bookings.ts
 
-### Criterios de aceite
+#### Criterios de aceite
 
-- Operador consegue executar presenca e avancar para resultado sem perder contexto da sessao.
-- Existe sinalizacao clara de excecao (reagendamento) no contexto da turma.
-- Fluxo anterior continua disponivel durante transicao.
+- Operador avanca de presenca para resultado sem perder contexto da sessao.
 - Militar com falta confirmada fica elegivel para reagendamento sem acao manual paralela.
-- Elegibilidade de reagendamento por falta confirmada e validada no backend/RPC (frontend apenas orquestra e exibe feedback).
-- Datas e horarios exibidos no admin permanecem estaveis no fuso de Brasilia (sem deslocamento de dia/hora).
+- Elegibilidade e validada no backend/RPC, com frontend apenas orquestrando UX.
 
-## Onda 3 - Consolidacao de Jornada e Governanca (medio/alto risco)
+### Etapa 4 - Confiabilidade de Regras e Idempotencia
 
-### Objetivo
+#### Objetivo
 
-- Tornar dashboard orientado a pendencia operacional e reduzir sobreposicao de governanca.
+- Garantir que regras de transicao e acoes criticas sejam robustas contra clique duplicado e concorrencia.
 
-### Entregaveis
+#### Entregaveis
 
-- Ajustar dashboard para destacar fila de acao e prioridade operacional, substituindo a lista generica de proximas turmas abertas.
-- Revisar relacao entre Configuracoes, Auditoria e modulos dedicados.
-- Fechar arquitetura final de sidebar por dominio funcional.
+- Bloquear transicoes invalidas no frontend conforme matriz (exemplo: resultado sem presenca confirmada).
+- Validar as mesmas regras no backend/RPC como fonte final de verdade.
+- Exigir loading e desabilitacao imediata por registro/acao em salvar, deferir e indeferir.
 
-### Arquivos alvo
+#### Arquivos alvo
+
+- src/pages/ScoreEntry.tsx
+- src/pages/ReschedulingManagement.tsx
+- src/hooks/useReschedulingManagement.ts
+- src/services/sessions.ts
+
+#### Criterios de aceite
+
+- Duplo clique nao duplica efeito em acoes criticas.
+- Transicoes fora da matriz sao bloqueadas e retornam mensagem clara.
+
+### Etapa 5 - Timezone Brasilia e Consistencia de Datas
+
+#### Objetivo
+
+- Eliminar day shift e divergencia de exibicao entre telas administrativas.
+
+#### Entregaveis
+
+- Centralizar parse/format de data/hora administrativa em `src/utils/date.ts`.
+- Substituir parse ad-hoc distribuido nas telas operacionais admin.
+- Padronizar exibicao em `America/Sao_Paulo` para data/hora operacional.
+
+#### Arquivos alvo
+
+- src/utils/date.ts
+- src/pages/AdminDashboard.tsx
+- src/pages/SessionBookingsManagement.tsx
+- src/pages/ScoreEntry.tsx
+- src/pages/ReschedulingManagement.tsx
+
+#### Criterios de aceite
+
+- Mesma sessao apresenta mesmo dia/hora em telas diferentes.
+- Ambiente local com timezone diferente nao altera exibicao operacional.
+
+### Etapa 6 - Dashboard Operacional e Governanca
+
+#### Objetivo
+
+- Mudar o dashboard de atalhos para fila de execucao por prioridade operacional.
+
+#### Entregaveis
+
+- Substituir lista generica de proximas turmas por fila de pendencias operacionais.
+- Expandir fonte de dados para incluir completude operacional por turma.
+- Revisar sobreposicoes de governanca entre Dashboard, Configuracoes, Auditoria e Sidebar.
+
+#### Arquivos alvo
 
 - src/pages/AdminDashboard.tsx
-- src/pages/SystemSettings.tsx
-- src/pages/AuditLog.tsx
+- src/hooks/useSessions.ts
+- src/services/bookings.ts
 - src/components/layout/Sidebar.tsx
 - src/utils/routeRegistry.ts
 
-### Criterios de aceite
+#### Criterios de aceite
 
-- Dashboard passa a orientar o que fazer primeiro.
-- Dashboard prioriza turmas ja ocorridas com pendencias operacionais (presenca/resultado/reagendamento), em vez de apenas disponibilidade futura.
-- Navegacao de governanca fica clara, sem duplicidade confusa.
-- Sidebar final alinhada com jornada operacional definida no documento.
+- Dashboard prioriza turmas com pendencias (presenca, resultado, reagendamento).
+- Navegacao de governanca fica clara e sem duplicidade de responsabilidade.
 
 ## 7. Possivel Pagina Nova (apenas se necessario)
 
@@ -326,7 +389,7 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 - Caso 2: duas atualizacoes simultaneas no mesmo registro nao geram estado inconsistente.
 - Caso 3: conflito de versao retorna feedback e orientacao de recarga.
 
-## 15. Checklist de Entrega por Onda
+## 15. Checklist de Entrega por Etapa
 
 - Criticidade e impacto mapeados.
 - Fluxo documentado no Contexto de Rotas.
@@ -341,8 +404,8 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 
 ## 16. Decisao Executiva Recomendada
 
-- Executar Onda 1 e Onda 2 antes de criar nova pagina.
-- Usar Onda 3 para consolidar navegacao final e governanca.
+- Executar Etapas 1 a 6 antes de criar nova pagina transversal.
+- Usar a Etapa 6 para consolidar navegacao final e governanca.
 - Criar pagina transversal apenas com evidencia de ganho operacional mensuravel.
 
 ## 17. Recomendacoes Tecnicas para Implementacao
@@ -351,3 +414,130 @@ Plano tatico para evoluir a experiencia administrativa do TACF Digital com foco 
 - Avaliar componente `BookingActionManager` para encapsular Presenca + Resultado + Reagendamento no mesmo contrato de UI e reaproveitar o fluxo em telas diferentes.
 - Priorizar evolucao incremental: primeiro compartilhar logica e componentes entre telas existentes; criar pagina transversal apenas se o ganho operacional for comprovado por metricas.
 - Garantir sincronizacao de timezone em toda interface admin com util unica, reduzindo risco de day shift e inconsistencias de horario entre modulos.
+
+## 18. TODO Executivo (Aprovacao)
+
+- [ ] Validar e aprovar matriz oficial de transicao de estados.
+- [ ] Aprovar contrato de contexto por URL params no fluxo admin.
+- [ ] Aprovar escopo de RPC para falta confirmada e elegibilidade de reagendamento.
+- [ ] Aprovar padrao unico de timezone `America/Sao_Paulo` para telas administrativas.
+- [ ] Aprovar criterio de fila operacional no dashboard (pendencias antes de disponibilidade futura).
+- [ ] Aprovar estrategia de PRs por etapa logica.
+- [ ] Aprovar criterios de aceite e checklist de verificacao por etapa.
+
+## 19. Correcoes Aplicadas no Plano
+
+### 19.1 Estrutura
+
+- Correcao: migracao de planejamento por ondas para planejamento por etapas logicas.
+- Motivo: reduzir ambiguidade de sequencia, facilitar aprovacao por dependencia tecnica e permitir execucao incremental com menor risco.
+
+### 19.2 Regras de negocio
+
+- Correcao: explicitar que falta confirmada e elegibilidade de reagendamento devem ser validadas via RPC/backend.
+- Motivo: manter fonte de verdade no banco e evitar bypass de regra por ordem de cliques no frontend.
+
+### 19.3 Confiabilidade operacional
+
+- Correcao: incluir idempotencia de UX (loading e desabilitacao por acao/registro).
+- Motivo: prevenir duplo processamento em operacoes criticas (salvar, deferir, indeferir).
+
+### 19.4 Datas e timezone
+
+- Correcao: centralizar parse/format em util unica e proibir parse ad-hoc em telas admin.
+- Motivo: eliminar day shift e divergencia de horario entre modulos.
+
+### 19.5 Dashboard
+
+- Correcao: priorizar fila operacional por pendencias em vez de lista de proximas turmas abertas.
+- Motivo: alinhar interface com jornada real do operador e reduzir tempo de decisao.
+
+## 20. Backlog de Issues do Refatoramento
+
+### ISSUE-01 - Matriz oficial de estados e bloqueios
+
+- Objetivo: consolidar tabela canonica de transicoes e bloqueios para frontend/backend/QA.
+- Escopo: documento oficial de estados, acao permitida, proximo estado, bloqueio e mensagem.
+- Fora de escopo: alteracao visual de tela.
+- Dependencias: nenhuma.
+- Arquivos: docs/PLANO_DETALHADO_REFACTORACAO_UIUX_ADMIN.md, docs/ContextRotaAdmin.md.
+- Criterios de aceite: matriz aprovada por produto, backend e frontend.
+- Risco: medio (desalinhamento entre areas).
+
+### ISSUE-02 - Contexto de sessao por URL params
+
+- Objetivo: preservar contexto no refresh/deep link sem perda de sessao.
+- Escopo: fluxo Turmas -> Agendamentos -> Lancamento de Indices com URL params.
+- Fora de escopo: mudanca de regra de negocio.
+- Dependencias: ISSUE-01.
+- Arquivos: src/pages/SessionsManagement.tsx, src/pages/ScoreEntry.tsx, src/utils/routeRegistry.ts, docs/ContextRotaAdmin.md.
+- Criterios de aceite: refresh mantem sessao; fallback temporario com state ativo na migracao.
+- Risco: baixo.
+
+### ISSUE-03 - Integracao contextual presenca, resultado e excecoes
+
+- Objetivo: aproximar operacao por participante no contexto da turma.
+- Escopo: sinalizacao de reagendamento por participante e navegacao contextual para resultado.
+- Fora de escopo: nova pagina transversal.
+- Dependencias: ISSUE-02.
+- Arquivos: src/pages/SessionBookingsManagement.tsx, src/pages/ScoreEntry.tsx, src/pages/ReschedulingManagement.tsx.
+- Criterios de aceite: operador conclui fluxo operacional sem quebra de contexto.
+- Risco: medio.
+
+### ISSUE-04 - RPC de falta confirmada e elegibilidade de reagendamento
+
+- Objetivo: mover validacao critica para backend com auditoria.
+- Escopo: RPC de negocio para falta confirmada e liberacao de elegibilidade de reagendamento.
+- Fora de escopo: alteracao ampla de schema fora do necessario.
+- Dependencias: ISSUE-01.
+- Arquivos: src/services/sessions.ts, src/services/bookings.ts, supabase/rpc/.
+- Criterios de aceite: regra valida no backend; frontend recebe feedback claro.
+- Risco: medio/alto (mudanca de contrato backend).
+
+### ISSUE-05 - Guardrails de transicao e idempotencia
+
+- Objetivo: impedir transicoes invalidas e duplicidade por clique repetido.
+- Escopo: bloqueio UX + loading/desabilitacao imediata por acao.
+- Fora de escopo: reescrita completa de hooks.
+- Dependencias: ISSUE-01, ISSUE-03.
+- Arquivos: src/pages/ScoreEntry.tsx, src/pages/ReschedulingManagement.tsx, src/hooks/useReschedulingManagement.ts.
+- Criterios de aceite: sem duplo processamento e sem transicao fora da matriz.
+- Risco: medio.
+
+### ISSUE-06 - Padronizacao de timezone Brasilia
+
+- Objetivo: garantir consistencia de data/hora operacional entre telas.
+- Escopo: centralizar parse/format em util unica e remover parse ad-hoc admin.
+- Fora de escopo: alterar timezone de persistencia backend (continua UTC para eventos).
+- Dependencias: nenhuma.
+- Arquivos: src/utils/date.ts, src/pages/AdminDashboard.tsx, src/pages/SessionBookingsManagement.tsx, src/pages/ScoreEntry.tsx.
+- Criterios de aceite: zero day shift em cenarios de borda e consistencia entre telas.
+- Risco: medio.
+
+### ISSUE-07 - Dashboard por fila operacional
+
+- Objetivo: priorizar o que fazer primeiro com base em pendencias reais.
+- Escopo: substituir lista generica por fila operacional e criterios de prioridade.
+- Fora de escopo: redesign completo da aplicacao.
+- Dependencias: ISSUE-01, ISSUE-03.
+- Arquivos: src/pages/AdminDashboard.tsx, src/hooks/useSessions.ts, src/services/bookings.ts.
+- Criterios de aceite: dashboard ordena pendencias operacionais antes de disponibilidade futura.
+- Risco: medio.
+
+### ISSUE-08 - Revisao de governanca e arquitetura de navegacao
+
+- Objetivo: remover duplicidade entre dashboard, configuracoes, auditoria e sidebar.
+- Escopo: ajuste da arquitetura final de navegacao por dominio funcional.
+- Fora de escopo: criacao obrigatoria de nova pagina transversal.
+- Dependencias: ISSUE-07.
+- Arquivos: src/components/layout/Sidebar.tsx, src/utils/routeRegistry.ts, src/pages/SystemSettings.tsx, src/pages/AuditLog.tsx.
+- Criterios de aceite: navegacao sem sobreposicao confusa de responsabilidades.
+- Risco: medio.
+
+## 21. Plano de Entrega para Aprovacao
+
+- Lote A (fundacao): ISSUE-01, ISSUE-02.
+- Lote B (integracao): ISSUE-03, ISSUE-04, ISSUE-05.
+- Lote C (consistencia): ISSUE-06.
+- Lote D (consolidacao): ISSUE-07, ISSUE-08.
+- Gate por lote: lint, tipagem, QA funcional desktop/tablet e checklist de aceite aplicado.
