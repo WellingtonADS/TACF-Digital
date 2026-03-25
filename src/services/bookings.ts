@@ -10,6 +10,18 @@ export async function getSessions() {
 export async function createSessions(
   rows: Database["public"]["Tables"]["sessions"]["Insert"][],
 ): Promise<void> {
+  rows.forEach((row) => {
+    if (!row.location_id) {
+      throw new Error("Local do teste é obrigatório para criar agendamento.");
+    }
+
+    if (!row.applicators || row.applicators.length === 0) {
+      throw new Error(
+        "Instrutor aplicador é obrigatório para criar agendamento.",
+      );
+    }
+  });
+
   const { error } = await supabase.from("sessions").insert(rows);
   if (error) throw error;
 }

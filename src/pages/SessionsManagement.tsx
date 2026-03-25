@@ -431,8 +431,13 @@ export const SessionsManagement = () => {
                             onClick={() =>
                               navigate(`/app/turmas/${s.session_id}/editar`)
                             }
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Editar turma"
+                            disabled={isConcluded}
+                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
+                            title={
+                              isConcluded
+                                ? "Turma concluída não pode ser editada"
+                                : "Editar turma"
+                            }
                             aria-label="Editar turma"
                           >
                             <AppIcon icon={Edit2} size="sm" decorative />
@@ -556,7 +561,13 @@ export const SessionsManagement = () => {
                         onClick={() =>
                           navigate(`/app/turmas/${s.session_id}/editar`)
                         }
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                        disabled={isConcluded}
+                        title={
+                          isConcluded
+                            ? "Turma concluída não pode ser editada"
+                            : "Editar turma"
+                        }
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-text-body disabled:hover:border-border-default"
                       >
                         <AppIcon icon={Edit2} size="sm" decorative /> Editar
                       </button>

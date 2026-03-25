@@ -41,6 +41,7 @@ export type PersonnelLatestBooking = {
   user_id: string;
   test_date: string | null;
   score: number | null;
+  result_details: unknown;
   created_at: string | null;
 };
 
@@ -48,7 +49,10 @@ export async function fetchPersonnelList(): Promise<{
   profiles: PersonnelListProfile[];
   latestBookings: Map<
     string,
-    Pick<PersonnelLatestBooking, "test_date" | "score" | "created_at">
+    Pick<
+      PersonnelLatestBooking,
+      "test_date" | "score" | "result_details" | "created_at"
+    >
   >;
 }> {
   const [
@@ -60,7 +64,7 @@ export async function fetchPersonnelList(): Promise<{
       .select("id, full_name, war_name, rank, sector, saram, active"),
     supabase
       .from("bookings")
-      .select("user_id, test_date, score, created_at")
+      .select("user_id, test_date, score, result_details, created_at")
       .order("test_date", { ascending: false, nullsFirst: false }),
   ]);
 
@@ -69,7 +73,10 @@ export async function fetchPersonnelList(): Promise<{
 
   const latestBookings = new Map<
     string,
-    Pick<PersonnelLatestBooking, "test_date" | "score" | "created_at">
+    Pick<
+      PersonnelLatestBooking,
+      "test_date" | "score" | "result_details" | "created_at"
+    >
   >();
 
   ((bookingData ?? []) as PersonnelLatestBooking[]).forEach((booking) => {
@@ -83,6 +90,7 @@ export async function fetchPersonnelList(): Promise<{
       latestBookings.set(booking.user_id, {
         test_date: booking.test_date,
         score: booking.score,
+        result_details: booking.result_details,
         created_at: booking.created_at,
       });
     }
@@ -123,16 +131,12 @@ export async function getProfileWithHistory(
 ): Promise<ProfileWithHistory | null> {
   const [{ data, error }, { data: bookings, error: bookingError }] =
     await Promise.all([
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle(),
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase
         .from("bookings")
         .select("id, test_date, score, status, created_at")
         .eq("user_id", userId)
-        .neq("status", "cancelled")
+        .neq("status", "cancelado")
         .order("test_date", { ascending: false, nullsFirst: false })
         .limit(10),
     ]);
@@ -215,9 +219,7 @@ export async function fetchCoordinators(): Promise<Coordinator[]> {
 export async function fetchAllProfilesForAccess(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      "id, full_name, email, rank, role, active, updated_at, created_at",
-    )
+    .select("id, full_name, email, rank, role, active, updated_at, created_at")
     .order("role")
     .order("full_name");
   if (error) throw error;

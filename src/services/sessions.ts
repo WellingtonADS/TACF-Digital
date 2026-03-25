@@ -199,9 +199,9 @@ export async function updateBookingResult(
   bookingId: string,
   resultDetails: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("bookings")
-    .update({ result_details: resultDetails })
-    .eq("id", bookingId);
+  const { error } = await supabase.rpc("set_booking_result", {
+    p_booking_id: bookingId,
+    p_result: resultDetails,
+  });
   if (error) throw error;
 }

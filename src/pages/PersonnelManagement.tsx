@@ -84,18 +84,73 @@ function deriveStatus(
   active: boolean,
   lastTestDate: string | null,
   lastScore: number | null,
+  resultDetails: unknown,
 ): PersonnelRow["status"] {
   if (!active) return "INAPTO";
   if (!lastTestDate) return "INAPTO";
 
-  const testDate = new Date(lastTestDate);
+  const explicitResult = normalizeAptResult(resultDetails);
+  const testDate = parseDateValue(lastTestDate);
+  if (!testDate) return "INAPTO";
   const daysSinceTest =
     (Date.now() - testDate.getTime()) / (1000 * 60 * 60 * 24);
 
   if (daysSinceTest > 365) return "VENCIDO";
+  if (explicitResult === "inapto") return "INAPTO";
+  if (explicitResult === "apto") return "APTO";
   if (lastScore === null) return "INAPTO";
 
   return "APTO";
+}
+
+function parseDateValue(value: string | null): Date | null {
+  if (!value) return null;
+
+  const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+  const parsed = dateOnlyPattern.test(value)
+    ? new Date(`${value}T12:00:00`)
+    : new Date(value);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeAptResult(raw: unknown): "apto" | "inapto" | null {
+  if (raw == null) return null;
+
+  if (raw === "apto" || raw === "inapto") return raw;
+
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === "apto" || normalized === "inapto") return normalized;
+
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed === "apto" || parsed === "inapto") return parsed;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "result_status" in parsed &&
+        ((parsed as { result_status?: unknown }).result_status === "apto" ||
+          (parsed as { result_status?: unknown }).result_status === "inapto")
+      ) {
+        return (parsed as { result_status: "apto" | "inapto" }).result_status;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "result_status" in raw &&
+    ((raw as { result_status?: unknown }).result_status === "apto" ||
+      (raw as { result_status?: unknown }).result_status === "inapto")
+  ) {
+    return (raw as { result_status: "apto" | "inapto" }).result_status;
+  }
+
+  return null;
 }
 
 function initialsFromName(name: string) {
@@ -106,9 +161,8 @@ function initialsFromName(name: string) {
 }
 
 function dateLabel(value: string | null) {
-  if (!value) return "--";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "--";
+  const parsed = parseDateValue(value);
+  if (!parsed) return "--";
   return format(parsed, "dd/MM/yyyy");
 }
 
@@ -248,6 +302,7 @@ export default function PersonnelManagement() {
             Boolean(profile.active),
             lastDate,
             latest?.score ?? null,
+            latest?.result_details ?? null,
           );
           return {
             id: profile.id,
@@ -290,7 +345,8 @@ export default function PersonnelManagement() {
     const now = new Date();
     const testsThisMonth = rows.filter((row) => {
       if (!row.lastTestDate) return false;
-      const date = new Date(row.lastTestDate);
+      const date = parseDateValue(row.lastTestDate);
+      if (!date) return false;
       return (
         date.getMonth() === now.getMonth() &&
         date.getFullYear() === now.getFullYear()

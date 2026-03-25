@@ -4,8 +4,6 @@
  * @path src/pages/ForgotPassword.tsx
  */
 
-
-
 import AuthLayout from "@/components/AuthLayout";
 import { AlertCircle, ArrowLeft, KeyRound, Mail } from "@/icons";
 import { supabase } from "@/services/supabase";
@@ -70,7 +68,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       // supabase v2 API: resetPasswordForEmail accepts an email string
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       if (error) throw error;
       toast.success(
         "E-mail de recuperação enviado. Verifique sua caixa de entrada.",

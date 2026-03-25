@@ -146,7 +146,7 @@ const STATUS_OPTIONS: { value: SessionStatus; label: string; desc: string }[] =
 const STATUS_STYLE: Record<SessionStatus, string> = {
   open: "border-success/40 bg-success/10 text-success",
   closed: "border-alert/40 bg-alert/10 text-alert",
-  completed: "border-border-default bg-bg-default text-text-muted",
+  completed: "border-primary/40 bg-primary/10 text-primary",
 };
 
 // ─── Componente ──────────────────────────────────────────────────────────────
@@ -209,6 +209,11 @@ export default function SessionEditor() {
     fetchSessionForEdit(sessionId)
       .then(({ session, bookedCount }) => {
         const s = session as DBSessionRow;
+        const effectiveStatus = deriveStatus(
+          s.date ?? "",
+          (s.status as SessionStatus) ?? "open",
+        );
+
         setForm({
           date: s.date ?? "",
           dateMode: "single",
@@ -221,10 +226,7 @@ export default function SessionEditor() {
               ? s.applicators[0]
               : "",
           maxCapacity: s.max_capacity ?? 15,
-          status: deriveStatus(
-            s.date ?? "",
-            (s.status as SessionStatus) ?? "open",
-          ),
+          status: effectiveStatus,
         });
         setOccupiedCount(bookedCount);
       })
@@ -737,7 +739,11 @@ export default function SessionEditor() {
                 <button
                   type="button"
                   onClick={() => setShowCancelConfirm(true)}
-                  disabled={saving || form.status === "closed"}
+                  disabled={
+                    saving ||
+                    form.status === "closed" ||
+                    form.status === "completed"
+                  }
                   title={
                     canMutate
                       ? "Cancelar turma"
@@ -757,11 +763,13 @@ export default function SessionEditor() {
                   </button>
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || form.status === "completed"}
                     title={
-                      canMutate
-                        ? "Salvar alterações"
-                        : "Apenas administradores podem editar turmas"
+                      form.status === "completed"
+                        ? "Turmas concluídas não podem ser editadas"
+                        : canMutate
+                          ? "Salvar alterações"
+                          : "Apenas administradores podem editar turmas"
                     }
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
                   >

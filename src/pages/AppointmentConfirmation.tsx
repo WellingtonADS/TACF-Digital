@@ -15,11 +15,10 @@ import {
 import { confirmarAgendamentoRPC, supabase } from "@/services/supabase";
 import {
   fetchExistingSemesterBooking,
-  formatDatePtBr,
   formatSessionPeriod,
   translateBookingError,
 } from "@/utils/booking";
-import { getSemesterFromDate } from "@/utils/date";
+import { formatDatePtBr, getSemesterFromDate } from "@/utils/date";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";

@@ -2,7 +2,13 @@ export function getAuthErrorMessage(
   err: unknown,
   defaultMsg = "Erro na autenticação.",
 ) {
-  const raw = err instanceof Error ? err.message : String(err ?? "");
+  // Supabase AuthApiError pode ter .message, .code ou .error_description
+  const errObj = err as Record<string, unknown> | null | undefined;
+  const raw =
+    (errObj?.message as string) ||
+    (errObj?.error_description as string) ||
+    (errObj?.msg as string) ||
+    (err instanceof Error ? err.message : String(err ?? ""));
   const msg = (raw || "").toLowerCase();
 
   if (!msg) return defaultMsg;
@@ -33,7 +39,16 @@ export function getAuthErrorMessage(
   )
     return "Erro de servidor. Tente novamente mais tarde.";
 
+  if (
+    msg.includes("error sending recovery email") ||
+    msg.includes("unexpected_failure") ||
+    msg.includes("sending recovery") ||
+    msg.includes("email not sent") ||
+    (errObj?.status === 500 && msg.includes("email")) ||
+    ((errObj?.status as number) === 500 && msg === "")
+  ) {
+    return "Não foi possível enviar o e-mail de recuperação. Configure o SMTP no painel do Supabase ou aguarde alguns minutos e tente novamente.";
+  }
+
   return raw || defaultMsg;
 }
-
-

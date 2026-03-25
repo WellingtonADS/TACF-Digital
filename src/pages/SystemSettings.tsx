@@ -28,6 +28,7 @@ import type {
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
 } from "@/types";
+import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -58,6 +59,16 @@ export default function SystemSettings() {
 
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+
+  // state para edição de tabelas de avaliação
+  const [editingStandardId, setEditingStandardId] = useState<string | null>(
+    null,
+  );
+  const [editFormData, setEditFormData] = useState({
+    corrida: "",
+    flexao: "",
+    abdominal: "",
+  });
 
   // local form state for "general" tab
   const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
@@ -354,7 +365,19 @@ export default function SystemSettings() {
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-                        <button className="p-2 text-text-muted hover:text-primary transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingStandardId("24");
+                            setEditFormData({
+                              corrida: "12:00",
+                              flexao: "30",
+                              abdominal: "35",
+                            });
+                          }}
+                          className="p-2 text-text-muted hover:text-primary transition-colors"
+                          title="Editar"
+                        >
                           <AppIcon icon={Edit2} size="sm" decorative />
                         </button>
                       </td>
@@ -574,6 +597,106 @@ export default function SystemSettings() {
             <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
           </section>
         </div>
+
+        {/* Modal de edição de tabelas de avaliação */}
+        {editingStandardId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-bg-card border border-border-default shadow-2xl">
+              {/* Header */}
+              <div className="border-b border-border-default bg-bg-default/50 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-text-body">
+                  Editar Requisitos - Até 24 anos
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setEditingStandardId(null)}
+                  className="text-text-muted hover:text-text-body transition-colors"
+                  aria-label="Fechar"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Conteúdo */}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
+                    Corrida (minutos)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.corrida}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        corrida: e.target.value,
+                      })
+                    }
+                    placeholder="Ex: 12:00"
+                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
+                    Flexão (repetições)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.flexao}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        flexao: e.target.value,
+                      })
+                    }
+                    placeholder="Ex: 30"
+                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
+                    Abdominal (repetições)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.abdominal}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        abdominal: e.target.value,
+                      })
+                    }
+                    placeholder="Ex: 35"
+                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-border-default bg-bg-default/50 px-6 py-4 flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingStandardId(null)}
+                  className="px-4 py-2 text-sm font-semibold text-text-muted border border-border-default rounded-lg hover:bg-bg-card transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.success("Requisitos de desempenho atualizados!");
+                    setEditingStandardId(null);
+                  }}
+                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:brightness-110 transition-all"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

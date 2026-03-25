@@ -20,7 +20,12 @@ export async function callRpcWithRetry<T = unknown>(
 
   while (attempt <= retries) {
     try {
-      const rpcPromise = supabase.rpc(rpcName, params);
+      const rpcFn = supabase.rpc as unknown as (
+        name: string,
+        args?: Record<string, unknown>,
+      ) => Promise<{ data: T | null; error: { message: string } | null }>;
+
+      const rpcPromise = rpcFn(rpcName, params);
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("rpc timeout")), timeoutMs),

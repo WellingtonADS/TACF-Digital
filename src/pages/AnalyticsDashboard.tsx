@@ -188,6 +188,7 @@ export default function AnalyticsDashboard() {
   const latestByUser = useMemo(() => {
     const map = new Map<string, BookingRow>();
     for (const booking of allBookings) {
+      if (!booking.user_id) continue;
       const current = map.get(booking.user_id);
       const bookingDate = getReferenceDate(booking);
       const currentDate = current ? getReferenceDate(current) : null;

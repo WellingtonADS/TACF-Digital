@@ -474,6 +474,10 @@ export interface Database {
         };
         Returns: Json;
       };
+      set_booking_result: {
+        Args: { p_booking_id: string; p_result: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       session_period: SessionPeriod;

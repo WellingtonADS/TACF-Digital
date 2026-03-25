@@ -189,6 +189,16 @@ export default function ClassCreationForm() {
       return;
     }
 
+    if (!form.location_id) {
+      toast.error("Selecione o local do teste.");
+      return;
+    }
+
+    if (!form.instructor_id) {
+      toast.error("Selecione quem vai aplicar o teste.");
+      return;
+    }
+
     if (!isValidCapacity) {
       toast.error("A capacidade deve estar entre 8 e 21 vagas.");
       return;
@@ -201,8 +211,8 @@ export default function ClassCreationForm() {
         date,
         period,
         max_capacity: form.maxCapacity,
-        ...(form.location_id ? { location_id: form.location_id } : {}),
-        ...(form.instructor_id ? { applicators: [form.instructor_id] } : {}),
+        location_id: form.location_id,
+        applicators: [form.instructor_id],
       }));
 
       await createSessions(rows);
@@ -289,6 +299,7 @@ export default function ClassCreationForm() {
                       Local do Teste
                     </label>
                     <select
+                      required
                       value={form.location_id}
                       onChange={(event) =>
                         updateField("location_id", event.target.value)
@@ -315,6 +326,7 @@ export default function ClassCreationForm() {
                       Quem vai aplicar
                     </label>
                     <select
+                      required
                       value={form.instructor_id}
                       onChange={(e) =>
                         updateField("instructor_id", e.target.value)
@@ -576,7 +588,7 @@ export default function ClassCreationForm() {
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || !form.location_id || !form.instructor_id}
                 title={
                   canMutate
                     ? "Publicar turma"

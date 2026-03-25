@@ -19,6 +19,7 @@ import type { RouteAccess } from "./types";
 import { prefetchCriticalRoutes } from "./utils/prefetchRoutes";
 import { getRoutableAppRoutes } from "./utils/routeRegistry";
 const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
+const ResetPasswordPage = React.lazy(() => import("./pages/ResetPassword"));
 const Login = React.lazy(() => import("./pages/Login"));
 const RegisterPage = React.lazy(() => import("./pages/Register"));
 const OperationalDashboard = React.lazy(
@@ -30,7 +31,7 @@ const routeFallback = <FullPageLoading message="Carregando modulo" />;
 const appRoutableEntries = getRoutableAppRoutes().map((route) => ({
   ...route,
   Component: React.lazy(
-    route.lazyLoader! as () => Promise<{ default: React.ComponentType }>
+    route.lazyLoader! as () => Promise<{ default: React.ComponentType }>,
   ),
 }));
 
@@ -91,6 +92,14 @@ createRoot(document.getElementById("root")!).render(
             </Suspense>
           }
         />
+        <Route
+          path="/reset-password"
+          element={
+            <Suspense fallback={routeFallback}>
+              <ResetPasswordPage />
+            </Suspense>
+          }
+        />
         {appRoutableEntries.map(({ path, access, Component }) => (
           <Route
             key={path}
@@ -114,7 +123,6 @@ createRoot(document.getElementById("root")!).render(
             </UserRoute>
           }
         />
-
       </Routes>
       <Toaster
         position="top-right"
