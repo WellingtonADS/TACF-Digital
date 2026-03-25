@@ -36,7 +36,7 @@ alterar arquivos:
 
 ## Code Style
 
-- TypeScript `strict`; evite `any`. Exemplo: [src/services/supabase.ts](src/services/supabase.ts#L1-L40).
+- TypeScript `strict`; evite `any`. Use tipos explícitos para props, estados e retornos de funções.
 - Componentes React funcionais + hooks; JSX runtime (não importar `React`).
 - Use `yarn` (não `npm`). Execute `yarn lint` para checar regras.
 
