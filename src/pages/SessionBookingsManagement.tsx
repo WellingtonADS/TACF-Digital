@@ -179,10 +179,11 @@ export default function SessionBookingsManagement() {
   }, [filtered, currentPage, itemsPerPage]);
 
   function getDisplayStatus(booking: BookingWithProfile): DisplayStatus {
-    if (booking.attendance_confirmed && booking.status !== "cancelado") {
+    // Exibe status baseado na presença confirmada
+    if (booking.attendance_confirmed) {
       return "confirmado";
     }
-    return booking.status;
+    return "cancelado";
   }
 
   async function handleAttendanceChange(bookingId: string, next: boolean) {
