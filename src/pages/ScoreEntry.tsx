@@ -24,9 +24,10 @@ import {
 } from "@/services/sessions";
 import type { SessionRow as DBSessionRow } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
+import { formatDatePtBr } from "@/utils/date";
 import { isAdminLike } from "@/utils/routeAccess";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 type SessionRow = Pick<DBSessionRow, "id" | "date" | "period">;
@@ -41,10 +42,11 @@ type ScoreEntryRow = {
   saram: string | null;
   rank: string | null;
   aptStatus: AptStatus | null;
+  attendanceConfirmed: boolean;
 };
 
 function PageHero({
-  selectedSession: _selectedSession,
+  selectedSession,
   launchedCount: _launchedCount,
   totalRows: _totalRows,
 }: {
@@ -61,9 +63,16 @@ function PageHero({
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
               Lançamento de Índices
             </h1>
-            <p className="mt-2 text-sm text-white/85 md:text-base">
-              Painel administrativo de lançamento de nota final TACF Digital.
-            </p>
+            {selectedSession ? (
+              <p className="mt-2 text-sm text-white/85 md:text-base">
+                {formatDatePtBr(selectedSession.date)} &bull;{" "}
+                {formatSessionPeriod(selectedSession.period)}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-white/85 md:text-base">
+                Painel administrativo de lançamento de nota final TACF Digital.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -76,12 +85,15 @@ export default function ScoreEntry() {
   const canManage = isAdminLike(profile?.role);
 
   const location = useLocation();
+  const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
+  // Prefer URL param for deep-link/refresh support; fall back to navigation state during transition
   const stateSessionId = (location.state as { sessionId?: string } | null)
     ?.sessionId;
+  const initialSessionId = urlSessionId ?? stateSessionId ?? "";
 
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>(
-    stateSessionId ?? "",
+    initialSessionId,
   );
   const [rows, setRows] = useState<ScoreEntryRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -97,14 +109,6 @@ export default function ScoreEntry() {
       try {
         const typed = (await fetchRecentSessions(50)) as SessionRow[];
         setSessions(typed);
-
-        if (typed.length > 0) {
-          if (stateSessionId && typed.some((s) => s.id === stateSessionId)) {
-            setSelectedSessionId(stateSessionId);
-          } else {
-            setSelectedSessionId(typed[0].id);
-          }
-        }
       } catch (error) {
         console.error(error);
         setSessions([]);
@@ -117,7 +121,18 @@ export default function ScoreEntry() {
     if (canManage) {
       loadSessions();
     }
-  }, [canManage, stateSessionId]);
+  }, [canManage]);
+
+  // Sync session selection with URL param or state whenever sessions list or context changes
+  useEffect(() => {
+    if (sessions.length === 0) return;
+    const targetId = urlSessionId ?? stateSessionId;
+    if (targetId && sessions.some((s) => s.id === targetId)) {
+      setSelectedSessionId(targetId);
+    } else {
+      setSelectedSessionId((prev) => prev || sessions[0].id);
+    }
+  }, [sessions, urlSessionId, stateSessionId]);
 
   useEffect(() => {
     async function loadSessionRows() {
@@ -154,14 +169,18 @@ export default function ScoreEntry() {
               booking.result_details === "inapto"
                 ? (booking.result_details as AptStatus)
                 : null,
+            attendanceConfirmed: booking.attendance_confirmed === true,
           } satisfies ScoreEntryRow;
         });
 
         setRows(mapped);
 
-        const firstPending = mapped.find((item) => item.aptStatus === null);
+        const firstPendingWithPresence = mapped.find(
+          (item) => item.aptStatus === null && item.attendanceConfirmed,
+        );
+        const firstPendingAny = mapped.find((item) => item.aptStatus === null);
         const fallback = mapped[0];
-        const selected = firstPending ?? fallback;
+        const selected = firstPendingWithPresence ?? firstPendingAny ?? fallback;
 
         if (selected) {
           setSelectedUserId(selected.userId);
@@ -221,6 +240,12 @@ export default function ScoreEntry() {
     }
     if (!aptStatus) {
       toast.error("Selecione Apto ou Inapto.");
+      return;
+    }
+    if (!selectedRow.attendanceConfirmed) {
+      toast.error(
+        "Presença não confirmada. Confirme a presença do militar antes de lançar o resultado.",
+      );
       return;
     }
 
@@ -404,6 +429,11 @@ export default function ScoreEntry() {
                             </p>
                             <p className="truncate text-xs text-text-muted">
                               SARAM: {row.saram ?? "--"}
+                              {!row.attendanceConfirmed && (
+                                <span className="ml-1 text-alert">
+                                  · sem presença
+                                </span>
+                              )}
                             </p>
                           </div>
                           <span
@@ -412,14 +442,18 @@ export default function ScoreEntry() {
                                 ? row.aptStatus === "apto"
                                   ? "bg-success/10 text-success"
                                   : "bg-error/10 text-error"
-                                : "bg-alert/10 text-alert"
+                                : row.attendanceConfirmed
+                                  ? "bg-alert/10 text-alert"
+                                  : "bg-bg-default text-text-muted"
                             }`}
                           >
                             {launched
                               ? row.aptStatus === "apto"
                                 ? "Apto"
                                 : "Inapto"
-                              : "Pendente"}
+                              : row.attendanceConfirmed
+                                ? "Pendente"
+                                : "Sem presença"}
                           </span>
                         </div>
                       </button>
@@ -559,6 +593,12 @@ export default function ScoreEntry() {
                   </div>
 
                   <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
+                    {selectedRow && !selectedRow.attendanceConfirmed && (
+                      <p className="flex-1 text-xs text-alert">
+                        Presença não confirmada — confirme a presença antes de
+                        lançar o resultado.
+                      </p>
+                    )}
                     <button
                       type="button"
                       disabled={saving}
@@ -569,9 +609,18 @@ export default function ScoreEntry() {
                     </button>
                     <button
                       type="button"
-                      disabled={saving || !aptStatus}
+                      disabled={
+                        saving ||
+                        !aptStatus ||
+                        !selectedRow?.attendanceConfirmed
+                      }
                       onClick={saveStatus}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+                      title={
+                        !selectedRow?.attendanceConfirmed
+                          ? "Confirme a presença antes de salvar o resultado"
+                          : undefined
+                      }
                     >
                       <AppIcon
                         icon={CheckCircle2}

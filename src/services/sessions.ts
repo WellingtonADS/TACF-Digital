@@ -45,6 +45,7 @@ export type SessionBookingBasic = {
   session_id: string;
   user_id: string;
   result_details: string | null;
+  attendance_confirmed: boolean | null;
 };
 
 export async function fetchSessionForEdit(sessionId: string): Promise<{
@@ -159,7 +160,7 @@ export async function fetchSessionBookings(sessionId: string): Promise<{
 }> {
   const { data: bookingData, error: bookingError } = await supabase
     .from("bookings")
-    .select("id, session_id, user_id, result_details")
+    .select("id, session_id, user_id, result_details, attendance_confirmed")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true });
 

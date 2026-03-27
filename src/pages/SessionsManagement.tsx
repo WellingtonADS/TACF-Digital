@@ -24,8 +24,13 @@ import {
   Settings,
 } from "@/icons";
 import { formatSessionPeriod } from "@/utils/booking";
-import { format, parseISO, startOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  formatDateMonthDayPtBr,
+  formatDatePtBr,
+  formatDateShortPtBr,
+  formatDateWeekdayOnlyPtBr,
+} from "@/utils/date";
+import { startOfDay } from "date-fns";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -63,7 +68,9 @@ export const SessionsManagement = () => {
 
   const getSessionStatus = useCallback(
     (session: SessionAvailability): "open" | "closed" | "concluded" => {
-      const sessionDate = startOfDay(parseISO(session.date)).getTime();
+      const sessionDate = startOfDay(
+        new Date(`${session.date}T12:00:00`),
+      ).getTime();
       if (sessionDate <= todayTs) return "concluded";
       return (session.available_count ?? 0) > 0 ? "open" : "closed";
     },
@@ -73,10 +80,7 @@ export const SessionsManagement = () => {
   const filteredSessions = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return sessions.filter((session) => {
-      const dateLabel = format(
-        parseISO(session.date),
-        "dd MMM yyyy",
-      ).toLowerCase();
+      const dateLabel = formatDateShortPtBr(session.date).toLowerCase();
       const matchSearch =
         !term ||
         session.session_id.toLowerCase().includes(term) ||
@@ -362,12 +366,10 @@ export const SessionsManagement = () => {
                       </td>
                       <td className="px-6 py-5">
                         <div className="text-sm font-semibold text-text-body capitalize">
-                          {format(parseISO(s.date), "EEEE", { locale: ptBR })}
+                          {formatDateWeekdayOnlyPtBr(s.date)}
                         </div>
                         <div className="mt-0.5 text-xs text-text-muted">
-                          {format(parseISO(s.date), "dd 'de' MMMM 'de' yyyy", {
-                            locale: ptBR,
-                          })}
+                          {formatDatePtBr(s.date)}
                         </div>
                       </td>
                       <td className="px-6 py-5">
@@ -416,9 +418,9 @@ export const SessionsManagement = () => {
                           <button
                             type="button"
                             onClick={() =>
-                              navigate("/app/lancamento-indices", {
-                                state: { sessionId: s.session_id },
-                              })
+                              navigate(
+                                `/app/lancamento-indices/${s.session_id}`,
+                              )
                             }
                             className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
                             title="Lançar índices"
@@ -486,9 +488,7 @@ export const SessionsManagement = () => {
                         {s.session_id.slice(0, 12).toUpperCase()}
                       </p>
                       <p className="text-sm font-semibold text-text-body mt-0.5">
-                        {format(parseISO(s.date), "dd 'de' MMMM", {
-                          locale: ptBR,
-                        })}
+                        {formatDateMonthDayPtBr(s.date)}
                       </p>
                       <p className="text-[11px] text-text-muted capitalize">
                         {formatSessionPeriod(s.period)}
@@ -547,9 +547,9 @@ export const SessionsManagement = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          navigate("/app/lancamento-indices", {
-                            state: { sessionId: s.session_id },
-                          })
+                          navigate(
+                            `/app/lancamento-indices/${s.session_id}`,
+                          )
                         }
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
                       >

@@ -95,3 +95,74 @@ export const getSemesterFromDate = (dateStr: string) => {
     return null;
   }
 };
+
+/**
+ * Formata uma string de data `YYYY-MM-DD` retornando apenas o nome do dia da semana
+ * em pt-BR (ex.: "quarta-feira").
+ * Usa T12:00:00 para evitar deslocamento UTC em fusos negativos.
+ */
+export const formatDateWeekdayOnlyPtBr = (dateStr: string) => {
+  try {
+    const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("pt-BR", {
+      timeZone: TZ,
+      weekday: "long",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+/**
+ * Formata uma string de data `YYYY-MM-DD` com dia da semana e data curta
+ * em pt-BR (ex.: "quarta-feira, 18 de março").
+ * Usa T12:00:00 para evitar deslocamento UTC em fusos negativos.
+ */
+export const formatDateWeekdayPtBr = (dateStr: string) => {
+  try {
+    const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("pt-BR", {
+      timeZone: TZ,
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+/**
+ * Formata uma string de data `YYYY-MM-DD` com dia e mês em pt-BR
+ * sem o ano (ex.: "18 de março").
+ * Usa T12:00:00 para evitar deslocamento UTC em fusos negativos.
+ */
+export const formatDateMonthDayPtBr = (dateStr: string) => {
+  try {
+    const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("pt-BR", {
+      timeZone: TZ,
+      day: "2-digit",
+      month: "long",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+/**
+ * Compara se uma string de data `YYYY-MM-DD` representa uma data após `now`.
+ * Usa T12:00:00 para evitar deslocamento UTC em fusos negativos.
+ */
+export const isDateAfter = (dateStr: string, now: Date = new Date()) => {
+  try {
+    const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return false;
+    return d > now;
+  } catch {
+    return false;
+  }
+};

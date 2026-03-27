@@ -23,8 +23,7 @@ import type { BookingRow as DBBookingRow, Profile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDatePtBr } from "@/utils/date";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -183,7 +182,7 @@ export default function SessionBookingsManagement() {
     if (booking.attendance_confirmed) {
       return "confirmado";
     }
-    return "cancelado";
+    return booking.status;
   }
 
   async function handleAttendanceChange(bookingId: string, next: boolean) {
@@ -261,11 +260,7 @@ export default function SessionBookingsManagement() {
     }
   }
 
-  const dateLabel = session
-    ? format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
-        locale: ptBR,
-      })
-    : "—";
+  const dateLabel = session ? formatDatePtBr(session.date) : "—";
   const periodLabel = session ? formatSessionPeriod(session.period) : "—";
 
   const filterTabs: { key: StatusFilterOption; label: string }[] = [

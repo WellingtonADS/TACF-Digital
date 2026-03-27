@@ -141,6 +141,14 @@ export const appRouteRegistry: AppRouteMeta[] = [
     sidebarOrder: 50,
   },
   {
+    path: "/app/lancamento-indices/:sessionId",
+    access: "admin",
+    section: "turmas",
+    showInSidebar: false,
+    prefetch: false,
+    lazyLoader: () => import("../pages/ScoreEntry"),
+  },
+  {
     path: "/app/efetivo",
     access: "admin",
     section: "efetivo",

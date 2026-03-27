@@ -27,8 +27,7 @@ import {
 } from "@/icons";
 import { fetchAdminMetrics } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
-import { format, isAfter, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateWeekdayPtBr, isDateAfter } from "@/utils/date";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -122,7 +121,7 @@ const AdminDashboard = () => {
     const now = new Date();
     return sessions
       .filter(
-        (s) => isAfter(parseISO(s.date), now) && (s.available_count ?? 0) > 0,
+        (s) => isDateAfter(s.date, now) && (s.available_count ?? 0) > 0,
       )
       .slice(0, 3);
   }, [sessions]);
@@ -336,9 +335,7 @@ const AdminDashboard = () => {
                           {s.session_id.slice(0, 8).toUpperCase()}
                         </p>
                         <p className="text-sm font-bold text-text-body mt-0.5">
-                          {format(parseISO(s.date), "EEEE, dd 'de' MMMM", {
-                            locale: ptBR,
-                          })}
+                          {formatDateWeekdayPtBr(s.date)}
                         </p>
                       </div>
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
