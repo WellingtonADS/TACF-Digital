@@ -106,6 +106,37 @@ function derivePeriod(startTime: string): "manha" | "tarde" {
   return hours < 12 ? "manha" : "tarde";
 }
 
+function getCreateSessionErrorMessage(error: unknown): string | null {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const message = raw.toLowerCase();
+
+  if (message.includes("forbidden")) {
+    return "Apenas administradores podem criar turmas.";
+  }
+  if (
+    message.includes("ja existe sessao para dia/turno/local") ||
+    message.includes("duplicidade no lote")
+  ) {
+    return "Já existe turma no mesmo dia, turno e local.";
+  }
+  if (message.includes("aplicador obrigatorio")) {
+    return "Selecione quem vai aplicar o teste.";
+  }
+  if (message.includes("capacidade fora da faixa")) {
+    return "A capacidade deve estar entre 8 e 21 vagas.";
+  }
+  if (message.includes("lote vazio") || message.includes("lote invalido")) {
+    return "Não foi possível processar o lote de turmas informado.";
+  }
+
+  return null;
+}
+
 export default function ClassCreationForm() {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -226,7 +257,10 @@ export default function ClassCreationForm() {
       navigate("/app/agendamentos");
     } catch (error: unknown) {
       const pg = error as { code?: string; message?: string };
-      if (pg.code === "23505") {
+      const businessMessage = getCreateSessionErrorMessage(error);
+      if (businessMessage) {
+        toast.error(businessMessage);
+      } else if (pg.code === "23505") {
         toast.error("Já existe turma no mesmo dia e turno.");
       } else {
         const authMessage = getAuthorizationErrorMessage(error, "criar turmas");

@@ -10,20 +10,16 @@ export async function getSessions() {
 export async function createSessions(
   rows: Database["public"]["Tables"]["sessions"]["Insert"][],
 ): Promise<void> {
-  rows.forEach((row) => {
-    if (!row.location_id) {
-      throw new Error("Local do teste é obrigatório para criar agendamento.");
-    }
-
-    if (!row.applicators || row.applicators.length === 0) {
-      throw new Error(
-        "Instrutor aplicador é obrigatório para criar agendamento.",
-      );
-    }
+  const { data, error } = await supabase.rpc("create_sessions_batch", {
+    p_rows: rows,
   });
 
-  const { error } = await supabase.from("sessions").insert(rows);
   if (error) throw error;
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result || !result.success) {
+    throw new Error(result?.error ?? "Falha ao criar turmas.");
+  }
 }
 
 export async function confirmBooking(userId: string, sessionId: string) {

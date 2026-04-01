@@ -465,6 +465,15 @@ export interface Database {
         Args: { p_request_id: string; p_admin_id: string };
         Returns: { success: boolean; error: string }[];
       };
+      create_sessions_batch: {
+        Args: { p_rows: Json };
+        Returns: {
+          success: boolean;
+          created_count: number;
+          created_ids: string[];
+          error: string | null;
+        }[];
+      };
       get_results_history: {
         Args: {
           p_limit: number;
