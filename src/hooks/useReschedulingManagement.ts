@@ -1,5 +1,4 @@
 import {
-  fetchSwapRequests,
   updateBookingStatus,
   updateSwapRequestStatus,
 } from "@/services/bookings";
@@ -10,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type SwapRequestRow = Database["public"]["Tables"]["swap_requests"]["Row"];
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 
 export type SwapStatus = SwapRequestRow["status"];
 
@@ -33,11 +31,14 @@ type ReasonPayload = {
   attachment_url?: string;
 };
 
-function parseSwapReason(reason: string): {
+function parseSwapReason(reason: string | null): {
   text: string;
   newDate: string | null;
   attachmentUrl: string | null;
 } {
+  if (!reason) {
+    return { text: "", newDate: null, attachmentUrl: null };
+  }
   try {
     const parsed = JSON.parse(reason) as ReasonPayload;
     return {
@@ -50,6 +51,9 @@ function parseSwapReason(reason: string): {
   }
 }
 
+type SwapContextRow =
+  Database["public"]["Functions"]["get_swap_requests_with_context"]["Returns"][number];
+
 export default function useReschedulingManagement() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,98 +64,34 @@ export default function useReschedulingManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const swaps = (await fetchSwapRequests()) as SwapRequestRow[];
+      // RPC consolidada: 1 query ao invés de 4 (swap_requests + bookings + sessions + profiles)
+      const { data, error } = await supabase.rpc(
+        "get_swap_requests_with_context",
+      );
 
-      if (swaps.length === 0) {
+      if (error) throw error;
+      if (!data || data.length === 0) {
         setRows([]);
         return;
       }
 
-      const bookingIds = Array.from(
-        new Set(swaps.map((swap) => swap.booking_id)),
-      ).filter((id): id is string => Boolean(id));
-
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from("bookings")
-        .select("id,user_id,session_id")
-        .in("id", bookingIds);
-
-      if (bookingsError) throw bookingsError;
-
-      const bookings = (bookingsData ?? []) as Pick<
-        BookingRow,
-        "id" | "user_id" | "session_id"
-      >[];
-      const bookingsById = new Map<string, (typeof bookings)[number]>(
-        bookings.map((booking) => [booking.id, booking]),
-      );
-
-      const sessionIds = Array.from(
-        new Set([
-          ...bookings.map((booking) => booking.session_id),
-          ...swaps.map((swap) => swap.new_session_id),
-        ]),
-      ).filter((id): id is string => Boolean(id));
-
-      const sessionsById = new Map<string, string>();
-      if (sessionIds.length > 0) {
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from("sessions")
-          .select("id,date")
-          .in("id", sessionIds);
-
-        if (sessionsError) throw sessionsError;
-        sessionsData?.forEach((session) =>
-          sessionsById.set(session.id, session.date),
+      const contextRows = (data ?? []) as SwapContextRow[];
+      const normalizedRows = contextRows.map((row) => {
+        const parsedReason = parseSwapReason(
+          typeof row.reason === "string" ? row.reason : null,
         );
-      }
-
-      const userIds = Array.from(
-        new Set(bookings.map((booking) => booking.user_id)),
-      );
-      const profilesByUser = new Map<
-        string,
-        { full_name: string; war_name: string; saram: string }
-      >();
-
-      if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id,full_name,war_name,saram")
-          .in("id", userIds);
-
-        if (profilesError) throw profilesError;
-
-        profilesData?.forEach((profile) => {
-          profilesByUser.set(profile.id, {
-            full_name: profile.full_name ?? "",
-            war_name: profile.war_name ?? "",
-            saram: profile.saram ?? "",
-          });
-        });
-      }
-
-      const normalizedRows = swaps.map((swap) => {
-        const booking = bookingsById.get(swap.booking_id);
-        const profile = booking
-          ? profilesByUser.get(booking.user_id)
-          : undefined;
-        const parsedReason = parseSwapReason(swap.reason);
 
         return {
-          id: swap.id,
-          bookingId: swap.booking_id,
-          status: swap.status,
+          id: row.id,
+          bookingId: row.booking_id,
+          status: row.status,
           reasonText: parsedReason.text,
           attachmentUrl: parsedReason.attachmentUrl,
-          originalDate: booking
-            ? (sessionsById.get(booking.session_id) ?? null)
-            : null,
-          newDate:
-            sessionsById.get(swap.new_session_id) ?? parsedReason.newDate,
-          fullName: profile?.full_name ?? "",
-          warName: profile?.war_name ?? "",
-          saram: profile?.saram ?? "",
+          originalDate: row.original_date ?? null,
+          newDate: row.new_date ?? parsedReason.newDate,
+          fullName: row.full_name ?? "",
+          warName: row.war_name ?? "",
+          saram: row.saram ?? "",
         } as RequestRow;
       });
 

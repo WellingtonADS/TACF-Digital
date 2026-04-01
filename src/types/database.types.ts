@@ -465,6 +465,39 @@ export interface Database {
         Args: { p_request_id: string; p_admin_id: string };
         Returns: { success: boolean; error: string }[];
       };
+      create_sessions_batch: {
+        Args: { p_rows: Json };
+        Returns: {
+          success: boolean;
+          created_count: number;
+          created_ids: string[];
+          error: string | null;
+        }[];
+      };
+      get_swap_requests_with_context: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          booking_id: string;
+          status: SwapStatus;
+          reason: Json | null;
+          created_at: string;
+          processed_at: string | null;
+          processed_by: string | null;
+          user_id: string;
+          original_session_id: string;
+          original_date: string;
+          original_period: SessionPeriod;
+          new_session_id: string;
+          new_date: string | null;
+          new_period: SessionPeriod | null;
+          full_name: string | null;
+          war_name: string | null;
+          saram: string | null;
+          rank: string | null;
+          email: string | null;
+        }[];
+      };
       get_results_history: {
         Args: {
           p_limit: number;
