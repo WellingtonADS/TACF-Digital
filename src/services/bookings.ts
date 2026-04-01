@@ -266,6 +266,73 @@ export async function fetchAdminMetrics(): Promise<{
   };
 }
 
+export type AdminGovernanceSnapshot = {
+  overdueSessions: number;
+  pendingResults: number;
+  pendingSwapRequests: number;
+  completedSessionsLast7Days: number;
+  oldestPendingSwapCreatedAt: string | null;
+};
+
+export async function fetchAdminGovernanceSnapshot(): Promise<AdminGovernanceSnapshot> {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const last7Days = new Date(now);
+  last7Days.setDate(last7Days.getDate() - 7);
+
+  const [
+    { data: sessionsData, error: sessionsError },
+    { data: pendingSwapsData, error: pendingSwapsError },
+    { count: completedCount, error: completedError },
+  ] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("id,date,status")
+      .lte("date", today)
+      .neq("status", "completed"),
+    supabase
+      .from("swap_requests")
+      .select("id,booking_id,created_at")
+      .eq("status", "solicitado")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "completed")
+      .gte("updated_at", last7Days.toISOString()),
+  ]);
+
+  if (sessionsError) throw sessionsError;
+  if (pendingSwapsError) throw pendingSwapsError;
+  if (completedError) throw completedError;
+
+  const overdueSessions = sessionsData ?? [];
+  const overdueSessionIds = overdueSessions.map((session) => session.id);
+
+  let pendingResults = 0;
+
+  if (overdueSessionIds.length > 0) {
+    const { count: pendingResultsCount, error: pendingResultsError } =
+      await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .in("session_id", overdueSessionIds)
+        .neq("status", "cancelado")
+        .is("result_details", null);
+
+    if (pendingResultsError) throw pendingResultsError;
+    pendingResults = pendingResultsCount ?? 0;
+  }
+
+  return {
+    overdueSessions: overdueSessions.length,
+    pendingResults,
+    pendingSwapRequests: (pendingSwapsData ?? []).length,
+    completedSessionsLast7Days: completedCount ?? 0,
+    oldestPendingSwapCreatedAt: pendingSwapsData?.[0]?.created_at ?? null,
+  };
+}
+
 export type AppointmentBookingPreview = Pick<
   Database["public"]["Tables"]["bookings"]["Row"],
   | "id"

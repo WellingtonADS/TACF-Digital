@@ -25,9 +25,13 @@ import {
   Shield,
   Users,
 } from "@/icons";
-import { fetchAdminMetrics } from "@/services/bookings";
+import {
+  fetchAdminGovernanceSnapshot,
+  fetchAdminMetrics,
+  type AdminGovernanceSnapshot,
+} from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
-import { format, isAfter, parseISO } from "date-fns";
+import { differenceInHours, format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +49,9 @@ const AdminDashboard = () => {
   const [pendencias, setPendencias] = useState<number>(0);
   const [metricsLoading, setMetricsLoading] = useState<boolean>(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [governance, setGovernance] = useState<AdminGovernanceSnapshot | null>(
+    null,
+  );
 
   // sessions (somente para capacidade restante e próximas turmas)
   const { sessions, loading: sessionsLoading } = useSessions();
@@ -95,9 +102,11 @@ const AdminDashboard = () => {
       try {
         const { totalInscritos, aptosMonth, pendencias } =
           await fetchAdminMetrics();
+        const governanceSnapshot = await fetchAdminGovernanceSnapshot();
         setTotalInscritos(totalInscritos);
         setAptosMonth(aptosMonth);
         setPendencias(pendencias);
+        setGovernance(governanceSnapshot);
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -116,6 +125,37 @@ const AdminDashboard = () => {
     if (!sessions) return 0;
     return sessions.reduce((sum, s) => sum + (s.available_count ?? 0), 0);
   }, [sessions]);
+
+  const governanceAlert = useMemo(() => {
+    if (!governance) return null;
+
+    if (
+      governance.pendingSwapRequests > 0 &&
+      governance.oldestPendingSwapCreatedAt
+    ) {
+      const ageHours = Math.max(
+        differenceInHours(
+          new Date(),
+          parseISO(governance.oldestPendingSwapCreatedAt),
+        ),
+        0,
+      );
+
+      if (ageHours >= 24) {
+        return `Existe solicitação de reagendamento pendente há ${ageHours}h.`;
+      }
+    }
+
+    if (governance.overdueSessions > 0) {
+      return `${governance.overdueSessions} turma(s) já passaram da data e ainda não foram encerradas.`;
+    }
+
+    if (governance.pendingResults > 0) {
+      return `${governance.pendingResults} resultado(s) seguem pendentes em turmas vencidas.`;
+    }
+
+    return null;
+  }, [governance]);
 
   // próximas 3 turmas abertas
   const upcomingSessions = useMemo(() => {
@@ -260,6 +300,65 @@ const AdminDashboard = () => {
             icon={BarChart2}
           />
         </div>
+
+        <section className="mb-10">
+          <div className="mb-4 flex items-center justify-between px-1">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+              Governança Operacional
+            </h3>
+            {governanceAlert && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-alert/30 bg-alert/10 px-3 py-1 text-[11px] font-semibold text-alert">
+                <AlertTriangle size={12} />
+                Atenção SLA
+              </span>
+            )}
+          </div>
+
+          {governanceAlert && (
+            <div className="mb-4 rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
+              {governanceAlert}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              title="Turmas em Atraso"
+              value={governance?.overdueSessions ?? 0}
+              loading={metricsLoading}
+              icon={Shield}
+              className="border-b-4 border-alert/30"
+              iconBg="bg-alert/10"
+              iconColor="text-alert"
+            />
+            <StatCard
+              title="Resultados Pendentes"
+              value={governance?.pendingResults ?? 0}
+              loading={metricsLoading}
+              icon={ClipboardList}
+              className="border-b-4 border-error/30"
+              iconBg="bg-error/10"
+              iconColor="text-error"
+            />
+            <StatCard
+              title="Reagendamentos Abertos"
+              value={governance?.pendingSwapRequests ?? 0}
+              loading={metricsLoading}
+              icon={GitMerge}
+              className="border-b-4 border-secondary/30"
+              iconBg="bg-secondary/10"
+              iconColor="text-secondary"
+            />
+            <StatCard
+              title="Sessões Concluídas 7d"
+              value={governance?.completedSessionsLast7Days ?? 0}
+              loading={metricsLoading}
+              icon={CheckCircle}
+              className="border-b-4 border-success/30"
+              iconBg="bg-success/10"
+              iconColor="text-success"
+            />
+          </div>
+        </section>
 
         {/* sessions table */}
         {metricsError && (
