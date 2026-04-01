@@ -130,10 +130,10 @@ export async function updateBookingAttendance(
   bookingId: string,
   attendanceConfirmed: boolean,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("bookings")
-    .update({ attendance_confirmed: attendanceConfirmed })
-    .eq("id", bookingId);
+  const { error } = await supabase.rpc("set_booking_attendance", {
+    p_booking_id: bookingId,
+    p_attendance_confirmed: attendanceConfirmed,
+  });
   if (error) throw error;
 }
 
