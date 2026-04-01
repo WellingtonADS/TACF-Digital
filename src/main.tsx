@@ -7,7 +7,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useParams,
+} from "react-router-dom";
 import { Toaster } from "sonner";
 import AdminRoute from "./components/AdminRoute";
 import AutoRedirect from "./components/AutoRedirect";
@@ -39,6 +45,18 @@ function withAccessGuard(access: RouteAccess, element: React.ReactElement) {
   if (access === "admin") return <AdminRoute>{element}</AdminRoute>;
   if (access === "user") return <UserRoute>{element}</UserRoute>;
   return <ProtectedRoute>{element}</ProtectedRoute>;
+}
+
+function LegacySessionRouteRedirect(props: {
+  suffix: "agendamentos" | "editar";
+}) {
+  const { sessionId } = useParams<{ sessionId: string }>();
+
+  if (!sessionId) {
+    return <Navigate to="/app/turmas" replace />;
+  }
+
+  return <Navigate to={`/app/turmas/${sessionId}/${props.suffix}`} replace />;
 }
 
 // Global dev-only handlers to reduce noisy uncaught errors in the console
@@ -112,6 +130,38 @@ createRoot(document.getElementById("root")!).render(
             )}
           />
         ))}
+        <Route
+          path="/app/sessoes"
+          element={
+            <AdminRoute>
+              <Navigate to="/app/turmas" replace />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/sessoes/nova"
+          element={
+            <AdminRoute>
+              <Navigate to="/app/turmas/nova" replace />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/sessoes/:sessionId/agendamentos"
+          element={
+            <AdminRoute>
+              <LegacySessionRouteRedirect suffix="agendamentos" />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/app/sessoes/:sessionId/editar"
+          element={
+            <AdminRoute>
+              <LegacySessionRouteRedirect suffix="editar" />
+            </AdminRoute>
+          }
+        />
         <Route path="/" element={<AutoRedirect />} />
         <Route
           path="/app/*"
