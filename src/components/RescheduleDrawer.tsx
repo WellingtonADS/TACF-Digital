@@ -11,6 +11,30 @@ import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+function getSwapErrorMessage(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const message = raw.toLowerCase();
+
+  if (message.includes("ja existe solicitacao pendente")) {
+    return "Já existe uma solicitação pendente para este agendamento.";
+  }
+  if (
+    message.includes("reagendamento disponivel apenas para inapto ou falta")
+  ) {
+    return "Reagendamento disponível apenas para militar inapto ou com falta registrada.";
+  }
+  if (message.includes("nova sessao nao encontrada")) {
+    return "Sessão de destino inválida. Selecione outra opção.";
+  }
+
+  return "Falha ao enviar solicitação";
+}
+
 interface Props {
   bookingId: string;
   currentDate: string;
@@ -96,7 +120,7 @@ export default function RescheduleDrawer({
       onClose();
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao enviar solicitação");
+      toast.error(getSwapErrorMessage(err));
     } finally {
       setSaving(false);
     }
