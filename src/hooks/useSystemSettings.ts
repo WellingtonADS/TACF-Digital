@@ -8,6 +8,9 @@
 import supabase from "@/services/supabase";
 import type { AuditLogRow, SystemSettingsRow } from "@/types";
 
+export type StructuredAuditLogRow =
+  import("@/types/database.types").Database["public"]["Functions"]["get_audit_logs_structured"]["Returns"][number];
+
 export async function fetchSystemSettings(): Promise<SystemSettingsRow | null> {
   const { data, error } = await supabase
     .from("system_settings")
@@ -44,4 +47,14 @@ export async function fetchFullAuditLog(limit = 500): Promise<AuditLogRow[]> {
     .limit(limit);
   if (error) throw error;
   return (data as AuditLogRow[] | null) ?? [];
+}
+
+export async function fetchStructuredAuditLog(
+  limit = 500,
+): Promise<StructuredAuditLogRow[]> {
+  const { data, error } = await supabase.rpc("get_audit_logs_structured", {
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data as StructuredAuditLogRow[] | null) ?? [];
 }

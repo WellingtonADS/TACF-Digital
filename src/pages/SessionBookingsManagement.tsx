@@ -53,18 +53,6 @@ type SessionInfo = {
 
 type DisplayStatus = BookingRow["status"] | "confirmado";
 
-const _STATUS_LABELS: Record<BookingRow["status"], string> = {
-  agendado: "Agendado",
-  remarcado: "Remarcado",
-  cancelado: "Cancelado",
-};
-
-const _STATUS_CLASSES: Record<BookingRow["status"], string> = {
-  agendado: "border-success/40 bg-success/10 text-success",
-  remarcado: "border-alert/40 bg-alert/10 text-alert",
-  cancelado: "bg-bg-default text-text-muted",
-};
-
 const DISPLAY_STATUS_LABELS: Record<DisplayStatus, string> = {
   agendado: "Agendado",
   remarcado: "Remarcado",

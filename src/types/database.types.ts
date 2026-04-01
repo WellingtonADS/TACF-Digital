@@ -461,6 +461,24 @@ export interface Database {
           created_at?: string | null;
         }[];
       };
+      get_audit_logs_structured: {
+        Args: { p_limit?: number | null };
+        Returns: {
+          id: string;
+          action: string | null;
+          entity: string | null;
+          user_id: string | null;
+          user_name: string | null;
+          created_at: string | null;
+          details_text: string | null;
+          details_json: Json | null;
+          ip_address: string | null;
+          audit_code: string | null;
+          audit_group: string | null;
+          target_id: string | null;
+          summary: string | null;
+        }[];
+      };
       approve_swap: {
         Args: { p_request_id: string; p_admin_id: string };
         Returns: { success: boolean; error: string }[];

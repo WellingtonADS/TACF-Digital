@@ -8,7 +8,10 @@ import FullPageLoading from "@/components/FullPageLoading";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
-import { fetchFullAuditLog } from "@/hooks/useSystemSettings";
+import {
+  fetchStructuredAuditLog,
+  type StructuredAuditLogRow,
+} from "@/hooks/useSystemSettings";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -24,22 +27,15 @@ import {
   Trash2,
   X,
 } from "@/icons";
-import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type AuditLogRow = DBAuditLogRow;
+type AuditLogRow = StructuredAuditLogRow;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function extractIp(details: string | null | undefined): string {
-  try {
-    if (!details) return "-";
-    const obj = JSON.parse(details) as Record<string, unknown>;
-    return typeof obj.ip === "string" ? obj.ip : "-";
-  } catch {
-    return "-";
-  }
+function extractIp(record: AuditLogRow): string {
+  return record.ip_address ?? "-";
 }
 
 function formatJson(raw: string): string {
@@ -50,9 +46,17 @@ function formatJson(raw: string): string {
   }
 }
 
+function getDetailsPreview(record: AuditLogRow): string {
+  if (record.details_json) {
+    return JSON.stringify(record.details_json);
+  }
+
+  return record.details_text ?? "{}";
+}
+
 function ActionBadge({ action }: { action: string | null | undefined }) {
   const a = (action ?? "").toUpperCase();
-  if (a.includes("INSERT") || a.includes("CREATE")) {
+  if (a.includes("CREATED") || a.includes("CREATE") || a.includes("APPROVED")) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-success/40 bg-success/10 text-success">
         <Plus size={11} />
@@ -60,7 +64,12 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
       </span>
     );
   }
-  if (a.includes("UPDATE") || a.includes("EDIT")) {
+  if (
+    a.includes("UPDATE") ||
+    a.includes("EDIT") ||
+    a.includes("RESULT") ||
+    a.includes("ATTENDANCE")
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-alert/40 bg-alert/10 text-alert">
         <Filter size={11} />
@@ -85,8 +94,15 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
 
 function rowAccent(action: string | null | undefined): string {
   const a = (action ?? "").toUpperCase();
-  if (a.includes("INSERT") || a.includes("CREATE")) return "border-l-success";
-  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-alert";
+  if (a.includes("CREATED") || a.includes("CREATE") || a.includes("APPROVED"))
+    return "border-l-success";
+  if (
+    a.includes("UPDATE") ||
+    a.includes("EDIT") ||
+    a.includes("RESULT") ||
+    a.includes("ATTENDANCE")
+  )
+    return "border-l-alert";
   if (a.includes("DELETE")) return "border-l-error";
   return "border-l-border-default";
 }
@@ -112,7 +128,7 @@ export default function AuditLog() {
     async function load() {
       setLoading(true);
       try {
-        const data = await fetchFullAuditLog(500);
+        const data = await fetchStructuredAuditLog(500);
         if (mounted) setRecords(data);
       } catch (error) {
         console.error(error);
@@ -137,12 +153,12 @@ export default function AuditLog() {
         return false;
       if (
         filterAction &&
-        !r.action?.toLowerCase().includes(filterAction.toLowerCase())
+        !r.audit_code?.toLowerCase().includes(filterAction.toLowerCase())
       )
         return false;
       if (
         filterModule &&
-        !r.entity?.toLowerCase().includes(filterModule.toLowerCase())
+        !r.audit_group?.toLowerCase().includes(filterModule.toLowerCase())
       )
         return false;
       return true;
@@ -157,7 +173,8 @@ export default function AuditLog() {
 
   const statsDelete = useMemo(
     () =>
-      records.filter((r) => r.action?.toUpperCase().includes("DELETE")).length,
+      records.filter((r) => r.audit_code?.toUpperCase().includes("DELETE"))
+        .length,
     [records],
   );
   const uniqueUsers = useMemo(
@@ -268,7 +285,7 @@ export default function AuditLog() {
                 }}
               >
                 <option value="">Todos os Tipos</option>
-                {Array.from(new Set(records.map((r) => r.action)))
+                {Array.from(new Set(records.map((r) => r.audit_code)))
                   .filter(Boolean)
                   .map((a) => (
                     <option key={a} value={a!}>
@@ -291,7 +308,7 @@ export default function AuditLog() {
                 }}
               >
                 <option value="">Todos os Módulos</option>
-                {Array.from(new Set(records.map((r) => r.entity)))
+                {Array.from(new Set(records.map((r) => r.audit_group)))
                   .filter(Boolean)
                   .map((m) => (
                     <option key={m} value={m!}>
@@ -339,7 +356,7 @@ export default function AuditLog() {
                         )}
                       </p>
                     </div>
-                    <ActionBadge action={r.action} />
+                    <ActionBadge action={r.audit_code} />
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
@@ -353,7 +370,7 @@ export default function AuditLog() {
                         {r.user_name ?? "—"}
                       </span>
                       <span className="text-xs text-text-muted">
-                        {r.entity ?? "—"}
+                        {r.summary ?? r.entity ?? "—"}
                       </span>
                     </div>
                   </div>
@@ -362,9 +379,9 @@ export default function AuditLog() {
                       <span className="font-semibold text-text-muted uppercase tracking-widest block text-[10px]">
                         IP
                       </span>
-                      {extractIp(r.details)}
+                      {extractIp(r)}
                     </div>
-                    {r.details && (
+                    {(r.details_text || r.details_json) && (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
@@ -437,23 +454,23 @@ export default function AuditLog() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <ActionBadge action={r.action} />
+                        <ActionBadge action={r.audit_code} />
                       </td>
 
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bg-default text-text-body">
-                          {r.entity ?? "—"}
+                          {r.audit_group ?? r.entity ?? "—"}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
                         <span className="text-xs font-mono text-text-muted">
-                          {extractIp(r.details)}
+                          {extractIp(r)}
                         </span>
                       </td>
 
                       <td className="px-5 py-4 text-right">
-                        {r.details && (
+                        {(r.details_text || r.details_json) && (
                           <button
                             type="button"
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
@@ -571,7 +588,8 @@ export default function AuditLog() {
                     Detalhes da Alteração
                   </h4>
                   <p className="text-xs text-text-muted mt-0.5 font-mono">
-                    {detailRecord.action} · {detailRecord.entity} ·{" "}
+                    {detailRecord.audit_code ?? detailRecord.action} ·{" "}
+                    {detailRecord.audit_group ?? detailRecord.entity} ·{" "}
                     {detailRecord.user_name}
                   </p>
                 </div>
@@ -585,7 +603,7 @@ export default function AuditLog() {
                 </button>
               </div>
               <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body bg-bg-default">
-                {formatJson(detailRecord.details ?? "")}
+                {formatJson(getDetailsPreview(detailRecord))}
               </pre>
             </div>
           </div>
