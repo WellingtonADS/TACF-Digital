@@ -232,7 +232,7 @@ export default function SessionEditor() {
       })
       .catch(() => {
         toast.error("Turma não encontrada.");
-        navigate("/app/turmas");
+        navigate("/app/sessoes");
       })
       .finally(() => {
         setLoading(false);
@@ -277,7 +277,7 @@ export default function SessionEditor() {
         applicators: form.instructor_id ? [form.instructor_id] : [],
       } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma atualizada com sucesso.");
-      navigate("/app/turmas");
+      navigate("/app/sessoes");
     } catch (err) {
       const pgErr = err as { code?: string; message?: string } | null;
       if (pgErr?.code === "23505") {
@@ -311,7 +311,7 @@ export default function SessionEditor() {
         status: "closed",
       } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma cancelada (fechada).");
-      navigate("/app/turmas");
+      navigate("/app/sessoes");
     } catch (error) {
       const authMessage = getAuthorizationErrorMessage(
         error,
@@ -756,7 +756,7 @@ export default function SessionEditor() {
                 <div className="flex w-full flex-col-reverse gap-3 md:w-auto md:flex-row">
                   <button
                     type="button"
-                    onClick={() => navigate("/app/turmas")}
+                    onClick={() => navigate("/app/sessoes")}
                     className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
                   >
                     Voltar
@@ -816,7 +816,7 @@ export default function SessionEditor() {
             </div>
             <div className="flex gap-3 border-t border-border-default bg-bg-default px-8 py-6">
               <button
-                onClick={() => navigate("/app/turmas")}
+                onClick={() => navigate("/app/sessoes")}
                 className="flex-1 rounded-lg border border-border-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:bg-bg-default"
               >
                 Voltar

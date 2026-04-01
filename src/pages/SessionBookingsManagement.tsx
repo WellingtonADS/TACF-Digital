@@ -743,7 +743,7 @@ export default function SessionBookingsManagement() {
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
               <button
                 type="button"
-                onClick={() => navigate("/app/turmas")}
+                onClick={() => navigate("/app/sessoes")}
                 className="inline-flex items-center justify-center sm:justify-start gap-2 rounded-lg border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition-all duration-200"
               >
                 <ArrowLeft size={16} />

@@ -166,10 +166,11 @@ export const SessionsManagement = () => {
                   className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
                   data-testid="sessions-management-title"
                 >
-                  Gerenciar Turmas
+                  Hub de Sessões
                 </h2>
                 <p className="mt-2 text-sm text-white/85 md:text-base">
-                  Controle operacional das sessões de avaliação física.
+                  Centro operacional para criação, acompanhamento e execução das
+                  sessões de avaliação física.
                 </p>
               </div>
               <div />

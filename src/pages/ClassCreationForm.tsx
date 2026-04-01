@@ -581,7 +581,7 @@ export default function ClassCreationForm() {
             <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-5 py-5 sm:px-8 sm:py-8 md:flex-row md:px-12">
               <button
                 type="button"
-                onClick={() => navigate("/app/turmas")}
+                onClick={() => navigate("/app/sessoes")}
                 className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
               >
                 Cancelar

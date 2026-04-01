@@ -170,9 +170,10 @@ const AdminDashboard = () => {
   const quickActions = [
     {
       icon: LayoutGrid,
-      label: "Gerenciar Turmas",
-      description: "Listar, criar e controlar sessões de avaliação",
-      path: "/app/turmas",
+      label: "Hub de Sessões",
+      description:
+        "Operar criação, gestão, fechamento e capacidade das sessões",
+      path: "/app/sessoes",
       accent: "bg-primary/5 text-primary",
     },
     {
@@ -387,7 +388,7 @@ const AdminDashboard = () => {
             </h3>
             <button
               type="button"
-              onClick={() => navigate("/app/turmas")}
+              onClick={() => navigate("/app/sessoes")}
               className="text-xs text-primary font-semibold hover:underline"
             >
               Ver todas →
