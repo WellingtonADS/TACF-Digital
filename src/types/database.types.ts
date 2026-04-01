@@ -465,6 +465,15 @@ export interface Database {
         Args: { p_request_id: string; p_admin_id: string };
         Returns: { success: boolean; error: string }[];
       };
+      close_session_with_checklist: {
+        Args: { p_session_id: string; p_apply?: boolean };
+        Returns: {
+          success: boolean;
+          error: string | null;
+          checklist: Json;
+          session_status: SessionStatus;
+        }[];
+      };
       get_results_history: {
         Args: {
           p_limit: number;
