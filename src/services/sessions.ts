@@ -23,6 +23,25 @@ export type SessionInfo = {
   period: string;
   max_capacity: number | null;
   location_id: string | null;
+  status: Database["public"]["Tables"]["sessions"]["Row"]["status"];
+};
+
+export type SessionClosureChecklist = {
+  bookings_total: number;
+  attendance_treated_count: number;
+  results_pending: number;
+  pending_swap_requests: number;
+  can_close: boolean;
+  already_completed: boolean;
+};
+
+type CloseSessionWithChecklistRow = {
+  success: boolean;
+  error: string | null;
+  checklist: SessionClosureChecklist;
+  session_status:
+    | Database["public"]["Tables"]["sessions"]["Row"]["status"]
+    | null;
 };
 
 export type SessionBasic = {
@@ -86,11 +105,61 @@ export async function fetchSessionById(
 ): Promise<SessionInfo | null> {
   const { data, error } = await supabase
     .from("sessions")
-    .select("id,date,period,max_capacity,location_id")
+    .select("id,date,period,max_capacity,location_id,status")
     .eq("id", sessionId)
     .single();
   if (error) throw error;
   return data as SessionInfo | null;
+}
+
+function getChecklistRpcRow(
+  data: unknown,
+): CloseSessionWithChecklistRow | null {
+  if (Array.isArray(data)) {
+    return (data[0] as CloseSessionWithChecklistRow | undefined) ?? null;
+  }
+
+  return (data as CloseSessionWithChecklistRow | null) ?? null;
+}
+
+export async function fetchSessionClosureChecklist(
+  sessionId: string,
+): Promise<SessionClosureChecklist> {
+  const { data, error } = await supabase.rpc("close_session_with_checklist", {
+    p_session_id: sessionId,
+    p_apply: false,
+  });
+
+  if (error) throw error;
+
+  const row = getChecklistRpcRow(data);
+  if (!row) {
+    throw new Error("Nao foi possivel carregar checklist de encerramento.");
+  }
+
+  return row.checklist;
+}
+
+export async function closeSessionWithChecklist(
+  sessionId: string,
+): Promise<CloseSessionWithChecklistRow> {
+  const { data, error } = await supabase.rpc("close_session_with_checklist", {
+    p_session_id: sessionId,
+    p_apply: true,
+  });
+
+  if (error) throw error;
+
+  const row = getChecklistRpcRow(data);
+  if (!row) {
+    throw new Error("Falha ao encerrar sessao.");
+  }
+
+  if (!row.success) {
+    throw new Error(row.error ?? "Checklist incompleto para encerramento.");
+  }
+
+  return row;
 }
 
 export async function fetchSessionBookingsWithProfiles(

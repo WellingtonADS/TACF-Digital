@@ -15,8 +15,11 @@ import {
   Search,
 } from "@/icons";
 import {
+  closeSessionWithChecklist,
   fetchSessionBookingsWithProfiles,
   fetchSessionById,
+  fetchSessionClosureChecklist,
+  type SessionClosureChecklist,
   updateBookingAttendance,
 } from "@/services/sessions";
 import type { BookingRow as DBBookingRow, Profile } from "@/types";
@@ -49,21 +52,10 @@ type SessionInfo = {
   period: string;
   max_capacity: number | null;
   location_id: string | null;
+  status: "open" | "closed" | "completed";
 };
 
 type DisplayStatus = BookingRow["status"] | "confirmado";
-
-const _STATUS_LABELS: Record<BookingRow["status"], string> = {
-  agendado: "Agendado",
-  remarcado: "Remarcado",
-  cancelado: "Cancelado",
-};
-
-const _STATUS_CLASSES: Record<BookingRow["status"], string> = {
-  agendado: "border-success/40 bg-success/10 text-success",
-  remarcado: "border-alert/40 bg-alert/10 text-alert",
-  cancelado: "bg-bg-default text-text-muted",
-};
 
 const DISPLAY_STATUS_LABELS: Record<DisplayStatus, string> = {
   agendado: "Agendado",
@@ -94,8 +86,13 @@ export default function SessionBookingsManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [closureChecklist, setClosureChecklist] =
+    useState<SessionClosureChecklist | null>(null);
+  const [closingSession, setClosingSession] = useState(false);
   const canMutate = profile?.role === "admin";
   const itemsPerPage = 10;
+  const isSessionCompleted = session?.status === "completed";
+  const canManageAttendance = canMutate && !isSessionCompleted;
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -124,6 +121,9 @@ export default function SessionBookingsManagement() {
       });
 
       setBookings(enriched);
+
+      const checklist = await fetchSessionClosureChecklist(sessionId);
+      setClosureChecklist(checklist);
     } catch (err) {
       const authMessage = getAuthorizationErrorMessage(
         err,
@@ -131,6 +131,7 @@ export default function SessionBookingsManagement() {
       );
       toast.error(authMessage ?? "Erro ao carregar agendamentos da turma.");
       console.error(err);
+      setClosureChecklist(null);
     } finally {
       setLoading(false);
     }
@@ -194,6 +195,11 @@ export default function SessionBookingsManagement() {
       return;
     }
 
+    if (isSessionCompleted) {
+      toast.error("Sessão encerrada não permite alterar presença.");
+      return;
+    }
+
     const current =
       bookings.find((booking) => booking.id === bookingId)
         ?.attendance_confirmed ?? false;
@@ -219,6 +225,56 @@ export default function SessionBookingsManagement() {
       toast.error(authMessage ?? "Não foi possível atualizar a presença.");
     } finally {
       setUpdating(null);
+    }
+  }
+
+  async function handleCloseSession() {
+    if (!sessionId) {
+      return;
+    }
+
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para encerrar sessão.",
+      );
+      return;
+    }
+
+    if (isSessionCompleted) {
+      toast.success("Sessão já está encerrada.");
+      return;
+    }
+
+    setClosingSession(true);
+    try {
+      const result = await closeSessionWithChecklist(sessionId);
+      setClosureChecklist(result.checklist);
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: result.session_status ?? prev.status,
+            }
+          : prev,
+      );
+      toast.success("Sessão encerrada com sucesso.");
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "encerrar sessão",
+      );
+      const message =
+        error instanceof Error ? error.message : "Falha ao encerrar sessão.";
+      toast.error(authMessage ?? message);
+
+      try {
+        const checklist = await fetchSessionClosureChecklist(sessionId);
+        setClosureChecklist(checklist);
+      } catch {
+        setClosureChecklist(null);
+      }
+    } finally {
+      setClosingSession(false);
     }
   }
 
@@ -304,6 +360,10 @@ export default function SessionBookingsManagement() {
                         vagas
                       </p>
                     )}
+                    <p className="text-xs text-white/80 md:text-sm">
+                      Situação:{" "}
+                      {isSessionCompleted ? "Encerrada" : "Em execução"}
+                    </p>
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-white/75 md:text-base">
@@ -314,6 +374,63 @@ export default function SessionBookingsManagement() {
             </div>
           </div>
         </section>
+
+        {closureChecklist && (
+          <section className="mb-6 rounded-xl border border-border-default bg-bg-card p-4 sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-text-body">
+                  Checklist de Encerramento
+                </h2>
+                <p className="mt-1 text-xs text-text-muted">
+                  O encerramento exige resultado lançado para todos os
+                  agendamentos ativos e nenhuma solicitação de reagendamento
+                  pendente.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseSession}
+                disabled={
+                  !canMutate ||
+                  isSessionCompleted ||
+                  !closureChecklist.can_close ||
+                  closingSession
+                }
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {closingSession ? "Encerrando..." : "Encerrar Sessão"}
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border-default bg-bg-default p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                  Resultados pendentes
+                </p>
+                <p className="mt-1 text-base font-bold text-text-body">
+                  {closureChecklist.results_pending}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border-default bg-bg-default p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                  Reagendamentos pendentes
+                </p>
+                <p className="mt-1 text-base font-bold text-text-body">
+                  {closureChecklist.pending_swap_requests}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border-default bg-bg-default p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                  Agendamentos ativos
+                </p>
+                <p className="mt-1 text-base font-bold text-text-body">
+                  {closureChecklist.bookings_total}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Enhanced filters with visual hierarchy */}
         <div className="mb-6 space-y-4">
@@ -478,7 +595,7 @@ export default function SessionBookingsManagement() {
                                 onClick={() =>
                                   handleAttendanceChange(b.id, val === "sim")
                                 }
-                                disabled={isUpdating || !canMutate}
+                                disabled={isUpdating || !canManageAttendance}
                                 className={`flex-1 px-2 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
                                   (b.attendance_confirmed ? "sim" : "nao") ===
                                   val
@@ -586,7 +703,9 @@ export default function SessionBookingsManagement() {
                                         val === "sim",
                                       )
                                     }
-                                    disabled={isUpdating || !canMutate}
+                                    disabled={
+                                      isUpdating || !canManageAttendance
+                                    }
                                     className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all duration-150 ${
                                       (b.attendance_confirmed
                                         ? "sim"
