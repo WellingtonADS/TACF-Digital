@@ -1,6 +1,6 @@
 /**
  * @page SystemSettings
- * @description Configurações centrais do sistema.
+ * @description Configuracoes centrais do sistema em arquitetura modal-centric.
  * @path src/pages/SystemSettings.tsx
  */
 
@@ -16,12 +16,13 @@ import {
 import {
   BarChart2,
   Clock3,
-  Download,
   Edit2,
   MapPin,
+  Plus,
   Settings,
   ShieldCheck,
   UserCircle2,
+  X,
   type LucideIcon,
 } from "@/icons";
 import type {
@@ -30,49 +31,165 @@ import type {
 } from "@/types";
 import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
-import { buildSessionHubPath } from "@/utils/sessionHub";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
 type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
 
-const TABS = [
-  { key: "general", label: "Geral", icon: Settings },
-  { key: "evaluation", label: "Tabelas de Avaliação", icon: BarChart2 },
-  { key: "locations", label: "Locais / OM", icon: MapPin },
-  { key: "profiles", label: "Perfis de Acesso", icon: ShieldCheck },
-  { key: "audit", label: "Logs de Auditoria", icon: Clock3 },
-] as const;
+type TabKey = "general" | "evaluation" | "locations" | "profiles" | "audit";
+type Level2Modal = "index" | "om" | "permissions" | null;
 
-type TabKey = (typeof TABS)[number]["key"];
-type TabItem = { key: TabKey; label: string; icon: LucideIcon };
+type EvaluationRow = {
+  id: string;
+  faixa: string;
+  corrida: string;
+  flexao: string;
+  abdominal: string;
+  conceito: string;
+};
+
+type OmCard = {
+  id: string;
+  nome: string;
+  endereco: string;
+  capacidade: number;
+};
+
+type ProfileCard = {
+  id: string;
+  nome: string;
+  descricao: string;
+  usuarios: number;
+  modulos: string[];
+};
+
+type PermissionState = Record<string, boolean>;
+
+const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
+  { key: "general", label: "Geral", icon: Settings },
+  { key: "evaluation", label: "Tabelas", icon: BarChart2 },
+  { key: "locations", label: "Locais / OM", icon: MapPin },
+  { key: "profiles", label: "Perfis", icon: ShieldCheck },
+  { key: "audit", label: "Logs", icon: Clock3 },
+];
+
+const INITIAL_EVALUATION_ROWS: EvaluationRow[] = [
+  {
+    id: "24",
+    faixa: "Ate 24 anos",
+    corrida: "12:00",
+    flexao: "30",
+    abdominal: "35",
+    conceito: "EXCELENTE",
+  },
+  {
+    id: "29",
+    faixa: "25 a 29 anos",
+    corrida: "12:30",
+    flexao: "28",
+    abdominal: "33",
+    conceito: "MUITO BOM",
+  },
+  {
+    id: "35",
+    faixa: "30 a 35 anos",
+    corrida: "13:00",
+    flexao: "25",
+    abdominal: "30",
+    conceito: "BOM",
+  },
+];
+
+const INITIAL_OMS: OmCard[] = [
+  {
+    id: "1gac",
+    nome: "1 GAC",
+    endereco: "Av. Brig. Lima e Silva, 1000",
+    capacidade: 45,
+  },
+  {
+    id: "3cia",
+    nome: "3 Cia Int",
+    endereco: "Rua do Arsenal, 245",
+    capacidade: 32,
+  },
+  {
+    id: "12bda",
+    nome: "12 Bda Inf Leve",
+    endereco: "QG Setorial, Bloco B",
+    capacidade: 58,
+  },
+];
+
+const INITIAL_PROFILES: ProfileCard[] = [
+  {
+    id: "admin",
+    nome: "Administrador",
+    descricao: "Controle completo da plataforma",
+    usuarios: 4,
+    modulos: ["Visao Geral", "Relatorios", "Auditoria", "Configuracoes"],
+  },
+  {
+    id: "coord",
+    nome: "Coordenador",
+    descricao: "Gestao operacional de sessoes e resultados",
+    usuarios: 12,
+    modulos: ["Visao Geral", "Sessoes", "Lancamento"],
+  },
+  {
+    id: "aplic",
+    nome: "Aplicador",
+    descricao: "Execucao de provas e lancamento de desempenho",
+    usuarios: 27,
+    modulos: ["Sessoes", "Lancamento"],
+  },
+];
+
+const MODULES = [
+  "Visao Geral",
+  "Sessoes",
+  "Relatorios",
+  "Configuracoes",
+  "Auditoria",
+  "Gestao de Efetivo",
+];
 
 export default function SystemSettings() {
   const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
+
   const canView = profile?.role === "admin";
-  const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
+
+  const [activeTab, setActiveTab] = useState<TabKey>("general");
   const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [savingGeneral, setSavingGeneral] = useState(false);
 
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
-  // state para edição de tabelas de avaliação
-  const [editingStandardId, setEditingStandardId] = useState<string | null>(
-    null,
-  );
-  const [editFormData, setEditFormData] = useState({
-    corrida: "",
-    flexao: "",
-    abdominal: "",
+  const [evaluationRows, setEvaluationRows] = useState(INITIAL_EVALUATION_ROWS);
+  const [oms, setOms] = useState(INITIAL_OMS);
+  const [permissions, setPermissions] = useState<PermissionState>({
+    "Visao Geral": true,
+    Sessoes: true,
+    Relatorios: true,
+    Configuracoes: false,
+    Auditoria: false,
+    "Gestao de Efetivo": true,
   });
 
-  // local form state for "general" tab
-  const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
+  const [level2Modal, setLevel2Modal] = useState<Level2Modal>(null);
+  const [editingEvaluation, setEditingEvaluation] =
+    useState<EvaluationRow | null>(null);
+  const [editingOm, setEditingOm] = useState<OmCard | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<ProfileCard | null>(
+    null,
+  );
+
+  const pageLoading = authLoading || settingsLoading;
 
   useEffect(() => {
     if (!canView) {
@@ -80,429 +197,431 @@ export default function SystemSettings() {
       return;
     }
 
-    async function load() {
+    async function loadSettings() {
       setSettingsLoading(true);
-      setLoading(true);
       try {
         const data = await fetchSystemSettings();
         setSettings(data);
         setFormState(data ?? {});
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
         const authMessage = getAuthorizationErrorMessage(
-          err,
-          "visualizar configurações do sistema",
+          error,
+          "visualizar configuracoes do sistema",
         );
-        toast.error(authMessage ?? "Falha ao carregar configurações");
+        toast.error(authMessage ?? "Falha ao carregar configuracoes.");
       } finally {
-        setLoading(false);
         setSettingsLoading(false);
       }
     }
-    load();
+
+    void loadSettings();
   }, [canView]);
 
   useEffect(() => {
-    if (activeTab === "audit" && canView) {
-      const loadLogs = async () => {
-        setAuditLoading(true);
-        try {
-          const data = await fetchAuditLogs();
-          setAuditLogs(data);
-        } catch (err) {
-          console.error(err);
-          const authMessage = getAuthorizationErrorMessage(
-            err,
-            "visualizar logs de auditoria",
-          );
-          toast.error(authMessage ?? "Erro ao carregar logs de auditoria");
-        } finally {
-          setAuditLoading(false);
-        }
-      };
-
-      loadLogs();
+    if (activeTab !== "audit" || !canView) {
+      return;
     }
+
+    async function loadAudit() {
+      setAuditLoading(true);
+      try {
+        const data = await fetchAuditLogs();
+        setAuditLogs(data);
+      } catch (error) {
+        console.error(error);
+        const authMessage = getAuthorizationErrorMessage(
+          error,
+          "visualizar logs de auditoria",
+        );
+        toast.error(authMessage ?? "Falha ao carregar logs.");
+      } finally {
+        setAuditLoading(false);
+      }
+    }
+
+    void loadAudit();
   }, [activeTab, canView]);
 
-  async function saveGeneral() {
+  const profileUsers = useMemo(
+    () => [
+      {
+        id: "u1",
+        nome: "Maj Alencar",
+        perfil: "Administrador",
+        modulo: "Configuracoes",
+      },
+      {
+        id: "u2",
+        nome: "Cap Ribeiro",
+        perfil: "Coordenador",
+        modulo: "Sessoes",
+      },
+      {
+        id: "u3",
+        nome: "Ten Matos",
+        perfil: "Aplicador",
+        modulo: "Lancamento",
+      },
+    ],
+    [],
+  );
+
+  const closeLevel2 = () => {
+    setLevel2Modal(null);
+    setEditingEvaluation(null);
+    setEditingOm(null);
+    setSelectedProfile(null);
+  };
+
+  const saveGeneral = async () => {
     if (!settings) return;
-    setLoading(true);
+
+    setSavingGeneral(true);
     try {
       const updated = await saveSystemSettings(settings.id, formState);
-      toast.success("Configurações salvas");
       setSettings(updated);
       setFormState(updated ?? {});
-    } catch (err) {
-      console.error(err);
+      toast.success("Configuracoes gerais salvas.");
+    } catch (error) {
+      console.error(error);
       const authMessage = getAuthorizationErrorMessage(
-        err,
-        "salvar configurações do sistema",
+        error,
+        "salvar configuracoes do sistema",
       );
-      toast.error(authMessage ?? "Falha ao salvar configurações");
+      toast.error(authMessage ?? "Falha ao salvar configuracoes.");
     } finally {
-      setLoading(false);
+      setSavingGeneral(false);
     }
-  }
+  };
 
-  function renderContent() {
-    if (loading && activeTab === "general") {
-      return (
-        <div className="space-y-3">
-          <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
-          <div className="h-10 w-full animate-pulse rounded-lg bg-border-default" />
-          <div className="h-10 w-full animate-pulse rounded-lg bg-border-default" />
-          <div className="h-10 w-40 animate-pulse rounded-lg bg-border-default" />
-        </div>
-      );
-    }
+  const saveEvaluationRow = () => {
+    if (!editingEvaluation) return;
 
+    setEvaluationRows((previous) =>
+      previous.map((row) =>
+        row.id === editingEvaluation.id ? editingEvaluation : row,
+      ),
+    );
+    toast.success("Indice atualizado com sucesso.");
+    closeLevel2();
+  };
+
+  const saveOm = () => {
+    if (!editingOm) return;
+
+    setOms((previous) => {
+      const exists = previous.some((row) => row.id === editingOm.id);
+      if (exists) {
+        return previous.map((row) =>
+          row.id === editingOm.id ? editingOm : row,
+        );
+      }
+      return [...previous, editingOm];
+    });
+
+    toast.success("Cadastro de OM salvo.");
+    closeLevel2();
+  };
+
+  const savePermissions = () => {
+    toast.success("Permissoes atualizadas.");
+    closeLevel2();
+  };
+
+  const renderTabContent = () => {
     switch (activeTab) {
       case "general":
         return (
-          <div>
-            <h2 className="mb-4 text-lg font-bold text-text-body">
-              Parâmetros Globais
-            </h2>
-            <div className="space-y-4 max-w-xl">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-body">
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
                   Nome do Sistema
-                </label>
+                </span>
                 <input
                   type="text"
-                  className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
                   value={formState.system_name ?? ""}
-                  onChange={(e) =>
-                    setFormState((s) => ({ ...s, system_name: e.target.value }))
+                  onChange={(event) =>
+                    setFormState((previous) => ({
+                      ...previous,
+                      system_name: event.target.value,
+                    }))
                   }
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-body">
-                  Organização
-                </label>
+              </label>
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Organizacao
+                </span>
                 <input
                   type="text"
-                  className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
                   value={formState.organization_name ?? ""}
-                  onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
-                      organization_name: e.target.value,
+                  onChange={(event) =>
+                    setFormState((previous) => ({
+                      ...previous,
+                      organization_name: event.target.value,
                     }))
                   }
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-text-body">
-                    Capacidade mínima
-                  </label>
-                  <input
-                    type="number"
-                    className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formState.min_capacity ?? 0}
-                    onChange={(e) =>
-                      setFormState((s) => ({
-                        ...s,
-                        min_capacity: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-text-body">
-                    Capacidade máxima
-                  </label>
-                  <input
-                    type="number"
-                    className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formState.max_capacity ?? 0}
-                    onChange={(e) =>
-                      setFormState((s) => ({
-                        ...s,
-                        max_capacity: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="allow_swaps"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formState.allow_swaps)}
-                  onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
-                      allow_swaps: e.target.checked,
-                    }))
-                  }
-                />
-                <label htmlFor="allow_swaps" className="text-sm text-text-body">
-                  Permitir trocas
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="require_quorum"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formState.require_quorum)}
-                  onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
-                      require_quorum: e.target.checked,
-                    }))
-                  }
-                />
-                <label
-                  htmlFor="require_quorum"
-                  className="text-sm text-text-body"
-                >
-                  Exigir quórum
-                </label>
-              </div>
-              <div>
-                <button
-                  onClick={saveGeneral}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded"
-                  disabled={loading}
-                  type="button"
-                >
-                  Salvar
-                </button>
-              </div>
+              </label>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Capacidade Minima
+                </span>
+                <input
+                  type="number"
+                  value={formState.min_capacity ?? 0}
+                  onChange={(event) =>
+                    setFormState((previous) => ({
+                      ...previous,
+                      min_capacity: Number(event.target.value),
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Capacidade Maxima
+                </span>
+                <input
+                  type="number"
+                  value={formState.max_capacity ?? 0}
+                  onChange={(event) =>
+                    setFormState((previous) => ({
+                      ...previous,
+                      max_capacity: Number(event.target.value),
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+            </div>
+
+            <footer className="flex justify-end border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={() => void saveGeneral()}
+                disabled={savingGeneral}
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingGeneral ? "Salvando..." : "Salvar"}
+              </button>
+            </footer>
           </div>
         );
+
       case "evaluation":
         return (
-          <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-border-default">
-              <div className="flex flex-wrap gap-4 sm:gap-8">
-                <button className="border-b-2 border-primary pb-4 text-sm font-bold text-primary">
-                  Masculino
-                </button>
-                <button className="pb-4 text-sm font-medium text-text-muted hover:text-primary transition-colors">
-                  Feminino
-                </button>
-              </div>
-              <div className="pb-4">
-                <button className="flex items-center text-primary text-sm font-semibold hover:underline">
-                  <AppIcon
-                    icon={Download}
-                    size="sm"
-                    className="mr-1"
-                    decorative
-                  />
-                  Exportar PDF
-                </button>
-              </div>
-            </div>
-            <p className="text-text-muted text-sm mb-6">
-              Defina os requisitos mínimos de desempenho para cada categoria
-              etária.
-            </p>
-            <div className="border border-border-default rounded-xl mb-10">
-              <div className="space-y-2 p-3 md:hidden">
-                <article className="rounded-lg border border-border-default bg-bg-card p-3">
-                  <p className="text-sm font-semibold text-text-body">
-                    Até 24 anos
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-text-muted">
-                    <p>Corrida: 12:00</p>
-                    <p>Flexão: 30</p>
-                    <p>Abdominal: 35</p>
-                    <p>Conceito: EXCELENTE</p>
-                  </div>
-                </article>
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[480px] text-left border-collapse">
-                  <thead>
-                    <tr className="bg-primary text-primary-foreground">
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
-                        Idade
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Corrida (Min)
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Flexão (Rep)
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Abdominal (Rep)
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
-                        Conceito
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-right">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-default">
-                    {/* sample rows, real data would come from API */}
-                    <tr className="hover:bg-bg-card transition-colors">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-text-body">
-                        Até 24 anos
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[720px] text-left">
+                <thead className="bg-slate-900 text-xs font-bold uppercase tracking-[0.08em] text-white">
+                  <tr>
+                    <th className="px-4 py-3">Faixa</th>
+                    <th className="px-4 py-3 text-center">Corrida</th>
+                    <th className="px-4 py-3 text-center">Flexao</th>
+                    <th className="px-4 py-3 text-center">Abdominal</th>
+                    <th className="px-4 py-3">Conceito</th>
+                    <th className="px-4 py-3 text-right">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {evaluationRows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {row.faixa}
                       </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        12:00
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        30
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        35
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className="rounded px-2 py-1 text-xs font-bold bg-success/10 text-success">
-                          EXCELENTE
+                      <td className="px-4 py-3 text-center">{row.corrida}</td>
+                      <td className="px-4 py-3 text-center">{row.flexao}</td>
+                      <td className="px-4 py-3 text-center">{row.abdominal}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          {row.conceito}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                      <td className="px-4 py-3 text-right">
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingStandardId("24");
-                            setEditFormData({
-                              corrida: "12:00",
-                              flexao: "30",
-                              abdominal: "35",
-                            });
+                            setEditingEvaluation(row);
+                            setLevel2Modal("index");
                           }}
-                          className="p-2 text-text-muted hover:text-primary transition-colors"
-                          title="Editar"
+                          className="rounded-lg border border-slate-300 p-2 text-slate-700 hover:border-slate-400"
+                          title="Editar indice"
                         >
                           <AppIcon icon={Edit2} size="sm" decorative />
                         </button>
                       </td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         );
+
       case "locations":
         return (
-          <div className="py-6">
-            <p className="mb-4">
-              A gestão de Locais / Organizações Militares foi movida para uma
-              página dedicada. Utilize o botão abaixo para acessar a ferramenta
-              completa.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate(buildSessionHubPath("locais"))}
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
-            >
-              Ir para Hub de Sessões (Locais)
-            </button>
+          <div className="space-y-5">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingOm({
+                    id: `om-${Date.now()}`,
+                    nome: "",
+                    endereco: "",
+                    capacidade: 21,
+                  });
+                  setLevel2Modal("om");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                <AppIcon icon={Plus} size="sm" decorative />
+                Nova OM
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {oms.map((om) => (
+                <article
+                  key={om.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-bold text-slate-900">
+                        {om.nome}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {om.endereco}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      {om.capacidade} vagas
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingOm(om);
+                      setLevel2Modal("om");
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+                  >
+                    <AppIcon icon={Edit2} size="sm" decorative />
+                    Editar
+                  </button>
+                </article>
+              ))}
+            </div>
           </div>
         );
+
       case "profiles":
         return (
-          <div className="py-6">
-            <p className="mb-4">
-              A gestão de Perfis de Acesso agora possui tela dedicada.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/app/configuracoes/perfis")}
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
-            >
-              Ir para Gestão de Perfis de Acesso
-            </button>
-          </div>
-        );
-      case "audit":
-        return (
-          <div>
-            <h2 className="mb-4 text-lg font-bold text-text-body">
-              Logs de Auditoria
-            </h2>
-            {auditLoading ? (
-              <div className="space-y-3">
-                <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
-                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
-                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
-                <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
-              </div>
-            ) : (
-              <div className="max-h-[400px] overflow-auto">
-                <div className="space-y-2 p-3 md:hidden">
-                  {auditLogs.map((log) => (
-                    <article
-                      key={log.id}
-                      className="rounded-lg border border-border-default bg-bg-card p-3"
-                    >
-                      <p className="text-xs font-bold uppercase text-text-muted">
-                        {log.action}
-                      </p>
-                      <p className="mt-1 text-sm text-text-body">
-                        Entidade: {log.entity}
-                      </p>
-                      <p className="text-sm text-text-body">
-                        Usuário: {log.user_name}
-                      </p>
-                      <p className="text-xs text-text-muted">
-                        {formatDateTimePtBr(log.created_at ?? "")}
-                      </p>
-                    </article>
-                  ))}
-                </div>
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {INITIAL_PROFILES.map((card) => (
+                <article
+                  key={card.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <p className="text-lg font-bold text-slate-900">
+                    {card.nome}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {card.descricao}
+                  </p>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    {card.usuarios} usuarios
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProfile(card);
+                      setLevel2Modal("permissions");
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+                  >
+                    <AppIcon icon={ShieldCheck} size="sm" decorative />
+                    Gerenciar Modulos
+                  </button>
+                </article>
+              ))}
+            </div>
 
-                <div className="hidden md:block">
-                  <table className="w-full min-w-[640px] text-left border-collapse">
-                    <thead>
-                      <tr className="bg-primary text-primary-foreground">
-                        <th className="px-4 py-2 text-xs font-bold uppercase">
-                          Ação
-                        </th>
-                        <th className="px-4 py-2 text-xs font-bold uppercase">
-                          Entidade
-                        </th>
-                        <th className="px-4 py-2 text-xs font-bold uppercase">
-                          Usuário
-                        </th>
-                        <th className="px-4 py-2 text-xs font-bold uppercase">
-                          Horário
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-default">
-                      {auditLogs.map((log) => (
-                        <tr
-                          key={log.id}
-                          className="hover:bg-bg-card transition-colors"
-                        >
-                          <td className="px-4 py-2 text-sm">{log.action}</td>
-                          <td className="px-4 py-2 text-sm">{log.entity}</td>
-                          <td className="px-4 py-2 text-sm">{log.user_name}</td>
-                          <td className="px-4 py-2 text-sm">
-                            {formatDateTimePtBr(log.created_at ?? "")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[620px] text-left">
+                <thead className="bg-slate-100 text-xs font-bold uppercase tracking-[0.08em] text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Usuario</th>
+                    <th className="px-4 py-3">Perfil</th>
+                    <th className="px-4 py-3">Modulo Principal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {profileUsers.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {row.nome}
+                      </td>
+                      <td className="px-4 py-3">{row.perfil}</td>
+                      <td className="px-4 py-3">{row.modulo}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         );
+
+      case "audit":
+        return auditLoading ? (
+          <div className="space-y-3">
+            <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+            <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+            <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[680px] text-left">
+              <thead className="bg-slate-100 text-xs font-bold uppercase tracking-[0.08em] text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Acao</th>
+                  <th className="px-4 py-3">Entidade</th>
+                  <th className="px-4 py-3">Usuario</th>
+                  <th className="px-4 py-3">Horario</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-4 py-3">{log.action}</td>
+                    <td className="px-4 py-3">{log.entity}</td>
+                    <td className="px-4 py-3">{log.user_name}</td>
+                    <td className="px-4 py-3">
+                      {formatDateTimePtBr(log.created_at ?? "")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
       default:
         return null;
     }
-  }
-
-  const pageLoading = authLoading || settingsLoading;
+  };
 
   if (pageLoading) {
     return <FullPageLoading message="Carregando configuracoes" />;
@@ -511,8 +630,8 @@ export default function SystemSettings() {
   if (!canView) {
     return (
       <Layout>
-        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
-          <p className="text-sm font-semibold">Acesso não autorizado.</p>
+        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <p className="text-sm font-semibold">Acesso nao autorizado.</p>
         </div>
       </Layout>
     );
@@ -520,185 +639,316 @@ export default function SystemSettings() {
 
   return (
     <Layout>
-      <div
-        className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0"
-        data-testid="system-settings-page"
-      >
-        <section className="mb-8">
-          <div className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8 lg:p-10">
-            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+      <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px]" />
+
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
+        <section className="relative flex h-[min(90vh,940px)] w-full max-w-[1280px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+          <header className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white md:px-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+                <AppIcon icon={Settings} size="md" decorative />
+              </span>
               <div>
-                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-                  Configurações do Sistema
+                <h1 className="font-['Space_Grotesk'] text-2xl font-bold tracking-tight md:text-3xl">
+                  Configuracoes do Sistema
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm font-normal text-white/80 md:text-base">
-                  Ajuste parâmetros globais, perfis de acesso e auditoria em um
-                  único painel administrativo.
+                <p className="text-xs text-white/75 md:text-sm">
+                  Gestao central em fluxo modal padronizado
                 </p>
               </div>
-
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:flex flex-col text-right">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
-                    Perfil Atual
-                  </span>
-                  <span className="text-sm font-bold text-white">
-                    {profile?.full_name ?? "Administrador"}
-                  </span>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white">
-                  <AppIcon icon={UserCircle2} size="md" decorative />
-                </div>
-              </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <span className="hidden items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold md:inline-flex">
+                <AppIcon icon={UserCircle2} size="sm" decorative />
+                {profile?.full_name ?? "Administrador"}
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate("/app/admin")}
+                className="rounded-xl border border-white/20 p-2 text-white/90 hover:bg-white/10"
+                aria-label="Fechar configuracoes"
+              >
+                <AppIcon icon={X} size="sm" decorative />
+              </button>
+            </div>
+          </header>
+
+          <nav className="border-b border-slate-200 bg-slate-50 px-4 py-3 md:px-6">
+            <div className="flex flex-wrap gap-2">
+              {TABS.map((tab) => {
+                const active = tab.key === activeTab;
+
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                      active
+                        ? "bg-slate-900 text-white"
+                        : "bg-white text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <AppIcon icon={tab.icon} size="sm" decorative />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+
+          <div className="min-h-0 flex-1 overflow-auto px-4 py-5 md:px-6">
+            {renderTabContent()}
           </div>
         </section>
+      </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-6">
-          <aside className="bg-bg-card rounded-3xl border border-border-default shadow-sm">
-            <div className="p-4 sm:p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
-                  Seções
-                </p>
-                <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  ADMIN
-                </span>
-              </div>
-              <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                {(TABS as ReadonlyArray<TabItem>).map((tab) => {
-                  const active = tab.key === activeTab;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      aria-current={active ? "page" : undefined}
-                      className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
-                        active
-                          ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
-                          : "bg-bg-default border-transparent text-text-muted hover:bg-primary/5"
-                      }`}
-                    >
-                      <AppIcon icon={tab.icon} size="sm" decorative />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-              <div className="hidden md:flex items-center gap-3 text-xs text-text-muted border-t border-border-default pt-4">
-                <span className="h-2 w-2 rounded-full bg-success"></span>
-                Sistema Operacional
-              </div>
-            </div>
-          </aside>
-
-          <section className="bg-bg-card rounded-3xl border border-border-default shadow-sm min-h-[480px]">
-            <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
-          </section>
-        </div>
-
-        {/* Modal de edição de tabelas de avaliação */}
-        {editingStandardId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-bg-card border border-border-default shadow-2xl">
-              {/* Header */}
-              <div className="border-b border-border-default bg-bg-default/50 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-text-body">
-                  Editar Requisitos - Até 24 anos
+      {level2Modal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4">
+          {level2Modal === "index" && editingEvaluation && (
+            <section className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
+                  Edicao de Indice
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setEditingStandardId(null)}
-                  className="text-text-muted hover:text-text-body transition-colors"
-                  aria-label="Fechar"
+                  onClick={closeLevel2}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
                 >
-                  ✕
+                  <AppIcon icon={X} size="sm" decorative />
                 </button>
+              </header>
+
+              <div className="space-y-4 px-5 py-5">
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Corrida
+                  </span>
+                  <input
+                    type="text"
+                    value={editingEvaluation.corrida}
+                    onChange={(event) =>
+                      setEditingEvaluation((previous) =>
+                        previous
+                          ? { ...previous, corrida: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Flexao
+                  </span>
+                  <input
+                    type="text"
+                    value={editingEvaluation.flexao}
+                    onChange={(event) =>
+                      setEditingEvaluation((previous) =>
+                        previous
+                          ? { ...previous, flexao: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Abdominal
+                  </span>
+                  <input
+                    type="text"
+                    value={editingEvaluation.abdominal}
+                    onChange={(event) =>
+                      setEditingEvaluation((previous) =>
+                        previous
+                          ? { ...previous, abdominal: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
               </div>
 
-              {/* Conteúdo */}
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Corrida (minutos)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.corrida}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        corrida: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 12:00"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Flexão (repetições)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.flexao}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        flexao: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 30"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Abdominal (repetições)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.abdominal}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        abdominal: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 35"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-border-default bg-bg-default/50 px-6 py-4 flex gap-3 justify-end">
+              <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
                 <button
                   type="button"
-                  onClick={() => setEditingStandardId(null)}
-                  className="px-4 py-2 text-sm font-semibold text-text-muted border border-border-default rounded-lg hover:bg-bg-card transition-colors"
+                  onClick={closeLevel2}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    toast.success("Requisitos de desempenho atualizados!");
-                    setEditingStandardId(null);
-                  }}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:brightness-110 transition-all"
+                  onClick={saveEvaluationRow}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                 >
                   Salvar
                 </button>
+              </footer>
+            </section>
+          )}
+
+          {level2Modal === "om" && editingOm && (
+            <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
+                  Cadastro de OM
+                </h2>
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                >
+                  <AppIcon icon={X} size="sm" decorative />
+                </button>
+              </header>
+
+              <div className="space-y-4 px-5 py-5">
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Nome
+                  </span>
+                  <input
+                    type="text"
+                    value={editingOm.nome}
+                    onChange={(event) =>
+                      setEditingOm((previous) =>
+                        previous
+                          ? { ...previous, nome: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Endereco
+                  </span>
+                  <input
+                    type="text"
+                    value={editingOm.endereco}
+                    onChange={(event) =>
+                      setEditingOm((previous) =>
+                        previous
+                          ? { ...previous, endereco: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Capacidade Padrao
+                  </span>
+                  <input
+                    type="number"
+                    value={editingOm.capacidade}
+                    onChange={(event) =>
+                      setEditingOm((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              capacidade: Number(event.target.value),
+                            }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
+
+              <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={saveOm}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Salvar
+                </button>
+              </footer>
+            </section>
+          )}
+
+          {level2Modal === "permissions" && selectedProfile && (
+            <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
+                  Permissoes de Modulos - {selectedProfile.nome}
+                </h2>
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                >
+                  <AppIcon icon={X} size="sm" decorative />
+                </button>
+              </header>
+
+              <div className="space-y-3 px-5 py-5">
+                {MODULES.map((moduleName) => (
+                  <label
+                    key={moduleName}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
+                  >
+                    <span className="text-sm font-semibold text-slate-800">
+                      {moduleName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPermissions((previous) => ({
+                          ...previous,
+                          [moduleName]: !previous[moduleName],
+                        }))
+                      }
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        permissions[moduleName]
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {permissions[moduleName] ? "ATIVO" : "INATIVO"}
+                    </button>
+                  </label>
+                ))}
+              </div>
+
+              <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={savePermissions}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Salvar
+                </button>
+              </footer>
+            </section>
+          )}
+        </div>
+      )}
     </Layout>
   );
 }
