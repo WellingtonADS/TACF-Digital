@@ -199,8 +199,26 @@
   }
 
   .dashboard-hero-texture {
-    background-image: url("/images/dashboard-hero-texture.jpg");
-    background-size: cover;
+    background-image:
+      radial-gradient(
+        circle at 20% 20%,
+        rgba(255, 255, 255, 0.22) 0%,
+        transparent 44%
+      ),
+      radial-gradient(
+        circle at 80% 0%,
+        rgba(255, 255, 255, 0.16) 0%,
+        transparent 38%
+      ),
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.08),
+        rgba(255, 255, 255, 0.02)
+      );
+    background-size:
+      120% 120%,
+      130% 130%,
+      cover;
     background-position: center;
   }
 
