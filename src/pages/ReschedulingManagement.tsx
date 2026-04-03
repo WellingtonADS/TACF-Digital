@@ -206,7 +206,13 @@ function ActionButtons({
   );
 }
 
-export default function ReschedulingManagement() {
+type ReschedulingManagementProps = {
+  embedded?: boolean;
+};
+
+export default function ReschedulingManagement({
+  embedded = false,
+}: ReschedulingManagementProps) {
   const { profile } = useAuth();
   const {
     rows,
@@ -239,261 +245,265 @@ export default function ReschedulingManagement() {
     );
   }
 
-  return (
-    <Layout>
-      <div
-        className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8"
-        data-testid="rescheduling-management-page"
-      >
-        <PageHero total={rows.length} />
+  const content = (
+    <div
+      className={`${embedded ? "" : "mx-auto max-w-6xl"} w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8`}
+      data-testid="rescheduling-management-page"
+    >
+      <PageHero total={rows.length} />
 
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Total" value={rows.length} icon={GitMerge} />
-          <StatCard
-            title="Pendentes"
-            value={counts.solicitado}
-            icon={AlertTriangle}
-            className="border-b-4 border-secondary/30"
-            iconBg="bg-secondary/10"
-            iconColor="text-secondary"
-          />
-          <StatCard
-            title="Aprovados"
-            value={counts.aprovado}
-            icon={CheckCircle}
-            className="border-b-4 border-success/30"
-            iconBg="bg-success/10"
-            iconColor="text-success"
-          />
-          <StatCard
-            title="Recusados"
-            value={counts.cancelado}
-            icon={XCircle}
-            className="border-b-4 border-error/30"
-            iconBg="bg-error/10"
-            iconColor="text-error"
-          />
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard title="Total" value={rows.length} icon={GitMerge} />
+        <StatCard
+          title="Pendentes"
+          value={counts.solicitado}
+          icon={AlertTriangle}
+          className="border-b-4 border-secondary/30"
+          iconBg="bg-secondary/10"
+          iconColor="text-secondary"
+        />
+        <StatCard
+          title="Aprovados"
+          value={counts.aprovado}
+          icon={CheckCircle}
+          className="border-b-4 border-success/30"
+          iconBg="bg-success/10"
+          iconColor="text-success"
+        />
+        <StatCard
+          title="Recusados"
+          value={counts.cancelado}
+          icon={XCircle}
+          className="border-b-4 border-error/30"
+          iconBg="bg-error/10"
+          iconColor="text-error"
+        />
+      </div>
+
+      <Toolbar
+        query={query}
+        setQuery={setQuery}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
+      <p className="mt-3 px-1 text-xs text-text-muted">
+        Exibindo {visibleRows.length} de {rows.length} solicitacoes no filtro
+        atual.
+      </p>
+      {!canMutate && (
+        <div className="mt-3 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
+          Seu perfil está em modo somente leitura. Solicitações podem ser
+          visualizadas, mas apenas administradores podem deferir ou indeferir.
+        </div>
+      )}
+
+      <section className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+        <div className="space-y-3 p-4 md:hidden">
+          {visibleRows.length === 0 ? (
+            <EmptyRequestsState />
+          ) : (
+            visibleRows.map((row) => (
+              <article
+                key={row.id}
+                className="rounded-xl border border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-default/40"
+              >
+                <p className="text-[13px] font-bold uppercase text-text-body">
+                  {row.fullName || "(desconhecido)"}
+                </p>
+                <p className="mt-1 font-mono text-[11px] font-semibold text-text-muted">
+                  SARAM: {row.saram || "----"}
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
+                  <p className="flex items-center gap-2 text-text-muted">
+                    <Calendar size={12} />
+                    Data original: {row.originalDate ?? "--"}
+                  </p>
+                  <p className="flex items-center gap-2 text-primary">
+                    <CalendarClock size={12} />
+                    Nova data: {row.newDate ?? "--"}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <StatusBadge status={row.status} />
+                  <ReasonButton onClick={() => setSelected(row)} />
+                </div>
+                <div className="mt-3">
+                  <ActionButtons
+                    canAct={row.status === "solicitado"}
+                    canMutate={canMutate}
+                    onApprove={() => {
+                      if (!canMutate) {
+                        handleUnauthorizedAction("aprovar");
+                        return;
+                      }
+                      changeStatus(row.id, row.bookingId, "aprovado");
+                    }}
+                    onReject={() => {
+                      if (!canMutate) {
+                        handleUnauthorizedAction("indeferir");
+                        return;
+                      }
+                      changeStatus(row.id, row.bookingId, "cancelado");
+                    }}
+                  />
+                </div>
+              </article>
+            ))
+          )}
         </div>
 
-        <Toolbar
-          query={query}
-          setQuery={setQuery}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-        <p className="mt-3 px-1 text-xs text-text-muted">
-          Exibindo {visibleRows.length} de {rows.length} solicitacoes no filtro
-          atual.
-        </p>
-        {!canMutate && (
-          <div className="mt-3 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
-            Seu perfil está em modo somente leitura. Solicitações podem ser
-            visualizadas, mas apenas administradores podem deferir ou indeferir.
-          </div>
-        )}
-
-        <section className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
-          <div className="space-y-3 p-4 md:hidden">
-            {visibleRows.length === 0 ? (
-              <EmptyRequestsState />
-            ) : (
-              visibleRows.map((row) => (
-                <article
-                  key={row.id}
-                  className="rounded-xl border border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-default/40"
-                >
-                  <p className="text-[13px] font-bold uppercase text-text-body">
-                    {row.fullName || "(desconhecido)"}
-                  </p>
-                  <p className="mt-1 font-mono text-[11px] font-semibold text-text-muted">
-                    SARAM: {row.saram || "----"}
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
-                    <p className="flex items-center gap-2 text-text-muted">
-                      <Calendar size={12} />
-                      Data original: {row.originalDate ?? "--"}
-                    </p>
-                    <p className="flex items-center gap-2 text-primary">
-                      <CalendarClock size={12} />
-                      Nova data: {row.newDate ?? "--"}
-                    </p>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <StatusBadge status={row.status} />
-                    <ReasonButton onClick={() => setSelected(row)} />
-                  </div>
-                  <div className="mt-3">
-                    <ActionButtons
-                      canAct={row.status === "solicitado"}
-                      canMutate={canMutate}
-                      onApprove={() => {
-                        if (!canMutate) {
-                          handleUnauthorizedAction("aprovar");
-                          return;
-                        }
-                        changeStatus(row.id, row.bookingId, "aprovado");
-                      }}
-                      onReject={() => {
-                        if (!canMutate) {
-                          handleUnauthorizedAction("indeferir");
-                          return;
-                        }
-                        changeStatus(row.id, row.bookingId, "cancelado");
-                      }}
-                    />
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-
-          <div className="hidden w-full overflow-x-auto lg:block">
-            <table className="w-full border-collapse text-left">
-              <thead className="border-b border-border-default bg-bg-default/60">
+        <div className="hidden w-full overflow-x-auto lg:block">
+          <table className="w-full border-collapse text-left">
+            <thead className="border-b border-border-default bg-bg-default/60">
+              <tr>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Militar
+                </th>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  SARAM
+                </th>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Data Original
+                </th>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Nova Data
+                </th>
+                <th className="px-6 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Motivo
+                </th>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Status
+                </th>
+                <th className="px-6 py-4 pr-12 text-right text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-default">
+              {visibleRows.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Militar
-                  </th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    SARAM
-                  </th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Data Original
-                  </th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Nova Data
-                  </th>
-                  <th className="px-6 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Motivo
-                  </th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 pr-12 text-right text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                    Ações
-                  </th>
+                  <td className="px-6 py-8" colSpan={7}>
+                    <EmptyRequestsState />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border-default">
-                {visibleRows.length === 0 ? (
-                  <tr>
-                    <td className="px-6 py-8" colSpan={7}>
-                      <EmptyRequestsState />
+              ) : (
+                visibleRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="group transition-colors hover:bg-bg-default/70"
+                  >
+                    <td className="px-6 py-5">
+                      <span className="text-sm font-bold uppercase text-text-body">
+                        {row.fullName || "(desconhecido)"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="font-mono text-xs font-semibold text-text-muted">
+                        {row.saram || "----"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
+                        <Calendar size={14} />
+                        {row.originalDate ?? "--"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-primary">
+                        <CalendarClock size={14} />
+                        {row.newDate ?? "--"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <ReasonButton onClick={() => setSelected(row)} />
+                    </td>
+                    <td className="px-6 py-5">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <ActionButtons
+                        orientation="inline"
+                        canAct={row.status === "solicitado"}
+                        canMutate={canMutate}
+                        onApprove={() => {
+                          if (!canMutate) {
+                            handleUnauthorizedAction("aprovar");
+                            return;
+                          }
+                          changeStatus(row.id, row.bookingId, "aprovado");
+                        }}
+                        onReject={() => {
+                          if (!canMutate) {
+                            handleUnauthorizedAction("indeferir");
+                            return;
+                          }
+                          changeStatus(row.id, row.bookingId, "cancelado");
+                        }}
+                      />
                     </td>
                   </tr>
-                ) : (
-                  visibleRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="group transition-colors hover:bg-bg-default/70"
-                    >
-                      <td className="px-6 py-5">
-                        <span className="text-sm font-bold uppercase text-text-body">
-                          {row.fullName || "(desconhecido)"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className="font-mono text-xs font-semibold text-text-muted">
-                          {row.saram || "----"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
-                          <Calendar size={14} />
-                          {row.originalDate ?? "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                          <CalendarClock size={14} />
-                          {row.newDate ?? "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <ReasonButton onClick={() => setSelected(row)} />
-                      </td>
-                      <td className="px-6 py-5">
-                        <StatusBadge status={row.status} />
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <ActionButtons
-                          orientation="inline"
-                          canAct={row.status === "solicitado"}
-                          canMutate={canMutate}
-                          onApprove={() => {
-                            if (!canMutate) {
-                              handleUnauthorizedAction("aprovar");
-                              return;
-                            }
-                            changeStatus(row.id, row.bookingId, "aprovado");
-                          }}
-                          onReject={() => {
-                            if (!canMutate) {
-                              handleUnauthorizedAction("indeferir");
-                              return;
-                            }
-                            changeStatus(row.id, row.bookingId, "cancelado");
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {selected && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 fixed bottom-4 left-4 right-4 z-40 rounded-xl border-2 border-primary bg-bg-card p-5 shadow-2xl ring-4 ring-primary/5 sm:bottom-8 sm:left-auto sm:right-8 sm:w-80">
-            <div className="mb-3 flex items-center justify-between border-b border-border-default pb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                Justificativa Selecionada
-              </span>
-              <button
-                type="button"
-                className="text-text-muted transition-colors hover:text-text-body"
-                onClick={() => setSelected(null)}
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                  Militar
-                </span>
-                <span className="text-xs font-bold uppercase text-text-body">
-                  {selected.fullName || "(desconhecido)"}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                  Motivo
-                </span>
-                <span className="text-xs italic font-semibold text-text-body">
-                  {selected.reasonText}
-                </span>
-              </div>
-              {selected.attachmentUrl && (
-                <div className="pt-2">
-                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                    Anexo
-                  </span>
-                  <a
-                    className="text-xs font-semibold text-primary hover:underline"
-                    href={selected.attachmentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Abrir comprovativo
-                  </a>
-                </div>
+                ))
               )}
-            </div>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {selected && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 fixed bottom-4 left-4 right-4 z-40 rounded-xl border-2 border-primary bg-bg-card p-5 shadow-2xl ring-4 ring-primary/5 sm:bottom-8 sm:left-auto sm:right-8 sm:w-80">
+          <div className="mb-3 flex items-center justify-between border-b border-border-default pb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+              Justificativa Selecionada
+            </span>
+            <button
+              type="button"
+              className="text-text-muted transition-colors hover:text-text-body"
+              onClick={() => setSelected(null)}
+            >
+              <X size={14} />
+            </button>
           </div>
-        )}
-      </div>
-    </Layout>
+          <div className="space-y-3">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                Militar
+              </span>
+              <span className="text-xs font-bold uppercase text-text-body">
+                {selected.fullName || "(desconhecido)"}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                Motivo
+              </span>
+              <span className="text-xs italic font-semibold text-text-body">
+                {selected.reasonText}
+              </span>
+            </div>
+            {selected.attachmentUrl && (
+              <div className="pt-2">
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                  Anexo
+                </span>
+                <a
+                  className="text-xs font-semibold text-primary hover:underline"
+                  href={selected.attachmentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir comprovativo
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <Layout>{content}</Layout>;
 }

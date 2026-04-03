@@ -31,6 +31,7 @@ import {
   type AdminGovernanceSnapshot,
 } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
+import { buildSessionHubPath } from "@/utils/sessionHub";
 import { differenceInHours, format, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
@@ -173,7 +174,7 @@ const AdminDashboard = () => {
       label: "Hub de Sessões",
       description:
         "Operar criação, gestão, fechamento e capacidade das sessões",
-      path: "/app/sessoes",
+      path: buildSessionHubPath("sessoes"),
       accent: "bg-primary/5 text-primary",
     },
     {
@@ -194,14 +195,14 @@ const AdminDashboard = () => {
       icon: GitMerge,
       label: "Reagendamentos",
       description: "Deferir ou indeferir solicitações",
-      path: "/app/reagendamentos",
+      path: buildSessionHubPath("reagendamentos"),
       accent: "bg-primary/5 text-primary",
     },
     {
       icon: ClipboardList,
       label: "Lançar Índices",
       description: "Inserir resultados de avaliação",
-      path: "/app/lancamento-indices",
+      path: buildSessionHubPath("indices"),
       accent: "bg-primary/5 text-primary",
     },
     {

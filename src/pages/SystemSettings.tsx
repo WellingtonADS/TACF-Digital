@@ -30,6 +30,7 @@ import type {
 } from "@/types";
 import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
+import { buildSessionHubPath } from "@/utils/sessionHub";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -398,10 +399,10 @@ export default function SystemSettings() {
             </p>
             <button
               type="button"
-              onClick={() => window.location.assign("/app/om-locations")}
+              onClick={() => navigate(buildSessionHubPath("locais"))}
               className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
             >
-              Ir para Gestão de Locais e OMs
+              Ir para Hub de Sessões (Locais)
             </button>
           </div>
         );

@@ -21,6 +21,7 @@ import {
 } from "@/icons";
 import type { Location } from "@/types/database.types";
 import { OM_STATUS, STATUS_OPTIONS } from "@/utils/omStatus";
+import { buildSessionHubPath } from "@/utils/sessionHub";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -50,7 +51,9 @@ function PageHero({
           </div>
           <button
             type="button"
-            onClick={() => onNavigate("/app/om/new")}
+            onClick={() =>
+              onNavigate(buildSessionHubPath("locais", { mode: "new" }))
+            }
             className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-bg-card hover:text-primary"
           >
             <Plus size={16} />
@@ -183,14 +186,28 @@ function LocationCard({
       <div className="flex border-t border-border-default divide-x divide-border-default">
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${loc.id}`)}
+          onClick={() =>
+            onNavigate(
+              buildSessionHubPath("locais", {
+                mode: "edit",
+                locationId: loc.id,
+              }),
+            )
+          }
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Edit size={13} /> Editar
         </button>
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${loc.id}/schedules`)}
+          onClick={() =>
+            onNavigate(
+              buildSessionHubPath("locais", {
+                mode: "schedules",
+                locationId: loc.id,
+              }),
+            )
+          }
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Clock size={13} /> Horários
@@ -215,7 +232,9 @@ function EmptyState({
       </p>
       <button
         type="button"
-        onClick={() => onNavigate("/app/om/new")}
+        onClick={() =>
+          onNavigate(buildSessionHubPath("locais", { mode: "new" }))
+        }
         className="mt-4 text-sm text-primary font-semibold hover:underline"
       >
         Cadastrar primeira OM →
@@ -272,8 +291,17 @@ function PaginationControls({
   );
 }
 
-export default function OmLocationManager() {
+type OmLocationManagerProps = {
+  embedded?: boolean;
+  onNavigatePath?: (path: string) => void;
+};
+
+export default function OmLocationManager({
+  embedded = false,
+  onNavigatePath,
+}: OmLocationManagerProps) {
   const navigate = useNavigate();
+  const goTo = onNavigatePath ?? navigate;
   const { locations, total, loading, error, fetch } = useLocations();
 
   const [search, setSearch] = useState("");
@@ -299,56 +327,60 @@ export default function OmLocationManager() {
 
   if (isInitialLoad) return <FullPageLoading />;
 
-  return (
-    <Layout>
-      <div data-testid="om-location-manager-page">
-        <PageHero loading={loading} total={total} onNavigate={navigate} />
+  const content = (
+    <div data-testid="om-location-manager-page">
+      <PageHero loading={loading} total={total} onNavigate={goTo} />
 
-        <Toolbar
-          search={search}
-          setSearch={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          statusFilter={statusFilter}
-          setStatusFilter={(s) => {
-            setStatusFilter(s);
-            setPage(1);
-          }}
-        />
+      <Toolbar
+        search={search}
+        setSearch={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        statusFilter={statusFilter}
+        setStatusFilter={(s) => {
+          setStatusFilter(s);
+          setPage(1);
+        }}
+      />
 
-        {locations.length === 0 ? (
-          <EmptyState search={search} onNavigate={navigate} />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {locations.map((loc) => (
-              <LocationCard key={loc.id} loc={loc} onNavigate={navigate} />
-            ))}
+      {locations.length === 0 ? (
+        <EmptyState search={search} onNavigate={goTo} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {locations.map((loc) => (
+            <LocationCard key={loc.id} loc={loc} onNavigate={goTo} />
+          ))}
 
-            <button
-              type="button"
-              onClick={() => navigate("/app/om/new")}
-              className="group bg-bg-card rounded-2xl border-2 border-dashed border-border-default hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-2 py-10 transition-all"
-            >
-              <div className="w-10 h-10 rounded-xl bg-bg-default group-hover:bg-primary/10 flex items-center justify-center text-text-muted group-hover:text-primary transition-colors">
-                <Plus size={20} />
-              </div>
-              <span className="text-xs font-semibold text-text-muted group-hover:text-primary transition-colors">
-                Cadastrar nova OM
-              </span>
-            </button>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={() => goTo(buildSessionHubPath("locais", { mode: "new" }))}
+            className="group bg-bg-card rounded-2xl border-2 border-dashed border-border-default hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-2 py-10 transition-all"
+          >
+            <div className="w-10 h-10 rounded-xl bg-bg-default group-hover:bg-primary/10 flex items-center justify-center text-text-muted group-hover:text-primary transition-colors">
+              <Plus size={20} />
+            </div>
+            <span className="text-xs font-semibold text-text-muted group-hover:text-primary transition-colors">
+              Cadastrar nova OM
+            </span>
+          </button>
+        </div>
+      )}
 
-        <PaginationControls
-          loading={loading}
-          total={total}
-          displayedCount={locations.length}
-          page={page}
-          setPage={setPage}
-          pageSize={pageSize}
-        />
-      </div>
-    </Layout>
+      <PaginationControls
+        loading={loading}
+        total={total}
+        displayedCount={locations.length}
+        page={page}
+        setPage={setPage}
+        pageSize={pageSize}
+      />
+    </div>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <Layout>{content}</Layout>;
 }

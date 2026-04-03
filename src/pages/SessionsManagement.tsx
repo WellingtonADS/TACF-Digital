@@ -23,14 +23,31 @@ import {
   Search,
   Settings,
 } from "@/icons";
+import OmLocationEditor from "@/pages/OmLocationEditor";
+import OmLocationManager from "@/pages/OmLocationManager";
+import OmScheduleEditor from "@/pages/OmScheduleEditor";
+import ReschedulingManagement from "@/pages/ReschedulingManagement";
+import ScoreEntry from "@/pages/ScoreEntry";
 import { formatSessionPeriod } from "@/utils/booking";
+import {
+  buildSessionHubPath,
+  parseSessionHubTab,
+  type SessionHubTab,
+} from "@/utils/sessionHub";
 import { format, parseISO, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 type ViewMode = "table" | "cards";
 type StatusFilter = "all" | "open" | "closed" | "concluded";
+
+const HUB_TAB_META: Array<{ tab: SessionHubTab; label: string }> = [
+  { tab: "sessoes", label: "Sessões" },
+  { tab: "reagendamentos", label: "Reagendamentos" },
+  { tab: "indices", label: "Lançamento de Índices" },
+  { tab: "locais", label: "Locais e Horários" },
+];
 
 // Datas fixas para cobrir histórico e futuro no painel admin
 const ADMIN_START = new Date();
@@ -42,6 +59,7 @@ const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 
 export const SessionsManagement = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isMobile, isTablet } = useResponsive();
   const { sessions, loading, error, refresh } = useSessions(
     ADMIN_START_STR,
@@ -57,6 +75,10 @@ export const SessionsManagement = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const pageSize = 10;
   const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
+  const activeTab = parseSessionHubTab(searchParams.get("tab"));
+  const activeIndicesSessionId = searchParams.get("sessionId") ?? "";
+  const localMode = searchParams.get("mode") ?? "list";
+  const localId = searchParams.get("locationId") ?? undefined;
 
   // timestamp do início do dia atual — primitivo estável como dep
   const todayTs = useMemo(() => startOfDay(new Date()).getTime(), []);
@@ -104,6 +126,81 @@ export const SessionsManagement = () => {
   const concludedCount = sessions.filter(
     (s) => getSessionStatus(s) === "concluded",
   ).length;
+
+  const applyHubSearchParams = useCallback(
+    (next: URLSearchParams) => {
+      if (next.toString() === searchParams.toString()) {
+        return;
+      }
+      setSearchParams(next, { replace: false });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const openHubTab = useCallback(
+    (
+      tab: SessionHubTab,
+      params?: { sessionId?: string; locationId?: string; mode?: string },
+    ) => {
+      const url = new URL(buildSessionHubPath(tab, params), "http://localhost");
+      const next = new URLSearchParams(url.search);
+      applyHubSearchParams(next);
+    },
+    [applyHubSearchParams],
+  );
+
+  const handleLocalHubNavigate = useCallback(
+    (path: string) => {
+      if (path.startsWith("/app/sessoes?")) {
+        const url = new URL(path, "http://localhost");
+        const next = new URLSearchParams(url.search);
+        applyHubSearchParams(next);
+        return;
+      }
+
+      if (path === "/app/om-locations") {
+        openHubTab("locais", { mode: "list" });
+        return;
+      }
+
+      if (path === "/app/om/new") {
+        openHubTab("locais", { mode: "new" });
+        return;
+      }
+
+      const scheduleMatch = path.match(/^\/app\/om\/([^/]+)\/schedules$/);
+      if (scheduleMatch) {
+        openHubTab("locais", {
+          mode: "schedules",
+          locationId: scheduleMatch[1],
+        });
+        return;
+      }
+
+      const editMatch = path.match(/^\/app\/om\/([^/]+)$/);
+      if (editMatch) {
+        openHubTab("locais", {
+          mode: "edit",
+          locationId: editMatch[1],
+        });
+        return;
+      }
+    },
+    [applyHubSearchParams, openHubTab],
+  );
+
+  const handleIndicesSessionChange = useCallback(
+    (sessionId: string) => {
+      if (sessionId === activeIndicesSessionId) {
+        return;
+      }
+
+      openHubTab("indices", {
+        sessionId,
+      });
+    },
+    [activeIndicesSessionId, openHubTab],
+  );
 
   if (loading) {
     return (
@@ -178,208 +275,405 @@ export const SessionsManagement = () => {
           </div>
         </section>
 
-        {/* summary stats */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total" value={sessions.length} icon={Calendar} />
-          <StatCard
-            title="Abertas"
-            value={openCount}
-            icon={Calendar}
-            className="border-b-4 border-primary/30"
-            iconBg="bg-primary/10"
-            iconColor="text-primary"
-          />
-          <StatCard
-            title="Canceladas"
-            value={closedCount}
-            icon={Calendar}
-            className="border-b-4 border-error/30"
-            iconBg="bg-error/10"
-            iconColor="text-error"
-          />
-          <StatCard
-            title="Concluídas"
-            value={concludedCount}
-            icon={Calendar}
-            className="border-b-4 border-success/30"
-            iconBg="bg-success/10"
-            iconColor="text-success"
-          />
-        </div>
-
-        {/* toolbar */}
-        <div className="bg-bg-card rounded-2xl shadow-sm border border-border-default overflow-hidden">
-          <div className="p-3 md:p-5 border-b border-border-default flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-            {/* search */}
-            <div className="relative w-full sm:flex-1 sm:min-w-0">
-              <input
-                className="pl-10 pr-4 py-2 bg-bg-default border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
-                placeholder="Buscar turma, data ou turno..."
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
+        <section className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border-default p-3 md:p-4">
+            {HUB_TAB_META.map((item) => (
+              <button
+                key={item.tab}
+                type="button"
+                onClick={() => openHubTab(item.tab)}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors md:text-sm ${
+                  activeTab === item.tab
+                    ? "bg-primary/10 text-primary"
+                    : "text-text-muted hover:text-text-body"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {activeTab === "reagendamentos" && (
+            <ReschedulingManagement embedded />
+          )}
+          {activeTab === "indices" && (
+            <div className="p-4 md:p-6" data-testid="session-hub-indices-panel">
+              <ScoreEntry
+                embedded
+                initialSessionId={searchParams.get("sessionId") ?? undefined}
+                onSessionChange={handleIndicesSessionChange}
               />
-              <AppIcon
-                icon={Search}
-                size="sm"
-                className="absolute left-3 top-2.5 text-text-muted"
-                decorative
+            </div>
+          )}
+          {activeTab === "locais" && (
+            <div className="p-4 md:p-6" data-testid="session-hub-locais-panel">
+              {localMode === "new" && (
+                <OmLocationEditor
+                  embedded
+                  locationId="new"
+                  onNavigatePath={handleLocalHubNavigate}
+                />
+              )}
+              {localMode === "edit" && localId && (
+                <OmLocationEditor
+                  embedded
+                  locationId={localId}
+                  onNavigatePath={handleLocalHubNavigate}
+                />
+              )}
+              {localMode === "schedules" && localId && (
+                <OmScheduleEditor
+                  embedded
+                  locationId={localId}
+                  onNavigatePath={handleLocalHubNavigate}
+                />
+              )}
+              {((localMode === "edit" || localMode === "schedules") &&
+                !localId) ||
+              localMode === "list" ? (
+                <OmLocationManager
+                  embedded
+                  onNavigatePath={handleLocalHubNavigate}
+                />
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        {activeTab !== "sessoes" ? null : (
+          <>
+            {/* summary stats */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard title="Total" value={sessions.length} icon={Calendar} />
+              <StatCard
+                title="Abertas"
+                value={openCount}
+                icon={Calendar}
+                className="border-b-4 border-primary/30"
+                iconBg="bg-primary/10"
+                iconColor="text-primary"
+              />
+              <StatCard
+                title="Canceladas"
+                value={closedCount}
+                icon={Calendar}
+                className="border-b-4 border-error/30"
+                iconBg="bg-error/10"
+                iconColor="text-error"
+              />
+              <StatCard
+                title="Concluídas"
+                value={concludedCount}
+                icon={Calendar}
+                className="border-b-4 border-success/30"
+                iconBg="bg-success/10"
+                iconColor="text-success"
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-              {/* status filter */}
-              <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
-                {(["all", "open", "closed", "concluded"] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => {
-                      setStatusFilter(f);
+            {/* toolbar */}
+            <div className="bg-bg-card rounded-2xl shadow-sm border border-border-default overflow-hidden">
+              <div className="p-3 md:p-5 border-b border-border-default flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                {/* search */}
+                <div className="relative w-full sm:flex-1 sm:min-w-0">
+                  <input
+                    className="pl-10 pr-4 py-2 bg-bg-default border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
+                    placeholder="Buscar turma, data ou turno..."
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
                       setPage(1);
                     }}
-                    className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                      statusFilter === f
-                        ? "bg-primary/10 text-primary shadow-sm"
-                        : "text-text-muted hover:text-text-body"
-                    }`}
-                  >
-                    {f === "all"
-                      ? "Todas"
-                      : f === "open"
-                        ? "Abertas"
-                        : f === "closed"
-                          ? "Canceladas"
-                          : "Concluídas"}
-                  </button>
-                ))}
-              </div>
+                  />
+                  <AppIcon
+                    icon={Search}
+                    size="sm"
+                    className="absolute left-3 top-2.5 text-text-muted"
+                    decorative
+                  />
+                </div>
 
-              {/* view toggle */}
-              {!isCompactViewport && (
-                <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1">
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+                  {/* status filter */}
+                  <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
+                    {(["all", "open", "closed", "concluded"] as const).map(
+                      (f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(f);
+                            setPage(1);
+                          }}
+                          className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+                            statusFilter === f
+                              ? "bg-primary/10 text-primary shadow-sm"
+                              : "text-text-muted hover:text-text-body"
+                          }`}
+                        >
+                          {f === "all"
+                            ? "Todas"
+                            : f === "open"
+                              ? "Abertas"
+                              : f === "closed"
+                                ? "Canceladas"
+                                : "Concluídas"}
+                        </button>
+                      ),
+                    )}
+                  </div>
+
+                  {/* view toggle */}
+                  {!isCompactViewport && (
+                    <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("table")}
+                        aria-label="Modo tabela"
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          viewMode === "table"
+                            ? "bg-bg-card text-primary shadow-sm"
+                            : "text-text-muted hover:text-text-body"
+                        }`}
+                      >
+                        <AppIcon icon={LayoutList} size="sm" decorative />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("cards")}
+                        aria-label="Modo cards"
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          viewMode === "cards"
+                            ? "bg-bg-card text-primary shadow-sm"
+                            : "text-text-muted hover:text-text-body"
+                        }`}
+                      >
+                        <AppIcon icon={LayoutGrid} size="sm" decorative />
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     type="button"
-                    onClick={() => setViewMode("table")}
-                    aria-label="Modo tabela"
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      viewMode === "table"
-                        ? "bg-bg-card text-primary shadow-sm"
-                        : "text-text-muted hover:text-text-body"
-                    }`}
+                    className="p-2 bg-bg-default rounded-xl text-text-muted hover:bg-bg-card/20 transition-colors"
+                    title="Filtros avançados"
+                    aria-label="Filtros avançados"
                   >
-                    <AppIcon icon={LayoutList} size="sm" decorative />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("cards")}
-                    aria-label="Modo cards"
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      viewMode === "cards"
-                        ? "bg-bg-card text-primary shadow-sm"
-                        : "text-text-muted hover:text-text-body"
-                    }`}
-                  >
-                    <AppIcon icon={LayoutGrid} size="sm" decorative />
+                    <AppIcon icon={Filter} size="sm" decorative />
                   </button>
                 </div>
-              )}
-
-              <button
-                type="button"
-                className="p-2 bg-bg-default rounded-xl text-text-muted hover:bg-bg-card/20 transition-colors"
-                title="Filtros avançados"
-                aria-label="Filtros avançados"
-              >
-                <AppIcon icon={Filter} size="sm" decorative />
-              </button>
+              </div>
             </div>
-          </div>
-        </div>
-        {/* content */}
-        {error ? (
-          <div className="p-5 md:p-10 text-center text-sm text-error">
-            {error}
-            <button
-              type="button"
-              className="ml-3 text-primary font-semibold hover:underline"
-              onClick={refresh}
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : paginatedSessions.length === 0 ? (
-          <div className="p-16 text-center">
-            <AppIcon
-              icon={Calendar}
-              size="lg"
-              className="mx-auto text-text-muted mb-3"
-              decorative
-            />
-            <p className="text-sm text-text-muted">Nenhuma turma encontrada.</p>
-          </div>
-        ) : activeViewMode === "table" ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
-              <thead className="bg-bg-default">
-                <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                    Turma
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                    Data
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                    Turno
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                    Ocupação
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-default">
+            {/* content */}
+            {error ? (
+              <div className="p-5 md:p-10 text-center text-sm text-error">
+                {error}
+                <button
+                  type="button"
+                  className="ml-3 text-primary font-semibold hover:underline"
+                  onClick={refresh}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : paginatedSessions.length === 0 ? (
+              <div className="p-16 text-center">
+                <AppIcon
+                  icon={Calendar}
+                  size="lg"
+                  className="mx-auto text-text-muted mb-3"
+                  decorative
+                />
+                <p className="text-sm text-text-muted">
+                  Nenhuma turma encontrada.
+                </p>
+              </div>
+            ) : activeViewMode === "table" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left">
+                  <thead className="bg-bg-default">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                        Turma
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                        Data
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                        Turno
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                        Ocupação
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-default">
+                    {paginatedSessions.map((s) => {
+                      const status = getSessionStatus(s);
+                      const isOpen = status === "open";
+                      const isConcluded = status === "concluded";
+                      return (
+                        <tr
+                          key={s.session_id}
+                          className="hover:bg-bg-card/20 transition-colors"
+                        >
+                          <td className="px-6 py-5">
+                            <div className="font-bold text-text-body font-mono text-sm">
+                              {s.session_id.slice(0, 12).toUpperCase()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="text-sm font-semibold text-text-body capitalize">
+                              {format(parseISO(s.date), "EEEE", {
+                                locale: ptBR,
+                              })}
+                            </div>
+                            <div className="mt-0.5 text-xs text-text-muted">
+                              {format(
+                                parseISO(s.date),
+                                "dd 'de' MMMM 'de' yyyy",
+                                {
+                                  locale: ptBR,
+                                },
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="text-sm font-semibold text-text-body capitalize">
+                              {formatSessionPeriod(s.period)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
+                          <td className="px-6 py-5">
+                            <span
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
+                                isOpen
+                                  ? "bg-primary/10 text-primary border-primary/30"
+                                  : isConcluded
+                                    ? "bg-success/10 text-success border-success/30"
+                                    : "bg-error/10 text-error border-error/30"
+                              }`}
+                            >
+                              {isOpen
+                                ? "ABERTA"
+                                : isConcluded
+                                  ? "CONCLUÍDA"
+                                  : "CANCELADA"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigate(
+                                    `/app/turmas/${s.session_id}/agendamentos`,
+                                  )
+                                }
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                                title="Ver agendamentos"
+                                aria-label="Ver agendamentos"
+                              >
+                                <AppIcon
+                                  icon={ClipboardList}
+                                  size="sm"
+                                  decorative
+                                />
+                                Agendamentos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openHubTab("indices", {
+                                    sessionId: s.session_id,
+                                  })
+                                }
+                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                                title="Lançar índices"
+                                aria-label="Lançar índices"
+                              >
+                                <AppIcon
+                                  icon={ClipboardPen}
+                                  size="sm"
+                                  decorative
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigate(`/app/turmas/${s.session_id}/editar`)
+                                }
+                                disabled={isConcluded}
+                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
+                                title={
+                                  isConcluded
+                                    ? "Turma concluída não pode ser editada"
+                                    : "Editar turma"
+                                }
+                                aria-label="Editar turma"
+                              >
+                                <AppIcon icon={Edit2} size="sm" decorative />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => navigate("/app/configuracoes")}
+                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                                title="Configurar turma"
+                                aria-label="Configurar turma"
+                              >
+                                <AppIcon icon={Settings} size="sm" decorative />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* cards view */
+              <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                 {paginatedSessions.map((s) => {
                   const status = getSessionStatus(s);
                   const isOpen = status === "open";
                   const isConcluded = status === "concluded";
+                  const occupied = s.occupied_count;
+                  const max = s.max_capacity;
+                  const percent = max ? Math.round((occupied / max) * 100) : 0;
                   return (
-                    <tr
+                    <div
                       key={s.session_id}
-                      className="hover:bg-bg-card/20 transition-colors"
+                      className={`bg-bg-default rounded-xl p-5 border border-border-default border-l-4 ${
+                        isOpen
+                          ? "border-l-primary"
+                          : isConcluded
+                            ? "border-l-success"
+                            : "border-l-error"
+                      } flex flex-col gap-4`}
                     >
-                      <td className="px-6 py-5">
-                        <div className="font-bold text-text-body font-mono text-sm">
-                          {s.session_id.slice(0, 12).toUpperCase()}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider font-mono">
+                            {s.session_id.slice(0, 12).toUpperCase()}
+                          </p>
+                          <p className="text-sm font-semibold text-text-body mt-0.5">
+                            {format(parseISO(s.date), "dd 'de' MMMM", {
+                              locale: ptBR,
+                            })}
+                          </p>
+                          <p className="text-[11px] text-text-muted capitalize">
+                            {formatSessionPeriod(s.period)}
+                          </p>
                         </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-sm font-semibold text-text-body capitalize">
-                          {format(parseISO(s.date), "EEEE", { locale: ptBR })}
-                        </div>
-                        <div className="mt-0.5 text-xs text-text-muted">
-                          {format(parseISO(s.date), "dd 'de' MMMM 'de' yyyy", {
-                            locale: ptBR,
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className="text-sm font-semibold text-text-body capitalize">
-                          {formatSessionPeriod(s.period)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
-                      <td className="px-6 py-5">
                         <span
-                          className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                             isOpen
                               ? "bg-primary/10 text-primary border-primary/30"
                               : isConcluded
@@ -393,39 +687,52 @@ export const SessionsManagement = () => {
                               ? "CONCLUÍDA"
                               : "CANCELADA"}
                         </span>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex justify-end gap-1">
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold text-text-muted mb-1">
+                          <span>Ocupação</span>
+                          <span>
+                            {occupied}/{max} ({percent}%)
+                          </span>
+                        </div>
+                        <progress
+                          value={occupied}
+                          max={max || 1}
+                          aria-label="Ocupação"
+                          className={`h-1.5 w-full rounded-full overflow-hidden ${
+                            percent >= 95
+                              ? "accent-text-muted"
+                              : percent >= 50
+                                ? "accent-primary"
+                                : "accent-primary"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2 pt-1 border-t border-border-default">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(`/app/turmas/${s.session_id}/agendamentos`)
+                          }
+                          className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors"
+                        >
+                          <AppIcon icon={ClipboardList} size="sm" decorative />
+                          Ver Agendamentos
+                        </button>
+                        <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() =>
-                              navigate(
-                                `/app/turmas/${s.session_id}/agendamentos`,
-                              )
-                            }
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
-                            title="Ver agendamentos"
-                            aria-label="Ver agendamentos"
-                          >
-                            <AppIcon
-                              icon={ClipboardList}
-                              size="sm"
-                              decorative
-                            />
-                            Agendamentos
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate("/app/lancamento-indices", {
-                                state: { sessionId: s.session_id },
+                              openHubTab("indices", {
+                                sessionId: s.session_id,
                               })
                             }
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Lançar índices"
-                            aria-label="Lançar índices"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
                           >
-                            <AppIcon icon={ClipboardPen} size="sm" decorative />
+                            <AppIcon icon={ClipboardPen} size="sm" decorative />{" "}
+                            Índices
                           </button>
                           <button
                             type="button"
@@ -433,202 +740,76 @@ export const SessionsManagement = () => {
                               navigate(`/app/turmas/${s.session_id}/editar`)
                             }
                             disabled={isConcluded}
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
                             title={
                               isConcluded
                                 ? "Turma concluída não pode ser editada"
                                 : "Editar turma"
                             }
-                            aria-label="Editar turma"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-text-body disabled:hover:border-border-default"
                           >
-                            <AppIcon icon={Edit2} size="sm" decorative />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => navigate("/app/configuracoes")}
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Configurar turma"
-                            aria-label="Configurar turma"
-                          >
-                            <AppIcon icon={Settings} size="sm" decorative />
+                            <AppIcon icon={Edit2} size="sm" decorative /> Editar
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* cards view */
-          <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {paginatedSessions.map((s) => {
-              const status = getSessionStatus(s);
-              const isOpen = status === "open";
-              const isConcluded = status === "concluded";
-              const occupied = s.occupied_count;
-              const max = s.max_capacity;
-              const percent = max ? Math.round((occupied / max) * 100) : 0;
-              return (
-                <div
-                  key={s.session_id}
-                  className={`bg-bg-default rounded-xl p-5 border border-border-default border-l-4 ${
-                    isOpen
-                      ? "border-l-primary"
-                      : isConcluded
-                        ? "border-l-success"
-                        : "border-l-error"
-                  } flex flex-col gap-4`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider font-mono">
-                        {s.session_id.slice(0, 12).toUpperCase()}
-                      </p>
-                      <p className="text-sm font-semibold text-text-body mt-0.5">
-                        {format(parseISO(s.date), "dd 'de' MMMM", {
-                          locale: ptBR,
-                        })}
-                      </p>
-                      <p className="text-[11px] text-text-muted capitalize">
-                        {formatSessionPeriod(s.period)}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        isOpen
-                          ? "bg-primary/10 text-primary border-primary/30"
-                          : isConcluded
-                            ? "bg-success/10 text-success border-success/30"
-                            : "bg-error/10 text-error border-error/30"
-                      }`}
-                    >
-                      {isOpen
-                        ? "ABERTA"
-                        : isConcluded
-                          ? "CONCLUÍDA"
-                          : "CANCELADA"}
-                    </span>
-                  </div>
+              </div>
+            )}
 
-                  <div>
-                    <div className="flex justify-between text-[10px] font-bold text-text-muted mb-1">
-                      <span>Ocupação</span>
-                      <span>
-                        {occupied}/{max} ({percent}%)
-                      </span>
-                    </div>
-                    <progress
-                      value={occupied}
-                      max={max || 1}
-                      aria-label="Ocupação"
-                      className={`h-1.5 w-full rounded-full overflow-hidden ${
-                        percent >= 95
-                          ? "accent-text-muted"
-                          : percent >= 50
-                            ? "accent-primary"
-                            : "accent-primary"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2 pt-1 border-t border-border-default">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/app/turmas/${s.session_id}/agendamentos`)
-                      }
-                      className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors"
-                    >
-                      <AppIcon icon={ClipboardList} size="sm" decorative />
-                      Ver Agendamentos
-                    </button>
-                    <div className="flex gap-2">
+            {/* pagination */}
+            {!loading && !error && filteredSessions.length > pageSize && (
+              <div className="px-6 py-4 bg-bg-default border-t border-border-default flex justify-between items-center text-sm">
+                <p className="text-text-muted text-xs">
+                  {paginatedSessions.length} de {filteredSessions.length} turmas
+                </p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((c) => Math.max(1, c - 1))}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
+                      page <= 1
+                        ? "bg-bg-default text-text-muted opacity-60 border-border-default"
+                        : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
+                    }`}
+                    aria-label="Página anterior"
+                  >
+                    <AppIcon icon={ChevronLeft} size="sm" decorative />
+                  </button>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map(
+                    (v) => (
                       <button
+                        key={v}
                         type="button"
-                        onClick={() =>
-                          navigate("/app/lancamento-indices", {
-                            state: { sessionId: s.session_id },
-                          })
-                        }
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                        onClick={() => setPage(v)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
+                          v === page
+                            ? "bg-primary text-white border-primary"
+                            : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
+                        }`}
                       >
-                        <AppIcon icon={ClipboardPen} size="sm" decorative />{" "}
-                        Índices
+                        {v}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(`/app/turmas/${s.session_id}/editar`)
-                        }
-                        disabled={isConcluded}
-                        title={
-                          isConcluded
-                            ? "Turma concluída não pode ser editada"
-                            : "Editar turma"
-                        }
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-text-body disabled:hover:border-border-default"
-                      >
-                        <AppIcon icon={Edit2} size="sm" decorative /> Editar
-                      </button>
-                    </div>
-                  </div>
+                    ),
+                  )}
+                  <button
+                    type="button"
+                    disabled={page >= pageCount}
+                    onClick={() => setPage((c) => Math.min(pageCount, c + 1))}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
+                      page >= pageCount
+                        ? "bg-bg-default text-text-muted opacity-60 border-border-default"
+                        : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
+                    }`}
+                    aria-label="Próxima página"
+                  >
+                    <AppIcon icon={ChevronRight} size="sm" decorative />
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* pagination */}
-        {!loading && !error && filteredSessions.length > pageSize && (
-          <div className="px-6 py-4 bg-bg-default border-t border-border-default flex justify-between items-center text-sm">
-            <p className="text-text-muted text-xs">
-              {paginatedSessions.length} de {filteredSessions.length} turmas
-            </p>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((c) => Math.max(1, c - 1))}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  page <= 1
-                    ? "bg-bg-default text-text-muted opacity-60 border-border-default"
-                    : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
-                }`}
-                aria-label="Página anterior"
-              >
-                <AppIcon icon={ChevronLeft} size="sm" decorative />
-              </button>
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setPage(v)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
-                    v === page
-                      ? "bg-primary text-white border-primary"
-                      : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={page >= pageCount}
-                onClick={() => setPage((c) => Math.min(pageCount, c + 1))}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  page >= pageCount
-                    ? "bg-bg-default text-text-muted opacity-60 border-border-default"
-                    : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
-                }`}
-                aria-label="Próxima página"
-              >
-                <AppIcon icon={ChevronRight} size="sm" decorative />
-              </button>
-            </div>
-          </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

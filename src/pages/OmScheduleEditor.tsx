@@ -22,6 +22,7 @@ import {
   upsertLocationSchedules,
 } from "@/services/locations";
 import type { LocationSchedule, SessionPeriod } from "@/types/database.types";
+import { buildSessionHubPath } from "@/utils/sessionHub";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -276,10 +277,23 @@ function GuidanceCard() {
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export default function OmScheduleEditor() {
-  const { id } = useParams<{ id: string }>();
+type OmScheduleEditorProps = {
+  embedded?: boolean;
+  locationId?: string;
+  onNavigatePath?: (path: string) => void;
+};
+
+export default function OmScheduleEditor({
+  embedded = false,
+  locationId,
+  onNavigatePath,
+}: OmScheduleEditorProps) {
+  const { id: routeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goTo = onNavigatePath ?? navigate;
   const { locations, fetch, loading: loadingLocation } = useLocations();
+
+  const resolvedId = locationId ?? routeId;
 
   const [slots, setSlots] =
     useState<Record<SlotKey, SlotState>>(buildDefaultSlots);
@@ -290,14 +304,14 @@ export default function OmScheduleEditor() {
 
   // Carrega dados da OM
   useEffect(() => {
-    if (id) fetch({ limit: 100 });
-  }, [id, fetch]);
+    if (resolvedId) fetch({ limit: 100 });
+  }, [resolvedId, fetch]);
 
   // Carrega horários existentes do banco
   useEffect(() => {
-    if (!id) return;
+    if (!resolvedId) return;
     setLoadingSchedules(true);
-    fetchLocationSchedules(id)
+    fetchLocationSchedules(resolvedId)
       .then((data) => {
         setSlots((prev) => mergeDbSlots(prev, data as LocationSchedule[]));
       })
@@ -308,9 +322,9 @@ export default function OmScheduleEditor() {
       .finally(() => {
         setLoadingSchedules(false);
       });
-  }, [id]);
+  }, [resolvedId]);
 
-  const location = locations.find((l) => l.id === id);
+  const location = locations.find((l) => l.id === resolvedId);
   const isLoading = loadingLocation || loadingSchedules;
 
   function updateSlot(key: SlotKey, patch: Partial<SlotState>) {
@@ -318,11 +332,11 @@ export default function OmScheduleEditor() {
   }
 
   async function handleSave() {
-    if (!id) return;
+    if (!resolvedId) return;
     setSaving(true);
     try {
       const rows = Object.values(slots).map((s) => ({
-        location_id: id,
+        location_id: resolvedId,
         day_of_week: s.day_of_week,
         period: s.period,
         start_time: s.start_time,
@@ -395,182 +409,188 @@ export default function OmScheduleEditor() {
     );
   }
 
-  return (
-    <Layout>
-      <div className="mx-auto w-full max-w-6xl pb-16">
-        <PageHero
-          locationName={location?.name ?? "OM não encontrada"}
-          activeCount={activeCount}
-          onBack={() => navigate("/app/om-locations")}
-        />
+  const content = (
+    <div className={`${embedded ? "" : "mx-auto max-w-6xl"} w-full pb-16`}>
+      <PageHero
+        locationName={location?.name ?? "OM não encontrada"}
+        activeCount={activeCount}
+        onBack={() => goTo(buildSessionHubPath("locais", { mode: "list" }))}
+      />
 
-        <Toolbar
-          query={query}
-          setQuery={setQuery}
-          filter={filter}
-          setFilter={setFilter}
-        />
+      <Toolbar
+        query={query}
+        setQuery={setQuery}
+        filter={filter}
+        setFilter={setFilter}
+      />
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-          <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
-            <div className="border-b border-border-default px-6 py-4 md:px-8">
-              <div className="flex flex-col gap-3 text-xs text-text-muted md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-wrap items-center gap-4">
-                  <span className="flex items-center gap-1.5">
-                    <Sun size={14} className="text-secondary" />
-                    Manhã — turno matutino
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Moon size={14} className="text-primary" />
-                    Tarde — turno vespertino
-                  </span>
-                </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+        <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+          <div className="border-b border-border-default px-6 py-4 md:px-8">
+            <div className="flex flex-col gap-3 text-xs text-text-muted md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-4">
                 <span className="flex items-center gap-1.5">
-                  <CalendarDays size={13} />
-                  Fins de semana permanecem indisponíveis
+                  <Sun size={14} className="text-secondary" />
+                  Manhã — turno matutino
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Moon size={14} className="text-primary" />
+                  Tarde — turno vespertino
                 </span>
               </div>
+              <span className="flex items-center gap-1.5">
+                <CalendarDays size={13} />
+                Fins de semana permanecem indisponíveis
+              </span>
+            </div>
+          </div>
+
+          <div className="p-6 md:p-8">
+            <div className="mb-3 grid grid-cols-3 gap-4">
+              <div />
+              {PERIODS.map((period) => (
+                <div
+                  key={period.key}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-bg-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted"
+                >
+                  {period.key === "manha" ? (
+                    <Sun size={14} className="text-secondary" />
+                  ) : (
+                    <Moon size={14} className="text-primary" />
+                  )}
+                  {period.label}
+                </div>
+              ))}
             </div>
 
-            <div className="p-6 md:p-8">
-              <div className="mb-3 grid grid-cols-3 gap-4">
-                <div />
-                {PERIODS.map((period) => (
+            {filteredDays.length === 0 ? (
+              <div className="rounded-2xl border border-border-default bg-bg-default px-6 py-10 text-center">
+                <p className="text-sm font-semibold text-text-body">
+                  Nenhum horário encontrado para os filtros atuais.
+                </p>
+                <p className="mt-2 text-sm text-text-muted">
+                  Ajuste a busca ou altere o filtro para visualizar outros
+                  turnos.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredDays.map((day) => (
                   <div
-                    key={period.key}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-bg-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted"
+                    key={day.num}
+                    className="grid grid-cols-3 items-center gap-4"
                   >
-                    {period.key === "manha" ? (
-                      <Sun size={14} className="text-secondary" />
-                    ) : (
-                      <Moon size={14} className="text-primary" />
-                    )}
-                    {period.label}
+                    <div className="text-sm font-semibold text-text-body">
+                      <span className="hidden md:block">{day.long}</span>
+                      <span className="block md:hidden">{day.short}</span>
+                    </div>
+
+                    {PERIODS.map((period) => {
+                      const key: SlotKey = `${day.num}-${period.key}`;
+                      const slot = slots[key];
+
+                      return (
+                        <div
+                          key={key}
+                          className={`flex flex-col gap-3 rounded-xl border p-3 transition-all ${
+                            slot.is_active
+                              ? "border-primary/20 bg-primary/5"
+                              : "border-border-default bg-bg-default"
+                          }`}
+                        >
+                          <label className="flex cursor-pointer items-center justify-between gap-2">
+                            <span
+                              className={`text-xs font-semibold ${slot.is_active ? "text-primary" : "text-text-muted"}`}
+                            >
+                              {slot.is_active ? "Ativo" : "Inativo"}
+                            </span>
+                            <div className="relative inline-flex items-center">
+                              <input
+                                type="checkbox"
+                                className="peer sr-only"
+                                checked={slot.is_active}
+                                onChange={(event) =>
+                                  updateSlot(key, {
+                                    is_active: event.target.checked,
+                                  })
+                                }
+                              />
+                              <div className="h-5 w-10 rounded-full bg-border-default transition peer-checked:bg-primary" />
+                              <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-bg-card transition peer-checked:translate-x-5" />
+                            </div>
+                          </label>
+
+                          {slot.is_active && (
+                            <div className="flex items-center gap-1.5">
+                              <Clock3
+                                size={12}
+                                className="shrink-0 text-text-muted"
+                              />
+                              <input
+                                type="time"
+                                value={slot.start_time}
+                                onChange={(event) =>
+                                  updateSlot(key, {
+                                    start_time: event.target.value,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-border-default bg-bg-card px-3 py-2 text-xs text-text-body focus-ring"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
-
-              {filteredDays.length === 0 ? (
-                <div className="rounded-2xl border border-border-default bg-bg-default px-6 py-10 text-center">
-                  <p className="text-sm font-semibold text-text-body">
-                    Nenhum horário encontrado para os filtros atuais.
-                  </p>
-                  <p className="mt-2 text-sm text-text-muted">
-                    Ajuste a busca ou altere o filtro para visualizar outros
-                    turnos.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredDays.map((day) => (
-                    <div
-                      key={day.num}
-                      className="grid grid-cols-3 items-center gap-4"
-                    >
-                      <div className="text-sm font-semibold text-text-body">
-                        <span className="hidden md:block">{day.long}</span>
-                        <span className="block md:hidden">{day.short}</span>
-                      </div>
-
-                      {PERIODS.map((period) => {
-                        const key: SlotKey = `${day.num}-${period.key}`;
-                        const slot = slots[key];
-
-                        return (
-                          <div
-                            key={key}
-                            className={`flex flex-col gap-3 rounded-xl border p-3 transition-all ${
-                              slot.is_active
-                                ? "border-primary/20 bg-primary/5"
-                                : "border-border-default bg-bg-default"
-                            }`}
-                          >
-                            <label className="flex cursor-pointer items-center justify-between gap-2">
-                              <span
-                                className={`text-xs font-semibold ${slot.is_active ? "text-primary" : "text-text-muted"}`}
-                              >
-                                {slot.is_active ? "Ativo" : "Inativo"}
-                              </span>
-                              <div className="relative inline-flex items-center">
-                                <input
-                                  type="checkbox"
-                                  className="peer sr-only"
-                                  checked={slot.is_active}
-                                  onChange={(event) =>
-                                    updateSlot(key, {
-                                      is_active: event.target.checked,
-                                    })
-                                  }
-                                />
-                                <div className="h-5 w-10 rounded-full bg-border-default transition peer-checked:bg-primary" />
-                                <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-bg-card transition peer-checked:translate-x-5" />
-                              </div>
-                            </label>
-
-                            {slot.is_active && (
-                              <div className="flex items-center gap-1.5">
-                                <Clock3
-                                  size={12}
-                                  className="shrink-0 text-text-muted"
-                                />
-                                <input
-                                  type="time"
-                                  value={slot.start_time}
-                                  onChange={(event) =>
-                                    updateSlot(key, {
-                                      start_time: event.target.value,
-                                    })
-                                  }
-                                  className="w-full rounded-lg border border-border-default bg-bg-card px-3 py-2 text-xs text-text-body focus-ring"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-8 py-6 md:flex-row md:px-10">
-              <button
-                type="button"
-                onClick={() => navigate("/app/om-locations")}
-                className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
-              >
-                {saving ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Save size={16} />
-                )}
-                <span className="text-xs font-bold uppercase tracking-widest">
-                  {saving ? "Salvando…" : "Salvar Horários"}
-                </span>
-              </button>
-            </div>
+            )}
           </div>
 
-          <div className="space-y-6">
-            <SummaryCard
-              locationName={location?.name ?? "OM não encontrada"}
-              activeCount={activeCount}
-              morningCount={morningCount}
-              afternoonCount={afternoonCount}
-            />
-            <GuidanceCard />
+          <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-8 py-6 md:flex-row md:px-10">
+            <button
+              type="button"
+              onClick={() =>
+                goTo(buildSessionHubPath("locais", { mode: "list" }))
+              }
+              className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
+            >
+              {saving ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
+              <span className="text-xs font-bold uppercase tracking-widest">
+                {saving ? "Salvando…" : "Salvar Horários"}
+              </span>
+            </button>
           </div>
         </div>
+
+        <div className="space-y-6">
+          <SummaryCard
+            locationName={location?.name ?? "OM não encontrada"}
+            activeCount={activeCount}
+            morningCount={morningCount}
+            afternoonCount={afternoonCount}
+          />
+          <GuidanceCard />
+        </div>
       </div>
-    </Layout>
+    </div>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <Layout>{content}</Layout>;
 }
