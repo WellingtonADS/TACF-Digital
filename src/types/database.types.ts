@@ -474,6 +474,17 @@ export interface Database {
           session_status: SessionStatus | null;
         }[];
       };
+      create_swap_request_if_eligible: {
+        Args: {
+          p_booking_id: string;
+          p_requested_by: string;
+          p_new_session_id: string;
+          p_reason_text: string;
+          p_new_date?: string | null;
+          p_attachment_url?: string | null;
+        };
+        Returns: string;
+      };
       get_results_history: {
         Args: {
           p_limit: number;
@@ -485,6 +496,10 @@ export interface Database {
       };
       set_booking_result: {
         Args: { p_booking_id: string; p_result: string };
+        Returns: undefined;
+      };
+      set_booking_attendance: {
+        Args: { p_booking_id: string; p_attendance_confirmed: boolean };
         Returns: undefined;
       };
     };
