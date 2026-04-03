@@ -7,6 +7,8 @@
 import AppIcon from "@/components/atomic/AppIcon";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import useLocations from "@/hooks/useLocations";
+import { fetchCoordinators, type Coordinator } from "@/hooks/usePersonnel";
 import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import {
@@ -16,11 +18,15 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Clock3,
   Edit2,
+  FileDown,
   MapPin,
   Plus,
   Search,
   Settings,
+  UserCheck,
+  X,
   XCircle,
   type LucideIcon,
 } from "@/icons";
@@ -29,8 +35,18 @@ import OmLocationManager from "@/pages/OmLocationManager";
 import OmScheduleEditor from "@/pages/OmScheduleEditor";
 import ReschedulingManagement from "@/pages/ReschedulingManagement";
 import ScoreEntry from "@/pages/ScoreEntry";
+import { createSessions } from "@/services/bookings";
+import {
+  closeSessionWithChecklist,
+  fetchSessionBookingsWithProfiles,
+  fetchSessionById,
+  fetchSessionClosureChecklist,
+  updateBookingResult,
+  type SessionClosureChecklist,
+} from "@/services/sessions";
 import type { SessionStatus } from "@/types/database.types";
 import { formatSessionPeriod } from "@/utils/booking";
+import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import {
   buildSessionHubPath,
   parseSessionHubTab,
@@ -45,9 +61,50 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 type StatusFilter = "all" | SessionStatus;
+type PeriodOption = "manha" | "tarde";
+type RecurrenceOption = "single" | "week" | "biweekly" | "month";
+type FitnessResult = "apto" | "inapto";
+
+type BookingModalRow = {
+  bookingId: string;
+  userId: string;
+  rank: string | null;
+  fullName: string;
+  warName: string | null;
+  saram: string | null;
+  status: string;
+  result: FitnessResult | null;
+};
+
+type ManagementState = {
+  session: SessionAvailability;
+  sessionStatus: SessionStatus;
+  rows: BookingModalRow[];
+  checklist: SessionClosureChecklist | null;
+};
+
+type CreatorState = {
+  locationId: string;
+  coordinatorId: string;
+  period: PeriodOption;
+  withIndexes: boolean;
+  date: string;
+  recurrence: RecurrenceOption;
+};
+
+const INITIAL_CREATOR_STATE: CreatorState = {
+  locationId: "",
+  coordinatorId: "",
+  period: "manha",
+  withIndexes: true,
+  date: "",
+  recurrence: "single",
+};
 
 const HUB_TAB_META: Array<{ tab: SessionHubTab; label: string }> = [
   { tab: "sessoes", label: "Sessões" },
@@ -63,14 +120,14 @@ ADMIN_END.setFullYear(ADMIN_END.getFullYear() + 1);
 const ADMIN_START_STR = ADMIN_START.toISOString().split("T")[0];
 const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 
-const HUB_DASHBOARD_STYLE: CSSProperties = {
-  "--sessions-hero": "#0a2b64",
-  "--sessions-hero-accent": "#2877d4",
+const HUB_DASHBOARD_STYLE: CSSProperties & Record<string, string> = {
+  "--sessions-hero": "#1a365d",
+  "--sessions-hero-accent": "#2b6cb0",
   "--sessions-hero-highlight": "rgba(129, 199, 255, 0.22)",
-  "--sessions-surface": "rgba(255, 255, 255, 0.86)",
+  "--sessions-surface": "rgba(255, 255, 255, 0.88)",
   "--sessions-surface-strong": "rgba(255, 255, 255, 0.96)",
-  "--sessions-border": "rgba(10, 43, 100, 0.12)",
-  "--sessions-shadow": "0 24px 60px rgba(10, 35, 89, 0.16)",
+  "--sessions-border": "rgba(26, 54, 93, 0.14)",
+  "--sessions-shadow": "0 26px 70px rgba(18, 38, 66, 0.18)",
 };
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
@@ -121,7 +178,7 @@ const STATUS_META: Record<
 };
 
 function getShortSessionId(sessionId: string): string {
-  return sessionId.slice(0, 12).toUpperCase();
+  return sessionId.slice(0, 11).toUpperCase();
 }
 
 function formatWeekdayLabel(date: string): string {
@@ -143,6 +200,70 @@ function formatFullSessionDate(date: string): string {
 
 function getLocationLabel(session: SessionAvailability): string {
   return session.location_name?.trim() || "Local não definido";
+}
+
+function getRecurringDates(
+  baseDate: string,
+  recurrence: RecurrenceOption,
+): string[] {
+  if (!baseDate) return [];
+
+  const result = [baseDate];
+  if (recurrence === "single") return result;
+
+  const date = new Date(`${baseDate}T12:00:00`);
+  const step = recurrence === "week" ? 7 : recurrence === "biweekly" ? 14 : 30;
+  const limit = recurrence === "month" ? 3 : 4;
+
+  for (let index = 1; index < limit; index += 1) {
+    const next = new Date(date);
+    next.setDate(date.getDate() + step * index);
+    result.push(next.toISOString().slice(0, 10));
+  }
+
+  return result;
+}
+
+function parseFitnessResult(value: unknown): FitnessResult | null {
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (normalized === "apto") return "apto";
+    if (normalized === "inapto") return "inapto";
+  }
+
+  return null;
+}
+
+function AppModal({
+  open,
+  zIndex,
+  children,
+  onOverlayClick,
+}: {
+  open: boolean;
+  zIndex: number;
+  children: JSX.Element;
+  onOverlayClick?: () => void;
+}) {
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0"
+      style={{ zIndex }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"
+        onClick={onOverlayClick}
+      />
+      <div className="relative flex min-h-full items-center justify-center p-4 md:p-6">
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function SessionMetricCard({
@@ -203,22 +324,15 @@ function SessionOccupancyBar({
 
   return (
     <div className={compact ? "w-full" : "min-w-[180px]"}>
-      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600">
+      <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-600">
         <span>{percent}%</span>
         <span>
           {occupied}/{capacity}
         </span>
       </div>
-      <div
-        className="h-2.5 overflow-hidden rounded-full bg-slate-200"
-        role="progressbar"
-        aria-label="Ocupação da sessão"
-        aria-valuemin={0}
-        aria-valuemax={capacity || 1}
-        aria-valuenow={occupied}
-      >
+      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
         <div
-          className="h-full rounded-full bg-[var(--sessions-hero-accent)] transition-[width] duration-300"
+          className="h-full rounded-full bg-[var(--sessions-hero-accent)]"
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
@@ -244,7 +358,7 @@ function SessionActionButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-slate-200 disabled:hover:text-slate-800"
+      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
     >
       <AppIcon icon={icon} size="sm" decorative />
     </button>
@@ -252,17 +366,43 @@ function SessionActionButton({
 }
 
 export const SessionsManagement = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isMobile, isTablet } = useResponsive();
   const { sessions, loading, error, refresh } = useSessions(
     ADMIN_START_STR,
     ADMIN_END_STR,
   );
+  const { locations, fetch: fetchLocations } = useLocations();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [creatorOpen, setCreatorOpen] = useState(false);
+  const [creatorState, setCreatorState] = useState<CreatorState>(
+    INITIAL_CREATOR_STATE,
+  );
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
+  const [loadingCoordinators, setLoadingCoordinators] = useState(false);
+  const [submittingCreator, setSubmittingCreator] = useState(false);
+
+  const [managementOpen, setManagementOpen] = useState(false);
+  const [managementLoading, setManagementLoading] = useState(false);
+  const [managementState, setManagementState] =
+    useState<ManagementState | null>(null);
+
+  const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [performanceIndex, setPerformanceIndex] = useState(0);
+  const [performanceSaving, setPerformanceSaving] = useState(false);
+  const [performanceDecision, setPerformanceDecision] =
+    useState<FitnessResult>("apto");
+  const [performanceInputs, setPerformanceInputs] = useState({
+    flexao: "",
+    abdominal: "",
+    corrida: "",
+  });
+
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
 
   const isCompactViewport = isMobile || isTablet;
   const pageSize = 10;
@@ -271,6 +411,30 @@ export const SessionsManagement = () => {
   const localMode = searchParams.get("mode") ?? "list";
   const localId = searchParams.get("locationId") ?? undefined;
   const todayTs = useMemo(() => startOfDay(new Date()).getTime(), []);
+
+  const selectedLocation = useMemo(
+    () => locations.find((location) => location.id === creatorState.locationId),
+    [locations, creatorState.locationId],
+  );
+
+  const evaluatedCount = useMemo(
+    () =>
+      (managementState?.rows ?? []).filter((row) => row.result !== null).length,
+    [managementState],
+  );
+
+  const pendingCount = useMemo(
+    () =>
+      (managementState?.rows ?? []).filter((row) => row.result === null).length,
+    [managementState],
+  );
+
+  const performanceRows = useMemo(
+    () => managementState?.rows ?? [],
+    [managementState],
+  );
+
+  const currentPerformanceRow = performanceRows[performanceIndex] ?? null;
 
   const getSessionStatus = useCallback(
     (session: SessionAvailability): SessionStatus => {
@@ -330,6 +494,22 @@ export const SessionsManagement = () => {
       setPage(pageCount);
     }
   }, [page, pageCount]);
+
+  useEffect(() => {
+    if (!creatorOpen) return;
+
+    fetchLocations({ status: "active", limit: 100 });
+    setLoadingCoordinators(true);
+    fetchCoordinators()
+      .then((response) => {
+        setCoordinators(response);
+      })
+      .catch((requestError) => {
+        console.error(requestError);
+        toast.error("Não foi possível carregar coordenadores.");
+      })
+      .finally(() => setLoadingCoordinators(false));
+  }, [creatorOpen, fetchLocations]);
 
   const applyHubSearchParams = useCallback(
     (next: URLSearchParams) => {
@@ -404,6 +584,245 @@ export const SessionsManagement = () => {
     [activeIndicesSessionId, openHubTab],
   );
 
+  const closeCreatorModal = () => {
+    setCreatorOpen(false);
+    setCreatorState(INITIAL_CREATOR_STATE);
+  };
+
+  const openCreatorModal = () => {
+    setCreatorOpen(true);
+  };
+
+  const handleCreatorField = <K extends keyof CreatorState>(
+    field: K,
+    value: CreatorState[K],
+  ) => {
+    setCreatorState((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const handleCreateSessions = async () => {
+    if (
+      !creatorState.locationId ||
+      !creatorState.coordinatorId ||
+      !creatorState.date
+    ) {
+      toast.error("Preencha local, coordenador e data inicial.");
+      return;
+    }
+
+    setSubmittingCreator(true);
+    try {
+      const dates = getRecurringDates(
+        creatorState.date,
+        creatorState.recurrence,
+      );
+      const payload = dates.map((date) => ({
+        date,
+        period: creatorState.period,
+        max_capacity: selectedLocation?.max_capacity ?? 21,
+        location_id: creatorState.locationId,
+        applicators: [creatorState.coordinatorId],
+        metadata: {
+          with_indexes: creatorState.withIndexes,
+          source: "hub_modal_creator",
+        },
+      }));
+
+      await createSessions(payload);
+      toast.success(
+        dates.length === 1
+          ? "Sessão criada com sucesso."
+          : `${dates.length} sessões geradas com sucesso.`,
+      );
+      closeCreatorModal();
+      await refresh();
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Não foi possível gerar as sessões.");
+    } finally {
+      setSubmittingCreator(false);
+    }
+  };
+
+  const buildManagementRows = (
+    bookings: unknown[],
+    profilesById: Map<
+      string,
+      {
+        id: string;
+        full_name: string | null;
+        war_name: string | null;
+        saram: string | null;
+        rank: string | null;
+      }
+    >,
+  ): BookingModalRow[] => {
+    return (bookings as Array<Record<string, unknown>>).map((booking) => {
+      const userId = String(booking.user_id ?? "");
+      const profile = profilesById.get(userId);
+
+      return {
+        bookingId: String(booking.id),
+        userId,
+        rank: profile?.rank ?? null,
+        fullName: profile?.full_name ?? "Militar sem nome",
+        warName: profile?.war_name ?? null,
+        saram: profile?.saram ?? null,
+        status: String(booking.status ?? "agendado"),
+        result: parseFitnessResult(booking.result_details),
+      };
+    });
+  };
+
+  const openManagementModal = async (session: SessionAvailability) => {
+    setManagementOpen(true);
+    setManagementLoading(true);
+    setPerformanceOpen(false);
+    setFinalizeOpen(false);
+
+    try {
+      const [bookingsResponse, checklist, sessionDetails] = await Promise.all([
+        fetchSessionBookingsWithProfiles(session.session_id),
+        fetchSessionClosureChecklist(session.session_id),
+        fetchSessionById(session.session_id),
+      ]);
+
+      setManagementState({
+        session,
+        sessionStatus: sessionDetails?.status ?? getSessionStatus(session),
+        rows: buildManagementRows(
+          bookingsResponse.bookings,
+          bookingsResponse.profilesById,
+        ),
+        checklist,
+      });
+    } catch (requestError) {
+      console.error(requestError);
+      setManagementOpen(false);
+      toast.error("Não foi possível carregar a gestão da turma.");
+    } finally {
+      setManagementLoading(false);
+    }
+  };
+
+  const openPerformanceModal = (startIndex = 0) => {
+    if (!managementState || managementState.rows.length === 0) {
+      toast.error("Não há militares para lançamento de performance.");
+      return;
+    }
+
+    const nextIndex = Math.min(
+      Math.max(startIndex, 0),
+      managementState.rows.length - 1,
+    );
+    const row = managementState.rows[nextIndex];
+
+    setPerformanceIndex(nextIndex);
+    setPerformanceDecision(row.result ?? "apto");
+    setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
+    setPerformanceOpen(true);
+  };
+
+  const savePerformanceResult = async () => {
+    if (!managementState || !currentPerformanceRow) {
+      return;
+    }
+
+    setPerformanceSaving(true);
+
+    try {
+      await updateBookingResult(
+        currentPerformanceRow.bookingId,
+        performanceDecision,
+      );
+
+      const updatedRows = managementState.rows.map((row, rowIndex) =>
+        rowIndex === performanceIndex
+          ? { ...row, result: performanceDecision }
+          : row,
+      );
+
+      setManagementState((previous) =>
+        previous
+          ? {
+              ...previous,
+              rows: updatedRows,
+            }
+          : previous,
+      );
+
+      const nextIndex = performanceIndex + 1;
+      if (nextIndex < updatedRows.length) {
+        const nextRow = updatedRows[nextIndex];
+        setPerformanceIndex(nextIndex);
+        setPerformanceDecision(nextRow.result ?? "apto");
+        setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
+      } else {
+        setPerformanceOpen(false);
+        toast.success("Último militar processado.");
+      }
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Erro ao salvar performance.");
+    } finally {
+      setPerformanceSaving(false);
+    }
+  };
+
+  const handleGenerateAttendancePdf = () => {
+    if (!managementState) return;
+
+    generateAttendanceListPdf({
+      session: {
+        id: managementState.session.session_id,
+        date: managementState.session.date,
+        period: managementState.session.period,
+        max_capacity: managementState.session.max_capacity,
+      },
+      bookings: managementState.rows.map((row, index) => ({
+        order_number: String(index + 1).padStart(2, "0"),
+        rank: row.rank,
+        full_name: row.fullName,
+        war_name: row.warName,
+        saram: row.saram,
+        status: row.status,
+        attendance_confirmed: row.result !== null,
+      })),
+    });
+  };
+
+  const handleFinalizeSession = async () => {
+    if (!managementState) return;
+
+    setFinalizing(true);
+    try {
+      const pendingRows = managementState.rows.filter(
+        (row) => row.result === null,
+      );
+
+      if (pendingRows.length > 0) {
+        await Promise.all(
+          pendingRows.map((row) =>
+            updateBookingResult(row.bookingId, "inapto"),
+          ),
+        );
+      }
+
+      await closeSessionWithChecklist(managementState.session.session_id);
+      await refresh();
+      setFinalizeOpen(false);
+      setPerformanceOpen(false);
+      setManagementOpen(false);
+      setManagementState(null);
+      toast.success("Sessão finalizada e pendentes convertidos para inapto.");
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Não foi possível finalizar a sessão.");
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
   if (loading) {
     return (
       <FullPageLoading
@@ -424,20 +843,16 @@ export const SessionsManagement = () => {
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--sessions-hero-highlight),_transparent_42%)]" />
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),transparent_45%,rgba(255,255,255,0.03))]" />
-            <div className="absolute -bottom-12 right-0 h-40 w-40 rounded-full border border-white/10 bg-white/5 blur-2xl" />
           </div>
 
           <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
               <div className="max-w-3xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">
-                  Painel operacional
-                </p>
                 <h1
-                  className="mt-3 font-['Space_Grotesk'] text-4xl font-bold tracking-tight text-white sm:text-5xl"
+                  className="font-['Space_Grotesk'] text-4xl font-bold tracking-tight text-white sm:text-5xl"
                   data-testid="sessions-management-title"
                 >
-                  Hub de Sessões
+                  Hub de Sessões Dashboard
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-white/82 sm:text-base">
                   Centro operacional para criação, acompanhamento e execução das
@@ -447,7 +862,7 @@ export const SessionsManagement = () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/app/sessoes/nova")}
+                onClick={openCreatorModal}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--sessions-hero-accent)] px-5 py-3 font-['Space_Grotesk'] text-base font-bold text-white shadow-lg shadow-blue-950/20 transition-transform duration-200 hover:-translate-y-0.5 hover:bg-blue-500"
               >
                 <AppIcon icon={Plus} size="sm" decorative />
@@ -532,7 +947,7 @@ export const SessionsManagement = () => {
 
         {activeTab !== "sessoes" ? null : (
           <>
-            <section className="-mt-12 relative z-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
               <SessionMetricCard
                 title="Total"
                 value={sessions.length}
@@ -627,13 +1042,6 @@ export const SessionsManagement = () => {
               {error ? (
                 <div className="p-8 text-center text-sm text-error md:p-12">
                   {error}
-                  <button
-                    type="button"
-                    className="ml-3 font-semibold text-primary hover:underline"
-                    onClick={refresh}
-                  >
-                    Tentar novamente
-                  </button>
                 </div>
               ) : paginatedSessions.length === 0 ? (
                 <div className="p-12 text-center md:p-16">
@@ -651,7 +1059,6 @@ export const SessionsManagement = () => {
                 <div className="grid grid-cols-1 gap-4 p-4 md:p-6">
                   {paginatedSessions.map((session) => {
                     const status = getSessionStatus(session);
-                    const isCompleted = status === "completed";
 
                     return (
                       <article
@@ -686,32 +1093,23 @@ export const SessionsManagement = () => {
 
                         <div className="mt-5 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
                           <SessionActionButton
-                            label="Ver agendamentos"
+                            label="Gestão da turma"
                             icon={ClipboardList}
-                            onClick={() =>
-                              navigate(
-                                `/app/turmas/${session.session_id}/agendamentos`,
-                              )
-                            }
+                            onClick={() => void openManagementModal(session)}
                           />
                           <SessionActionButton
-                            label={
-                              isCompleted
-                                ? "Sessão concluída não pode ser editada"
-                                : "Editar sessão"
-                            }
+                            label="Lançamento de performance"
                             icon={Edit2}
-                            onClick={() =>
-                              navigate(
-                                `/app/turmas/${session.session_id}/editar`,
-                              )
-                            }
-                            disabled={isCompleted}
+                            onClick={() => {
+                              void openManagementModal(session).then(() => {
+                                setTimeout(() => openPerformanceModal(0), 0);
+                              });
+                            }}
                           />
                           <SessionActionButton
-                            label="Configurações da sessão"
+                            label="Configurar nova sessão"
                             icon={Settings}
-                            onClick={() => navigate("/app/configuracoes")}
+                            onClick={openCreatorModal}
                           />
                         </div>
                       </article>
@@ -733,7 +1131,7 @@ export const SessionsManagement = () => {
                           Turno
                         </th>
                         <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
-                          Local
+                          Local (Badge)
                         </th>
                         <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
                           Ocupação
@@ -749,7 +1147,6 @@ export const SessionsManagement = () => {
                     <tbody className="divide-y divide-slate-200 bg-white/90">
                       {paginatedSessions.map((session) => {
                         const status = getSessionStatus(session);
-                        const isCompleted = status === "completed";
 
                         return (
                           <tr
@@ -786,32 +1183,30 @@ export const SessionsManagement = () => {
                             <td className="px-5 py-5 md:px-6">
                               <div className="flex justify-end gap-2">
                                 <SessionActionButton
-                                  label="Ver agendamentos"
+                                  label="Gestão da turma"
                                   icon={ClipboardList}
                                   onClick={() =>
-                                    navigate(
-                                      `/app/turmas/${session.session_id}/agendamentos`,
-                                    )
+                                    void openManagementModal(session)
                                   }
                                 />
                                 <SessionActionButton
-                                  label={
-                                    isCompleted
-                                      ? "Sessão concluída não pode ser editada"
-                                      : "Editar sessão"
-                                  }
+                                  label="Lançamento de performance"
                                   icon={Edit2}
-                                  onClick={() =>
-                                    navigate(
-                                      `/app/turmas/${session.session_id}/editar`,
-                                    )
-                                  }
-                                  disabled={isCompleted}
+                                  onClick={() => {
+                                    void openManagementModal(session).then(
+                                      () => {
+                                        setTimeout(
+                                          () => openPerformanceModal(0),
+                                          0,
+                                        );
+                                      },
+                                    );
+                                  }}
                                 />
                                 <SessionActionButton
-                                  label="Configurações da sessão"
+                                  label="Configurar nova sessão"
                                   icon={Settings}
-                                  onClick={() => navigate("/app/configuracoes")}
+                                  onClick={openCreatorModal}
                                 />
                               </div>
                             </td>
@@ -878,6 +1273,531 @@ export const SessionsManagement = () => {
           </>
         )}
       </div>
+
+      <AppModal
+        open={creatorOpen}
+        zIndex={60}
+        onOverlayClick={closeCreatorModal}
+      >
+        <section className="w-full max-w-[860px] overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-2xl">
+          <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <h2 className="font-['Space_Grotesk'] text-3xl font-bold text-slate-900">
+              Configurar Nova Sessão
+            </h2>
+            <button
+              type="button"
+              onClick={closeCreatorModal}
+              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+            >
+              <AppIcon icon={X} size="sm" decorative />
+            </button>
+          </header>
+
+          <div className="space-y-6 px-6 py-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Local
+                </span>
+                <select
+                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                  value={creatorState.locationId}
+                  onChange={(event) =>
+                    handleCreatorField("locationId", event.target.value)
+                  }
+                >
+                  <option value="">Selecione o local</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">
+                  Capacidade Min/Max: 8 /{" "}
+                  {selectedLocation?.max_capacity ?? "--"}
+                </p>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Aplicador/Coordenador
+                </span>
+                <select
+                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                  value={creatorState.coordinatorId}
+                  onChange={(event) =>
+                    handleCreatorField("coordinatorId", event.target.value)
+                  }
+                >
+                  <option value="">
+                    {loadingCoordinators
+                      ? "Carregando coordenadores..."
+                      : "Selecione um coordenador"}
+                  </option>
+                  {coordinators.map((coordinator) => (
+                    <option key={coordinator.id} value={coordinator.id}>
+                      {coordinator.full_name ??
+                        coordinator.war_name ??
+                        coordinator.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Turno
+                </span>
+                <div className="grid grid-cols-2 rounded-xl border border-slate-300 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => handleCreatorField("period", "manha")}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                      creatorState.period === "manha"
+                        ? "bg-[var(--sessions-hero-accent)] text-white"
+                        : "text-slate-700"
+                    }`}
+                  >
+                    Manhã
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreatorField("period", "tarde")}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                      creatorState.period === "tarde"
+                        ? "bg-[var(--sessions-hero-accent)] text-white"
+                        : "text-slate-700"
+                    }`}
+                  >
+                    Tarde
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Tipo de Avaliação
+                </span>
+                <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-300 px-3">
+                  <button
+                    type="button"
+                    onClick={() => handleCreatorField("withIndexes", true)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      creatorState.withIndexes
+                        ? "bg-primary/10 text-primary"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Com Índices
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreatorField("withIndexes", false)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      !creatorState.withIndexes
+                        ? "bg-primary/10 text-primary"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Sem Índices
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  Data inicial
+                </span>
+                <input
+                  type="date"
+                  value={creatorState.date}
+                  onChange={(event) =>
+                    handleCreatorField("date", event.target.value)
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "single", label: "Dia Único" },
+                  { value: "week", label: "Semana" },
+                  { value: "biweekly", label: "Quinzena" },
+                  { value: "month", label: "Mês" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      handleCreatorField(
+                        "recurrence",
+                        option.value as RecurrenceOption,
+                      )
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      creatorState.recurrence === option.value
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-slate-300 text-slate-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <footer className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <button
+              type="button"
+              onClick={closeCreatorModal}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCreateSessions()}
+              disabled={submittingCreator}
+              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {submittingCreator ? "Gerando..." : "Gerar Sessões"}
+            </button>
+          </footer>
+        </section>
+      </AppModal>
+
+      <AppModal
+        open={managementOpen}
+        zIndex={65}
+        onOverlayClick={() => {
+          if (!performanceOpen && !finalizeOpen) {
+            setManagementOpen(false);
+            setManagementState(null);
+          }
+        }}
+      >
+        <section className="w-full max-w-4xl overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl">
+          <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+            <div>
+              <h2 className="font-['Space_Grotesk'] text-4xl font-bold text-slate-900">
+                Gestão da Turma
+              </h2>
+              {managementState && (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <AppIcon icon={MapPin} size="sm" decorative />
+                    Local: {getLocationLabel(managementState.session)}
+                  </span>
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <AppIcon icon={Calendar} size="sm" decorative />
+                    Data: {format(managementState.session.date, "dd/MM/yyyy")}
+                  </span>
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <AppIcon icon={Clock3} size="sm" decorative />
+                    Turno: {formatSessionPeriod(managementState.session.period)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAttendancePdf}
+                    className="ml-auto rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <AppIcon icon={FileDown} size="sm" decorative />
+                      Gerar PDF de Chamada
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setManagementOpen(false);
+                setManagementState(null);
+              }}
+              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+            >
+              <AppIcon icon={X} size="sm" decorative />
+            </button>
+          </header>
+
+          <div className="max-h-[55vh] overflow-auto px-6 py-5">
+            {managementLoading ? (
+              <p className="text-sm text-slate-600">
+                Carregando dados da turma...
+              </p>
+            ) : !managementState ? (
+              <p className="text-sm text-slate-600">
+                Nenhum dado de turma disponível.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                    <th className="py-3">Posto</th>
+                    <th className="py-3">Nome</th>
+                    <th className="py-3">SARAM</th>
+                    <th className="py-3">Status</th>
+                    <th className="py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {managementState.rows.map((row, index) => (
+                    <tr key={row.bookingId}>
+                      <td className="py-3 font-medium text-slate-700">
+                        {row.rank ?? "--"}
+                      </td>
+                      <td className="py-3 text-slate-900">
+                        {row.warName ?? row.fullName}
+                      </td>
+                      <td className="py-3 font-mono text-slate-600">
+                        {row.saram ?? "--"}
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            row.result === "apto"
+                              ? "bg-success/10 text-success"
+                              : row.result === "inapto"
+                                ? "bg-error/10 text-error"
+                                : "bg-alert/10 text-alert"
+                          }`}
+                        >
+                          {row.result === "apto"
+                            ? "Apto"
+                            : row.result === "inapto"
+                              ? "Inapto"
+                              : "Pendente"}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openPerformanceModal(index)}
+                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <AppIcon icon={Edit2} size="sm" decorative />
+                            Lançar Resultado
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <footer className="border-t border-slate-200 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setFinalizeOpen(true)}
+              disabled={!managementState}
+              className="w-full rounded-xl bg-[var(--sessions-hero)] px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+            >
+              Finalizar Sessão
+            </button>
+          </footer>
+        </section>
+      </AppModal>
+
+      <AppModal
+        open={performanceOpen}
+        zIndex={75}
+        onOverlayClick={() => setPerformanceOpen(false)}
+      >
+        <section className="w-full max-w-2xl overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl">
+          <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <h3 className="font-['Space_Grotesk'] text-3xl font-bold text-slate-900">
+              Lançamento de Performance
+            </h3>
+            <button
+              type="button"
+              onClick={() => setPerformanceOpen(false)}
+              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+            >
+              <AppIcon icon={X} size="sm" decorative />
+            </button>
+          </header>
+
+          <div className="space-y-5 px-6 py-5">
+            <p className="text-2xl font-semibold text-slate-900">
+              Avaliado:{" "}
+              {currentPerformanceRow?.warName ??
+                currentPerformanceRow?.fullName ??
+                "--"}
+            </p>
+
+            <div className="grid gap-3">
+              {["flexao", "abdominal", "corrida"].map((field) => (
+                <label
+                  key={field}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
+                >
+                  <span className="text-sm font-medium text-slate-700">
+                    {field === "flexao"
+                      ? "Flexão de Braço (Repetições)"
+                      : field === "abdominal"
+                        ? "Abdominal (Repetições)"
+                        : "Corrida (Metros)"}
+                  </span>
+                  <input
+                    type="number"
+                    className="h-10 w-24 rounded-lg border border-slate-300 px-3 text-center"
+                    value={
+                      performanceInputs[field as keyof typeof performanceInputs]
+                    }
+                    onChange={(event) =>
+                      setPerformanceInputs((previous) => ({
+                        ...previous,
+                        [field]: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPerformanceDecision("apto")}
+                className={`rounded-xl px-4 py-4 text-lg font-bold ${
+                  performanceDecision === "apto"
+                    ? "bg-success text-white"
+                    : "bg-success/10 text-success"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <AppIcon icon={CheckCircle2} size="md" decorative /> APTO
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPerformanceDecision("inapto")}
+                className={`rounded-xl px-4 py-4 text-lg font-bold ${
+                  performanceDecision === "inapto"
+                    ? "bg-error text-white"
+                    : "bg-error/10 text-error"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <AppIcon icon={XCircle} size="md" decorative /> INAPTO
+                </span>
+              </button>
+            </div>
+
+            <div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${
+                      performanceRows.length > 0
+                        ? Math.round(
+                            ((performanceIndex + 1) / performanceRows.length) *
+                              100,
+                          )
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-center text-sm text-slate-600">
+                Variante{" "}
+                {Math.min(performanceIndex + 1, performanceRows.length)} de{" "}
+                {performanceRows.length || 1}
+              </p>
+            </div>
+          </div>
+
+          <footer className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setPerformanceOpen(false)}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void savePerformanceResult()}
+              disabled={performanceSaving}
+              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {performanceSaving ? "Salvando..." : "Salvar e Próximo"}
+            </button>
+          </footer>
+        </section>
+      </AppModal>
+
+      <AppModal
+        open={finalizeOpen}
+        zIndex={80}
+        onOverlayClick={() => setFinalizeOpen(false)}
+      >
+        <section className="w-full max-w-xl overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl">
+          <header className="bg-[var(--sessions-hero)] px-6 py-4 text-white">
+            <h3 className="font-['Space_Grotesk'] text-3xl font-bold">
+              Confirmação de Finalização
+            </h3>
+          </header>
+
+          <div className="space-y-4 px-6 py-5">
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-lg font-semibold text-slate-800">
+                <span className="inline-flex items-center gap-2">
+                  <AppIcon icon={UserCheck} size="sm" decorative /> Avaliados:{" "}
+                  {evaluatedCount}
+                </span>
+              </p>
+              <p className="text-lg font-semibold text-slate-800">
+                <span className="inline-flex items-center gap-2">
+                  <AppIcon icon={Clock3} size="sm" decorative /> Pendentes:{" "}
+                  {pendingCount}
+                </span>
+              </p>
+            </div>
+
+            <p className="text-base text-slate-700">
+              Você está prestes a finalizar a sessão. O fluxo converterá
+              pendentes para "Inapto" antes da geração do PDF final.
+            </p>
+          </div>
+
+          <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setFinalizeOpen(false)}
+              className="px-2 py-2 text-sm font-semibold text-slate-600"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => setFinalizeOpen(false)}
+              className="rounded-xl border border-primary/40 px-4 py-2 text-sm font-semibold text-primary"
+            >
+              Salvar como Rascunho
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleFinalizeSession()}
+              disabled={finalizing}
+              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {finalizing ? "Finalizando..." : "Finalizar e Gerar PDF"}
+            </button>
+          </footer>
+        </section>
+      </AppModal>
     </Layout>
   );
 };
