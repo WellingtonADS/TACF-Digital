@@ -247,12 +247,16 @@ export default function ReschedulingManagement({
 
   const content = (
     <div
-      className={`${embedded ? "" : "mx-auto max-w-6xl"} w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8`}
+      className={`${embedded ? "" : "mx-auto max-w-6xl"} w-full ${
+        embedded ? "px-0 py-0" : "px-4 py-4 sm:px-6 sm:py-6 lg:px-8"
+      }`}
       data-testid="rescheduling-management-page"
     >
-      <PageHero total={rows.length} />
+      {!embedded ? <PageHero total={rows.length} /> : null}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={`${embedded ? "mb-4" : "mb-6"} grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4`}
+      >
         <StatCard title="Total" value={rows.length} icon={GitMerge} />
         <StatCard
           title="Pendentes"
@@ -297,7 +301,9 @@ export default function ReschedulingManagement({
         </div>
       )}
 
-      <section className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+      <section
+        className={`${embedded ? "mt-3" : "mt-4"} overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm`}
+      >
         <div className="space-y-3 p-4 md:hidden">
           {visibleRows.length === 0 ? (
             <EmptyRequestsState />

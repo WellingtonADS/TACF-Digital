@@ -15,38 +15,46 @@ async function main() {
   await client.connect();
 
   try {
-    const rpcDir = path.resolve(process.cwd(), "supabase", "rpc");
-    if (!fs.existsSync(rpcDir)) {
-      console.error("No supabase/rpc directory found. Nothing to apply.");
-      process.exit(0);
-    }
-
-    const files = fs
-      .readdirSync(rpcDir)
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
-
-    if (files.length === 0) {
-      console.log("No .sql files found in supabase/rpc.");
-      process.exit(0);
-    }
-
-    for (const file of files) {
-      const full = path.join(rpcDir, file);
-      console.log(`Applying: ${full}`);
-      const sql = fs.readFileSync(full, "utf8");
-      try {
-        await client.query("BEGIN");
-        await client.query(sql);
-        await client.query("COMMIT");
-        console.log(`Applied ${file}`);
-      } catch (err) {
-        await client.query("ROLLBACK");
-        console.error(`Failed to apply ${file}:`, err.message || err);
+    const applySqlDirectory = async (dirPath, label) => {
+      if (!fs.existsSync(dirPath)) {
+        console.warn(`No ${label} directory found at ${dirPath}. Skipping.`);
+        return;
       }
-    }
 
-    console.log("Done applying RPC SQL files.");
+      const files = fs
+        .readdirSync(dirPath)
+        .filter((file) => file.endsWith(".sql"))
+        .sort();
+
+      if (files.length === 0) {
+        console.log(`No .sql files found in ${label}.`);
+        return;
+      }
+
+      for (const file of files) {
+        const full = path.join(dirPath, file);
+        console.log(`Applying ${label}: ${full}`);
+        const sql = fs.readFileSync(full, "utf8");
+        try {
+          await client.query("BEGIN");
+          await client.query(sql);
+          await client.query("COMMIT");
+          console.log(`Applied ${file}`);
+        } catch (err) {
+          await client.query("ROLLBACK");
+          console.error(`Failed to apply ${file}:`, err.message || err);
+          throw err;
+        }
+      }
+    };
+
+    const migrationsDir = path.resolve(process.cwd(), "supabase", "migrations");
+    const rpcDir = path.resolve(process.cwd(), "supabase", "rpc");
+
+    await applySqlDirectory(migrationsDir, "migrations");
+    await applySqlDirectory(rpcDir, "RPCs");
+
+    console.log("Done applying migrations and RPC SQL files.");
   } finally {
     await client.end();
   }

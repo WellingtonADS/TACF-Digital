@@ -5,6 +5,10 @@
  * @path src\hooks\useDashboard.ts
  */
 
+import {
+  fetchUserNotifications,
+  markUserNotificationAsRead,
+} from "@/services/notifications";
 import { formatSessionPeriod } from "@/utils/booking";
 import { callRpcWithRetry } from "@/utils/rpc";
 import { useEffect, useState } from "react";
@@ -19,8 +23,12 @@ type SessionInfo = {
 };
 
 type NotificationItem = {
+  id?: string;
   title: string;
   description: string;
+  source?: "system" | "in_app";
+  isRead?: boolean;
+  createdAt?: string | null;
   level?: "info" | "warning" | "error";
 };
 
@@ -40,6 +48,27 @@ type DashboardPayload = {
   has_pending_swap?: boolean | null;
 };
 
+function mapInboxNotifications(
+  inbox: Awaited<ReturnType<typeof fetchUserNotifications>>,
+): NotificationItem[] {
+  return [...inbox]
+    .sort((a, b) => {
+      if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    })
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.message,
+      source: "in_app",
+      isRead: item.is_read,
+      createdAt: item.created_at ?? null,
+      level: item.is_read ? "info" : "warning",
+    }));
+}
+
 export default function useDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -54,6 +83,9 @@ export default function useDashboard() {
     null,
   );
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [markingNotificationId, setMarkingNotificationId] = useState<
+    string | null
+  >(null);
   const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
@@ -127,7 +159,18 @@ export default function useDashboard() {
                 });
             }
             if (cancelled) return;
-            setNotifications(notes);
+
+            if (user?.id) {
+              try {
+                const inbox = await fetchUserNotifications(user.id, 8);
+                const inboxNotes = mapInboxNotifications(inbox);
+                setNotifications([...inboxNotes, ...notes]);
+              } catch {
+                setNotifications(notes);
+              }
+            } else {
+              setNotifications(notes);
+            }
             return;
           } else {
             const payload = payloadCandidate as DashboardPayload;
@@ -198,7 +241,17 @@ export default function useDashboard() {
                 description: `Código: ${payload.latest_order_number}`,
               });
 
-            setNotifications(notes);
+            if (user?.id) {
+              try {
+                const inbox = await fetchUserNotifications(user.id, 8);
+                const inboxNotes = mapInboxNotifications(inbox);
+                setNotifications([...inboxNotes, ...notes]);
+              } catch {
+                setNotifications(notes);
+              }
+            } else {
+              setNotifications(notes);
+            }
             return;
           }
         }
@@ -229,6 +282,26 @@ export default function useDashboard() {
     hasPendingSwap,
     latestOrderNumber,
     notifications,
+    unreadNotificationsCount: notifications.filter(
+      (item) => item.source === "in_app" && !item.isRead,
+    ).length,
+    markingNotificationId,
+    markNotificationAsRead: async (notificationId: string) => {
+      if (!user?.id) return;
+      setMarkingNotificationId(notificationId);
+      try {
+        await markUserNotificationAsRead(notificationId, user.id);
+        setNotifications((previous) =>
+          previous.map((item) =>
+            item.id === notificationId
+              ? { ...item, isRead: true, level: "info" }
+              : item,
+          ),
+        );
+      } finally {
+        setMarkingNotificationId(null);
+      }
+    },
     // Derived status for INSPSAU to avoid duplicating presentation logic in components
     inspsauStatus: (() => {
       const inspsau = (

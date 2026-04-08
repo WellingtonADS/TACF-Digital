@@ -154,12 +154,23 @@ export type AnalyticsProfileRow = {
 export type AnalyticsBookingRow = {
   id: string;
   user_id: string | null;
+  session_id: string | null;
   score: number | null;
   test_date: string | null;
   created_at: string | null;
   status: string | null;
   result_details: string | null;
 };
+
+export type AnalyticsSessionRow = Pick<
+  Database["public"]["Tables"]["sessions"]["Row"],
+  "id" | "date" | "period" | "max_capacity" | "location_id"
+>;
+
+export type AnalyticsLocationRow = Pick<
+  Database["public"]["Tables"]["locations"]["Row"],
+  "id" | "name"
+>;
 
 export async function fetchAnalyticsData(
   fromTs: string,
@@ -168,6 +179,8 @@ export async function fetchAnalyticsData(
   profiles: AnalyticsProfileRow[];
   bookings: AnalyticsBookingRow[];
   allBookings: AnalyticsBookingRow[];
+  sessions: AnalyticsSessionRow[];
+  locations: AnalyticsLocationRow[];
 }> {
   const [
     { data: profileData, error: profileError },
@@ -180,7 +193,7 @@ export async function fetchAnalyticsData(
     supabase
       .from("bookings")
       .select(
-        "id, user_id, score, test_date, created_at, status, result_details",
+        "id, user_id, session_id, score, test_date, created_at, status, result_details",
       )
       .eq("status", "agendado")
       .gte("created_at", fromTs)
@@ -188,7 +201,7 @@ export async function fetchAnalyticsData(
     supabase
       .from("bookings")
       .select(
-        "id, user_id, score, test_date, created_at, status, result_details",
+        "id, user_id, session_id, score, test_date, created_at, status, result_details",
       )
       .eq("status", "agendado")
       .not("result_details", "is", null)
@@ -199,10 +212,53 @@ export async function fetchAnalyticsData(
   if (bookingError) throw bookingError;
   if (allBookingError) throw allBookingError;
 
+  const periodSessionIds = Array.from(
+    new Set(
+      (bookingData ?? [])
+        .map((booking) => booking.session_id)
+        .filter((sessionId): sessionId is string => Boolean(sessionId)),
+    ),
+  );
+
+  let sessions: AnalyticsSessionRow[] = [];
+  let locations: AnalyticsLocationRow[] = [];
+
+  if (periodSessionIds.length > 0) {
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from("sessions")
+      .select("id, date, period, max_capacity, location_id")
+      .in("id", periodSessionIds);
+
+    if (sessionsError) throw sessionsError;
+
+    sessions = (sessionsData ?? []) as AnalyticsSessionRow[];
+
+    const locationIds = Array.from(
+      new Set(
+        sessions
+          .map((session) => session.location_id)
+          .filter((locationId): locationId is string => Boolean(locationId)),
+      ),
+    );
+
+    if (locationIds.length > 0) {
+      const { data: locationsData, error: locationsError } = await supabase
+        .from("locations")
+        .select("id, name")
+        .in("id", locationIds);
+
+      if (locationsError) throw locationsError;
+
+      locations = (locationsData ?? []) as AnalyticsLocationRow[];
+    }
+  }
+
   return {
     profiles: (profileData ?? []) as AnalyticsProfileRow[],
     bookings: (bookingData ?? []) as AnalyticsBookingRow[],
     allBookings: (allBookingData ?? []) as AnalyticsBookingRow[],
+    sessions,
+    locations,
   };
 }
 

@@ -4,6 +4,8 @@
  * @path src/pages/AnalyticsDashboard.tsx
  */
 
+import CustomCalendar from "@/components/atomic/CustomCalendar";
+import KpiCard from "@/components/atomic/KpiCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -22,9 +24,18 @@ import {
 import {
   fetchAnalyticsData,
   type AnalyticsBookingRow,
+  type AnalyticsLocationRow,
   type AnalyticsProfileRow,
+  type AnalyticsSessionRow,
 } from "@/services/bookings";
+import { notifyPendingRevalidation } from "@/services/notifications";
 import { downloadCSV } from "@/utils/csv";
+import {
+  generateFullStaffPdf,
+  generatePendingRevalidationPdf,
+  generateUnitPerformancePdf,
+} from "@/utils/pdf/generateAnalyticsReports";
+import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
 import { isAdminLike } from "@/utils/routeAccess";
 import {
   addDays,
@@ -33,6 +44,7 @@ import {
   endOfYear,
   format,
   isBefore,
+  parseISO,
   startOfMonth,
   startOfYear,
   subMonths,
@@ -69,6 +81,7 @@ type PendingRow = {
   priority: "ALTA" | "MEDIA" | "BAIXA";
   militaryName: string;
   warName: string | null;
+  email: string | null;
   identity: string;
   rank: string | null;
   unit: string;
@@ -134,6 +147,24 @@ export default function AnalyticsDashboard() {
   const initialRange = presetRange("year");
   const [fromDate, setFromDate] = useState<string>(initialRange.from);
   const [toDate, setToDate] = useState<string>(initialRange.to);
+  const [fromCalendarMonth, setFromCalendarMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
+  const [toCalendarMonth, setToCalendarMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
+
+  useEffect(() => {
+    if (fromDate) {
+      setFromCalendarMonth(startOfMonth(parseISO(fromDate)));
+    }
+  }, [fromDate]);
+
+  useEffect(() => {
+    if (toDate) {
+      setToCalendarMonth(startOfMonth(parseISO(toDate)));
+    }
+  }, [toDate]);
 
   function applyPreset(preset: DatePreset) {
     setDatePreset(preset);
@@ -151,11 +182,17 @@ export default function AnalyticsDashboard() {
   const [filterRank, setFilterRank] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [notifyingIds, setNotifyingIds] = useState<string[]>([]);
 
   // Data state
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
+  const [sessionsMeta, setSessionsMeta] = useState<AnalyticsSessionRow[]>([]);
+  const [locationsMeta, setLocationsMeta] = useState<AnalyticsLocationRow[]>(
+    [],
+  );
+  const [selectedReportSessionId, setSelectedReportSessionId] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -171,11 +208,15 @@ export default function AnalyticsDashboard() {
         setProfiles(data.profiles as ProfileRow[]);
         setBookings(data.bookings as BookingRow[]);
         setAllBookings(data.allBookings as BookingRow[]);
+        setSessionsMeta(data.sessions as AnalyticsSessionRow[]);
+        setLocationsMeta(data.locations as AnalyticsLocationRow[]);
       } catch (error) {
         console.error(error);
         setProfiles([]);
         setBookings([]);
         setAllBookings([]);
+        setSessionsMeta([]);
+        setLocationsMeta([]);
         toast.error("Nao foi possivel carregar os dados analiticos.");
       } finally {
         setLoading(false);
@@ -201,6 +242,14 @@ export default function AnalyticsDashboard() {
     }
     return map;
   }, [allBookings]);
+
+  const profileById = useMemo(() => {
+    const map = new Map<string, ProfileRow>();
+    profiles.forEach((profile) => {
+      map.set(profile.id, profile);
+    });
+    return map;
+  }, [profiles]);
 
   const activeProfiles = useMemo(
     () =>
@@ -243,6 +292,51 @@ export default function AnalyticsDashboard() {
     () => bookings.filter((b) => b.result_details !== null),
     [bookings],
   );
+
+  const reportSessions = useMemo(() => {
+    const evaluatedBySession = new Map<string, number>();
+
+    periodEvals.forEach((booking) => {
+      if (!booking.session_id) return;
+      evaluatedBySession.set(
+        booking.session_id,
+        (evaluatedBySession.get(booking.session_id) ?? 0) + 1,
+      );
+    });
+
+    const locationById = new Map<string, string>();
+    locationsMeta.forEach((location) => {
+      locationById.set(location.id, location.name);
+    });
+
+    return sessionsMeta
+      .filter((session) => evaluatedBySession.has(session.id))
+      .map((session) => ({
+        id: session.id,
+        date: session.date,
+        period: session.period,
+        max_capacity: session.max_capacity,
+        location_name: session.location_id
+          ? (locationById.get(session.location_id) ?? "Local não definido")
+          : "Local não definido",
+        evaluatedCount: evaluatedBySession.get(session.id) ?? 0,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [periodEvals, sessionsMeta, locationsMeta]);
+
+  useEffect(() => {
+    if (reportSessions.length === 0) {
+      setSelectedReportSessionId("");
+      return;
+    }
+
+    setSelectedReportSessionId((current) => {
+      if (current && reportSessions.some((session) => session.id === current)) {
+        return current;
+      }
+      return reportSessions[0].id;
+    });
+  }, [reportSessions]);
 
   // Trend chart
   const trend = useMemo<TrendPoint[]>(() => {
@@ -350,6 +444,7 @@ export default function AnalyticsDashboard() {
           priority,
           militaryName: item.full_name ?? "Sem nome",
           warName: item.war_name ?? null,
+          email: item.email ?? null,
           identity: item.saram ?? "--",
           rank: item.rank ?? null,
           unit: item.sector?.trim() || "--",
@@ -446,6 +541,65 @@ export default function AnalyticsDashboard() {
     toast.success("Relatorio exportado com sucesso.");
   }
 
+  function exportPendingPDF() {
+    generatePendingRevalidationPdf({
+      period: { from: fromDate, to: toDate },
+      rows: pendingRows,
+    });
+    toast.success("Relatorio de revalidacao pendente em PDF gerado.");
+  }
+
+  async function handleNotifyPending(row: PendingRow) {
+    const actorName = profile?.full_name ?? profile?.email ?? "Administrador";
+
+    setNotifyingIds((previous) => [...previous, row.id]);
+    try {
+      await notifyPendingRevalidation({
+        targetUserId: row.id,
+        targetName: row.warName ?? row.militaryName,
+        targetEmail: row.email,
+        priority: row.priority,
+        expiration: row.expiration,
+        unit: row.unit,
+        actorUserId: profile?.id ?? null,
+        actorName,
+      });
+
+      if (row.email) {
+        const subject = encodeURIComponent("Revalidacao pendente do TACF");
+        const body = encodeURIComponent(
+          [
+            `Prezado(a) ${row.warName ?? row.militaryName},`,
+            "",
+            "Identificamos uma revalidacao pendente no TACF Digital.",
+            `Prioridade: ${row.priority}`,
+            `Validade: ${row.expiration}`,
+            `Unidade: ${row.unit}`,
+            "",
+            "Acesse o sistema para regularizar sua situacao.",
+          ].join("\n"),
+        );
+
+        window.open(
+          `mailto:${encodeURIComponent(row.email)}?subject=${subject}&body=${body}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      }
+
+      toast.success(
+        row.email
+          ? "Notificacao enviada e registrada com sucesso."
+          : "Notificacao registrada com sucesso (usuario sem e-mail cadastrado).",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Falha ao notificar o usuario.");
+    } finally {
+      setNotifyingIds((previous) => previous.filter((id) => id !== row.id));
+    }
+  }
+
   function exportUnitsCSV() {
     const headers = [
       "Unidade",
@@ -469,6 +623,14 @@ export default function AnalyticsDashboard() {
       headers,
     );
     toast.success("Relatorio de unidades exportado.");
+  }
+
+  function exportUnitsPDF() {
+    generateUnitPerformancePdf({
+      period: { from: fromDate, to: toDate },
+      rows: units,
+    });
+    toast.success("Relatorio de desempenho por unidade em PDF gerado.");
   }
 
   function exportFullCSV() {
@@ -514,6 +676,104 @@ export default function AnalyticsDashboard() {
       headers,
     );
     toast.success("Relatorio completo exportado.");
+  }
+
+  function exportFullPDF() {
+    const now = new Date();
+    const rows = activeProfiles.map((p) => {
+      const latest = latestByUser.get(p.id);
+      const latestDateRaw = latest
+        ? (latest.test_date ?? latest.created_at ?? null)
+        : null;
+      const latestDate = latestDateRaw ? new Date(latestDateRaw) : null;
+      const expiration = latestDate ? addYears(latestDate, 1) : null;
+      const status = !expiration
+        ? "Pendente"
+        : isBefore(expiration, now)
+          ? "Expirado"
+          : isBefore(expiration, addDays(now, 60))
+            ? "Pendente"
+            : "Regular";
+
+      return {
+        warName: p.war_name ?? null,
+        militaryName: p.full_name ?? "--",
+        identity: p.saram ?? "--",
+        rank: p.rank ?? null,
+        unit: p.sector?.trim() || "--",
+        lastResult:
+          latest?.result_details === "apto" ||
+          latest?.result_details === "inapto"
+            ? (latest.result_details as "apto" | "inapto")
+            : null,
+        expiration: expiration ? format(expiration, "dd/MM/yyyy") : "--",
+        status,
+      };
+    });
+
+    generateFullStaffPdf({
+      period: { from: fromDate, to: toDate },
+      rows,
+    });
+    toast.success("Relatorio de efetivo completo em PDF gerado.");
+  }
+
+  function exportSessionTechnicalPdf() {
+    if (!selectedReportSessionId) {
+      toast.error("Selecione uma turma para gerar o relatório técnico.");
+      return;
+    }
+
+    const session = reportSessions.find(
+      (item) => item.id === selectedReportSessionId,
+    );
+
+    if (!session) {
+      toast.error("Turma selecionada não encontrada.");
+      return;
+    }
+
+    const rows = periodEvals
+      .filter(
+        (booking) =>
+          booking.session_id === selectedReportSessionId &&
+          (booking.result_details === "apto" ||
+            booking.result_details === "inapto"),
+      )
+      .map((booking, index) => {
+        const profile = booking.user_id
+          ? profileById.get(booking.user_id)
+          : undefined;
+        const fullName = profile?.full_name ?? "Militar sem nome";
+
+        return {
+          order_number: String(index + 1).padStart(2, "0"),
+          rank: profile?.rank ?? null,
+          full_name: fullName,
+          war_name: profile?.war_name ?? null,
+          saram: profile?.saram ?? null,
+          result: booking.result_details as "apto" | "inapto",
+        };
+      });
+
+    if (rows.length === 0) {
+      toast.error("A turma selecionada não possui resultados para relatório.");
+      return;
+    }
+
+    generateSessionFinalReportPdf({
+      session: {
+        id: session.id,
+        date: session.date,
+        period: session.period,
+        max_capacity: session.max_capacity,
+        location_name: session.location_name,
+      },
+      rows,
+      pendingConvertedCount: 0,
+    });
+
+    toast.success("Relatório técnico da turma gerado com sucesso.");
   }
 
   // move loader after hooks to preserve hook order
@@ -601,21 +861,54 @@ export default function AnalyticsDashboard() {
                 ),
               )}
               {datePreset === "custom" && (
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border-default bg-bg-default px-3 py-1.5 text-xs">
-                  <CalendarDays size={12} className="text-text-muted" />
-                  <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="bg-transparent text-text-body outline-none"
-                  />
-                  <span className="text-text-muted">—</span>
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="bg-transparent text-text-body outline-none"
-                  />
+                <div className="w-full rounded-2xl border border-border-default bg-bg-default p-3 text-xs lg:w-auto lg:min-w-[520px]">
+                  <div className="mb-2 flex items-center gap-2 text-text-muted">
+                    <CalendarDays size={12} />
+                    <span>Intervalo personalizado</span>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                        Data inicial
+                      </p>
+                      <CustomCalendar
+                        viewDate={fromCalendarMonth}
+                        onViewDateChange={setFromCalendarMonth}
+                        selectedDateKey={fromDate}
+                        onSelectDate={(dateKey) => setFromDate(dateKey)}
+                        resolveDayState={(_date, context) => {
+                          if (!context.isCurrentMonth) {
+                            return { disabled: true, tone: "muted" as const };
+                          }
+
+                          return { tone: "default" as const };
+                        }}
+                        weekStartsOn={1}
+                        size="compact"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                        Data final
+                      </p>
+                      <CustomCalendar
+                        viewDate={toCalendarMonth}
+                        onViewDateChange={setToCalendarMonth}
+                        selectedDateKey={toDate}
+                        onSelectDate={(dateKey) => setToDate(dateKey)}
+                        resolveDayState={(_date, context) => {
+                          if (!context.isCurrentMonth) {
+                            return { disabled: true, tone: "muted" as const };
+                          }
+
+                          return { tone: "default" as const };
+                        }}
+                        weekStartsOn={1}
+                        size="compact"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -681,28 +974,28 @@ export default function AnalyticsDashboard() {
                 sub={
                   loading ? "" : `${kpiApt} aptos de ${kpiEvaluated} avaliados`
                 }
-                icon={<TrendingUp size={22} />}
+                icon={TrendingUp}
                 accent="success"
               />
               <KpiCard
                 label="Inaptidões Atuais"
                 value={loading ? null : String(kpiInapt)}
                 sub="última verificação registrada"
-                icon={<AlertTriangle size={22} />}
+                icon={AlertTriangle}
                 accent="error"
               />
               <KpiCard
                 label="Efetivo Ativo"
                 value={loading ? null : String(activeProfiles.length)}
                 sub={loading ? "" : `${kpiNotEvaluated} sem avaliação`}
-                icon={<Users size={22} />}
+                icon={Users}
                 accent="primary"
               />
               <KpiCard
                 label="Avaliações no Período"
                 value={loading ? null : String(periodEvals.length)}
                 sub={loading ? "" : `${bookings.length} confirmadas`}
-                icon={<TrendingUp size={22} />}
+                icon={TrendingUp}
                 accent="secondary"
               />
             </div>
@@ -971,9 +1264,13 @@ export default function AnalyticsDashboard() {
                         )}
                         <button
                           type="button"
+                          onClick={() => void handleNotifyPending(row)}
+                          disabled={notifyingIds.includes(row.id)}
                           className="text-xs font-semibold text-primary hover:underline"
                         >
-                          Notificar
+                          {notifyingIds.includes(row.id)
+                            ? "Notificando..."
+                            : "Notificar"}
                         </button>
                       </div>
                     </article>
@@ -1076,9 +1373,13 @@ export default function AnalyticsDashboard() {
                           <td className="px-6 py-4 text-right">
                             <button
                               type="button"
+                              onClick={() => void handleNotifyPending(row)}
+                              disabled={notifyingIds.includes(row.id)}
                               className="text-xs font-semibold text-primary hover:underline"
                             >
-                              Notificar
+                              {notifyingIds.includes(row.id)
+                                ? "Notificando..."
+                                : "Notificar"}
                             </button>
                           </td>
                         </tr>
@@ -1256,24 +1557,86 @@ export default function AnalyticsDashboard() {
             <ExportCard
               title="Revalidação Pendente"
               description={`${pendingRows.length} militares com expiração próxima ou vencida para priorização de revalidação.`}
-              format="CSV"
+              formats={["CSV", "PDF"]}
               icon={<ShieldAlert size={20} className="text-secondary" />}
-              onExport={exportPendingCSV}
+              onExportCSV={exportPendingCSV}
+              onExportPDF={exportPendingPDF}
             />
             <ExportCard
               title="Desempenho por Unidade"
               description={`${units.length} unidades com resumo de aptidão, inaptos, pendentes e métricas operacionais.`}
-              format="CSV"
+              formats={["CSV", "PDF"]}
               icon={<BarChart2 size={20} className="text-primary" />}
-              onExport={exportUnitsCSV}
+              onExportCSV={exportUnitsCSV}
+              onExportPDF={exportUnitsPDF}
             />
             <ExportCard
               title="Efetivo Completo"
               description={`${activeProfiles.length} militares ativos com status de avaliação e validade total registrada.`}
-              format="CSV"
+              formats={["CSV", "PDF"]}
               icon={<FileText size={20} className="text-success" />}
-              onExport={exportFullCSV}
+              onExportCSV={exportFullCSV}
+              onExportPDF={exportFullPDF}
             />
+            <div className="flex flex-col justify-between rounded-2xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6 sm:col-span-2 lg:col-span-3">
+              <div>
+                <div className="mb-4 flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <FileText size={20} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-text-body">
+                      Relatório Técnico por Turma
+                    </h3>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Gere o PDF técnico com informações da turma e listas de
+                      aptos/inaptos usando o padrão oficial do sistema.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                    Turma
+                  </label>
+                  <select
+                    value={selectedReportSessionId}
+                    onChange={(event) =>
+                      setSelectedReportSessionId(event.target.value)
+                    }
+                    className="w-full rounded-lg border border-border-default bg-bg-card px-3 py-2 text-sm text-text-body"
+                    disabled={reportSessions.length === 0}
+                  >
+                    {reportSessions.length === 0 ? (
+                      <option value="">
+                        Nenhuma turma com resultado no período
+                      </option>
+                    ) : (
+                      reportSessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {`${format(parseISO(session.date), "dd/MM/yyyy")} · ${session.period === "tarde" ? "Tarde" : "Manhã"} · ${session.location_name} · ${session.evaluatedCount} avaliados`}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between gap-4">
+                <span className="rounded-md bg-border-default px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  PDF
+                </span>
+                <button
+                  type="button"
+                  onClick={exportSessionTechnicalPdf}
+                  disabled={reportSessions.length === 0}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download size={13} />
+                  Baixar Relatório Técnico
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1297,59 +1660,6 @@ function Skeleton({ rows }: { rows: number }) {
         </div>
       ))}
     </>
-  );
-}
-
-type AccentColor = "primary" | "secondary" | "success" | "error";
-
-function KpiCard({
-  label,
-  value,
-  sub,
-  icon,
-  accent,
-  className,
-}: {
-  label: string;
-  value: string | null;
-  sub: string;
-  icon: React.ReactNode;
-  accent: AccentColor;
-  className?: string;
-}) {
-  const borderMap: Record<AccentColor, string> = {
-    primary: "border-primary/30",
-    secondary: "border-secondary/30",
-    success: "border-success/30",
-    error: "border-error/30",
-  };
-  const bgMap: Record<AccentColor, string> = {
-    primary: "bg-primary/10 text-primary",
-    secondary: "bg-secondary/10 text-secondary",
-    success: "bg-success/10 text-success",
-    error: "bg-error/10 text-error",
-  };
-  return (
-    <div
-      className={`flex w-full flex-col gap-3 overflow-hidden rounded-2xl border-b-4 bg-bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5 ${borderMap[accent]} ${className || ""}`}
-    >
-      <div className="min-w-0 flex-1 pr-2">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-          {label}
-        </p>
-        <p
-          className={`mt-2 text-2xl sm:text-3xl font-bold text-text-body ${value === null ? "animate-pulse text-text-muted" : ""}`}
-        >
-          {value ?? "—"}
-        </p>
-        <p className="mt-1 text-xs text-text-muted">{sub}</p>
-      </div>
-      <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${bgMap[accent]}`}
-      >
-        {icon}
-      </div>
-    </div>
   );
 }
 
@@ -1390,15 +1700,17 @@ function FilterSelect({
 function ExportCard({
   title,
   description,
-  format,
+  formats,
   icon,
-  onExport,
+  onExportCSV,
+  onExportPDF,
 }: {
   title: string;
   description: string;
-  format: string;
+  formats: string[];
   icon: React.ReactNode;
-  onExport: () => void;
+  onExportCSV: () => void;
+  onExportPDF?: () => void;
 }) {
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
@@ -1412,17 +1724,36 @@ function ExportCard({
         </div>
       </div>
       <div className="mt-6 flex items-center justify-between gap-4">
-        <span className="rounded-md bg-border-default px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-text-muted">
-          {format}
-        </span>
-        <button
-          type="button"
-          onClick={onExport}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Download size={13} />
-          Baixar
-        </button>
+        <div className="flex items-center gap-2">
+          {formats.map((formatLabel) => (
+            <span
+              key={formatLabel}
+              className="rounded-md bg-border-default px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-text-muted"
+            >
+              {formatLabel}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onExportCSV}
+            className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-4 py-2 text-xs font-bold text-text-muted transition-colors hover:border-primary hover:text-primary"
+          >
+            <Download size={13} />
+            CSV
+          </button>
+          {onExportPDF && (
+            <button
+              type="button"
+              onClick={onExportPDF}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Download size={13} />
+              PDF
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

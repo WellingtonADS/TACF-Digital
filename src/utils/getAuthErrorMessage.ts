@@ -30,6 +30,12 @@ export function getAuthErrorMessage(
     msg.includes("duplicate")
   )
     return "E-mail já cadastrado.";
+  if (
+    msg.includes("email_not_confirmed") ||
+    msg.includes("email not confirmed")
+  ) {
+    return "E-mail não confirmado. Verifique sua caixa de entrada ou peça um novo link de confirmação.";
+  }
   if (msg.includes("password should") || msg.includes("password must"))
     return "Senha fraca: verifique os requisitos de senha.";
   if (

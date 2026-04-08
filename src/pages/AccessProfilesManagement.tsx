@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Shield,
   ShieldCheck,
-  User,
   type LucideIcon,
 } from "@/icons";
 import type { ProfileRole, Profile as UserProfile } from "@/types";
@@ -24,11 +23,13 @@ import { sidebarIconMap } from "@/utils/sidebarIcons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const ROLE_ORDER: ProfileRole[] = ["admin", "coordinator", "user"];
+type ManagedRole = Extract<ProfileRole, "admin" | "coordinator">;
+
+const ROLE_ORDER: ManagedRole[] = ["admin", "coordinator"];
 const PAGE_SIZE = 10;
 
 const ROLE_META: Record<
-  ProfileRole,
+  ManagedRole,
   { label: string; description: string; icon: LucideIcon }
 > = {
   admin: {
@@ -40,11 +41,6 @@ const ROLE_META: Record<
     label: "Coordenador",
     description: "Acesso operacional ampliado para execução e lançamento.",
     icon: ShieldCheck,
-  },
-  user: {
-    label: "Militar",
-    description: "Acesso aos fluxos pessoais e de agendamento.",
-    icon: User,
   },
 };
 
@@ -81,7 +77,7 @@ export default function AccessProfilesManagement() {
   const canView = profile?.role === "admin";
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [selectedRole, setSelectedRole] = useState<ProfileRole>("admin");
+  const [selectedRole, setSelectedRole] = useState<ManagedRole>("admin");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
@@ -91,7 +87,9 @@ export default function AccessProfilesManagement() {
     setLoading(true);
     setLoadError(null);
     try {
-      const nextProfiles = (await fetchAllProfilesForAccess()) as UserProfile[];
+      const nextProfiles = (
+        (await fetchAllProfilesForAccess()) as UserProfile[]
+      ).filter((item) => item.role === "admin" || item.role === "coordinator");
       setProfiles(nextProfiles);
       setSelectedRole((currentRole) => {
         if (nextProfiles.some((item) => item.role === currentRole)) {
@@ -101,7 +99,7 @@ export default function AccessProfilesManagement() {
         return (
           ROLE_ORDER.find((roleOption) =>
             nextProfiles.some((item) => item.role === roleOption),
-          ) || "user"
+          ) || "admin"
         );
       });
     } catch (err: unknown) {
@@ -126,7 +124,7 @@ export default function AccessProfilesManagement() {
     setCurrentPage(1);
   }, [selectedRole]);
 
-  async function updateUserRole(profileId: string, nextRole: ProfileRole) {
+  async function updateUserRole(profileId: string, nextRole: ManagedRole) {
     setSavingProfileId(profileId);
     try {
       await updateProfile(profileId, { role: nextRole });
@@ -382,7 +380,7 @@ export default function AccessProfilesManagement() {
                                     onChange={(event) =>
                                       updateUserRole(
                                         item.id,
-                                        event.target.value as ProfileRole,
+                                        event.target.value as ManagedRole,
                                       )
                                     }
                                     className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
@@ -462,7 +460,7 @@ export default function AccessProfilesManagement() {
                                       onChange={(event) =>
                                         updateUserRole(
                                           item.id,
-                                          event.target.value as ProfileRole,
+                                          event.target.value as ManagedRole,
                                         )
                                       }
                                       className="min-w-[190px] rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"

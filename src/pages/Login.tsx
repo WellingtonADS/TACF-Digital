@@ -15,6 +15,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+const authFieldLabelClassName =
+  "text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1";
+
 export default function Login() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -154,6 +157,9 @@ export default function Login() {
           data-testid="login-form"
         >
           <div className="space-y-1">
+            <label htmlFor="email" className={authFieldLabelClassName}>
+              E-mail institucional <span aria-hidden="true">*</span>
+            </label>
             <Input
               id="email"
               name="tacf-auth-email"
@@ -168,6 +174,9 @@ export default function Login() {
           </div>
 
           <div className="space-y-1">
+            <label htmlFor="password" className={authFieldLabelClassName}>
+              Senha <span aria-hidden="true">*</span>
+            </label>
             <PasswordInput
               id="password"
               name="tacf-auth-password"
@@ -184,6 +193,12 @@ export default function Login() {
 
           {isSignUp && (
             <div className="space-y-1">
+              <label
+                htmlFor="confirmPassword"
+                className={authFieldLabelClassName}
+              >
+                Confirmar senha <span aria-hidden="true">*</span>
+              </label>
               <PasswordInput
                 id="confirmPassword"
                 name="tacf-auth-confirm-password"

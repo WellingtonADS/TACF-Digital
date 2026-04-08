@@ -4,6 +4,7 @@
  * @path src/pages/ClassCreationForm.tsx
  */
 
+import CustomCalendar from "@/components/atomic/CustomCalendar";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
@@ -12,6 +13,7 @@ import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
 import { createSessions } from "@/services/bookings";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
+import { startOfDay, startOfMonth } from "date-fns";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -111,6 +113,9 @@ export default function ClassCreationForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
+  const [singleDateMonth, setSingleDateMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
   const [instructors, setInstructors] = useState<Coordinator[]>([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
   const {
@@ -389,22 +394,40 @@ export default function ClassCreationForm() {
                 {/* Um dia */}
                 {form.dateMode === "single" && (
                   <div className="space-y-1.5">
-                    <input
-                      type="date"
-                      value={form.date}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v && isWeekend(v)) {
-                          toast.error(
-                            "Sábados e domingos não estão disponíveis.",
-                          );
-                          updateField("date", "");
-                        } else {
-                          updateField("date", v);
-                        }
-                      }}
-                      className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
+                    <div className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default p-3">
+                      <CustomCalendar
+                        viewDate={singleDateMonth}
+                        onViewDateChange={setSingleDateMonth}
+                        selectedDateKey={form.date || null}
+                        onSelectDate={(dateKey, date) => {
+                          const dateValue = startOfDay(date);
+                          const day = dateValue.getDay();
+                          if (day === 0 || day === 6) {
+                            toast.error(
+                              "Sábados e domingos não estão disponíveis.",
+                            );
+                            updateField("date", "");
+                            return;
+                          }
+
+                          updateField("date", dateKey);
+                        }}
+                        resolveDayState={(date, context) => {
+                          if (!context.isCurrentMonth) {
+                            return { disabled: true, tone: "muted" as const };
+                          }
+
+                          const day = startOfDay(date).getDay();
+                          if (day === 0 || day === 6) {
+                            return { disabled: true, tone: "muted" as const };
+                          }
+
+                          return { tone: "default" as const };
+                        }}
+                        weekStartsOn={1}
+                        size="compact"
+                      />
+                    </div>
                     <p className="text-[11px] text-text-muted">
                       Sábados e domingos são bloqueados automaticamente.
                     </p>

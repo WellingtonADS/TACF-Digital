@@ -4,19 +4,14 @@
  * @path src/pages/Scheduling.tsx
  */
 
+import CustomCalendar, {
+  type CalendarDayState,
+} from "@/components/atomic/CustomCalendar";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import TicketModal from "@/components/TicketModal";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import {
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Hash,
-  MapPin,
-} from "@/icons";
+import { Calendar, Check, ChevronRight, Clock, Hash, MapPin } from "@/icons";
 import { fetchSessionLocationBySessionId } from "@/services/locations";
 import { fetchBookedDatesForUser, formatSessionPeriod } from "@/utils/booking";
 import { formatDatePtBr } from "@/utils/date";
@@ -31,8 +26,6 @@ type SessionLocation = {
   name: string | null;
   address: string | null;
 };
-
-const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -117,7 +110,10 @@ export const Scheduling = () => {
     });
   }
 
-  const daysInMonth = endOfMonth.getDate();
+  const todayStart = useMemo(
+    () => new Date(new Date().setHours(0, 0, 0, 0)),
+    [],
+  );
 
   // sessions available for the currently selected date (empty array if none)
   const sessionsForSelected: SessionAvailability[] =
@@ -127,6 +123,27 @@ export const Scheduling = () => {
 
   const sessionIdForLocation =
     selectedSession ?? sessionsForSelected[0]?.session_id ?? null;
+
+  const resolveCalendarDayState = (date: Date): CalendarDayState => {
+    const dateKey = toDateKey(date);
+    const hasSessions = (sessionsByDate[dateKey] || []).length > 0;
+    const isBooked = bookedDates.has(dateKey);
+    const isPast = date < todayStart;
+
+    if (isPast) {
+      return { disabled: true, tone: "muted" };
+    }
+
+    if (isBooked) {
+      return { disabled: true, tone: "booked", dotTone: "error" };
+    }
+
+    if (!hasSessions) {
+      return { disabled: true, tone: "muted" };
+    }
+
+    return { tone: "available", dotTone: "success" };
+  };
 
   useEffect(() => {
     async function fetchSessionLocation(sessionId: string) {
@@ -223,157 +240,45 @@ export const Scheduling = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
             {/* Left: Calendar */}
             <div className="lg:col-span-8 bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-border-default flex items-center justify-between">
+              <div className="p-4 sm:p-6 border-b border-border-default">
                 <div>
                   <h3 className="text-xl font-bold text-text-body">
                     Calendário de Testes
                   </h3>
-                  <p className="text-sm text-text-muted">
-                    {viewDate.toLocaleString("pt-BR", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setViewDate(
-                        new Date(
-                          viewDate.getFullYear(),
-                          viewDate.getMonth() - 1,
-                          1,
-                        ),
-                      )
-                    }
-                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
-                  >
-                    <AppIcon icon={ChevronLeft} size="md" tone="muted" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setViewDate(
-                        new Date(
-                          viewDate.getFullYear(),
-                          viewDate.getMonth() + 1,
-                          1,
-                        ),
-                      )
-                    }
-                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
-                  >
-                    <AppIcon icon={ChevronRight} size="md" tone="muted" />
-                  </button>
                 </div>
               </div>
 
               <div className="p-4 sm:p-6">
-                <div className="grid grid-cols-7 gap-1 mb-4 text-center">
-                  {WEEK_DAYS.map((d) => (
-                    <div
-                      key={d}
-                      className="py-2 text-xs font-bold text-text-muted uppercase"
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
                 {loading ? (
                   <div className="grid grid-cols-7 gap-2 sm:gap-3">
-                    {Array.from({ length: Math.min(daysInMonth, 28) }).map(
-                      (_, i) => (
-                        <div
-                          key={i}
-                          className="aspect-square bg-bg-default rounded animate-pulse"
-                        />
-                      ),
-                    )}
+                    {Array.from({ length: 35 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-square bg-bg-default rounded animate-pulse"
+                      />
+                    ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-7 gap-2 sm:gap-3">
-                    {/* células vazias para alinhar o dia 1 ao dia da semana correto */}
-                    {Array.from({ length: startOfMonth.getDay() }).map(
-                      (_, i) => (
-                        <div key={`pad-${i}`} />
-                      ),
-                    )}
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                      const day = i + 1;
-                      const dateObj = new Date(
-                        viewDate.getFullYear(),
-                        viewDate.getMonth(),
-                        day,
-                      );
-                      const dateKey = toDateKey(dateObj);
-                      const hasSessions =
-                        (sessionsByDate[dateKey] || []).length > 0;
-                      const isBooked = bookedDates.has(dateKey);
-                      const isSelected = selectedDate === dateKey;
-                      const isPast =
-                        dateObj < new Date(new Date().setHours(0, 0, 0, 0));
-
-                      if (isPast) {
-                        return (
-                          <div
-                            key={i}
-                            className="aspect-square rounded-xl flex items-center justify-center text-text-muted/40 bg-bg-default/40 text-sm"
-                          >
-                            {day}
-                          </div>
-                        );
+                  <CustomCalendar
+                    className=""
+                    viewDate={viewDate}
+                    onViewDateChange={setViewDate}
+                    selectedDateKey={selectedDate}
+                    onSelectDate={(dateKey) => {
+                      setSelectedDate(dateKey);
+                      setSelectedSession(null);
+                    }}
+                    resolveDayState={(date, context) => {
+                      if (!context.isCurrentMonth) {
+                        return { disabled: true, tone: "muted" };
                       }
 
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            if (hasSessions && !isBooked) {
-                              setSelectedDate(dateKey);
-                              setSelectedSession(null);
-                            }
-                          }}
-                          className={`aspect-square relative rounded-xl flex items-center justify-center font-medium text-sm transition-all ${
-                            isSelected
-                              ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/25"
-                              : isBooked
-                                ? "text-error bg-error/15 cursor-not-allowed"
-                                : hasSessions
-                                  ? "text-text-body bg-border-default/20 hover:bg-border-default/40 cursor-pointer"
-                                  : "text-text-muted/50 bg-transparent cursor-not-allowed"
-                          }`}
-                          disabled={!hasSessions || isBooked}
-                        >
-                          {day}
-                          {/* indicador de sessão disponível (bg-success = disponível, bg-error = agendado) */}
-                          {hasSessions && !isBooked && !isSelected && (
-                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-success" />
-                          )}
-                          {isBooked && (
-                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-error" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                      return resolveCalendarDayState(date);
+                    }}
+                    weekStartsOn={1}
+                    size="regular"
+                  />
                 )}
-              </div>
-
-              <div className="p-4 sm:p-6 bg-bg-default flex flex-wrap gap-4 sm:gap-6 items-center justify-center border-t border-border-default">
-                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-primary" />{" "}
-                  Selecionado
-                </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-success" /> Disponível
-                </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-                  <div className="w-3 h-3 rounded-full bg-transparent border border-border-default/30" />{" "}
-                  Indisponível
-                </div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-error">
-                  <div className="w-3 h-3 rounded-full bg-error" /> Já agendado
-                </div>
               </div>
             </div>
 

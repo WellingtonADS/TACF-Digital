@@ -4,6 +4,7 @@
  * @path src/pages/SessionEditor.tsx
  */
 
+import CustomCalendar from "@/components/atomic/CustomCalendar";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
@@ -21,6 +22,7 @@ import {
 import type { SessionRow as DBSessionRow } from "@/types";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
+import { parseISO, startOfDay, startOfMonth } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -157,6 +159,9 @@ export default function SessionEditor() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
+  const [singleDateMonth, setSingleDateMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -180,6 +185,11 @@ export default function SessionEditor() {
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
+
+  useEffect(() => {
+    if (!form.date) return;
+    setSingleDateMonth(startOfMonth(parseISO(form.date)));
+  }, [form.date]);
 
   // ── Carregamentos ────────────────────────────────────────────────────────
 
@@ -483,22 +493,40 @@ export default function SessionEditor() {
                       <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Data da Turma
                       </label>
-                      <input
-                        type="date"
-                        value={form.date}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v && isWeekend(v)) {
-                            toast.error(
-                              "Sábados e domingos não estão disponíveis.",
-                            );
-                            updateField("date", "");
-                          } else {
-                            updateField("date", v);
-                          }
-                        }}
-                        className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
+                      <div className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default p-3">
+                        <CustomCalendar
+                          viewDate={singleDateMonth}
+                          onViewDateChange={setSingleDateMonth}
+                          selectedDateKey={form.date || null}
+                          onSelectDate={(dateKey, date) => {
+                            const dateValue = startOfDay(date);
+                            const day = dateValue.getDay();
+                            if (day === 0 || day === 6) {
+                              toast.error(
+                                "Sábados e domingos não estão disponíveis.",
+                              );
+                              updateField("date", "");
+                              return;
+                            }
+
+                            updateField("date", dateKey);
+                          }}
+                          resolveDayState={(date, context) => {
+                            if (!context.isCurrentMonth) {
+                              return { disabled: true, tone: "muted" as const };
+                            }
+
+                            const day = startOfDay(date).getDay();
+                            if (day === 0 || day === 6) {
+                              return { disabled: true, tone: "muted" as const };
+                            }
+
+                            return { tone: "default" as const };
+                          }}
+                          weekStartsOn={1}
+                          size="compact"
+                        />
+                      </div>
                       <p className="text-[11px] text-text-muted">
                         Sábados e domingos são bloqueados automaticamente.
                       </p>

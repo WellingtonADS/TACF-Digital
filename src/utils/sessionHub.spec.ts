@@ -15,10 +15,10 @@ describe("sessionHub", () => {
     );
 
     expect(
-      buildSessionHubPath("indices", {
+      buildSessionHubPath("sessoes", {
         sessionId: "session-123",
         mode: "review",
       }),
-    ).toBe("/app/sessoes?tab=indices&sessionId=session-123&mode=review");
+    ).toBe("/app/sessoes?tab=sessoes&sessionId=session-123&mode=review");
   });
 });

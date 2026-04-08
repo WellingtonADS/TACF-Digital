@@ -12,6 +12,7 @@ import {
   type AppointmentProfilePreview,
   type AppointmentSessionPreview,
 } from "@/services/bookings";
+import { dispatchBookingConfirmationEmail } from "@/services/bookingEmails";
 import { confirmarAgendamentoRPC, supabase } from "@/services/supabase";
 import {
   fetchExistingSemesterBooking,
@@ -148,7 +149,25 @@ export const AppointmentConfirmation = () => {
         return;
       }
 
-      toast.success("Agendamento confirmado com sucesso.");
+      let bookingEmailPending = false;
+
+      try {
+        await dispatchBookingConfirmationEmail(result.booking_id);
+      } catch (emailError) {
+        bookingEmailPending = true;
+        console.error("Falha ao disparar e-mail de confirmação", emailError);
+      }
+
+      if (bookingEmailPending) {
+        toast.warning(
+          "Agendamento confirmado. O e-mail de confirmação ficou pendente e será reenviado automaticamente.",
+        );
+      } else {
+        toast.success(
+          "Agendamento confirmado. Você receberá um e-mail de confirmação e um lembrete no dia anterior.",
+        );
+      }
+
       navigate("/app/ticket", {
         state: {
           bookingId: result.booking_id,

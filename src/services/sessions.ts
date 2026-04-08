@@ -11,9 +11,11 @@ export type SessionForEdit = {
   id: string;
   date: string | null;
   period: string | null;
+  capacity: number | null;
   max_capacity: number | null;
   location_id: string | null;
   applicators: string[] | null;
+  coordinator_id: string | null;
   status: string | null;
 };
 
@@ -66,6 +68,34 @@ export type SessionBookingBasic = {
   result_details: string | null;
 };
 
+type SupabaseRpcError = {
+  code?: string;
+  message?: string;
+};
+
+function isMissingCloseChecklistRpc(error: unknown): boolean {
+  const rpcError = error as SupabaseRpcError | null;
+  if (!rpcError) return false;
+
+  return (
+    rpcError.code === "PGRST202" &&
+    typeof rpcError.message === "string" &&
+    rpcError.message.includes("close_session_with_checklist")
+  );
+}
+
+function mapCloseChecklistRpcError(error: unknown): Error {
+  if (isMissingCloseChecklistRpc(error)) {
+    return new Error(
+      "RPC close_session_with_checklist indisponivel no ambiente atual. Aplique as migrations do banco (yarn db:apply) e atualize o cache de schema do Supabase.",
+    );
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("Falha ao executar operacao de encerramento da sessao.");
+}
+
 export async function fetchSessionForEdit(sessionId: string): Promise<{
   session: SessionForEdit;
   bookedCount: number;
@@ -74,7 +104,7 @@ export async function fetchSessionForEdit(sessionId: string): Promise<{
     supabase
       .from("sessions")
       .select(
-        "id, date, period, max_capacity, location_id, applicators, status",
+        "id, date, period, capacity, max_capacity, location_id, applicators, coordinator_id, status",
       )
       .eq("id", sessionId)
       .single(),
@@ -130,7 +160,7 @@ export async function fetchSessionClosureChecklist(
     p_apply: false,
   });
 
-  if (error) throw error;
+  if (error) throw mapCloseChecklistRpcError(error);
 
   const row = getChecklistRpcRow(data);
   if (!row) {
@@ -148,7 +178,7 @@ export async function closeSessionWithChecklist(
     p_apply: true,
   });
 
-  if (error) throw error;
+  if (error) throw mapCloseChecklistRpcError(error);
 
   const row = getChecklistRpcRow(data);
   if (!row) {

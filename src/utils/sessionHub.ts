@@ -1,4 +1,4 @@
-const HUB_TABS = ["sessoes", "reagendamentos", "indices", "locais"] as const;
+const HUB_TABS = ["sessoes", "reagendamentos"] as const;
 
 export type SessionHubTab = (typeof HUB_TABS)[number];
 

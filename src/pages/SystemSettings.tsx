@@ -9,6 +9,11 @@ import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import {
+  createAccessProfile,
+  fetchAllProfilesForAccess,
+  updateProfile,
+} from "@/hooks/usePersonnel";
+import {
   fetchAuditLogs,
   fetchSystemSettings,
   saveSystemSettings,
@@ -21,24 +26,25 @@ import {
   Plus,
   Settings,
   ShieldCheck,
-  UserCircle2,
   X,
   type LucideIcon,
 } from "@/icons";
 import type {
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
+  ProfileRole,
+  Profile as UserProfile,
 } from "@/types";
 import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
+import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
 
 type TabKey = "general" | "evaluation" | "locations" | "profiles" | "audit";
-type Level2Modal = "index" | "om" | "permissions" | null;
+type Level2Modal = "index" | "om" | "permissions" | "newCoordinator" | null;
 
 type EvaluationRow = {
   id: string;
@@ -57,14 +63,16 @@ type OmCard = {
 };
 
 type ProfileCard = {
-  id: string;
+  role: Extract<ProfileRole, "admin" | "coordinator">;
   nome: string;
   descricao: string;
-  usuarios: number;
-  modulos: string[];
 };
 
-type PermissionState = Record<string, boolean>;
+type NewCoordinatorForm = {
+  fullName: string;
+  email: string;
+  rank: string;
+};
 
 const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "general", label: "Geral", icon: Settings },
@@ -124,39 +132,18 @@ const INITIAL_OMS: OmCard[] = [
 
 const INITIAL_PROFILES: ProfileCard[] = [
   {
-    id: "admin",
+    role: "admin",
     nome: "Administrador",
     descricao: "Controle completo da plataforma",
-    usuarios: 4,
-    modulos: ["Visao Geral", "Relatorios", "Auditoria", "Configuracoes"],
   },
   {
-    id: "coord",
+    role: "coordinator",
     nome: "Coordenador",
     descricao: "Gestao operacional de sessoes e resultados",
-    usuarios: 12,
-    modulos: ["Visao Geral", "Sessoes", "Lancamento"],
   },
-  {
-    id: "aplic",
-    nome: "Aplicador",
-    descricao: "Execucao de provas e lancamento de desempenho",
-    usuarios: 27,
-    modulos: ["Sessoes", "Lancamento"],
-  },
-];
-
-const MODULES = [
-  "Visao Geral",
-  "Sessoes",
-  "Relatorios",
-  "Configuracoes",
-  "Auditoria",
-  "Gestao de Efetivo",
 ];
 
 export default function SystemSettings() {
-  const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
 
   const canView = profile?.role === "admin";
@@ -172,22 +159,22 @@ export default function SystemSettings() {
 
   const [evaluationRows, setEvaluationRows] = useState(INITIAL_EVALUATION_ROWS);
   const [oms, setOms] = useState(INITIAL_OMS);
-  const [permissions, setPermissions] = useState<PermissionState>({
-    "Visao Geral": true,
-    Sessoes: true,
-    Relatorios: true,
-    Configuracoes: false,
-    Auditoria: false,
-    "Gestao de Efetivo": true,
-  });
+  const [accessProfiles, setAccessProfiles] = useState<UserProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
+  const [savingCoordinator, setSavingCoordinator] = useState(false);
+  const [newCoordinatorForm, setNewCoordinatorForm] =
+    useState<NewCoordinatorForm>({
+      fullName: "",
+      email: "",
+      rank: "",
+    });
 
   const [level2Modal, setLevel2Modal] = useState<Level2Modal>(null);
   const [editingEvaluation, setEditingEvaluation] =
     useState<EvaluationRow | null>(null);
   const [editingOm, setEditingOm] = useState<OmCard | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<ProfileCard | null>(
-    null,
-  );
+  const [selectedRole, setSelectedRole] = useState<ProfileRole | null>(null);
 
   const pageLoading = authLoading || settingsLoading;
 
@@ -243,35 +230,144 @@ export default function SystemSettings() {
     void loadAudit();
   }, [activeTab, canView]);
 
+  useEffect(() => {
+    if (activeTab !== "profiles" || !canView) {
+      return;
+    }
+
+    async function loadAccessProfiles() {
+      setProfilesLoading(true);
+      try {
+        const data = await fetchAllProfilesForAccess();
+        setAccessProfiles(data);
+      } catch (error) {
+        console.error(error);
+        const authMessage = getAuthorizationErrorMessage(
+          error,
+          "visualizar perfis de usuarios",
+        );
+        toast.error(authMessage ?? "Falha ao carregar perfis reais.");
+      } finally {
+        setProfilesLoading(false);
+      }
+    }
+
+    void loadAccessProfiles();
+  }, [activeTab, canView]);
+
   const profileUsers = useMemo(
-    () => [
-      {
-        id: "u1",
-        nome: "Maj Alencar",
-        perfil: "Administrador",
-        modulo: "Configuracoes",
-      },
-      {
-        id: "u2",
-        nome: "Cap Ribeiro",
-        perfil: "Coordenador",
-        modulo: "Sessoes",
-      },
-      {
-        id: "u3",
-        nome: "Ten Matos",
-        perfil: "Aplicador",
-        modulo: "Lancamento",
-      },
-    ],
-    [],
+    () =>
+      accessProfiles.filter(
+        (row) => row.role === "admin" || row.role === "coordinator",
+      ),
+    [accessProfiles],
   );
+
+  const getRoleLabel = (role: ProfileRole) => {
+    if (role === "admin") return "Administrador";
+    if (role === "coordinator") return "Coordenador";
+    return "Coordenador";
+  };
+
+  const getRoleMainModule = (role: ProfileRole) => {
+    const routes = getSidebarRoutesForRole(role);
+    return routes[0]?.sidebarLabel ?? "--";
+  };
 
   const closeLevel2 = () => {
     setLevel2Modal(null);
     setEditingEvaluation(null);
     setEditingOm(null);
-    setSelectedProfile(null);
+    setSelectedRole(null);
+    setNewCoordinatorForm({ fullName: "", email: "", rank: "" });
+  };
+
+  const openPermissionsModal = (role: ProfileRole) => {
+    setSelectedRole(role);
+    setLevel2Modal("permissions");
+  };
+
+  const openNewCoordinatorModal = () => {
+    setLevel2Modal("newCoordinator");
+  };
+
+  const saveNewCoordinator = async () => {
+    const fullName = newCoordinatorForm.fullName.trim();
+    const email = newCoordinatorForm.email.trim().toLowerCase();
+    const rank = newCoordinatorForm.rank.trim();
+
+    if (!fullName || !email) {
+      toast.error("Nome completo e e-mail são obrigatórios.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+
+    if (profileUsers.some((row) => (row.email ?? "").toLowerCase() === email)) {
+      toast.error("Já existe um usuário com este e-mail.");
+      return;
+    }
+
+    setSavingCoordinator(true);
+    try {
+      const created = await createAccessProfile({
+        id: crypto.randomUUID(),
+        full_name: fullName,
+        email,
+        rank: rank || null,
+        role: "coordinator",
+        active: true,
+      });
+
+      setAccessProfiles((previous) => {
+        const next = [...previous, created];
+        return next.sort((a, b) => {
+          if (a.role !== b.role) return a.role.localeCompare(b.role);
+          return (a.full_name ?? "").localeCompare(b.full_name ?? "");
+        });
+      });
+
+      toast.success("Novo coordenador inserido com sucesso.");
+      closeLevel2();
+    } catch (error) {
+      console.error(error);
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "inserir novo coordenador",
+      );
+      toast.error(authMessage ?? "Falha ao inserir coordenador.");
+    } finally {
+      setSavingCoordinator(false);
+    }
+  };
+
+  const updateAccessUser = async (
+    profileId: string,
+    payload: Partial<UserProfile>,
+    successMessage: string,
+  ) => {
+    setSavingProfileId(profileId);
+    try {
+      await updateProfile(profileId, payload);
+      setAccessProfiles((previous) =>
+        previous.map((row) =>
+          row.id === profileId ? { ...row, ...payload } : row,
+        ),
+      );
+      toast.success(successMessage);
+    } catch (error) {
+      console.error(error);
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "atualizar perfil do usuario",
+      );
+      toast.error(authMessage ?? "Falha ao atualizar o usuario.");
+    } finally {
+      setSavingProfileId(null);
+    }
   };
 
   const saveGeneral = async () => {
@@ -530,33 +626,50 @@ export default function SystemSettings() {
         return (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {INITIAL_PROFILES.map((card) => (
-                <article
-                  key={card.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <p className="text-lg font-bold text-slate-900">
-                    {card.nome}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {card.descricao}
-                  </p>
-                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                    {card.usuarios} usuarios
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProfile(card);
-                      setLevel2Modal("permissions");
-                    }}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+              {INITIAL_PROFILES.map((card) => {
+                const roleUsers = profileUsers.filter(
+                  (row) => row.role === card.role,
+                );
+
+                return (
+                  <article
+                    key={card.role}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                   >
-                    <AppIcon icon={ShieldCheck} size="sm" decorative />
-                    Gerenciar Modulos
-                  </button>
-                </article>
-              ))}
+                    <p className="text-lg font-bold text-slate-900">
+                      {card.nome}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {card.descricao}
+                    </p>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                      {roleUsers.length} usuarios
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {card.role === "coordinator" ? (
+                        <button
+                          type="button"
+                          onClick={openNewCoordinatorModal}
+                          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                        >
+                          <AppIcon icon={Plus} size="sm" decorative />
+                          Inserir Coordenador
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => openPermissionsModal(card.role)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+                      >
+                        <AppIcon icon={ShieldCheck} size="sm" decorative />
+                        Gerenciar Modulos
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -564,23 +677,80 @@ export default function SystemSettings() {
                 <thead className="bg-slate-100 text-xs font-bold uppercase tracking-[0.08em] text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Usuario</th>
+                    <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Perfil</th>
                     <th className="px-4 py-3">Modulo Principal</th>
+                    <th className="px-4 py-3">Situacao</th>
+                    <th className="px-4 py-3 text-right">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {profileUsers.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-3 font-medium text-slate-900">
-                        {row.nome}
+                        {row.full_name || row.email || row.id}
                       </td>
-                      <td className="px-4 py-3">{row.perfil}</td>
-                      <td className="px-4 py-3">{row.modulo}</td>
+                      <td className="px-4 py-3">{row.email || "--"}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={row.role}
+                          disabled={savingProfileId === row.id}
+                          onChange={(event) =>
+                            void updateAccessUser(
+                              row.id,
+                              { role: event.target.value as ProfileRole },
+                              "Perfil do usuario atualizado.",
+                            )
+                          }
+                          className="min-w-[170px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="admin">Administrador</option>
+                          <option value="coordinator">Coordenador</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        {getRoleMainModule(row.role)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            row.active
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {row.active ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          disabled={savingProfileId === row.id}
+                          onClick={() =>
+                            void updateAccessUser(
+                              row.id,
+                              { active: !row.active },
+                              row.active
+                                ? "Usuario inativado."
+                                : "Usuario ativado.",
+                            )
+                          }
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                        >
+                          {row.active ? "Inativar" : "Ativar"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {profilesLoading ? (
+              <p className="text-sm text-slate-600">
+                Carregando dados reais...
+              </p>
+            ) : null}
           </div>
         );
 
@@ -639,41 +809,24 @@ export default function SystemSettings() {
 
   return (
     <Layout>
-      <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px]" />
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
-        <section className="relative flex h-[min(90vh,940px)] w-full max-w-[1280px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
-          <header className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white md:px-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
-                <AppIcon icon={Settings} size="md" decorative />
-              </span>
+      <div className="mx-auto w-full max-w-[1360px] space-y-5 px-4 py-6 md:px-6 md:py-8">
+        <section className="mb-8">
+          <header className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10">
               <div>
-                <h1 className="font-['Space_Grotesk'] text-2xl font-bold tracking-tight md:text-3xl">
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
                   Configuracoes do Sistema
                 </h1>
-                <p className="text-xs text-white/75 md:text-sm">
-                  Gestao central em fluxo modal padronizado
+                <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
+                  Gestao central por abas, sem menu lateral
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <span className="hidden items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold md:inline-flex">
-                <AppIcon icon={UserCircle2} size="sm" decorative />
-                {profile?.full_name ?? "Administrador"}
-              </span>
-              <button
-                type="button"
-                onClick={() => navigate("/app/admin")}
-                className="rounded-xl border border-white/20 p-2 text-white/90 hover:bg-white/10"
-                aria-label="Fechar configuracoes"
-              >
-                <AppIcon icon={X} size="sm" decorative />
-              </button>
-            </div>
           </header>
+        </section>
 
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <nav className="border-b border-slate-200 bg-slate-50 px-4 py-3 md:px-6">
             <div className="flex flex-wrap gap-2">
               {TABS.map((tab) => {
@@ -698,7 +851,7 @@ export default function SystemSettings() {
             </div>
           </nav>
 
-          <div className="min-h-0 flex-1 overflow-auto px-4 py-5 md:px-6">
+          <div className="min-h-[420px] px-4 py-5 md:px-6">
             {renderTabContent()}
           </div>
         </section>
@@ -885,11 +1038,11 @@ export default function SystemSettings() {
             </section>
           )}
 
-          {level2Modal === "permissions" && selectedProfile && (
+          {level2Modal === "permissions" && selectedRole && (
             <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
-                  Permissoes de Modulos - {selectedProfile.nome}
+                  Modulos do Perfil - {getRoleLabel(selectedRole)}
                 </h2>
                 <button
                   type="button"
@@ -901,32 +1054,21 @@ export default function SystemSettings() {
               </header>
 
               <div className="space-y-3 px-5 py-5">
-                {MODULES.map((moduleName) => (
-                  <label
-                    key={moduleName}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
-                  >
-                    <span className="text-sm font-semibold text-slate-800">
-                      {moduleName}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPermissions((previous) => ({
-                          ...previous,
-                          [moduleName]: !previous[moduleName],
-                        }))
-                      }
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        permissions[moduleName]
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-200 text-slate-600"
-                      }`}
+                {getSidebarRoutesForRole(selectedRole)
+                  .filter((route) => route.sidebarLabel)
+                  .map((route) => (
+                    <div
+                      key={route.path}
+                      className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
                     >
-                      {permissions[moduleName] ? "ATIVO" : "INATIVO"}
-                    </button>
-                  </label>
-                ))}
+                      <span className="text-sm font-semibold text-slate-800">
+                        {route.sidebarLabel}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                        ATIVO
+                      </span>
+                    </div>
+                  ))}
               </div>
 
               <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
@@ -943,6 +1085,97 @@ export default function SystemSettings() {
                   className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                 >
                   Salvar
+                </button>
+              </footer>
+            </section>
+          )}
+
+          {level2Modal === "newCoordinator" && (
+            <section className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
+                  Inserir Novo Coordenador
+                </h2>
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                >
+                  <AppIcon icon={X} size="sm" decorative />
+                </button>
+              </header>
+
+              <div className="space-y-4 px-5 py-5">
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Nome Completo
+                  </span>
+                  <input
+                    type="text"
+                    value={newCoordinatorForm.fullName}
+                    onChange={(event) =>
+                      setNewCoordinatorForm((previous) => ({
+                        ...previous,
+                        fullName: event.target.value,
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                    placeholder="Ex.: Cap João Ribeiro"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    E-mail
+                  </span>
+                  <input
+                    type="email"
+                    value={newCoordinatorForm.email}
+                    onChange={(event) =>
+                      setNewCoordinatorForm((previous) => ({
+                        ...previous,
+                        email: event.target.value,
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                    placeholder="Ex.: joao.ribeiro@fab.mil.br"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Posto/Graduação
+                  </span>
+                  <input
+                    type="text"
+                    value={newCoordinatorForm.rank}
+                    onChange={(event) =>
+                      setNewCoordinatorForm((previous) => ({
+                        ...previous,
+                        rank: event.target.value,
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                    placeholder="Ex.: Capitão"
+                  />
+                </label>
+              </div>
+
+              <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={closeLevel2}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveNewCoordinator()}
+                  disabled={savingCoordinator}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {savingCoordinator ? "Salvando..." : "Inserir"}
                 </button>
               </footer>
             </section>

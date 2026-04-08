@@ -5,8 +5,9 @@
  */
 
 import useAuth from "@/hooks/useAuth";
+import { isUserProfileComplete } from "@/utils/profileCompletion";
 import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import FullPageLoading from "./FullPageLoading";
 
 /**
@@ -20,6 +21,7 @@ export default function UserRoute({
   children: JSX.Element | null;
 }) {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <FullPageLoading />;
@@ -31,6 +33,13 @@ export default function UserRoute({
 
   if (!canAccessRoute(profile?.role, "user")) {
     return <Navigate to={getDefaultHomeByRole(profile?.role)} replace />;
+  }
+
+  if (
+    location.pathname !== "/app/perfil" &&
+    !isUserProfileComplete(profile)
+  ) {
+    return <Navigate to="/app/perfil" replace />;
   }
 
   return children;

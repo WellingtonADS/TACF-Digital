@@ -85,4 +85,19 @@ describe("sessions service", () => {
       p_apply: true,
     });
   });
+
+  it("fetchSessionClosureChecklist mapeia PGRST202 para mensagem orientativa", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.close_session_with_checklist(p_apply, p_session_id) in the schema cache",
+      },
+    });
+
+    await expect(fetchSessionClosureChecklist("session-3")).rejects.toThrow(
+      "RPC close_session_with_checklist indisponivel no ambiente atual",
+    );
+  });
 });

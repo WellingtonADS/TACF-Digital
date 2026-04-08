@@ -5,6 +5,8 @@
  */
 
 import AppIcon from "@/components/atomic/AppIcon";
+import CustomCalendar from "@/components/atomic/CustomCalendar";
+import KpiCard, { type KpiAccent } from "@/components/atomic/KpiCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
@@ -19,48 +21,42 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
+  Copy,
   Edit2,
-  FileDown,
   MapPin,
   Plus,
+  Printer,
   Search,
-  Settings,
+  Trash2,
   UserCheck,
   X,
   XCircle,
   type LucideIcon,
 } from "@/icons";
-import OmLocationEditor from "@/pages/OmLocationEditor";
-import OmLocationManager from "@/pages/OmLocationManager";
-import OmScheduleEditor from "@/pages/OmScheduleEditor";
 import ReschedulingManagement from "@/pages/ReschedulingManagement";
-import ScoreEntry from "@/pages/ScoreEntry";
 import { createSessions } from "@/services/bookings";
 import {
   closeSessionWithChecklist,
   fetchSessionBookingsWithProfiles,
   fetchSessionById,
   fetchSessionClosureChecklist,
+  fetchSessionForEdit,
   updateBookingResult,
+  updateSession,
   type SessionClosureChecklist,
 } from "@/services/sessions";
 import type { SessionStatus } from "@/types/database.types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
+import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
 import {
   buildSessionHubPath,
   parseSessionHubTab,
   type SessionHubTab,
 } from "@/utils/sessionHub";
-import { format, parseISO, startOfDay } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, format, getDay, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -69,6 +65,7 @@ type StatusFilter = "all" | SessionStatus;
 type PeriodOption = "manha" | "tarde";
 type RecurrenceOption = "single" | "week" | "biweekly" | "month";
 type FitnessResult = "apto" | "inapto";
+type CreatorModalMode = "create" | "edit" | "duplicate";
 
 type BookingModalRow = {
   bookingId: string;
@@ -91,6 +88,9 @@ type ManagementState = {
 type CreatorState = {
   locationId: string;
   coordinatorId: string;
+  applicatorId: string;
+  minCapacity: number;
+  maxCapacity: number;
   period: PeriodOption;
   withIndexes: boolean;
   date: string;
@@ -100,6 +100,9 @@ type CreatorState = {
 const INITIAL_CREATOR_STATE: CreatorState = {
   locationId: "",
   coordinatorId: "",
+  applicatorId: "",
+  minCapacity: 8,
+  maxCapacity: 21,
   period: "manha",
   withIndexes: true,
   date: "",
@@ -109,8 +112,6 @@ const INITIAL_CREATOR_STATE: CreatorState = {
 const HUB_TAB_META: Array<{ tab: SessionHubTab; label: string }> = [
   { tab: "sessoes", label: "Sessões" },
   { tab: "reagendamentos", label: "Reagendamentos" },
-  { tab: "indices", label: "Lançamento de Índices" },
-  { tab: "locais", label: "Locais e Horários" },
 ];
 
 const ADMIN_START = new Date();
@@ -119,16 +120,6 @@ const ADMIN_END = new Date();
 ADMIN_END.setFullYear(ADMIN_END.getFullYear() + 1);
 const ADMIN_START_STR = ADMIN_START.toISOString().split("T")[0];
 const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
-
-const HUB_DASHBOARD_STYLE: CSSProperties & Record<string, string> = {
-  "--sessions-hero": "#1a365d",
-  "--sessions-hero-accent": "#2b6cb0",
-  "--sessions-hero-highlight": "rgba(129, 199, 255, 0.22)",
-  "--sessions-surface": "rgba(255, 255, 255, 0.88)",
-  "--sessions-surface-strong": "rgba(255, 255, 255, 0.96)",
-  "--sessions-border": "rgba(26, 54, 93, 0.14)",
-  "--sessions-shadow": "0 26px 70px rgba(18, 38, 66, 0.18)",
-};
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "Todas" },
@@ -144,8 +135,7 @@ const STATUS_META: Record<
     summaryLabel: string;
     icon: LucideIcon;
     badgeClassName: string;
-    accentClassName: string;
-    iconClassName: string;
+    accent: KpiAccent;
   }
 > = {
   open: {
@@ -154,8 +144,7 @@ const STATUS_META: Record<
     icon: CalendarClock,
     badgeClassName:
       "border-primary/20 bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]",
-    accentClassName: "from-sky-300 via-sky-400 to-primary",
-    iconClassName: "bg-primary/10 text-primary",
+    accent: "primary",
   },
   closed: {
     label: "CANCELADA",
@@ -163,8 +152,7 @@ const STATUS_META: Record<
     icon: XCircle,
     badgeClassName:
       "border-error/20 bg-error/10 text-error shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]",
-    accentClassName: "from-rose-200 via-rose-300 to-error",
-    iconClassName: "bg-error/10 text-error",
+    accent: "error",
   },
   completed: {
     label: "CONCLUÍDA",
@@ -172,8 +160,7 @@ const STATUS_META: Record<
     icon: CheckCircle2,
     badgeClassName:
       "border-success/20 bg-success/10 text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]",
-    accentClassName: "from-emerald-200 via-emerald-300 to-success",
-    iconClassName: "bg-success/10 text-success",
+    accent: "success",
   },
 };
 
@@ -202,26 +189,42 @@ function getLocationLabel(session: SessionAvailability): string {
   return session.location_name?.trim() || "Local não definido";
 }
 
+function isWeekend(d: Date): boolean {
+  const dow = getDay(d);
+  return dow === 0 || dow === 6;
+}
+
 function getRecurringDates(
   baseDate: string,
   recurrence: RecurrenceOption,
 ): string[] {
   if (!baseDate) return [];
 
-  const result = [baseDate];
-  if (recurrence === "single") return result;
-
   const date = new Date(`${baseDate}T12:00:00`);
-  const step = recurrence === "week" ? 7 : recurrence === "biweekly" ? 14 : 30;
-  const limit = recurrence === "month" ? 3 : 4;
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
 
-  for (let index = 1; index < limit; index += 1) {
-    const next = new Date(date);
-    next.setDate(date.getDate() + step * index);
-    result.push(next.toISOString().slice(0, 10));
+  if (recurrence === "single") {
+    return isWeekend(date) ? [] : [baseDate];
   }
 
-  return result;
+  if (recurrence === "month") {
+    return eachDayOfInterval({
+      start: startOfMonth(date),
+      end: endOfMonth(date),
+    })
+      .filter((d) => !isWeekend(d))
+      .map(fmt);
+  }
+
+  // week: Mon–Fri of the selected date's week
+  // biweekly: Mon–Fri of selected week + following week (10 working days)
+  const weekMon = startOfWeek(date, { weekStartsOn: 1 });
+  const end =
+    recurrence === "week" ? addDays(weekMon, 4) : addDays(weekMon, 11);
+
+  return eachDayOfInterval({ start: weekMon, end })
+    .filter((d) => !isWeekend(d))
+    .map(fmt);
 }
 
 function parseFitnessResult(value: unknown): FitnessResult | null {
@@ -255,49 +258,14 @@ function AppModal({
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-text-body/30 backdrop-blur-[2px]"
         onClick={onOverlayClick}
       />
-      <div className="relative flex min-h-full items-center justify-center p-4 md:p-6">
+      <div className="relative flex min-h-full items-start justify-center overflow-y-auto p-4 md:items-center md:p-6">
         {children}
       </div>
     </div>,
     document.body,
-  );
-}
-
-function SessionMetricCard({
-  title,
-  value,
-  icon,
-  accentClassName,
-  iconClassName,
-}: {
-  title: string;
-  value: number;
-  icon: LucideIcon;
-  accentClassName: string;
-  iconClassName: string;
-}) {
-  return (
-    <article className="relative overflow-hidden rounded-[24px] border border-[var(--sessions-border)] bg-[var(--sessions-surface-strong)] p-5 shadow-[var(--sessions-shadow)] backdrop-blur">
-      <div
-        className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accentClassName}`}
-      />
-      <div className="flex items-center gap-4">
-        <div
-          className={`flex h-14 w-14 items-center justify-center rounded-2xl ${iconClassName}`}
-        >
-          <AppIcon icon={icon} size="lg" decorative />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-text-muted">{title}</p>
-          <p className="mt-1 font-['Space_Grotesk'] text-3xl font-bold leading-none text-slate-950">
-            {value}
-          </p>
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -324,15 +292,15 @@ function SessionOccupancyBar({
 
   return (
     <div className={compact ? "w-full" : "min-w-[180px]"}>
-      <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-600">
+      <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-text-muted">
         <span>{percent}%</span>
         <span>
           {occupied}/{capacity}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+      <div className="h-2 overflow-hidden rounded-full bg-border-default">
         <div
-          className="h-full rounded-full bg-[var(--sessions-hero-accent)]"
+          className="h-full rounded-full bg-primary"
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
@@ -354,11 +322,14 @@ function SessionActionButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+      className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-default bg-bg-card text-text-body shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
     >
       <AppIcon icon={icon} size="sm" decorative />
     </button>
@@ -378,6 +349,10 @@ export const SessionsManagement = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [creatorOpen, setCreatorOpen] = useState(false);
+  const [creatorMode, setCreatorMode] = useState<CreatorModalMode>("create");
+  const [creatorEditingSessionId, setCreatorEditingSessionId] = useState<
+    string | null
+  >(null);
   const [creatorState, setCreatorState] = useState<CreatorState>(
     INITIAL_CREATOR_STATE,
   );
@@ -400,16 +375,21 @@ export const SessionsManagement = () => {
     abdominal: "",
     corrida: "",
   });
+  const performancePrimaryInputRef = useRef<HTMLInputElement | null>(null);
+  const [creatorCalendarMonth, setCreatorCalendarMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
 
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<SessionAvailability | null>(
+    null,
+  );
+  const [cancellingSession, setCancellingSession] = useState(false);
 
   const isCompactViewport = isMobile || isTablet;
   const pageSize = 10;
   const activeTab = parseSessionHubTab(searchParams.get("tab"));
-  const activeIndicesSessionId = searchParams.get("sessionId") ?? "";
-  const localMode = searchParams.get("mode") ?? "list";
-  const localId = searchParams.get("locationId") ?? undefined;
   const todayTs = useMemo(() => startOfDay(new Date()).getTime(), []);
 
   const selectedLocation = useMemo(
@@ -435,6 +415,35 @@ export const SessionsManagement = () => {
   );
 
   const currentPerformanceRow = performanceRows[performanceIndex] ?? null;
+
+  const selectedCreatorDate = creatorState.date
+    ? parseISO(creatorState.date)
+    : null;
+
+  // All dates that will be created for the selected recurrence (excludes the base date for range modes to avoid double-highlight)
+  const creatorPreviewDates = useMemo<string[]>(() => {
+    if (!creatorState.date || creatorState.recurrence === "single") return [];
+    const all = getRecurringDates(creatorState.date, creatorState.recurrence);
+    return all.filter((d) => d !== creatorState.date);
+  }, [creatorState.date, creatorState.recurrence]);
+
+  const creatorTotalDates = useMemo<string[]>(() => {
+    if (!creatorState.date) return [];
+    return getRecurringDates(creatorState.date, creatorState.recurrence);
+  }, [creatorState.date, creatorState.recurrence]);
+
+  const resolveCreatorCalendarDayState = useCallback(
+    (date: Date, context: { isCurrentMonth: boolean }) => {
+      if (!context.isCurrentMonth) {
+        return { disabled: true, tone: "muted" as const };
+      }
+      if (isWeekend(date)) {
+        return { disabled: true, tone: "muted" as const };
+      }
+      return { tone: "default" as const };
+    },
+    [],
+  );
 
   const getSessionStatus = useCallback(
     (session: SessionAvailability): SessionStatus => {
@@ -511,6 +520,32 @@ export const SessionsManagement = () => {
       .finally(() => setLoadingCoordinators(false));
   }, [creatorOpen, fetchLocations]);
 
+  useEffect(() => {
+    if (!selectedLocation) return;
+
+    setCreatorState((previous) => {
+      if (previous.locationId !== selectedLocation.id) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        maxCapacity: selectedLocation.max_capacity,
+        minCapacity: Math.min(
+          previous.minCapacity,
+          selectedLocation.max_capacity,
+        ),
+      };
+    });
+  }, [selectedLocation]);
+
+  useEffect(() => {
+    if (!performanceOpen) return;
+
+    performancePrimaryInputRef.current?.focus();
+    performancePrimaryInputRef.current?.select();
+  }, [performanceOpen, performanceIndex]);
+
   const applyHubSearchParams = useCallback(
     (next: URLSearchParams) => {
       if (next.toString() === searchParams.toString()) {
@@ -534,63 +569,127 @@ export const SessionsManagement = () => {
     [applyHubSearchParams],
   );
 
-  const handleLocalHubNavigate = useCallback(
-    (path: string) => {
-      if (path.startsWith("/app/sessoes?")) {
-        const url = new URL(path, "http://localhost");
-        const next = new URLSearchParams(url.search);
-        applyHubSearchParams(next);
-        return;
-      }
-
-      if (path === "/app/om-locations") {
-        openHubTab("locais", { mode: "list" });
-        return;
-      }
-
-      if (path === "/app/om/new") {
-        openHubTab("locais", { mode: "new" });
-        return;
-      }
-
-      const scheduleMatch = path.match(/^\/app\/om\/([^/]+)\/schedules$/);
-      if (scheduleMatch) {
-        openHubTab("locais", {
-          mode: "schedules",
-          locationId: scheduleMatch[1],
-        });
-        return;
-      }
-
-      const editMatch = path.match(/^\/app\/om\/([^/]+)$/);
-      if (editMatch) {
-        openHubTab("locais", {
-          mode: "edit",
-          locationId: editMatch[1],
-        });
-      }
-    },
-    [applyHubSearchParams, openHubTab],
-  );
-
-  const handleIndicesSessionChange = useCallback(
-    (sessionId: string) => {
-      if (sessionId === activeIndicesSessionId) {
-        return;
-      }
-
-      openHubTab("indices", { sessionId });
-    },
-    [activeIndicesSessionId, openHubTab],
-  );
-
   const closeCreatorModal = () => {
     setCreatorOpen(false);
+    setCreatorMode("create");
+    setCreatorEditingSessionId(null);
     setCreatorState(INITIAL_CREATOR_STATE);
   };
 
   const openCreatorModal = () => {
+    setCreatorCalendarMonth(startOfMonth(new Date()));
+    setCreatorMode("create");
+    setCreatorEditingSessionId(null);
+    setCreatorState(INITIAL_CREATOR_STATE);
     setCreatorOpen(true);
+  };
+
+  const openEditSessionModal = async (
+    session: SessionAvailability,
+    mode: CreatorModalMode = "edit",
+  ) => {
+    if (mode === "edit" && getSessionStatus(session) !== "open") {
+      toast.error("Apenas turmas abertas podem ser editadas.");
+      return;
+    }
+
+    setCreatorMode(mode);
+    setCreatorEditingSessionId(mode === "edit" ? session.session_id : null);
+
+    try {
+      const { session: sessionForEdit } = await fetchSessionForEdit(
+        session.session_id,
+      );
+
+      const primaryApplicator = sessionForEdit.applicators?.[0] ?? "";
+      const locationId = sessionForEdit.location_id ?? "";
+      const date = mode === "duplicate" ? "" : (sessionForEdit.date ?? "");
+      const maxCapacity = sessionForEdit.max_capacity ?? 21;
+      const minCapacity = sessionForEdit.capacity ?? Math.min(8, maxCapacity);
+      const coordinatorId =
+        sessionForEdit.coordinator_id ?? primaryApplicator ?? "";
+
+      setCreatorState({
+        locationId,
+        coordinatorId,
+        applicatorId: primaryApplicator,
+        minCapacity,
+        maxCapacity,
+        period:
+          sessionForEdit.period === "tarde"
+            ? "tarde"
+            : ("manha" as PeriodOption),
+        withIndexes: true,
+        date,
+        recurrence: "single",
+      });
+
+      setCreatorCalendarMonth(startOfMonth(date ? parseISO(date) : new Date()));
+      setCreatorOpen(true);
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Não foi possível carregar dados da sessão para edição.");
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (!cancelTarget) return;
+
+    setCancellingSession(true);
+    try {
+      await updateSession(cancelTarget.session_id, { status: "closed" });
+      if (managementState?.session.session_id === cancelTarget.session_id) {
+        setManagementState((previous) =>
+          previous
+            ? {
+                ...previous,
+                sessionStatus: "closed",
+              }
+            : previous,
+        );
+      }
+      setCancelTarget(null);
+      toast.success("Sessão cancelada com sucesso.");
+      await refresh();
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Não foi possível cancelar a sessão.");
+    } finally {
+      setCancellingSession(false);
+    }
+  };
+
+  const handlePrintFinalReport = async (session: SessionAvailability) => {
+    try {
+      const bookingsResponse = await fetchSessionBookingsWithProfiles(
+        session.session_id,
+      );
+      const rows = buildManagementRows(
+        bookingsResponse.bookings,
+        bookingsResponse.profilesById,
+      );
+
+      generateAttendanceListPdf({
+        session: {
+          id: session.session_id,
+          date: session.date,
+          period: session.period,
+          max_capacity: session.max_capacity,
+        },
+        bookings: rows.map((row, index) => ({
+          order_number: String(index + 1).padStart(2, "0"),
+          rank: row.rank,
+          full_name: row.fullName,
+          war_name: row.warName,
+          saram: row.saram,
+          status: row.status,
+          attendance_confirmed: row.result !== null,
+        })),
+      });
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error("Não foi possível imprimir a lista de presença.");
+    }
   };
 
   const handleCreatorField = <K extends keyof CreatorState>(
@@ -601,29 +700,101 @@ export const SessionsManagement = () => {
   };
 
   const handleCreateSessions = async () => {
-    if (
-      !creatorState.locationId ||
-      !creatorState.coordinatorId ||
-      !creatorState.date
-    ) {
-      toast.error("Preencha local, coordenador e data inicial.");
+    if (!creatorState.locationId || !creatorState.applicatorId) {
+      toast.error("Preencha local e aplicador responsável.");
+      return;
+    }
+
+    if (!creatorState.date) {
+      toast.error(
+        creatorMode === "duplicate"
+          ? "Selecione a nova data da turma duplicada."
+          : "Selecione a data da sessão.",
+      );
+      return;
+    }
+
+    if (creatorState.minCapacity < 1 || creatorState.maxCapacity < 1) {
+      toast.error("Capacidades mínima e máxima devem ser maiores que zero.");
+      return;
+    }
+
+    if (creatorState.maxCapacity < creatorState.minCapacity) {
+      toast.error("Capacidade máxima não pode ser menor que a mínima.");
       return;
     }
 
     setSubmittingCreator(true);
     try {
-      const dates = getRecurringDates(
-        creatorState.date,
-        creatorState.recurrence,
-      );
+      if (creatorMode === "edit" && creatorEditingSessionId) {
+        await updateSession(creatorEditingSessionId, {
+          date: creatorState.date,
+          period: creatorState.period,
+          max_capacity: creatorState.maxCapacity,
+          capacity: creatorState.minCapacity,
+          location_id: creatorState.locationId,
+          applicators: Array.from(
+            new Set(
+              [creatorState.applicatorId, creatorState.coordinatorId].filter(
+                (personId) => personId.length > 0,
+              ),
+            ),
+          ),
+          coordinator_id:
+            creatorState.coordinatorId || creatorState.applicatorId,
+          metadata: {
+            with_indexes: creatorState.withIndexes,
+            min_capacity: creatorState.minCapacity,
+            max_capacity: creatorState.maxCapacity,
+            source: "hub_modal_editor",
+          },
+        });
+
+        if (managementState?.session.session_id === creatorEditingSessionId) {
+          setManagementState((previous) =>
+            previous
+              ? {
+                  ...previous,
+                  session: {
+                    ...previous.session,
+                    date: creatorState.date,
+                    period: creatorState.period,
+                    max_capacity: creatorState.maxCapacity,
+                    location_name:
+                      locations.find(
+                        (location) => location.id === creatorState.locationId,
+                      )?.name ?? previous.session.location_name,
+                  },
+                }
+              : previous,
+          );
+        }
+
+        toast.success("Sessão atualizada com sucesso.");
+        closeCreatorModal();
+        await refresh();
+        return;
+      }
+
+      const dates = creatorTotalDates;
       const payload = dates.map((date) => ({
         date,
         period: creatorState.period,
-        max_capacity: selectedLocation?.max_capacity ?? 21,
+        max_capacity: creatorState.maxCapacity,
         location_id: creatorState.locationId,
-        applicators: [creatorState.coordinatorId],
+        applicators: Array.from(
+          new Set(
+            [creatorState.applicatorId, creatorState.coordinatorId].filter(
+              (personId) => personId.length > 0,
+            ),
+          ),
+        ),
+        coordinator_id: creatorState.coordinatorId || creatorState.applicatorId,
+        capacity: creatorState.minCapacity,
         metadata: {
           with_indexes: creatorState.withIndexes,
+          min_capacity: creatorState.minCapacity,
+          max_capacity: creatorState.maxCapacity,
           source: "hub_modal_creator",
         },
       }));
@@ -631,7 +802,9 @@ export const SessionsManagement = () => {
       await createSessions(payload);
       toast.success(
         dates.length === 1
-          ? "Sessão criada com sucesso."
+          ? creatorMode === "duplicate"
+            ? "Sessão duplicada com sucesso."
+            : "Sessão criada com sucesso."
           : `${dates.length} sessões geradas com sucesso.`,
       );
       closeCreatorModal();
@@ -675,21 +848,30 @@ export const SessionsManagement = () => {
   };
 
   const openManagementModal = async (session: SessionAvailability) => {
-    setManagementOpen(true);
-    setManagementLoading(true);
-    setPerformanceOpen(false);
-    setFinalizeOpen(false);
-
     try {
-      const [bookingsResponse, checklist, sessionDetails] = await Promise.all([
+      const sessionDetails = await fetchSessionById(session.session_id);
+      const sessionStatus = sessionDetails?.status ?? session.status;
+
+      if (sessionStatus !== "open") {
+        toast.error(
+          "Turma finalizada/cancelada não pode ser gerida. Somente rascunho/aberta permite gestão.",
+        );
+        return;
+      }
+
+      setManagementOpen(true);
+      setManagementLoading(true);
+      setPerformanceOpen(false);
+      setFinalizeOpen(false);
+
+      const [bookingsResponse, checklist] = await Promise.all([
         fetchSessionBookingsWithProfiles(session.session_id),
         fetchSessionClosureChecklist(session.session_id),
-        fetchSessionById(session.session_id),
       ]);
 
       setManagementState({
         session,
-        sessionStatus: sessionDetails?.status ?? getSessionStatus(session),
+        sessionStatus,
         rows: buildManagementRows(
           bookingsResponse.bookings,
           bookingsResponse.profilesById,
@@ -708,6 +890,11 @@ export const SessionsManagement = () => {
   const openPerformanceModal = (startIndex = 0) => {
     if (!managementState || managementState.rows.length === 0) {
       toast.error("Não há militares para lançamento de performance.");
+      return;
+    }
+
+    if (managementState.sessionStatus === "completed") {
+      toast.error("Sessão concluída está em modo somente leitura.");
       return;
     }
 
@@ -808,19 +995,53 @@ export const SessionsManagement = () => {
         );
       }
 
+      const finalizedRows = managementState.rows.map((row) => ({
+        ...row,
+        result: row.result ?? "inapto",
+      }));
+
       await closeSessionWithChecklist(managementState.session.session_id);
+
+      generateSessionFinalReportPdf({
+        session: {
+          id: managementState.session.session_id,
+          date: managementState.session.date,
+          period: managementState.session.period,
+          max_capacity: managementState.session.max_capacity,
+          location_name: getLocationLabel(managementState.session),
+        },
+        rows: finalizedRows.map((row, index) => ({
+          order_number: String(index + 1).padStart(2, "0"),
+          rank: row.rank,
+          full_name: row.fullName,
+          war_name: row.warName,
+          saram: row.saram,
+          result: row.result,
+        })),
+        pendingConvertedCount: pendingRows.length,
+      });
+
       await refresh();
       setFinalizeOpen(false);
       setPerformanceOpen(false);
       setManagementOpen(false);
       setManagementState(null);
-      toast.success("Sessão finalizada e pendentes convertidos para inapto.");
+      toast.success(
+        "Sessão finalizada e relatório técnico PDF gerado automaticamente.",
+      );
     } catch (requestError) {
       console.error(requestError);
       toast.error("Não foi possível finalizar a sessão.");
     } finally {
       setFinalizing(false);
     }
+  };
+
+  const handleSaveDraft = () => {
+    setFinalizeOpen(false);
+    toast.success(
+      "Rascunho salvo. A sessão permanece aberta para novos ajustes.",
+    );
   };
 
   if (loading) {
@@ -835,206 +1056,130 @@ export const SessionsManagement = () => {
   return (
     <Layout>
       <div
-        className="mx-auto w-full max-w-[1320px] space-y-6 px-4 py-4 font-['Public_Sans'] sm:px-6"
+        className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0"
         data-testid="sessions-management-page"
-        style={HUB_DASHBOARD_STYLE}
       >
-        <section className="relative overflow-hidden rounded-[32px] bg-[var(--sessions-hero)] px-6 py-8 text-white shadow-[var(--sessions-shadow)] md:px-8 md:py-10 xl:px-12">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--sessions-hero-highlight),_transparent_42%)]" />
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),transparent_45%,rgba(255,255,255,0.03))]" />
-          </div>
-
-          <div className="relative z-10 flex flex-col gap-8">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-              <div className="max-w-3xl">
-                <h1
-                  className="font-['Space_Grotesk'] text-4xl font-bold tracking-tight text-white sm:text-5xl"
-                  data-testid="sessions-management-title"
-                >
-                  Hub de Sessões Dashboard
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/82 sm:text-base">
-                  Centro operacional para criação, acompanhamento e execução das
-                  sessões de avaliação física.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openCreatorModal}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--sessions-hero-accent)] px-5 py-3 font-['Space_Grotesk'] text-base font-bold text-white shadow-lg shadow-blue-950/20 transition-transform duration-200 hover:-translate-y-0.5 hover:bg-blue-500"
+        <section className="mb-8">
+          <header className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8">
+            <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+            <div className="relative z-10">
+              <h1
+                className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
+                data-testid="sessions-management-title"
               >
-                <AppIcon icon={Plus} size="sm" decorative />
-                Criar Nova Sessão
-              </button>
+                Hub de Sessões Dashboard
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm font-normal text-white/80 md:text-base">
+                Centro operacional para criação, acompanhamento e execução das
+                sessões de avaliação física.
+              </p>
             </div>
-
-            <nav className="flex flex-wrap gap-2 rounded-[22px] border border-white/10 bg-white/10 p-2 backdrop-blur-md">
-              {HUB_TAB_META.map((item) => (
-                <button
-                  key={item.tab}
-                  type="button"
-                  onClick={() => openHubTab(item.tab)}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
-                    activeTab === item.tab
-                      ? "bg-white text-[var(--sessions-hero)] shadow-sm"
-                      : "text-white/78 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-          </div>
+          </header>
         </section>
 
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {HUB_TAB_META.map((item) => (
+              <button
+                key={item.tab}
+                type="button"
+                onClick={() => openHubTab(item.tab)}
+                className={`flex shrink-0 items-center rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === item.tab
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border-default text-text-muted hover:border-primary/40 hover:text-text-body"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={openCreatorModal}
+            className="flex shrink-0 items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
+          >
+            <AppIcon icon={Plus} size="sm" decorative />
+            Criar Nova Sessão
+          </button>
+        </div>
+
         {activeTab === "reagendamentos" && (
-          <section className="rounded-[28px] border border-[var(--sessions-border)] bg-[var(--sessions-surface)] p-4 shadow-[var(--sessions-shadow)] backdrop-blur md:p-6">
+          <section className="rounded-2xl border border-border-default bg-bg-card p-4 shadow-sm md:p-6">
             <ReschedulingManagement embedded />
-          </section>
-        )}
-
-        {activeTab === "indices" && (
-          <section
-            className="rounded-[28px] border border-[var(--sessions-border)] bg-[var(--sessions-surface)] p-4 shadow-[var(--sessions-shadow)] backdrop-blur md:p-6"
-            data-testid="session-hub-indices-panel"
-          >
-            <ScoreEntry
-              embedded
-              initialSessionId={searchParams.get("sessionId") ?? undefined}
-              onSessionChange={handleIndicesSessionChange}
-            />
-          </section>
-        )}
-
-        {activeTab === "locais" && (
-          <section
-            className="rounded-[28px] border border-[var(--sessions-border)] bg-[var(--sessions-surface)] p-4 shadow-[var(--sessions-shadow)] backdrop-blur md:p-6"
-            data-testid="session-hub-locais-panel"
-          >
-            {localMode === "new" && (
-              <OmLocationEditor
-                embedded
-                locationId="new"
-                onNavigatePath={handleLocalHubNavigate}
-              />
-            )}
-            {localMode === "edit" && localId && (
-              <OmLocationEditor
-                embedded
-                locationId={localId}
-                onNavigatePath={handleLocalHubNavigate}
-              />
-            )}
-            {localMode === "schedules" && localId && (
-              <OmScheduleEditor
-                embedded
-                locationId={localId}
-                onNavigatePath={handleLocalHubNavigate}
-              />
-            )}
-            {((localMode === "edit" || localMode === "schedules") &&
-              !localId) ||
-            localMode === "list" ? (
-              <OmLocationManager
-                embedded
-                onNavigatePath={handleLocalHubNavigate}
-              />
-            ) : null}
           </section>
         )}
 
         {activeTab !== "sessoes" ? null : (
           <>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-              <SessionMetricCard
-                title="Total"
-                value={sessions.length}
-                icon={Calendar}
-                accentClassName="from-blue-700 via-blue-600 to-[var(--sessions-hero-accent)]"
-                iconClassName="bg-[var(--sessions-hero)]/10 text-[var(--sessions-hero)]"
-              />
-              <SessionMetricCard
-                title={STATUS_META.open.summaryLabel}
-                value={statusCounts.open}
-                icon={STATUS_META.open.icon}
-                accentClassName={STATUS_META.open.accentClassName}
-                iconClassName={STATUS_META.open.iconClassName}
-              />
-              <SessionMetricCard
-                title={STATUS_META.closed.summaryLabel}
-                value={statusCounts.closed}
-                icon={STATUS_META.closed.icon}
-                accentClassName={STATUS_META.closed.accentClassName}
-                iconClassName={STATUS_META.closed.iconClassName}
-              />
-              <SessionMetricCard
-                title={STATUS_META.completed.summaryLabel}
-                value={statusCounts.completed}
-                icon={STATUS_META.completed.icon}
-                accentClassName={STATUS_META.completed.accentClassName}
-                iconClassName={STATUS_META.completed.iconClassName}
-              />
-            </section>
+            <div className="grid grid-cols-2 gap-4 xl:grid-cols-4 xl:gap-5">
+                <KpiCard
+                  label="Total"
+                  value={sessions.length}
+                  icon={Calendar}
+                  accent="primary"
+                />
+                <KpiCard
+                  label={STATUS_META.open.summaryLabel}
+                  value={statusCounts.open}
+                  icon={STATUS_META.open.icon}
+                  accent={STATUS_META.open.accent}
+                />
+                <KpiCard
+                  label={STATUS_META.closed.summaryLabel}
+                  value={statusCounts.closed}
+                  icon={STATUS_META.closed.icon}
+                  accent={STATUS_META.closed.accent}
+                />
+                <KpiCard
+                  label={STATUS_META.completed.summaryLabel}
+                  value={statusCounts.completed}
+                  icon={STATUS_META.completed.icon}
+                  accent={STATUS_META.completed.accent}
+                />
+              </div>
 
-            <section className="overflow-hidden rounded-[28px] border border-[var(--sessions-border)] bg-[var(--sessions-surface)] shadow-[var(--sessions-shadow)] backdrop-blur">
-              <div className="border-b border-slate-200/80 px-5 py-5 md:px-6">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-center">
-                    <label className="relative block w-full lg:max-w-md">
-                      <span className="sr-only">Buscar sessões</span>
-                      <AppIcon
-                        icon={Search}
-                        size="sm"
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                        decorative
-                      />
-                      <input
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
-                        placeholder="Buscar por ID, data, turno ou local..."
-                        type="text"
-                        value={searchTerm}
-                        onChange={(event) => {
-                          setSearchTerm(event.target.value);
+            <section className="overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
+              <div className="border-b border-border-default px-5 py-4 md:px-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="relative min-w-0 flex-1">
+                    <span className="sr-only">Buscar sessões</span>
+                    <AppIcon
+                      icon={Search}
+                      size="sm"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                      decorative
+                    />
+                    <input
+                      className="h-10 w-full rounded-full border border-border-default bg-bg-card pl-9 pr-4 text-sm focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                      placeholder="Buscar por ID, data, turno ou local..."
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setPage(1);
+                      }}
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_FILTERS.map((filter) => (
+                      <button
+                        key={filter.value}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter(filter.value);
                           setPage(1);
                         }}
-                      />
-                    </label>
-
-                    <div className="flex flex-wrap gap-2">
-                      {STATUS_FILTERS.map((filter) => (
-                        <button
-                          key={filter.value}
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter(filter.value);
-                            setPage(1);
-                          }}
-                          className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                            statusFilter === filter.value
-                              ? "bg-[var(--sessions-hero)] text-white shadow-sm"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {filter.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 text-sm text-slate-500 xl:justify-end">
-                    <span>
-                      {filteredSessions.length} sessão
-                      {filteredSessions.length === 1 ? "" : "ões"} no painel
-                    </span>
-                    <button
-                      type="button"
-                      onClick={refresh}
-                      className="rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition-colors hover:border-primary/25 hover:text-primary"
-                    >
-                      Atualizar
-                    </button>
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          statusFilter === filter.value
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border-default bg-bg-default text-text-muted hover:border-primary/40 hover:text-text-body"
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1048,10 +1193,10 @@ export const SessionsManagement = () => {
                   <AppIcon
                     icon={Calendar}
                     size="lg"
-                    className="mx-auto mb-3 text-slate-400"
+                    className="mx-auto mb-3 text-text-muted"
                     decorative
                   />
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-text-muted">
                     Nenhuma sessão encontrada para os filtros aplicados.
                   </p>
                 </div>
@@ -1063,17 +1208,18 @@ export const SessionsManagement = () => {
                     return (
                       <article
                         key={session.session_id}
-                        className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"
+                        className="cursor-pointer rounded-[24px] border border-border-default bg-bg-card p-5 shadow-sm"
+                        onClick={() => void openManagementModal(session)}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="font-['Space_Grotesk'] text-lg font-bold text-slate-950">
+                            <p className="text-lg font-bold text-text-body">
                               {getShortSessionId(session.session_id)}
                             </p>
-                            <p className="mt-1 text-sm font-medium text-slate-700">
+                            <p className="mt-1 text-sm font-medium text-text-body">
                               {formatFullSessionDate(session.date)}
                             </p>
-                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
                               {formatSessionPeriod(session.period)}
                             </p>
                           </div>
@@ -1081,8 +1227,7 @@ export const SessionsManagement = () => {
                         </div>
 
                         <div className="mt-5 flex flex-wrap gap-3">
-                          <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
-                            <AppIcon icon={MapPin} size="sm" decorative />
+                          <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                             {getLocationLabel(session)}
                           </span>
                         </div>
@@ -1091,26 +1236,43 @@ export const SessionsManagement = () => {
                           <SessionOccupancyBar session={session} compact />
                         </div>
 
-                        <div className="mt-5 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                        <div className="mt-5 flex items-center justify-end gap-2 border-t border-border-default pt-4">
                           <SessionActionButton
-                            label="Gestão da turma"
+                            label="Gerir sessão"
                             icon={ClipboardList}
+                            disabled={status !== "open"}
                             onClick={() => void openManagementModal(session)}
                           />
                           <SessionActionButton
-                            label="Lançamento de performance"
+                            label="Editar sessão"
                             icon={Edit2}
-                            onClick={() => {
-                              void openManagementModal(session).then(() => {
-                                setTimeout(() => openPerformanceModal(0), 0);
-                              });
-                            }}
+                            disabled={status !== "open"}
+                            onClick={() =>
+                              void openEditSessionModal(session, "edit")
+                            }
                           />
                           <SessionActionButton
-                            label="Configurar nova sessão"
-                            icon={Settings}
-                            onClick={openCreatorModal}
+                            label="Duplicar sessão"
+                            icon={Copy}
+                            onClick={() =>
+                              void openEditSessionModal(session, "duplicate")
+                            }
                           />
+                          <SessionActionButton
+                            label="Cancelar sessão"
+                            icon={Trash2}
+                            disabled={status !== "open"}
+                            onClick={() => setCancelTarget(session)}
+                          />
+                          {status === "completed" && (
+                            <SessionActionButton
+                              label="Imprimir lista de presença"
+                              icon={Printer}
+                              onClick={() =>
+                                void handlePrintFinalReport(session)
+                              }
+                            />
+                          )}
                         </div>
                       </article>
                     );
@@ -1120,94 +1282,114 @@ export const SessionsManagement = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1100px] text-left">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-white/70 text-sm text-slate-900">
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                      <tr className="border-b border-border-default text-xs font-bold uppercase tracking-wider text-text-muted">
+                        <th className="px-5 py-4 md:px-6">
                           ID
                         </th>
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                        <th className="px-5 py-4 md:px-6">
                           Data
                         </th>
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                        <th className="px-5 py-4 md:px-6">
                           Turno
                         </th>
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
-                          Local (Badge)
+                        <th className="px-5 py-4 md:px-6">
+                          Local
                         </th>
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                        <th className="px-5 py-4 md:px-6">
                           Ocupação
                         </th>
-                        <th className="px-5 py-5 font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                        <th className="px-5 py-4 md:px-6">
                           Status
                         </th>
-                        <th className="px-5 py-5 text-right font-['Space_Grotesk'] text-lg font-bold md:px-6">
+                        <th className="px-5 py-4 text-right md:px-6">
                           Ações
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white/90">
+                    <tbody className="divide-y divide-border-default bg-bg-card/90">
                       {paginatedSessions.map((session) => {
                         const status = getSessionStatus(session);
 
                         return (
                           <tr
                             key={session.session_id}
-                            className="transition-colors hover:bg-slate-50/80"
+                            className="cursor-pointer transition-colors hover:bg-bg-default/80"
+                            onClick={() => void openManagementModal(session)}
                           >
-                            <td className="px-5 py-5 md:px-6">
-                              <span className="font-['Space_Grotesk'] text-xl font-bold text-slate-950">
+                            <td className="px-5 py-4 md:px-6">
+                              <span className="font-mono text-sm font-semibold text-text-body">
                                 {getShortSessionId(session.session_id)}
                               </span>
                             </td>
-                            <td className="px-5 py-5 md:px-6">
-                              <span className="text-lg font-medium text-slate-800">
+                            <td className="px-5 py-4 md:px-6">
+                              <span className="text-sm text-text-body">
                                 {formatFullSessionDate(session.date)}
                               </span>
                             </td>
-                            <td className="px-5 py-5 md:px-6">
-                              <span className="text-lg font-medium text-slate-800">
+                            <td className="px-5 py-4 md:px-6">
+                              <span className="text-sm text-text-body">
                                 {formatSessionPeriod(session.period)}
                               </span>
                             </td>
-                            <td className="px-5 py-5 md:px-6">
-                              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                                <AppIcon icon={MapPin} size="sm" decorative />
+                            <td className="px-5 py-4 md:px-6">
+                              <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                                 {getLocationLabel(session)}
                               </span>
                             </td>
-                            <td className="px-5 py-5 md:px-6">
-                              <SessionOccupancyBar session={session} />
+                            <td className="px-5 py-4 md:px-6">
+                              <span className="text-sm font-semibold text-text-body">
+                                {session.occupied_count ?? 0}
+                                <span className="font-normal text-text-muted">
+                                  /{session.max_capacity ?? 0}
+                                </span>
+                              </span>
                             </td>
-                            <td className="px-5 py-5 md:px-6">
+                            <td className="px-5 py-4 md:px-6">
                               <SessionStatusBadge status={status} />
                             </td>
-                            <td className="px-5 py-5 md:px-6">
+                            <td className="px-5 py-4 md:px-6">
                               <div className="flex justify-end gap-2">
                                 <SessionActionButton
-                                  label="Gestão da turma"
+                                  label="Gerir sessão"
                                   icon={ClipboardList}
+                                  disabled={status !== "open"}
                                   onClick={() =>
                                     void openManagementModal(session)
                                   }
                                 />
                                 <SessionActionButton
-                                  label="Lançamento de performance"
+                                  label="Editar sessão"
                                   icon={Edit2}
-                                  onClick={() => {
-                                    void openManagementModal(session).then(
-                                      () => {
-                                        setTimeout(
-                                          () => openPerformanceModal(0),
-                                          0,
-                                        );
-                                      },
-                                    );
-                                  }}
+                                  disabled={status !== "open"}
+                                  onClick={() =>
+                                    void openEditSessionModal(session, "edit")
+                                  }
                                 />
                                 <SessionActionButton
-                                  label="Configurar nova sessão"
-                                  icon={Settings}
-                                  onClick={openCreatorModal}
+                                  label="Duplicar sessão"
+                                  icon={Copy}
+                                  onClick={() =>
+                                    void openEditSessionModal(
+                                      session,
+                                      "duplicate",
+                                    )
+                                  }
                                 />
+                                <SessionActionButton
+                                  label="Cancelar sessão"
+                                  icon={Trash2}
+                                  disabled={status !== "open"}
+                                  onClick={() => setCancelTarget(session)}
+                                />
+                                {status === "completed" && (
+                                  <SessionActionButton
+                                    label="Imprimir lista de presença"
+                                    icon={Printer}
+                                    onClick={() =>
+                                      void handlePrintFinalReport(session)
+                                    }
+                                  />
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1219,8 +1401,8 @@ export const SessionsManagement = () => {
               )}
 
               {!loading && !error && filteredSessions.length > pageSize && (
-                <div className="flex items-center justify-between border-t border-slate-200 bg-white/80 px-5 py-4 text-sm md:px-6">
-                  <p className="text-slate-500">
+                <div className="flex items-center justify-between border-t border-border-default bg-bg-card/80 px-5 py-4 text-sm md:px-6">
+                  <p className="text-text-muted">
                     {paginatedSessions.length} de {filteredSessions.length}{" "}
                     sessões exibidas
                   </p>
@@ -1231,7 +1413,7 @@ export const SessionsManagement = () => {
                       onClick={() =>
                         setPage((currentPage) => Math.max(1, currentPage - 1))
                       }
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-primary/25 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border-default bg-bg-card text-text-body shadow-sm transition-colors hover:border-primary/25 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
                       aria-label="Página anterior"
                     >
                       <AppIcon icon={ChevronLeft} size="sm" decorative />
@@ -1246,8 +1428,8 @@ export const SessionsManagement = () => {
                         onClick={() => setPage(pageNumber)}
                         className={`flex h-9 w-9 items-center justify-center rounded-xl border text-xs font-bold ${
                           pageNumber === page
-                            ? "border-[var(--sessions-hero)] bg-[var(--sessions-hero)] text-white"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-primary/25 hover:text-primary"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border-default bg-bg-card text-text-body hover:border-primary/25 hover:text-primary"
                         }`}
                       >
                         {pageNumber}
@@ -1261,7 +1443,7 @@ export const SessionsManagement = () => {
                           Math.min(pageCount, currentPage + 1),
                         )
                       }
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-primary/25 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border-default bg-bg-card text-text-body shadow-sm transition-colors hover:border-primary/25 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
                       aria-label="Próxima página"
                     >
                       <AppIcon icon={ChevronRight} size="sm" decorative />
@@ -1276,31 +1458,35 @@ export const SessionsManagement = () => {
 
       <AppModal
         open={creatorOpen}
-        zIndex={60}
+        zIndex={managementOpen ? 85 : 60}
         onOverlayClick={closeCreatorModal}
       >
-        <section className="w-full max-w-[860px] overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-2xl">
-          <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-            <h2 className="font-['Space_Grotesk'] text-3xl font-bold text-slate-900">
-              Configurar Nova Sessão
+        <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-[860px] flex-col overflow-hidden rounded-[22px] border border-border-default bg-bg-card shadow-2xl md:max-h-[calc(100vh-3rem)]">
+          <header className="flex items-center justify-between border-b border-border-default px-6 py-4">
+            <h2 className="text-xl font-bold text-text-body">
+              {creatorMode === "edit"
+                ? "Editar Dados da Sessão"
+                : creatorMode === "duplicate"
+                  ? "Duplicar Sessão"
+                  : "Configurar Nova Sessão"}
             </h2>
             <button
               type="button"
               onClick={closeCreatorModal}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+              className="rounded-full p-2 text-text-muted hover:bg-bg-default"
             >
               <AppIcon icon={X} size="sm" decorative />
             </button>
           </header>
 
-          <div className="space-y-6 px-6 py-5">
+          <div className="space-y-6 overflow-y-auto px-6 py-5">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1">
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="text-sm font-semibold text-text-body">
                   Local
                 </span>
                 <select
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
                   value={creatorState.locationId}
                   onChange={(event) =>
                     handleCreatorField("locationId", event.target.value)
@@ -1313,27 +1499,27 @@ export const SessionsManagement = () => {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-500">
-                  Capacidade Min/Max: 8 /{" "}
-                  {selectedLocation?.max_capacity ?? "--"}
-                </p>
               </label>
 
               <label className="space-y-1">
-                <span className="text-sm font-semibold text-slate-700">
-                  Aplicador/Coordenador
+                <span className="text-sm font-semibold text-text-body">
+                  Aplicador Responsável
                 </span>
                 <select
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
-                  value={creatorState.coordinatorId}
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
+                  value={creatorState.applicatorId}
                   onChange={(event) =>
-                    handleCreatorField("coordinatorId", event.target.value)
+                    setCreatorState((previous) => ({
+                      ...previous,
+                      applicatorId: event.target.value,
+                      coordinatorId: event.target.value,
+                    }))
                   }
                 >
                   <option value="">
                     {loadingCoordinators
-                      ? "Carregando coordenadores..."
-                      : "Selecione um coordenador"}
+                      ? "Carregando..."
+                      : "Selecione um responsável"}
                   </option>
                   {coordinators.map((coordinator) => (
                     <option key={coordinator.id} value={coordinator.id}>
@@ -1348,17 +1534,17 @@ export const SessionsManagement = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="text-sm font-semibold text-text-body">
                   Turno
                 </span>
-                <div className="grid grid-cols-2 rounded-xl border border-slate-300 bg-slate-50 p-1">
+                <div className="grid grid-cols-2 rounded-xl border border-border-default bg-bg-default p-1">
                   <button
                     type="button"
                     onClick={() => handleCreatorField("period", "manha")}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold ${
                       creatorState.period === "manha"
-                        ? "bg-[var(--sessions-hero-accent)] text-white"
-                        : "text-slate-700"
+                        ? "bg-primary text-white"
+                        : "text-text-muted"
                     }`}
                   >
                     Manhã
@@ -1368,8 +1554,8 @@ export const SessionsManagement = () => {
                     onClick={() => handleCreatorField("period", "tarde")}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold ${
                       creatorState.period === "tarde"
-                        ? "bg-[var(--sessions-hero-accent)] text-white"
-                        : "text-slate-700"
+                        ? "bg-primary text-white"
+                        : "text-text-muted"
                     }`}
                   >
                     Tarde
@@ -1377,86 +1563,163 @@ export const SessionsManagement = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-sm font-semibold text-slate-700">
-                  Tipo de Avaliação
-                </span>
-                <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-300 px-3">
-                  <button
-                    type="button"
-                    onClick={() => handleCreatorField("withIndexes", true)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      creatorState.withIndexes
-                        ? "bg-primary/10 text-primary"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    Com Índices
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCreatorField("withIndexes", false)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      !creatorState.withIndexes
-                        ? "bg-primary/10 text-primary"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    Sem Índices
-                  </button>
+              {creatorMode === "create" && (
+                <div className="space-y-1">
+                  <span className="text-sm font-semibold text-text-body">
+                    Tipo de Avaliação
+                  </span>
+                  <div className="flex h-11 items-center gap-3 rounded-xl border border-border-default px-3">
+                    <button
+                      type="button"
+                      onClick={() => handleCreatorField("withIndexes", true)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        creatorState.withIndexes
+                          ? "bg-primary/10 text-primary"
+                          : "text-text-muted"
+                      }`}
+                    >
+                      Padrão
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCreatorField("withIndexes", false)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        !creatorState.withIndexes
+                          ? "bg-primary/10 text-primary"
+                          : "text-text-muted"
+                      }`}
+                    >
+                      Especializada
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1">
-                <span className="text-sm font-semibold text-slate-700">
-                  Data inicial
+                <span className="text-sm font-semibold text-text-body">
+                  Capacidade Mínima
                 </span>
                 <input
-                  type="date"
-                  value={creatorState.date}
+                  type="number"
+                  min={1}
+                  value={creatorState.minCapacity || ""}
                   onChange={(event) =>
-                    handleCreatorField("date", event.target.value)
+                    handleCreatorField(
+                      "minCapacity",
+                      Number(event.target.value),
+                    )
                   }
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
                 />
               </label>
 
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "single", label: "Dia Único" },
-                  { value: "week", label: "Semana" },
-                  { value: "biweekly", label: "Quinzena" },
-                  { value: "month", label: "Mês" },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() =>
-                      handleCreatorField(
-                        "recurrence",
-                        option.value as RecurrenceOption,
-                      )
-                    }
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      creatorState.recurrence === option.value
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-slate-300 text-slate-600"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <label className="space-y-1">
+                <span className="text-sm font-semibold text-text-body">
+                  Capacidade Máxima
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  value={creatorState.maxCapacity || ""}
+                  onChange={(event) =>
+                    handleCreatorField(
+                      "maxCapacity",
+                      Number(event.target.value),
+                    )
+                  }
+                  className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              {creatorMode !== "edit" ? (
+                <div className="space-y-2">
+                  <span className="text-sm font-semibold text-text-body">
+                    {creatorMode === "duplicate" ? "Nova data" : "Data inicial"}
+                  </span>
+                  <div className="rounded-xl border border-border-default bg-bg-card p-3">
+                    <CustomCalendar
+                      viewDate={creatorCalendarMonth}
+                      onViewDateChange={setCreatorCalendarMonth}
+                      selectedDateKey={creatorState.date || null}
+                      selectedDateKeys={creatorPreviewDates}
+                      onSelectDate={(dateKey) => {
+                        handleCreatorField("date", dateKey);
+                      }}
+                      resolveDayState={resolveCreatorCalendarDayState}
+                      weekStartsOn={1}
+                      size="compact"
+                    />
+
+                    {creatorState.recurrence === "single" ? (
+                      <p className="mt-3 text-xs text-text-muted">
+                        {selectedCreatorDate
+                          ? `Data selecionada: ${format(selectedCreatorDate, "dd/MM/yyyy")}`
+                          : "Selecione um dia útil no calendário."}
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-xs font-semibold text-primary">
+                        {creatorTotalDates.length > 0
+                          ? `${creatorTotalDates.length} sess${creatorTotalDates.length === 1 ? "ão" : "ões"} serão geradas (${format(parseISO(creatorTotalDates[0]), "dd/MM")} – ${format(parseISO(creatorTotalDates[creatorTotalDates.length - 1]), "dd/MM/yyyy")})`
+                          : "Selecione um dia útil para definir o período."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border-default bg-bg-default px-4 py-3 text-sm text-text-muted">
+                  Data da sessão:{" "}
+                  <strong>
+                    {selectedCreatorDate
+                      ? format(selectedCreatorDate, "dd/MM/yyyy")
+                      : "--"}
+                  </strong>
+                </div>
+              )}
+
+              {creatorMode === "create" && (
+                <div className="flex flex-wrap gap-5">
+                  {[
+                    { value: "single", label: "Dia Único" },
+                    { value: "week", label: "Semana" },
+                    { value: "biweekly", label: "Quinzena" },
+                    { value: "month", label: "Mês" },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <input
+                        type="radio"
+                        name="recurrence"
+                        value={option.value}
+                        checked={creatorState.recurrence === option.value}
+                        onChange={() =>
+                          handleCreatorField(
+                            "recurrence",
+                            option.value as RecurrenceOption,
+                          )
+                        }
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="text-sm text-text-body">
+                        {option.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          <footer className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <footer className="flex items-center justify-end gap-3 border-t border-border-default px-6 py-4">
             <button
               type="button"
               onClick={closeCreatorModal}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+              className="rounded-xl border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
             >
               Cancelar
             </button>
@@ -1464,9 +1727,17 @@ export const SessionsManagement = () => {
               type="button"
               onClick={() => void handleCreateSessions()}
               disabled={submittingCreator}
-              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {submittingCreator ? "Gerando..." : "Gerar Sessões"}
+              {submittingCreator
+                ? creatorMode === "edit"
+                  ? "Salvando..."
+                  : "Gerando..."
+                : creatorMode === "edit"
+                  ? "Salvar Alterações"
+                  : creatorMode === "duplicate"
+                    ? "Duplicar Sessão"
+                    : "Gerar Sessões"}
             </button>
           </footer>
         </section>
@@ -1476,42 +1747,43 @@ export const SessionsManagement = () => {
         open={managementOpen}
         zIndex={65}
         onOverlayClick={() => {
-          if (!performanceOpen && !finalizeOpen) {
+          if (!performanceOpen && !finalizeOpen && !creatorOpen) {
             setManagementOpen(false);
             setManagementState(null);
           }
         }}
       >
-        <section className="w-full max-w-4xl overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl">
-          <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
-            <div>
-              <h2 className="font-['Space_Grotesk'] text-4xl font-bold text-slate-900">
+        <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] border border-border-default bg-bg-card shadow-2xl md:max-h-[calc(100vh-3rem)]">
+          <header className="flex items-center justify-between gap-4 border-b border-border-default px-6 py-5">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl font-bold text-text-body">
                 Gestão da Turma
               </h2>
               {managementState && (
-                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <span className="inline-flex items-center gap-2 font-semibold">
+                <div className="mt-2 flex flex-wrap items-center gap-4 rounded-xl border border-border-default bg-bg-default px-4 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-text-body">
                     <AppIcon icon={MapPin} size="sm" decorative />
-                    Local: {getLocationLabel(managementState.session)}
+                    <span className="text-text-muted">Local:</span>{" "}
+                    <strong>{getLocationLabel(managementState.session)}</strong>
                   </span>
-                  <span className="inline-flex items-center gap-2 font-semibold">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-text-body">
                     <AppIcon icon={Calendar} size="sm" decorative />
-                    Data: {format(managementState.session.date, "dd/MM/yyyy")}
+                    <span className="text-text-muted">Data:</span>{" "}
+                    <strong>
+                      {format(
+                        parseISO(managementState.session.date),
+                        "d 'de' MMMM 'de' yyyy",
+                        { locale: ptBR },
+                      )}
+                    </strong>
                   </span>
-                  <span className="inline-flex items-center gap-2 font-semibold">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-text-body">
                     <AppIcon icon={Clock3} size="sm" decorative />
-                    Turno: {formatSessionPeriod(managementState.session.period)}
+                    <span className="text-text-muted">Turno:</span>{" "}
+                    <strong>
+                      {formatSessionPeriod(managementState.session.period)}
+                    </strong>
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleGenerateAttendancePdf}
-                    className="ml-auto rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <AppIcon icon={FileDown} size="sm" decorative />
-                      Gerar PDF de Chamada
-                    </span>
-                  </button>
                 </div>
               )}
             </div>
@@ -1521,25 +1793,25 @@ export const SessionsManagement = () => {
                 setManagementOpen(false);
                 setManagementState(null);
               }}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+              className="shrink-0 rounded-full p-2 text-text-muted hover:bg-bg-default"
             >
               <AppIcon icon={X} size="sm" decorative />
             </button>
           </header>
 
-          <div className="max-h-[55vh] overflow-auto px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {managementLoading ? (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-text-muted">
                 Carregando dados da turma...
               </p>
             ) : !managementState ? (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-text-muted">
                 Nenhum dado de turma disponível.
               </p>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                  <tr className="border-b border-border-default text-left text-xs font-bold uppercase tracking-[0.08em] text-text-muted">
                     <th className="py-3">Posto</th>
                     <th className="py-3">Nome</th>
                     <th className="py-3">SARAM</th>
@@ -1547,16 +1819,16 @@ export const SessionsManagement = () => {
                     <th className="py-3 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border-default">
                   {managementState.rows.map((row, index) => (
                     <tr key={row.bookingId}>
-                      <td className="py-3 font-medium text-slate-700">
+                      <td className="py-3 font-medium text-text-body">
                         {row.rank ?? "--"}
                       </td>
-                      <td className="py-3 text-slate-900">
+                      <td className="py-3 text-text-body">
                         {row.warName ?? row.fullName}
                       </td>
-                      <td className="py-3 font-mono text-slate-600">
+                      <td className="py-3 font-mono text-text-muted">
                         {row.saram ?? "--"}
                       </td>
                       <td className="py-3">
@@ -1577,16 +1849,35 @@ export const SessionsManagement = () => {
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => openPerformanceModal(index)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                        >
-                          <span className="inline-flex items-center gap-2">
-                            <AppIcon icon={Edit2} size="sm" decorative />
-                            Lançar Resultado
-                          </span>
-                        </button>
+                        {row.result === null ? (
+                          <button
+                            type="button"
+                            onClick={() => openPerformanceModal(index)}
+                            className="rounded-xl border border-border-default px-3 py-2 text-sm font-semibold text-text-body hover:bg-bg-default"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <AppIcon
+                                icon={ClipboardList}
+                                size="sm"
+                                decorative
+                              />
+                              Lançar Resultado
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openPerformanceModal(index)}
+                            title="Editar resultado"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border-default text-text-muted hover:bg-bg-default"
+                          >
+                            <AppIcon
+                              icon={ClipboardList}
+                              size="sm"
+                              decorative
+                            />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1595,12 +1886,33 @@ export const SessionsManagement = () => {
             )}
           </div>
 
-          <footer className="border-t border-slate-200 px-6 py-4">
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default px-6 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (managementState) {
+                    void openEditSessionModal(managementState.session, "edit");
+                  }
+                }}
+                disabled={managementState?.sessionStatus !== "open"}
+                className="rounded-xl border border-border-default px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Editar Dados da Sessão
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerateAttendancePdf}
+                className="rounded-xl border border-border-default px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-bg-default"
+              >
+                Gerar PDF de Chamada
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setFinalizeOpen(true)}
               disabled={!managementState}
-              className="w-full rounded-xl bg-[var(--sessions-hero)] px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               Finalizar Sessão
             </button>
@@ -1613,55 +1925,55 @@ export const SessionsManagement = () => {
         zIndex={75}
         onOverlayClick={() => setPerformanceOpen(false)}
       >
-        <section className="w-full max-w-2xl overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl">
-          <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-            <h3 className="font-['Space_Grotesk'] text-3xl font-bold text-slate-900">
+        <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] border border-border-default bg-bg-card shadow-2xl md:max-h-[calc(100vh-3rem)]">
+          <header className="flex items-center justify-between border-b border-border-default px-6 py-4">
+            <h3 className="text-xl font-bold text-text-body">
               Lançamento de Performance
             </h3>
             <button
               type="button"
               onClick={() => setPerformanceOpen(false)}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+              className="rounded-full p-2 text-text-muted hover:bg-bg-default"
             >
               <AppIcon icon={X} size="sm" decorative />
             </button>
           </header>
 
-          <div className="space-y-5 px-6 py-5">
-            <p className="text-2xl font-semibold text-slate-900">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+            <p className="text-base font-medium text-text-body">
               Avaliado:{" "}
-              {currentPerformanceRow?.warName ??
-                currentPerformanceRow?.fullName ??
-                "--"}
+              <strong>
+                {currentPerformanceRow?.warName ??
+                  currentPerformanceRow?.fullName ??
+                  "--"}
+              </strong>
             </p>
 
-            <div className="grid gap-3">
-              {["flexao", "abdominal", "corrida"].map((field) => (
-                <label
-                  key={field}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
-                >
-                  <span className="text-sm font-medium text-slate-700">
-                    {field === "flexao"
-                      ? "Flexão de Braço (Repetições)"
-                      : field === "abdominal"
-                        ? "Abdominal (Repetições)"
-                        : "Corrida (Metros)"}
-                  </span>
+            <div className="space-y-3">
+              {[
+                { key: "flexao", label: "Flexão de Braço (Repetições):" },
+                { key: "abdominal", label: "Abdominal (Repetições):" },
+                { key: "corrida", label: "Corrida (Metros):" },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="flex-1 text-sm text-text-body">{label}</span>
+                  <span className="text-base font-bold text-text-muted">[</span>
                   <input
                     type="number"
-                    className="h-10 w-24 rounded-lg border border-slate-300 px-3 text-center"
+                    ref={key === "flexao" ? performancePrimaryInputRef : null}
+                    className="h-10 w-24 rounded-lg border border-border-default bg-bg-card px-3 text-center text-sm"
                     value={
-                      performanceInputs[field as keyof typeof performanceInputs]
+                      performanceInputs[key as keyof typeof performanceInputs]
                     }
                     onChange={(event) =>
                       setPerformanceInputs((previous) => ({
                         ...previous,
-                        [field]: event.target.value,
+                        [key]: event.target.value,
                       }))
                     }
                   />
-                </label>
+                  <span className="text-base font-bold text-text-muted">]</span>
+                </div>
               ))}
             </div>
 
@@ -1695,7 +2007,7 @@ export const SessionsManagement = () => {
             </div>
 
             <div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-2 overflow-hidden rounded-full bg-border-default">
                 <div
                   className="h-full rounded-full bg-primary"
                   style={{
@@ -1710,7 +2022,7 @@ export const SessionsManagement = () => {
                   }}
                 />
               </div>
-              <p className="mt-2 text-center text-sm text-slate-600">
+              <p className="mt-2 text-center text-sm text-text-muted">
                 Variante{" "}
                 {Math.min(performanceIndex + 1, performanceRows.length)} de{" "}
                 {performanceRows.length || 1}
@@ -1718,11 +2030,11 @@ export const SessionsManagement = () => {
             </div>
           </div>
 
-          <footer className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+          <footer className="flex items-center justify-between border-t border-border-default px-6 py-4">
             <button
               type="button"
               onClick={() => setPerformanceOpen(false)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+              className="rounded-xl border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
             >
               Cancelar
             </button>
@@ -1730,7 +2042,7 @@ export const SessionsManagement = () => {
               type="button"
               onClick={() => void savePerformanceResult()}
               disabled={performanceSaving}
-              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               {performanceSaving ? "Salvando..." : "Salvar e Próximo"}
             </button>
@@ -1743,57 +2055,139 @@ export const SessionsManagement = () => {
         zIndex={80}
         onOverlayClick={() => setFinalizeOpen(false)}
       >
-        <section className="w-full max-w-xl overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl">
-          <header className="bg-[var(--sessions-hero)] px-6 py-4 text-white">
-            <h3 className="font-['Space_Grotesk'] text-3xl font-bold">
-              Confirmação de Finalização
-            </h3>
+        <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[20px] border border-border-default bg-bg-card shadow-2xl md:max-h-[calc(100vh-3rem)]">
+          <header className="bg-primary px-6 py-4 text-white">
+            <h3 className="text-xl font-bold">Confirmação de Finalização</h3>
           </header>
 
-          <div className="space-y-4 px-6 py-5">
-            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-lg font-semibold text-slate-800">
-                <span className="inline-flex items-center gap-2">
-                  <AppIcon icon={UserCheck} size="sm" decorative /> Avaliados:{" "}
-                  {evaluatedCount}
-                </span>
-              </p>
-              <p className="text-lg font-semibold text-slate-800">
-                <span className="inline-flex items-center gap-2">
-                  <AppIcon icon={Clock3} size="sm" decorative /> Pendentes:{" "}
-                  {pendingCount}
-                </span>
-              </p>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+            <div className="grid grid-cols-2 divide-x divide-border-default rounded-xl border border-border-default">
+              <div className="flex items-center gap-3 px-5 py-4">
+                <AppIcon
+                  icon={UserCheck}
+                  size="md"
+                  className="text-primary"
+                  decorative
+                />
+                <div>
+                  <p className="text-xs text-text-muted">Avaliados:</p>
+                  <p className="text-2xl font-bold text-text-body">
+                    {evaluatedCount}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-4">
+                <AppIcon
+                  icon={Clock3}
+                  size="md"
+                  className="text-text-muted"
+                  decorative
+                />
+                <div>
+                  <p className="text-xs text-text-muted">Pendentes:</p>
+                  <p className="text-2xl font-bold text-text-body">
+                    {pendingCount}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <p className="text-base text-slate-700">
-              Você está prestes a finalizar a sessão. O fluxo converterá
-              pendentes para "Inapto" antes da geração do PDF final.
+            <p className="text-sm text-text-body">
+              Você está prestes a finalizar a sessão. Os dados dos avaliados
+              serão processados.
             </p>
           </div>
 
-          <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <footer className="flex flex-wrap items-start justify-end gap-3 border-t border-border-default px-6 py-4">
             <button
               type="button"
               onClick={() => setFinalizeOpen(false)}
-              className="px-2 py-2 text-sm font-semibold text-slate-600"
+              className="px-2 py-2 text-sm font-semibold text-text-muted"
             >
               Cancelar
             </button>
             <button
               type="button"
-              onClick={() => setFinalizeOpen(false)}
+              onClick={handleSaveDraft}
               className="rounded-xl border border-primary/40 px-4 py-2 text-sm font-semibold text-primary"
             >
               Salvar como Rascunho
             </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                onClick={() => void handleFinalizeSession()}
+                disabled={finalizing}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {finalizing ? "Finalizando..." : "Finalizar e Gerar PDF"}
+              </button>
+              <p className="text-[11px] text-text-muted">
+                Atenção: Avaliações pendentes serão convertidas para "Não
+                Realizado".
+              </p>
+            </div>
+          </footer>
+        </section>
+      </AppModal>
+
+      <AppModal
+        open={Boolean(cancelTarget)}
+        zIndex={95}
+        onOverlayClick={() => {
+          if (!cancellingSession) {
+            setCancelTarget(null);
+          }
+        }}
+      >
+        <section className="flex w-full max-w-lg flex-col overflow-hidden rounded-[20px] border border-border-default bg-bg-card shadow-2xl">
+          <header className="border-b border-border-default px-6 py-4">
+            <h3 className="text-2xl font-bold text-text-body">
+              Confirmar cancelamento
+            </h3>
+          </header>
+
+          <div className="space-y-3 px-6 py-5">
+            <p className="text-sm text-text-body">
+              Você tem certeza que deseja cancelar esta sessão?
+            </p>
+            {cancelTarget && (
+              <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+                <p className="font-semibold">
+                  {getShortSessionId(cancelTarget.session_id)} -{" "}
+                  {formatFullSessionDate(cancelTarget.date)} (
+                  {formatSessionPeriod(cancelTarget.period)})
+                </p>
+                {(cancelTarget.occupied_count ?? 0) > 0 && (
+                  <p className="mt-1">
+                    Atenção: existem {cancelTarget.occupied_count} militar(es)
+                    agendado(s) nesta sessão.
+                  </p>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-text-muted">
+              Esta ação atualiza o status da sessão para cancelada e ela deixa
+              de aparecer como disponível para novos agendamentos.
+            </p>
+          </div>
+
+          <footer className="flex items-center justify-end gap-3 border-t border-border-default px-6 py-4">
             <button
               type="button"
-              onClick={() => void handleFinalizeSession()}
-              disabled={finalizing}
-              className="rounded-xl bg-[var(--sessions-hero)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => setCancelTarget(null)}
+              disabled={cancellingSession}
+              className="rounded-xl border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-50"
             >
-              {finalizing ? "Finalizando..." : "Finalizar e Gerar PDF"}
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCancelSession()}
+              disabled={cancellingSession}
+              className="rounded-xl bg-error px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {cancellingSession ? "Cancelando..." : "Confirmar cancelamento"}
             </button>
           </footer>
         </section>

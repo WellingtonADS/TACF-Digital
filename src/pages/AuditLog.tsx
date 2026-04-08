@@ -4,8 +4,9 @@
  * @path src/pages/AuditLog.tsx
  */
 
+import AppIcon from "@/components/atomic/AppIcon";
+import KpiCard from "@/components/atomic/KpiCard";
 import FullPageLoading from "@/components/FullPageLoading";
-import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
 import { fetchFullAuditLog } from "@/hooks/useSystemSettings";
@@ -54,24 +55,24 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
   const a = (action ?? "").toUpperCase();
   if (a.includes("INSERT") || a.includes("CREATE")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-success/40 bg-success/10 text-success">
-        <Plus size={11} />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border border-success/40 bg-success/10 text-success">
+        <AppIcon icon={Plus} size="xs" decorative />
         {action}
       </span>
     );
   }
   if (a.includes("UPDATE") || a.includes("EDIT")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-alert/40 bg-alert/10 text-alert">
-        <Filter size={11} />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border border-primary/40 bg-primary/10 text-primary">
+        <AppIcon icon={Filter} size="xs" decorative />
         {action}
       </span>
     );
   }
   if (a.includes("DELETE")) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-error/40 bg-error/10 text-error">
-        <Trash2 size={11} />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border border-error/40 bg-error/10 text-error">
+        <AppIcon icon={Trash2} size="xs" decorative />
         {action}
       </span>
     );
@@ -86,7 +87,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
 function rowAccent(action: string | null | undefined): string {
   const a = (action ?? "").toUpperCase();
   if (a.includes("INSERT") || a.includes("CREATE")) return "border-l-success";
-  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-alert";
+  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-primary";
   if (a.includes("DELETE")) return "border-l-error";
   return "border-l-border-default";
 }
@@ -188,7 +189,7 @@ export default function AuditLog() {
   return (
     <Layout>
       <div
-        className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6"
+        className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0"
         data-testid="audit-log-page"
       >
         {/* hero */}
@@ -208,26 +209,25 @@ export default function AuditLog() {
           </div>
         </section>
 
-        {/* Summary Widgets (StatCard) */}
+        {/* Summary Widgets */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard
-            title="Total de Eventos"
+          <KpiCard
+            label="Total de Eventos"
             value={records.length}
             icon={Shield}
+            accent="primary"
           />
-          <StatCard
-            title="Deleções"
+          <KpiCard
+            label="Deleções"
             value={statsDelete}
             icon={AlertTriangle}
-            iconBg="bg-error/10"
-            iconColor="text-error"
+            accent="error"
           />
-          <StatCard
-            title="Usuários Distintos"
+          <KpiCard
+            label="Usuários Distintos"
             value={uniqueUsers}
             icon={Timer}
-            iconBg="bg-success/10"
-            iconColor="text-success"
+            accent="success"
           />
         </div>
 
@@ -239,9 +239,11 @@ export default function AuditLog() {
                 Usuário / SARAM
               </label>
               <div className="relative">
-                <Search
-                  size={15}
+                <AppIcon
+                  icon={Search}
+                  size="sm"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                  decorative
                 />
                 <input
                   className="w-full pl-9 pr-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40 font-mono"
@@ -306,7 +308,7 @@ export default function AuditLog() {
                 className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-primary/90 transition-colors flex justify-center items-center gap-2 text-sm"
                 onClick={() => setCurrentPage(1)}
               >
-                <Filter size={15} />
+                <AppIcon icon={Filter} size="sm" decorative />
                 Filtrar
               </button>
             </div>
@@ -370,7 +372,7 @@ export default function AuditLog() {
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
                         onClick={() => setDetailRecord(r)}
                       >
-                        <Code2 size={13} />
+                        <AppIcon icon={Code2} size="xs" decorative />
                         JSON
                       </button>
                     )}
@@ -459,7 +461,7 @@ export default function AuditLog() {
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
                             onClick={() => setDetailRecord(r)}
                           >
-                            <Code2 size={13} />
+                            <AppIcon icon={Code2} size="xs" decorative />
                             JSON
                           </button>
                         )}
@@ -497,7 +499,7 @@ export default function AuditLog() {
                 onClick={() => setCurrentPage(1)}
                 aria-label="Primeira página"
               >
-                <ChevronsLeft size={16} />
+                <AppIcon icon={ChevronsLeft} size="sm" decorative />
               </button>
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
@@ -505,7 +507,7 @@ export default function AuditLog() {
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 aria-label="Página anterior"
               >
-                <ChevronLeft size={16} />
+                <AppIcon icon={ChevronLeft} size="sm" decorative />
               </button>
 
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -538,7 +540,7 @@ export default function AuditLog() {
                 }
                 aria-label="Próxima página"
               >
-                <ChevronRight size={16} />
+                <AppIcon icon={ChevronRight} size="sm" decorative />
               </button>
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
@@ -546,7 +548,7 @@ export default function AuditLog() {
                 onClick={() => setCurrentPage(totalPages)}
                 aria-label="Última página"
               >
-                <ChevronsRight size={16} />
+                <AppIcon icon={ChevronsRight} size="sm" decorative />
               </button>
             </div>
           </div>
@@ -555,7 +557,7 @@ export default function AuditLog() {
         {/* JSON Detail Modal */}
         {detailRecord !== null && (
           <div
-            className="fixed inset-0 bg-primary/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-text-body/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"
             onClick={() => setDetailRecord(null)}
@@ -567,7 +569,12 @@ export default function AuditLog() {
               <div className="px-6 py-4 bg-bg-default border-b border-border-default flex justify-between items-center">
                 <div>
                   <h4 className="font-bold text-text-body flex items-center gap-2 text-sm">
-                    <Code2 size={16} className="text-primary" />
+                    <AppIcon
+                      icon={Code2}
+                      size="sm"
+                      className="text-primary"
+                      decorative
+                    />
                     Detalhes da Alteração
                   </h4>
                   <p className="text-xs text-text-muted mt-0.5 font-mono">
@@ -581,7 +588,7 @@ export default function AuditLog() {
                   onClick={() => setDetailRecord(null)}
                   aria-label="Fechar"
                 >
-                  <X size={18} />
+                  <AppIcon icon={X} size="sm" ariaLabel="Fechar" />
                 </button>
               </div>
               <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body bg-bg-default">

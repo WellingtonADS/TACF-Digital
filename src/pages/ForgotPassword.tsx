@@ -5,7 +5,7 @@
  */
 
 import AuthLayout from "@/components/AuthLayout";
-import { AlertCircle, ArrowLeft, KeyRound, Mail } from "@/icons";
+import { Mail, Plane } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import type { ChangeEventHandler, ComponentType, FormEvent } from "react";
@@ -13,9 +13,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-// using shared AuthLayout to match Login page image, typography and theme
+const authFieldLabelClassName =
+  "text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1";
 
 type InputFieldProps = {
+  id: string;
   label: string;
   icon: ComponentType<{ size?: number | string }>;
   type?: string;
@@ -26,6 +28,7 @@ type InputFieldProps = {
 };
 
 const InputField = ({
+  id,
   label,
   icon: Icon,
   type = "text",
@@ -35,14 +38,19 @@ const InputField = ({
   onChange,
 }: InputFieldProps) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
+    <label
+      htmlFor={id}
+      className={authFieldLabelClassName}
+    >
       {label}
+      {required ? <span aria-hidden="true"> *</span> : null}
     </label>
     <div className="relative group">
       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-primary transition-colors">
         <Icon size={18} />
       </div>
       <input
+        id={id}
         type={type}
         placeholder={placeholder}
         required={required}
@@ -88,15 +96,23 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <>
-        <div className="w-16 h-16 bg-bg-card text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-          <KeyRound size={32} />
+        <div className="flex items-center gap-3 mb-10">
+          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+            <Plane
+              className="w-6 h-6 transform -rotate-45"
+              fill="currentColor"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
+            TACF-Digital
+          </h1>
         </div>
 
         <div className="mb-8">
-          <h2 className="text-3xl font-black text-text-body tracking-tight mb-2">
-            Recuperar Senha
+          <h2 className="text-xl font-bold text-text-body tracking-tight">
+            Recuperar senha
           </h2>
-          <p className="text-text-muted text-sm font-medium leading-relaxed px-4">
+          <p className="mt-2 text-sm leading-relaxed text-text-muted">
             Insira seu e-mail institucional abaixo para receber as instruções de
             recuperação.
           </p>
@@ -104,7 +120,8 @@ export default function ForgotPasswordPage() {
 
         <form className="space-y-6 text-left" onSubmit={handleSubmit}>
           <InputField
-            label="E-mail Institucional"
+            id="forgot-password-email"
+            label="E-mail institucional"
             icon={Mail}
             placeholder="Ex.: joao.silva@fab.mil.br"
             required
@@ -112,32 +129,27 @@ export default function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <button
+            type="submit"
             disabled={loading}
-            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200"
           >
             {loading ? "Enviando..." : "Enviar Instruções"}
           </button>
         </form>
 
-        <div className="mt-10">
+        <div className="text-center pt-4">
+          <p className="text-sm text-text-muted">Lembrou sua senha?</p>
           <Link
             to="/login"
-            className="flex items-center justify-center gap-2 w-full text-sm font-bold text-text-muted hover:text-text-body transition-colors group"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
-            <ArrowLeft
-              size={18}
-              className="group-hover:-translate-x-1 transition-transform"
-            />{" "}
-            Voltar para o Login
+            Fazer login
           </Link>
         </div>
 
-        <div className="mt-8 p-5 bg-bg-card rounded-3xl flex items-center gap-4">
-          <div className="text-primary">
-            <AlertCircle size={24} />
-          </div>
-          <p className="text-[11px] text-text-muted font-bold uppercase tracking-wider leading-relaxed text-left">
-            Problemas com o acesso? Procure a seção de informática da sua OM.
+        <div className="mt-12 text-center">
+          <p className="text-xs text-text-muted font-medium">
+            © 2026 HACO — Força Aérea Brasileira
           </p>
         </div>
       </>

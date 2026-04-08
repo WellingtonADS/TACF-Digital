@@ -39,6 +39,9 @@ export const OperationalDashboard = () => {
     hasPendingSwap,
     latestOrderNumber: _latestOrderNumber,
     notifications: derivedNotifications,
+    unreadNotificationsCount,
+    markingNotificationId,
+    markNotificationAsRead,
     inspsauStatus: _inspsauStatus,
     loading: dashboardLoading,
     refresh,
@@ -113,13 +116,20 @@ export const OperationalDashboard = () => {
         <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10">
-            <div>
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
-                Olá, {displayName}
-              </h2>
-              <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
-                Seja bem-vindo ao portal de agendamento do HACO
-              </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
+                  Olá, {displayName}
+                </h2>
+                <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
+                  Seja bem-vindo ao portal de agendamento do HACO
+                </p>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
+                <AppIcon icon={Info} size="xs" decorative={true} />
+                {unreadNotificationsCount} não lidas
+              </div>
             </div>
           </div>
         </div>
@@ -285,7 +295,7 @@ export const OperationalDashboard = () => {
             ) : (
               <div className="text-center">
                 <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
-                  <Info size={24} />
+                  <AppIcon icon={Info} size="md" decorative={true} />
                 </div>
                 <p className="text-text-muted font-medium">
                   Nenhum agendamento pendente
@@ -304,13 +314,13 @@ export const OperationalDashboard = () => {
         {/* Info Section */}
         <div className="w-full xl:w-96 bg-primary/5 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10">
           <h4 className="text-sm font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
-            <Info size={20} />
+            <AppIcon icon={Info} size="md" decorative={true} />
             Avisos Importantes
           </h4>
           <div className="space-y-4">
             {notifications.map((n, idx) => (
               <div
-                key={idx}
+                key={n.id ?? idx}
                 className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"
               >
                 <div className="w-10 h-10 rounded-full bg-bg-default flex items-center justify-center text-primary">
@@ -323,6 +333,20 @@ export const OperationalDashboard = () => {
                   <p className="text-xs text-text-muted mt-1 leading-relaxed">
                     {n.description}
                   </p>
+                  {n.source === "in_app" && n.id ? (
+                    <button
+                      type="button"
+                      onClick={() => void markNotificationAsRead(n.id!)}
+                      disabled={n.isRead || markingNotificationId === n.id}
+                      className="mt-2 text-[11px] font-semibold text-primary hover:underline disabled:text-text-muted disabled:no-underline"
+                    >
+                      {n.isRead
+                        ? "Lida"
+                        : markingNotificationId === n.id
+                          ? "Marcando..."
+                          : "Marcar como lida"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}

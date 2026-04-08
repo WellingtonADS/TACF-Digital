@@ -8,6 +8,26 @@
 import supabase from "@/services/supabase";
 import type { Profile } from "@/types";
 
+export type AccessProfileInsert = Pick<
+  Profile,
+  "id" | "full_name" | "email" | "rank" | "role" | "active"
+>;
+
+export async function createAccessProfile(
+  payload: AccessProfileInsert,
+): Promise<Profile> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .insert(payload)
+    .select("id, full_name, email, rank, role, active, updated_at, created_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Falha ao criar o coordenador.");
+
+  return data as Profile;
+}
+
 export async function getProfileById(id: string) {
   const { data, error } = await supabase
     .from("profiles")

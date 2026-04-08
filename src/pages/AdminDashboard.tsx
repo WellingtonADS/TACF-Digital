@@ -6,7 +6,7 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
-import StatCard from "@/components/atomic/StatCard";
+import KpiCard from "@/components/atomic/KpiCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -199,13 +199,6 @@ const AdminDashboard = () => {
       accent: "bg-primary/5 text-primary",
     },
     {
-      icon: ClipboardList,
-      label: "Lançar Índices",
-      description: "Inserir resultados de avaliação",
-      path: buildSessionHubPath("indices"),
-      accent: "bg-primary/5 text-primary",
-    },
-    {
       icon: Settings,
       label: "Configurações",
       description: "Parâmetros globais e segurança",
@@ -221,7 +214,10 @@ const AdminDashboard = () => {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-6xl" data-testid="admin-dashboard">
+      <div
+        className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-0"
+        data-testid="admin-dashboard"
+      >
         {/* Greeting hero */}
         <section className="mb-8">
           <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
@@ -266,98 +262,83 @@ const AdminDashboard = () => {
           </div>
         </section>
 
-        {/* stats grid (DRY via StatCard) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <StatCard
-            title="Total Inscritos"
-            value={totalInscritos}
-            loading={metricsLoading}
+        {/* stats grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
+          <KpiCard
+            label="Total Inscritos"
+            value={metricsLoading ? null : totalInscritos}
             icon={Users}
+            accent="primary"
           />
-
-          <StatCard
-            title="Aptos (Mês)"
-            value={aptosMonth}
-            loading={metricsLoading}
+          <KpiCard
+            label="Aptos (Mês)"
+            value={metricsLoading ? null : aptosMonth}
             icon={CheckCircle}
-            className="border-b-4 border-success/30"
-            iconBg="bg-success/10"
-            iconColor="text-success"
+            accent="success"
           />
-
-          <StatCard
-            title="Pendências"
-            value={pendencias}
-            loading={metricsLoading}
+          <KpiCard
+            label="Pendências"
+            value={metricsLoading ? null : pendencias}
             icon={AlertTriangle}
-            className="border-b-4 border-error/30"
-            iconBg="bg-error/10"
-            iconColor="text-error"
+            accent="error"
           />
-
-          <StatCard
-            title="Vagas Restante"
-            value={capacidadeRestante}
-            loading={sessionsLoading}
+          <KpiCard
+            label="Vagas Restantes"
+            value={sessionsLoading ? null : capacidadeRestante}
             icon={BarChart2}
+            accent="primary"
           />
         </div>
 
-        <section className="mb-10">
-          <div className="mb-4 flex items-center justify-between px-1">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+        <section className="mb-4">
+          <div className="mb-4 flex items-center justify-between border-t border-border-default pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
               Governança Operacional
             </h3>
             {governanceAlert && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-alert/30 bg-alert/10 px-3 py-1 text-[11px] font-semibold text-alert">
-                <AlertTriangle size={12} />
+              <span className="inline-flex items-center gap-2 rounded-full border border-error/30 bg-error/10 px-3 py-1 text-[11px] font-semibold text-error">
+                <AppIcon icon={AlertTriangle} size="xs" decorative />
                 Atenção SLA
               </span>
             )}
           </div>
 
           {governanceAlert && (
-            <div className="mb-4 rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
+            <div className="mb-4 rounded-2xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
               {governanceAlert}
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="Turmas em Atraso"
-              value={governance?.overdueSessions ?? 0}
-              loading={metricsLoading}
+            <KpiCard
+              label="Turmas em Atraso"
+              value={metricsLoading ? null : (governance?.overdueSessions ?? 0)}
               icon={Shield}
-              className="border-b-4 border-alert/30"
-              iconBg="bg-alert/10"
-              iconColor="text-alert"
+              accent="error"
             />
-            <StatCard
-              title="Resultados Pendentes"
-              value={governance?.pendingResults ?? 0}
-              loading={metricsLoading}
+            <KpiCard
+              label="Resultados Pendentes"
+              value={metricsLoading ? null : (governance?.pendingResults ?? 0)}
               icon={ClipboardList}
-              className="border-b-4 border-error/30"
-              iconBg="bg-error/10"
-              iconColor="text-error"
+              accent="error"
             />
-            <StatCard
-              title="Reagendamentos Abertos"
-              value={governance?.pendingSwapRequests ?? 0}
-              loading={metricsLoading}
+            <KpiCard
+              label="Reagendamentos Abertos"
+              value={
+                metricsLoading ? null : (governance?.pendingSwapRequests ?? 0)
+              }
               icon={GitMerge}
-              className="border-b-4 border-secondary/30"
-              iconBg="bg-secondary/10"
-              iconColor="text-secondary"
+              accent="secondary"
             />
-            <StatCard
-              title="Sessões Concluídas 7d"
-              value={governance?.completedSessionsLast7Days ?? 0}
-              loading={metricsLoading}
+            <KpiCard
+              label="Sessões Concluídas 7d"
+              value={
+                metricsLoading
+                  ? null
+                  : (governance?.completedSessionsLast7Days ?? 0)
+              }
               icon={CheckCircle}
-              className="border-b-4 border-success/30"
-              iconBg="bg-success/10"
-              iconColor="text-success"
+              accent="success"
             />
           </div>
         </section>
@@ -370,10 +351,12 @@ const AdminDashboard = () => {
         )}
 
         {/* quick action cards */}
-        <section className="mb-10">
-          <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 px-1">
-            Acesso Rápido
-          </h3>
+        <section className="mb-4">
+          <div className="mb-4 border-t border-border-default pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+              Acesso Rápido
+            </h3>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
             {quickActions.map((action) => (
               <QuickActionButton key={action.path} action={action} />
@@ -383,8 +366,8 @@ const AdminDashboard = () => {
 
         {/* upcoming sessions strip */}
         <section>
-          <div className="flex items-center justify-between mb-4 px-1">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+          <div className="flex items-center justify-between border-t border-border-default pt-4 mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
               Próximas Turmas Abertas
             </h3>
             <button

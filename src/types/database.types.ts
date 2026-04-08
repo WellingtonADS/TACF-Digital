@@ -357,6 +357,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_notifications: {
+        Row: {
+          id: string;
+          recipient_user_id: string;
+          sender_user_id?: string | null;
+          type: string;
+          title: string;
+          message: string;
+          metadata?: Json | null;
+          is_read: boolean;
+          read_at?: string | null;
+          created_at?: string | null;
+        };
+        Insert: {
+          id?: string;
+          recipient_user_id: string;
+          sender_user_id?: string | null;
+          type: string;
+          title: string;
+          message: string;
+          metadata?: Json | null;
+          is_read?: boolean;
+          read_at?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          recipient_user_id?: string;
+          sender_user_id?: string | null;
+          type?: string;
+          title?: string;
+          message?: string;
+          metadata?: Json | null;
+          is_read?: boolean;
+          read_at?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -460,6 +499,14 @@ export interface Database {
           details?: string | null;
           created_at?: string | null;
         }[];
+      };
+      log_audit_event: {
+        Args: {
+          p_action: string;
+          p_entity: string;
+          p_details?: string | null;
+        };
+        Returns: undefined;
       };
       approve_swap: {
         Args: { p_request_id: string; p_admin_id: string };

@@ -4,11 +4,13 @@
  * @path src/components/RescheduleDrawer.tsx
  */
 
+import CustomCalendar from "@/components/atomic/CustomCalendar";
 import type { SessionAvailability } from "@/hooks/useSessions";
 import { createSwapRequest } from "@/services/bookings";
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
-import { useEffect, useState } from "react";
+import { parseISO, startOfDay, startOfMonth } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 function getSwapErrorMessage(error: unknown): string {
@@ -59,6 +61,10 @@ export default function RescheduleDrawer({
   const [reason, setReason] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() =>
+    startOfMonth(new Date()),
+  );
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
 
   useEffect(() => {
     if (!open) {
@@ -67,6 +73,7 @@ export default function RescheduleDrawer({
       setSelectedSessionId("");
       setReason("");
       setFile(null);
+      setCalendarMonth(startOfMonth(new Date()));
     }
   }, [open]);
 
@@ -175,16 +182,45 @@ export default function RescheduleDrawer({
             >
               Nova data
             </label>
-            <input
+            <div
               id="new-date"
-              type="date"
-              value={newDate}
-              onChange={(e) => {
-                setNewDate(e.target.value);
-                void fetchSessionsForDate(e.target.value);
-              }}
-              className="w-full mt-1 rounded-lg border border-border-default bg-bg-card text-text-body text-sm focus-ring"
-            />
+              className="mt-2 rounded-lg border border-border-default bg-bg-card p-3"
+            >
+              <CustomCalendar
+                viewDate={calendarMonth}
+                onViewDateChange={setCalendarMonth}
+                selectedDateKey={newDate || null}
+                onSelectDate={(dateKey, date) => {
+                  const normalizedDate = startOfDay(date);
+                  if (normalizedDate < todayStart) {
+                    return;
+                  }
+
+                  setNewDate(dateKey);
+                  void fetchSessionsForDate(dateKey);
+                }}
+                resolveDayState={(date, context) => {
+                  if (!context.isCurrentMonth) {
+                    return { disabled: true, tone: "muted" as const };
+                  }
+
+                  const normalizedDate = startOfDay(date);
+                  if (normalizedDate < todayStart) {
+                    return { disabled: true, tone: "muted" as const };
+                  }
+
+                  return { tone: "default" as const };
+                }}
+                weekStartsOn={1}
+                size="compact"
+              />
+            </div>
+            {newDate && (
+              <p className="mt-1 text-xs text-text-muted">
+                Data selecionada:{" "}
+                {parseISO(newDate).toLocaleDateString("pt-BR")}
+              </p>
+            )}
           </div>
 
           {newDate && (

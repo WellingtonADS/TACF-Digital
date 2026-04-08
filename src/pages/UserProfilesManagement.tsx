@@ -13,9 +13,11 @@ import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import type { Profile } from "@/types";
 import { formatDateShortPtBr, formatDateTimePtBr } from "@/utils/date";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
+import { isUserProfileComplete } from "@/utils/profileCompletion";
 import { differenceInYears, isAfter, parseISO } from "date-fns";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase, upsertProfile } from "../services/supabase";
 
@@ -42,6 +44,7 @@ type UserProfileView = Profile & {
 
 export default function UserProfilesManagement() {
   const { user, profile: authProfile, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfileView | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -125,6 +128,8 @@ export default function UserProfilesManagement() {
       return;
     }
 
+    const wasIncomplete = !isUserProfileComplete(profile);
+
     setSaving(true);
     try {
       const { data, error } = await upsertProfile({
@@ -146,7 +151,11 @@ export default function UserProfilesManagement() {
           | UserProfileView
           | null
           | undefined;
-        setProfile(saved ?? profile);
+        const nextProfile = saved ?? profile;
+        setProfile(nextProfile);
+        if (wasIncomplete && isUserProfileComplete(nextProfile)) {
+          navigate("/app", { replace: true });
+        }
       }
     } catch (err: unknown) {
       console.error(err);

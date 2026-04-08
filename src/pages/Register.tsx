@@ -16,6 +16,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+const authFieldLabelClassName =
+  "text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1";
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
@@ -106,7 +109,14 @@ export default function RegisterPage() {
           </p>
 
           <div className="space-y-1">
+            <label
+              htmlFor="register-full-name"
+              className={authFieldLabelClassName}
+            >
+              Nome completo <span aria-hidden="true">*</span>
+            </label>
             <Input
+              id="register-full-name"
               name="tacf-register-full-name"
               type="text"
               required
@@ -118,7 +128,11 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1">
+            <label htmlFor="register-email" className={authFieldLabelClassName}>
+              E-mail institucional <span aria-hidden="true">*</span>
+            </label>
             <Input
+              id="register-email"
               name="tacf-register-email"
               type="email"
               required
@@ -133,7 +147,14 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1">
+            <label
+              htmlFor="register-password"
+              className={authFieldLabelClassName}
+            >
+              Senha <span aria-hidden="true">*</span>
+            </label>
             <PasswordInput
+              id="register-password"
               name="tacf-register-password"
               required
               placeholder="Ex.: senha com mínimo de 8 caracteres"

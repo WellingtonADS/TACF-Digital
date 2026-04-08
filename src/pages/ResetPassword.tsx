@@ -7,12 +7,15 @@
 
 import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/atomic/PasswordInput";
-import { AlertCircle, ArrowLeft, ShieldCheck } from "@/icons";
+import { AlertCircle, Plane, ShieldCheck } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+const authFieldLabelClassName =
+  "text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -73,34 +76,53 @@ export default function ResetPasswordPage() {
   if (invalidLink) {
     return (
       <AuthLayout>
-        <div className="text-center space-y-6">
-          <div className="w-16 h-16 bg-bg-card text-error rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle size={32} />
+        <div className="space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+              <Plane
+                className="w-6 h-6 transform -rotate-45"
+                fill="currentColor"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-text-body tracking-tight">
+              TACF-Digital
+            </h1>
           </div>
-          <div>
-            <h2 className="text-2xl font-black text-text-body tracking-tight mb-2">
-              Link inválido ou expirado
-            </h2>
-            <p className="text-text-muted text-sm font-medium leading-relaxed px-2">
-              Este link de recuperação não é mais válido. Solicite um novo link.
-            </p>
+
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-bg-card text-error rounded-full flex items-center justify-center mx-auto">
+              <AlertCircle size={32} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-text-body tracking-tight">
+                Link inválido ou expirado
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                Este link de recuperação não é mais válido. Solicite um novo
+                link.
+              </p>
+            </div>
           </div>
           <Link
             to="/forgot"
-            className="flex items-center justify-center gap-2 w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all"
+            className="flex w-full items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl py-4 shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200"
           >
             Solicitar novo link
           </Link>
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 w-full text-sm font-bold text-text-muted hover:text-text-body transition-colors group"
-          >
-            <ArrowLeft
-              size={18}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            Voltar para o Login
-          </Link>
+          <div className="text-center pt-1">
+            <p className="text-sm text-text-muted">Já possui um link válido?</p>
+            <Link
+              to="/login"
+              className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
+            >
+              Fazer login
+            </Link>
+          </div>
+          <div className="mt-12 text-center">
+            <p className="text-xs text-text-muted font-medium">
+              © 2026 HACO — Força Aérea Brasileira
+            </p>
+          </div>
         </div>
       </AuthLayout>
     );
@@ -109,13 +131,26 @@ export default function ResetPasswordPage() {
   if (!sessionReady) {
     return (
       <AuthLayout>
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-bg-card text-primary rounded-full flex items-center justify-center mx-auto">
-            <ShieldCheck size={32} />
+        <div className="space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+              <Plane
+                className="w-6 h-6 transform -rotate-45"
+                fill="currentColor"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-text-body tracking-tight">
+              TACF-Digital
+            </h1>
           </div>
-          <p className="text-text-muted text-sm font-medium">
-            Verificando link de recuperação...
-          </p>
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-bg-card text-primary rounded-full flex items-center justify-center mx-auto">
+              <ShieldCheck size={32} />
+            </div>
+            <p className="text-text-muted text-sm font-medium">
+              Verificando link de recuperação...
+            </p>
+          </div>
         </div>
       </AuthLayout>
     );
@@ -124,25 +159,37 @@ export default function ResetPasswordPage() {
   return (
     <AuthLayout>
       <>
-        <div className="w-16 h-16 bg-bg-card text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-          <ShieldCheck size={32} />
+        <div className="flex items-center gap-3 mb-10">
+          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+            <Plane
+              className="w-6 h-6 transform -rotate-45"
+              fill="currentColor"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-text-body tracking-tight">
+            TACF-Digital
+          </h1>
         </div>
 
         <div className="mb-8">
-          <h2 className="text-3xl font-black text-text-body tracking-tight mb-2">
-            Nova Senha
+          <h2 className="text-xl font-bold text-text-body tracking-tight">
+            Redefinir senha
           </h2>
-          <p className="text-text-muted text-sm font-medium leading-relaxed px-4">
+          <p className="mt-2 text-sm leading-relaxed text-text-muted">
             Defina uma nova senha para sua conta. Mínimo de 8 caracteres.
           </p>
         </div>
 
         <form className="space-y-6 text-left" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
-              Nova Senha
+            <label
+              htmlFor="reset-password"
+              className={authFieldLabelClassName}
+            >
+              Nova senha <span aria-hidden="true">*</span>
             </label>
             <PasswordInput
+              id="reset-password"
               required
               placeholder="Mínimo 8 caracteres"
               value={password}
@@ -152,10 +199,14 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
-              Confirmar Senha
+            <label
+              htmlFor="reset-password-confirm"
+              className={authFieldLabelClassName}
+            >
+              Confirmar nova senha <span aria-hidden="true">*</span>
             </label>
             <PasswordInput
+              id="reset-password-confirm"
               required
               placeholder="Repita a nova senha"
               value={confirm}
@@ -167,23 +218,26 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all disabled:opacity-60"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl py-4 shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 disabled:opacity-60"
           >
-            {loading ? "Salvando..." : "Redefinir Senha"}
+            {loading ? "Salvando..." : "Redefinir senha"}
           </button>
         </form>
 
-        <div className="mt-10">
+        <div className="text-center pt-4">
+          <p className="text-sm text-text-muted">Lembrou sua senha?</p>
           <Link
             to="/login"
-            className="flex items-center justify-center gap-2 w-full text-sm font-bold text-text-muted hover:text-text-body transition-colors group"
+            className="text-text-body font-bold text-sm hover:text-primary hover:underline mt-1 inline-block focus:outline-none"
           >
-            <ArrowLeft
-              size={18}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            Voltar para o Login
+            Fazer login
           </Link>
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-xs text-text-muted font-medium">
+            © 2026 HACO — Força Aérea Brasileira
+          </p>
         </div>
       </>
     </AuthLayout>

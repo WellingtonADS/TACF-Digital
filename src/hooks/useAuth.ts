@@ -8,6 +8,7 @@
 import { SESSION_PROFILE_KEY } from "@/constants/storage";
 import { supabase, upsertProfile } from "@/services/supabase";
 import type { Profile as DBProfile, Database } from "@/types";
+import { buildProfileDraftFromUser } from "@/utils/profileCompletion";
 import type { Session, User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
@@ -67,31 +68,16 @@ export default function useAuth() {
         .eq("id", uid)
         .maybeSingle();
 
-      if (!p && import.meta.env.MODE !== "production") {
-        // user has no profile in DB — fallback to first profile in dev for easier testing
-        const { data: fallback } = await supabase
-          .from("profiles")
-          .select("*")
-          .limit(1)
-          .maybeSingle();
-
-        const val = (fallback as Profile) ?? null;
-        setProfile(val);
-        try {
-          if (typeof window !== "undefined")
-            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-        } catch (_: unknown) {
-          /* sessionStorage can throw in restricted contexts */
-        }
-      } else {
-        const val = (p as Profile) ?? null;
-        setProfile(val);
-        try {
-          if (typeof window !== "undefined")
-            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-        } catch (_: unknown) {
-          /* sessionStorage can throw in restricted contexts */
-        }
+      const val = buildProfileDraftFromUser(
+        userData.user,
+        (p as Profile) ?? null,
+      );
+      setProfile(val);
+      try {
+        if (typeof window !== "undefined")
+          sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
+      } catch (_: unknown) {
+        /* sessionStorage can throw in restricted contexts */
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -125,7 +111,10 @@ export default function useAuth() {
         .eq("id", uid)
         .maybeSingle();
 
-      const val = (p as Profile) ?? null;
+      const val = buildProfileDraftFromUser(
+        session.user as User,
+        (p as Profile) ?? null,
+      );
       setProfile(val);
       try {
         if (typeof window !== "undefined")
