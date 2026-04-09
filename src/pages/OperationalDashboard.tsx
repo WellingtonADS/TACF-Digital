@@ -38,6 +38,8 @@ export const OperationalDashboard = () => {
     nextSessionBookingId,
     hasPendingSwap,
     latestOrderNumber: _latestOrderNumber,
+    currentOperationalStatus,
+    latestSwapStatus,
     notifications: derivedNotifications,
     unreadNotificationsCount,
     markingNotificationId,
@@ -67,6 +69,17 @@ export const OperationalDashboard = () => {
   const nextSessionDetails =
     nextSession as NextSessionWithOptionalDetails | null;
 
+  const operationalStatusLabel =
+    currentOperationalStatus === "reagendamento_solicitado"
+      ? "Reagendamento solicitado"
+      : currentOperationalStatus === "agendado"
+        ? "Agendado"
+        : "Sem agendamento ativo";
+
+  const ticketCardTitle =
+    bookingsCount > 0 ? "Bilhete ativo" : "Sem bilhete ativo";
+  const canRequestReschedule = Boolean(nextSessionBookingId) && !hasPendingSwap;
+
   const actionCards = [
     {
       icon: CalendarPlus,
@@ -88,7 +101,7 @@ export const OperationalDashboard = () => {
     {
       icon: Award,
       label: "Confirmação",
-      title: "Agendado",
+      title: ticketCardTitle,
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/ticket",
@@ -267,6 +280,10 @@ export const OperationalDashboard = () => {
                     )}
 
                     <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-start justify-center gap-3">
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                        {operationalStatusLabel}
+                      </span>
+
                       <a
                         href="/app/agendamentos"
                         className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-colors"
@@ -274,7 +291,7 @@ export const OperationalDashboard = () => {
                         Ver agendamento
                       </a>
 
-                      {nextSessionBookingId && (
+                      {canRequestReschedule && (
                         <button
                           onClick={() => setDrawerOpen(true)}
                           className="inline-flex items-center rounded-lg border border-primary bg-primary/5 px-4 py-2 font-semibold text-primary transition-colors hover:bg-primary/10"
@@ -288,7 +305,29 @@ export const OperationalDashboard = () => {
                           Reagendamento Pendente
                         </span>
                       )}
+
+                      {!hasPendingSwap && latestSwapStatus === "cancelado" && (
+                        <span className="inline-flex items-center rounded-full bg-alert/10 px-3 py-1 text-xs font-semibold text-alert">
+                          Último reagendamento indeferido
+                        </span>
+                      )}
                     </div>
+
+                    {hasPendingSwap && (
+                      <p className="mt-3 text-xs text-text-muted">
+                        Seu agendamento atual continua válido até a análise final
+                        do reagendamento solicitado.
+                      </p>
+                    )}
+
+                    {!hasPendingSwap &&
+                      latestSwapStatus === "cancelado" &&
+                      nextSessionBookingId && (
+                        <p className="mt-3 text-xs text-text-muted">
+                          O último pedido de reagendamento foi indeferido e o
+                          agendamento ativo permanece o mesmo.
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
@@ -299,6 +338,9 @@ export const OperationalDashboard = () => {
                 </div>
                 <p className="text-text-muted font-medium">
                   Nenhum agendamento pendente
+                </p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  {operationalStatusLabel}
                 </p>
                 <a
                   href="/app/agendamentos"

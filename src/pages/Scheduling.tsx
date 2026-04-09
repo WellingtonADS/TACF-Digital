@@ -13,7 +13,10 @@ import TicketModal from "@/components/TicketModal";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import { Calendar, Check, ChevronRight, Clock, Hash, MapPin } from "@/icons";
 import { fetchSessionLocationBySessionId } from "@/services/locations";
-import { fetchBookedDatesForUser, formatSessionPeriod } from "@/utils/booking";
+import {
+  fetchBookedDatesForUser,
+  formatSessionPeriod,
+} from "@/utils/booking";
 import { formatDatePtBr } from "@/utils/date";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { useEffect, useMemo, useState } from "react";
@@ -62,6 +65,10 @@ export const Scheduling = () => {
   const sessionsByDate = useMemo(() => {
     const map: Record<string, SessionAvailability[]> = {};
     (sessions ?? []).forEach((s) => {
+      if (s.status !== "open" || s.available_count <= 0) {
+        return;
+      }
+
       const key = s.date as string;
       map[key] = map[key] ?? [];
       map[key].push(s);
@@ -338,7 +345,9 @@ export const Scheduling = () => {
                           <button
                             key={s.session_id}
                             onClick={() => handleSelectSession(s.session_id)}
-                            disabled={s.available_count <= 0}
+                            disabled={
+                              s.status !== "open" || s.available_count <= 0
+                            }
                             className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 ${
                               selectedSession === s.session_id
                                 ? "border-primary bg-primary/5"

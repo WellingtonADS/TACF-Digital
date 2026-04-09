@@ -1,16 +1,16 @@
 import {
-  fetchSwapRequests,
-  updateBookingStatus,
-  updateSwapRequestStatus,
+  approveSwapRequest,
+  fetchSwapRequestsWithContext,
+  rejectSwapRequest,
 } from "@/services/bookings";
 import supabase from "@/services/supabase";
 import type { Database } from "@/types/database.types";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
+import { translateBookingError } from "@/utils/booking";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type SwapRequestRow = Database["public"]["Tables"]["swap_requests"]["Row"];
-type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 
 export type SwapStatus = SwapRequestRow["status"];
 
@@ -20,6 +20,8 @@ export type RequestRow = {
   status: SwapStatus;
   reasonText: string;
   attachmentUrl: string | null;
+  createdAt: string | null;
+  processedAt: string | null;
   originalDate: string | null;
   newDate: string | null;
   fullName: string;
@@ -50,6 +52,47 @@ function parseSwapReason(reason: string): {
   }
 }
 
+function getSwapActionErrorMessage(error: unknown): string | null {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const message = raw.toLowerCase();
+
+  if (message.includes("swap request already processed")) {
+    return "A solicitação já foi processada por outro operador.";
+  }
+
+  if (message.includes("session not open")) {
+    return "A sessão de destino não está mais aberta para reagendamento.";
+  }
+
+  if (message.includes("session full")) {
+    return "A sessão de destino ficou sem vagas durante a aprovação.";
+  }
+
+  if (message.includes("booking is not active anymore")) {
+    return "O agendamento original não está mais ativo.";
+  }
+
+  if (message.includes("user already has active booking this semester")) {
+    return "O militar já possui outro agendamento ativo neste semestre. Revise o histórico antes de deferir esta solicitação.";
+  }
+
+  if (message.includes("user already approved this semester")) {
+    return "O militar já foi registrado como apto/aprovado neste semestre e não pode receber novo agendamento.";
+  }
+
+  const bookingMessage = translateBookingError(raw);
+  if (bookingMessage) {
+    return bookingMessage;
+  }
+
+  return null;
+}
+
 export default function useReschedulingManagement() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,82 +103,14 @@ export default function useReschedulingManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const swaps = (await fetchSwapRequests()) as SwapRequestRow[];
+      const swaps = await fetchSwapRequestsWithContext();
 
       if (swaps.length === 0) {
         setRows([]);
         return;
       }
 
-      const bookingIds = Array.from(
-        new Set(swaps.map((swap) => swap.booking_id)),
-      ).filter((id): id is string => Boolean(id));
-
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from("bookings")
-        .select("id,user_id,session_id")
-        .in("id", bookingIds);
-
-      if (bookingsError) throw bookingsError;
-
-      const bookings = (bookingsData ?? []) as Pick<
-        BookingRow,
-        "id" | "user_id" | "session_id"
-      >[];
-      const bookingsById = new Map<string, (typeof bookings)[number]>(
-        bookings.map((booking) => [booking.id, booking]),
-      );
-
-      const sessionIds = Array.from(
-        new Set([
-          ...bookings.map((booking) => booking.session_id),
-          ...swaps.map((swap) => swap.new_session_id),
-        ]),
-      ).filter((id): id is string => Boolean(id));
-
-      const sessionsById = new Map<string, string>();
-      if (sessionIds.length > 0) {
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from("sessions")
-          .select("id,date")
-          .in("id", sessionIds);
-
-        if (sessionsError) throw sessionsError;
-        sessionsData?.forEach((session) =>
-          sessionsById.set(session.id, session.date),
-        );
-      }
-
-      const userIds = Array.from(
-        new Set(bookings.map((booking) => booking.user_id)),
-      );
-      const profilesByUser = new Map<
-        string,
-        { full_name: string; war_name: string; saram: string }
-      >();
-
-      if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id,full_name,war_name,saram")
-          .in("id", userIds);
-
-        if (profilesError) throw profilesError;
-
-        profilesData?.forEach((profile) => {
-          profilesByUser.set(profile.id, {
-            full_name: profile.full_name ?? "",
-            war_name: profile.war_name ?? "",
-            saram: profile.saram ?? "",
-          });
-        });
-      }
-
       const normalizedRows = swaps.map((swap) => {
-        const booking = bookingsById.get(swap.booking_id);
-        const profile = booking
-          ? profilesByUser.get(booking.user_id)
-          : undefined;
         const parsedReason = parseSwapReason(swap.reason);
 
         return {
@@ -144,14 +119,13 @@ export default function useReschedulingManagement() {
           status: swap.status,
           reasonText: parsedReason.text,
           attachmentUrl: parsedReason.attachmentUrl,
-          originalDate: booking
-            ? (sessionsById.get(booking.session_id) ?? null)
-            : null,
-          newDate:
-            sessionsById.get(swap.new_session_id) ?? parsedReason.newDate,
-          fullName: profile?.full_name ?? "",
-          warName: profile?.war_name ?? "",
-          saram: profile?.saram ?? "",
+          createdAt: swap.created_at,
+          processedAt: swap.processed_at,
+          originalDate: swap.original_date ?? null,
+          newDate: swap.new_date ?? parsedReason.newDate,
+          fullName: swap.full_name ?? "",
+          warName: swap.war_name ?? "",
+          saram: swap.saram ?? "",
         } as RequestRow;
       });
 
@@ -206,20 +180,42 @@ export default function useReschedulingManagement() {
   const changeStatus = useCallback(
     async (
       requestId: string,
-      bookingId: string,
+      _bookingId: string,
       status: Extract<SwapStatus, "aprovado" | "cancelado">,
     ) => {
       try {
         const { data } = await supabase.auth.getUser();
         const adminId = data.user?.id;
 
-        await updateSwapRequestStatus(requestId, status, adminId);
-
         if (status === "aprovado") {
-          await updateBookingStatus(bookingId, "remarcado");
+          if (!adminId) {
+            throw new Error("Usuário não autenticado");
+          }
+
+          const result = await approveSwapRequest(requestId, adminId);
+          if (!result.success) {
+            throw new Error(
+              result.error ?? "Falha ao aprovar solicitação de reagendamento",
+            );
+          }
+        } else {
+          if (!adminId) {
+            throw new Error("Usuário não autenticado");
+          }
+
+          const result = await rejectSwapRequest(requestId, adminId);
+          if (!result.success) {
+            throw new Error(
+              result.error ?? "Falha ao indeferir solicitação de reagendamento",
+            );
+          }
         }
 
-        toast.success("Registro atualizado");
+        toast.success(
+          status === "aprovado"
+            ? "Reagendamento aprovado e novo agendamento ativo criado."
+            : "Solicitação de reagendamento indeferida.",
+        );
         setRows((currentRows) =>
           currentRows.map((row) =>
             row.id === requestId ? { ...row, status } : row,
@@ -237,7 +233,11 @@ export default function useReschedulingManagement() {
             ? "aprovar solicitações de reagendamento"
             : "indeferir solicitações de reagendamento";
         const authMessage = getAuthorizationErrorMessage(error, actionContext);
-        toast.error(authMessage ?? "Falha ao atualizar solicitação");
+        toast.error(
+          authMessage ??
+            getSwapActionErrorMessage(error) ??
+            "Falha ao atualizar solicitação",
+        );
       }
     },
     [],

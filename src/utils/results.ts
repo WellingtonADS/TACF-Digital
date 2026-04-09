@@ -1,8 +1,11 @@
+import { getResultBookingStatus } from "@/utils/resultOperational";
+
 export type ResultStatus = "apto" | "inapto" | "pendente" | null;
 
 export type ResultSummary = {
   id: string;
   booking_status?: string | null;
+  booking_metadata?: unknown;
   test_date?: string | null;
   score?: string | null;
   created_at?: string | null;
@@ -65,7 +68,39 @@ function normalizeResultStatus(value: unknown): ResultStatus {
 }
 
 export function canOpenAppeal(result: Pick<ResultSummary, "result_status">) {
-  return result.result_status === "apto" || result.result_status === "inapto";
+  return getAppealAvailability(result).allowed;
+}
+
+export function getAppealAvailability(
+  result: Pick<ResultSummary, "result_status" | "booking_status">,
+): { allowed: boolean; reason: string | null } {
+  const bookingStatus = getResultBookingStatus(result);
+
+  if (bookingStatus === "cancelado") {
+    return {
+      allowed: false,
+      reason:
+        "Este registro pertence a um agendamento cancelado e não aceita abertura de recurso.",
+    };
+  }
+
+  if (bookingStatus === "remarcado") {
+    return {
+      allowed: false,
+      reason:
+        "Este registro pertence a um booking histórico remarcado. Abra o recurso apenas a partir do agendamento ativo correspondente, quando aplicável.",
+    };
+  }
+
+  if (result.result_status !== "apto" && result.result_status !== "inapto") {
+    return {
+      allowed: false,
+      reason:
+        "A abertura de recurso fica disponível somente quando o resultado final estiver classificado como apto ou inapto.",
+    };
+  }
+
+  return { allowed: true, reason: null };
 }
 
 export function normalizeResultSummary(
@@ -87,6 +122,7 @@ export function normalizeResultSummary(
   return {
     id: input.id,
     booking_status: input.status ?? input.booking_status ?? null,
+    booking_metadata: input.booking_metadata ?? null,
     test_date: input.test_date ?? null,
     score: input.score ?? null,
     created_at: input.created_at ?? null,

@@ -39,6 +39,17 @@ export async function fetchSwapRequests() {
   return data ?? [];
 }
 
+export type SwapRequestWithContextRow =
+  Database["public"]["Functions"]["get_swap_requests_with_context"]["Returns"][number];
+
+export async function fetchSwapRequestsWithContext(): Promise<
+  SwapRequestWithContextRow[]
+> {
+  const { data, error } = await supabase.rpc("get_swap_requests_with_context");
+  if (error) throw error;
+  return (data ?? []) as SwapRequestWithContextRow[];
+}
+
 export async function updateSwapRequestStatus(
   requestId: string,
   status: Database["public"]["Tables"]["swap_requests"]["Update"]["status"],
@@ -63,16 +74,125 @@ export async function updateSwapRequestStatus(
   return data;
 }
 
-export async function updateBookingStatus(
-  bookingId: string,
-  status: Database["public"]["Tables"]["bookings"]["Update"]["status"],
-) {
-  const { data, error } = await supabase
-    .from("bookings")
-    .update({ status })
-    .eq("id", bookingId);
+export type ApproveSwapResponse = {
+  success: boolean;
+  error: string | null;
+  original_booking_id: string | null;
+  new_booking_id: string | null;
+  new_session_id: string | null;
+  order_number: string | null;
+};
+
+export type RejectSwapResponse = {
+  success: boolean;
+  error: string | null;
+  booking_id: string | null;
+  user_id: string | null;
+  swap_status: Database["public"]["Tables"]["swap_requests"]["Row"]["status"] | null;
+};
+
+export type CancelBookingResponse = {
+  success: boolean;
+  error: string | null;
+  booking_id: string | null;
+  user_id: string | null;
+  booking_status: Database["public"]["Tables"]["bookings"]["Row"]["status"] | null;
+  cancelled_swap_requests: number;
+};
+
+type SupabaseRpcError = {
+  code?: string;
+  message?: string;
+};
+
+function mapBookingRpcError(error: unknown, rpcName: string): Error {
+  const rpcError = error as SupabaseRpcError | null;
+
+  if (
+    rpcError?.code === "PGRST202" &&
+    typeof rpcError.message === "string" &&
+    rpcError.message.includes(rpcName)
+  ) {
+    return new Error(
+      `RPC ${rpcName} indisponivel no ambiente atual. Aplique as migrations do banco (yarn db:apply) e atualize o cache de schema do Supabase.`,
+    );
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("Falha ao executar operacao administrativa de agendamento.");
+}
+
+export async function approveSwapRequest(
+  requestId: string,
+  adminId: string,
+): Promise<ApproveSwapResponse> {
+  const { data, error } = await supabase.rpc("approve_swap", {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+  });
+
   if (error) throw error;
-  return data;
+
+  const result = Array.isArray(data) ? data[0] : null;
+
+  return {
+    success: Boolean(result?.success),
+    error: result?.error ?? null,
+    original_booking_id: result?.original_booking_id ?? null,
+    new_booking_id: result?.new_booking_id ?? null,
+    new_session_id: result?.new_session_id ?? null,
+    order_number: result?.order_number ?? null,
+  };
+}
+
+export async function rejectSwapRequest(
+  requestId: string,
+  adminId: string,
+  reason?: string,
+): Promise<RejectSwapResponse> {
+  const { data, error } = await supabase.rpc("reject_swap", {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+    p_reason: reason ?? null,
+  });
+
+  if (error) throw error;
+
+  const result = Array.isArray(data) ? data[0] : null;
+
+  return {
+    success: Boolean(result?.success),
+    error: result?.error ?? null,
+    booking_id: result?.booking_id ?? null,
+    user_id: result?.user_id ?? null,
+    swap_status: result?.swap_status ?? null,
+  };
+}
+
+export async function cancelBooking(
+  bookingId: string,
+  reason?: string,
+): Promise<CancelBookingResponse> {
+  const { data, error } = await supabase.rpc("cancel_booking", {
+    p_booking_id: bookingId,
+    p_reason: reason ?? null,
+  });
+
+  if (error) {
+    throw mapBookingRpcError(error, "cancel_booking");
+  }
+
+  const result = Array.isArray(data) ? data[0] : null;
+
+  return {
+    success: Boolean(result?.success),
+    error: result?.error ?? null,
+    booking_id: result?.booking_id ?? null,
+    user_id: result?.user_id ?? null,
+    booking_status: result?.booking_status ?? null,
+    cancelled_swap_requests: Number(result?.cancelled_swap_requests ?? 0),
+  };
 }
 
 interface SwapRequestParams {
@@ -324,6 +444,22 @@ export type AdminGovernanceSnapshot = {
   oldestPendingSwapCreatedAt: string | null;
 };
 
+export type AdminOperationalSessionSummary = {
+  session_id: string;
+  date: string;
+  period: string;
+  max_capacity?: number;
+  occupied_count?: number;
+  bookings_total?: number;
+  results_pending?: number;
+  pending_swap_requests?: number;
+};
+
+export type AdminOperationalOverview = {
+  open_full_sessions: AdminOperationalSessionSummary[];
+  ready_to_close_sessions: AdminOperationalSessionSummary[];
+};
+
 export async function fetchAdminGovernanceSnapshot(): Promise<AdminGovernanceSnapshot> {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -380,6 +516,25 @@ export async function fetchAdminGovernanceSnapshot(): Promise<AdminGovernanceSna
     pendingSwapRequests: (pendingSwapsData ?? []).length,
     completedSessionsLast7Days: completedCount ?? 0,
     oldestPendingSwapCreatedAt: pendingSwapsData?.[0]?.created_at ?? null,
+  };
+}
+
+export async function fetchAdminOperationalOverview(): Promise<AdminOperationalOverview> {
+  const { data, error } = await supabase.rpc("get_admin_operational_overview");
+  if (error) throw error;
+
+  const payload =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Partial<AdminOperationalOverview>)
+      : {};
+
+  return {
+    open_full_sessions: Array.isArray(payload.open_full_sessions)
+      ? payload.open_full_sessions
+      : [],
+    ready_to_close_sessions: Array.isArray(payload.ready_to_close_sessions)
+      ? payload.ready_to_close_sessions
+      : [],
   };
 }
 
@@ -518,6 +673,7 @@ export async function fetchAppointmentContext(params: {
         .select("id, user_id, session_id, status, test_date, order_number")
         .eq("user_id", localUserId)
         .eq("test_date", sData.date)
+        .eq("status", "agendado")
         .maybeSingle<AppointmentBookingPreview>();
 
       if (!existingErr && existing) {
@@ -538,7 +694,7 @@ export async function fetchAppointmentContext(params: {
 export type TicketRow = {
   id: string;
   order_number: string | null;
-  status: string | null;
+  status: Database["public"]["Tables"]["bookings"]["Row"]["status"] | null;
   session?: {
     date?: string | null;
     period?: string | null;
@@ -558,6 +714,7 @@ export async function fetchUserTickets(userId: string): Promise<TicketRow[]> {
       "id, order_number, status, session: sessions(date, period, location:locations(name)), profile: profiles(war_name, full_name, saram)",
     )
     .eq("user_id", userId)
+    .eq("status", "agendado")
     .not("order_number", "is", null)
     .order("created_at", { ascending: false });
 
@@ -569,8 +726,12 @@ export default {
   getSessions,
   confirmBooking,
   fetchSwapRequests,
+  fetchSwapRequestsWithContext,
+  approveSwapRequest,
+  cancelBooking,
+  rejectSwapRequest,
   updateSwapRequestStatus,
-  updateBookingStatus,
   fetchPendingSwapBookings,
   fetchAdminMetrics,
+  fetchAdminOperationalOverview,
 };

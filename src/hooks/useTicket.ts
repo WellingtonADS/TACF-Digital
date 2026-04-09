@@ -6,7 +6,7 @@
  */
 
 import supabase from "@/services/supabase";
-import { formatSessionPeriod } from "@/utils/booking";
+import { formatSessionPeriod, isActiveBookingStatus } from "@/utils/booking";
 import { formatDateTicket } from "@/utils/date";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -66,6 +66,32 @@ export default function useTicket(initial?: TicketData) {
         }
 
         let resolvedBookingId = bookingId;
+        let bookingData:
+          | {
+              id: string;
+              user_id: string | null;
+              session_id: string | null;
+              order_number: string | null;
+              status: string | null;
+            }
+          | null
+          | undefined;
+
+        if (resolvedBookingId) {
+          const { data } = await supabase
+            .from("bookings")
+            .select("id, user_id, session_id, order_number, status")
+            .eq("id", resolvedBookingId)
+            .maybeSingle();
+
+          bookingData = data;
+
+          // Route state stale after cancel/remarcacao should not render a historical ticket.
+          if (!bookingData || !isActiveBookingStatus(bookingData.status)) {
+            resolvedBookingId = undefined;
+            bookingData = null;
+          }
+        }
 
         // se ainda não temos um id, tentamos achar o último agendamento do
         // usuário logado (require user.id)
@@ -77,19 +103,34 @@ export default function useTicket(initial?: TicketData) {
             .from("bookings")
             .select("id, order_number")
             .eq("user_id", uid)
+            .eq("status", "agendado")
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (!latestBooking) return;
+          if (!latestBooking) {
+            setTicket(null);
+            return;
+          }
           resolvedBookingId = latestBooking.id;
+          bookingData = {
+            id: latestBooking.id,
+            user_id: uid,
+            session_id: null,
+            order_number: latestBooking.order_number ?? null,
+            status: "agendado",
+          };
         }
 
-        const { data: bookingData } = await supabase
-          .from("bookings")
-          .select("id, user_id, session_id, order_number, status")
-          .eq("id", resolvedBookingId)
-          .maybeSingle();
+        if (!bookingData?.session_id || !bookingData.user_id) {
+          const { data } = await supabase
+            .from("bookings")
+            .select("id, user_id, session_id, order_number, status")
+            .eq("id", resolvedBookingId)
+            .maybeSingle();
+
+          bookingData = data;
+        }
 
         if (!bookingData || cancelled) return;
 
@@ -137,9 +178,7 @@ export default function useTicket(initial?: TicketData) {
             routeState?.orderNumber ??
             prev?.code ??
             "",
-          confirmed:
-            bookingData.status === "agendado" ||
-            bookingData.status === "remarcado",
+          confirmed: true,
         }));
       } finally {
         if (!cancelled) setLoading(false);

@@ -31,9 +31,17 @@ type PaginatedRpcParams = {
 
 export default function usePaginatedQuery<T = unknown>(
   rpcName: string,
-  opts?: { limit?: number; from?: string | null; to?: string | null },
+  opts?: {
+    limit?: number;
+    from?: string | null;
+    to?: string | null;
+    timeoutMs?: number;
+    retries?: number;
+  },
 ) {
   const limit = opts?.limit ?? 25;
+  const timeoutMs = opts?.timeoutMs ?? 6000;
+  const retries = opts?.retries ?? 1;
   const [items, setItems] = useState<T[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,7 +61,7 @@ export default function usePaginatedQuery<T = unknown>(
       const { data: rpcRaw, error } = await callRpcWithRetry<unknown>(
         rpcName,
         { ...params } as Record<string, unknown>,
-        { timeoutMs: 3000, retries: 1 },
+        { timeoutMs, retries },
       );
 
       if (error) {
@@ -76,7 +84,7 @@ export default function usePaginatedQuery<T = unknown>(
     } finally {
       setLoading(false);
     }
-  }, [rpcName, limit, cursor, opts?.from, opts?.to, hasMore]);
+  }, [rpcName, limit, cursor, opts?.from, opts?.to, hasMore, timeoutMs, retries]);
 
   const reset = useCallback(() => {
     setItems([]);

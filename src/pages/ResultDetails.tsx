@@ -10,7 +10,11 @@ import Layout from "@/components/layout/Layout";
 import { ArrowLeft, ExternalLink, Info } from "@/icons";
 import { fetchResultById } from "@/services/results";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { canOpenAppeal, type ResultSummary } from "@/utils/results";
+import {
+  canOpenAppeal,
+  getAppealAvailability,
+  type ResultSummary,
+} from "@/utils/results";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -60,6 +64,13 @@ export default function ResultDetails() {
   }, [resultId]);
 
   const appealAvailable = result ? canOpenAppeal(result) : false;
+  const appealAvailability = result
+    ? getAppealAvailability(result)
+    : {
+        allowed: false,
+        reason:
+          "Este registro está disponível apenas para consulta no momento.",
+      };
 
   if (loading) {
     return <FullPageLoading message="Carregando resultado" />;
@@ -146,7 +157,8 @@ export default function ResultDetails() {
                   <p className="mt-1 text-sm leading-relaxed text-text-muted">
                     {appealAvailable
                       ? "Se houver divergência no resultado apresentado, utilize a ação de recurso para registrar a contestação formal."
-                      : "Este registro está disponível apenas para consulta. A abertura de recurso é liberada somente para resultados finais apto ou inapto."}
+                      : appealAvailability.reason ??
+                        "Este registro está disponível apenas para consulta."}
                   </p>
                 </div>
               </div>

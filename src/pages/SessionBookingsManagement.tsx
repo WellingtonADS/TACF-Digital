@@ -6,6 +6,7 @@
 
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import { cancelBooking } from "@/services/bookings";
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,7 +24,16 @@ import {
   updateBookingAttendance,
 } from "@/services/sessions";
 import type { BookingRow as DBBookingRow, Profile } from "@/types";
-import { formatSessionPeriod } from "@/utils/booking";
+import {
+  BOOKING_STATUS_BADGE_CLASSES,
+  formatSessionPeriod,
+  getBookingStatusLabel,
+} from "@/utils/booking";
+import { isAdminLike } from "@/utils/routeAccess";
+import {
+  getSessionClosureBlockers,
+  getSessionClosureFailureMessage,
+} from "@/utils/sessionClosure";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
@@ -55,22 +65,6 @@ type SessionInfo = {
   status: "open" | "closed" | "completed";
 };
 
-type DisplayStatus = BookingRow["status"] | "confirmado";
-
-const DISPLAY_STATUS_LABELS: Record<DisplayStatus, string> = {
-  agendado: "Agendado",
-  remarcado: "Remarcado",
-  cancelado: "Cancelado",
-  confirmado: "Confirmado",
-};
-
-const DISPLAY_STATUS_CLASSES: Record<DisplayStatus, string> = {
-  agendado: "border-success/40 bg-success/10 text-success",
-  remarcado: "border-alert/40 bg-alert/10 text-alert",
-  cancelado: "bg-bg-default text-text-muted",
-  confirmado: "border-primary/40 bg-primary/10 text-primary",
-};
-
 type StatusFilterOption = "all" | BookingRow["status"];
 
 export default function SessionBookingsManagement() {
@@ -89,10 +83,17 @@ export default function SessionBookingsManagement() {
   const [closureChecklist, setClosureChecklist] =
     useState<SessionClosureChecklist | null>(null);
   const [closingSession, setClosingSession] = useState(false);
-  const canMutate = profile?.role === "admin";
+  const canOperateSession = isAdminLike(profile?.role);
   const itemsPerPage = 10;
   const isSessionCompleted = session?.status === "completed";
-  const canManageAttendance = canMutate && !isSessionCompleted;
+  const canManageAttendance = canOperateSession && !isSessionCompleted;
+  const closureBlockers = useMemo(
+    () =>
+      closureChecklist?.can_close
+        ? []
+        : getSessionClosureBlockers(closureChecklist),
+    [closureChecklist],
+  );
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -179,18 +180,14 @@ export default function SessionBookingsManagement() {
     return filtered.slice(start, end);
   }, [filtered, currentPage, itemsPerPage]);
 
-  function getDisplayStatus(booking: BookingWithProfile): DisplayStatus {
-    // Exibe status baseado na presença confirmada
-    if (booking.attendance_confirmed) {
-      return "confirmado";
-    }
-    return "cancelado";
+  function getDisplayStatus(booking: BookingWithProfile): BookingRow["status"] {
+    return booking.status;
   }
 
   async function handleAttendanceChange(bookingId: string, next: boolean) {
-    if (!canMutate) {
+    if (!canOperateSession) {
       toast.error(
-        "Acesso negado: você não tem permissão para confirmar presença.",
+        "Apenas administradores ou coordenadores podem confirmar presença.",
       );
       return;
     }
@@ -228,14 +225,97 @@ export default function SessionBookingsManagement() {
     }
   }
 
+  async function handleCancelBooking(bookingId: string) {
+    if (!sessionId) {
+      return;
+    }
+
+    if (!canOperateSession) {
+      toast.error(
+        "Apenas administradores ou coordenadores podem cancelar agendamentos.",
+      );
+      return;
+    }
+
+    if (isSessionCompleted) {
+      toast.error("Sessão encerrada não permite cancelar agendamentos.");
+      return;
+    }
+
+    const currentBooking = bookings.find((booking) => booking.id === bookingId);
+
+    if (!currentBooking) {
+      toast.error("Agendamento não encontrado na turma atual.");
+      return;
+    }
+
+    if (currentBooking.status !== "agendado") {
+      toast.error("Apenas agendamentos ativos podem ser cancelados.");
+      return;
+    }
+
+    const reasonInput = window.prompt(
+      `Cancelar o agendamento de ${currentBooking.war_name ?? currentBooking.full_name ?? "militar"}.\n\nInforme o motivo do cancelamento (opcional):`,
+      "",
+    );
+
+    if (reasonInput === null) {
+      return;
+    }
+
+    setUpdating(bookingId);
+    try {
+      const result = await cancelBooking(bookingId, reasonInput.trim());
+
+      if (!result.success) {
+        throw new Error(result.error ?? "Falha ao cancelar agendamento.");
+      }
+
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                status: result.booking_status ?? "cancelado",
+                attendance_confirmed: false,
+              }
+            : booking,
+        ),
+      );
+
+      const checklist = await fetchSessionClosureChecklist(sessionId);
+      setClosureChecklist(checklist);
+
+      const cancelledSwaps = result.cancelled_swap_requests ?? 0;
+      toast.success(
+        cancelledSwaps > 0
+          ? `Agendamento cancelado. ${cancelledSwaps} solicitação(ões) de reagendamento pendente(s) também foram encerradas.`
+          : "Agendamento cancelado com sucesso.",
+      );
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "cancelar agendamento",
+      );
+      toast.error(
+        authMessage ??
+          (error instanceof Error
+            ? error.message
+            : "Não foi possível cancelar o agendamento."),
+      );
+    } finally {
+      setUpdating(null);
+    }
+  }
+
   async function handleCloseSession() {
     if (!sessionId) {
       return;
     }
 
-    if (!canMutate) {
+    if (!canOperateSession) {
       toast.error(
-        "Acesso negado: você não tem permissão para encerrar sessão.",
+        "Apenas administradores ou coordenadores podem encerrar sessão.",
       );
       return;
     }
@@ -263,16 +343,23 @@ export default function SessionBookingsManagement() {
         error,
         "encerrar sessão",
       );
-      const message =
-        error instanceof Error ? error.message : "Falha ao encerrar sessão.";
-      toast.error(authMessage ?? message);
+      let nextChecklist: SessionClosureChecklist | null = null;
 
       try {
-        const checklist = await fetchSessionClosureChecklist(sessionId);
-        setClosureChecklist(checklist);
+        nextChecklist = await fetchSessionClosureChecklist(sessionId);
+        setClosureChecklist(nextChecklist);
       } catch {
         setClosureChecklist(null);
       }
+
+      const message =
+        error instanceof Error ? error.message : "Falha ao encerrar sessão.";
+      toast.error(
+        authMessage ??
+          (nextChecklist
+            ? getSessionClosureFailureMessage(nextChecklist)
+            : message),
+      );
     } finally {
       setClosingSession(false);
     }
@@ -392,7 +479,7 @@ export default function SessionBookingsManagement() {
                 type="button"
                 onClick={handleCloseSession}
                 disabled={
-                  !canMutate ||
+                  !canOperateSession ||
                   isSessionCompleted ||
                   !closureChecklist.can_close ||
                   closingSession
@@ -429,6 +516,19 @@ export default function SessionBookingsManagement() {
                 </p>
               </div>
             </div>
+
+            {closureBlockers.length > 0 && (
+              <div className="mt-4 rounded-lg border border-alert/30 bg-alert/10 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-alert">
+                  Bloqueios operacionais
+                </p>
+                <div className="mt-2 space-y-1 text-sm text-alert">
+                  {closureBlockers.map((blocker) => (
+                    <p key={blocker}>{blocker}</p>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -475,7 +575,7 @@ export default function SessionBookingsManagement() {
           </div>
         </div>
 
-        {!canMutate && (
+        {!canOperateSession && (
           <div className="mb-6 rounded-lg border-2 border-alert/30 bg-alert/5 px-4 py-3 text-sm font-semibold text-alert flex items-start gap-3">
             <div className="mt-0.5 flex-shrink-0">
               <div className="flex h-2 w-2 rounded-full bg-alert/80" />
@@ -483,7 +583,8 @@ export default function SessionBookingsManagement() {
             <div>
               <p>Modo somente leitura</p>
               <p className="font-normal text-alert/75 text-xs mt-1">
-                Apenas administradores podem alterar status e presença.
+                Apenas administradores ou coordenadores podem operar presença,
+                cancelamento e encerramento nesta tela.
               </p>
             </div>
           </div>
@@ -515,6 +616,10 @@ export default function SessionBookingsManagement() {
                 {paginatedResults.map((b) => {
                   const isUpdating = updating === b.id;
                   const displayStatus = getDisplayStatus(b);
+                  const canCancelBooking =
+                    canOperateSession &&
+                    !isSessionCompleted &&
+                    b.status === "agendado";
 
                   return (
                     <article
@@ -564,12 +669,11 @@ export default function SessionBookingsManagement() {
                             </label>
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                DISPLAY_STATUS_CLASSES[displayStatus]
+                                BOOKING_STATUS_BADGE_CLASSES[displayStatus]
                               }`}
                             >
                               <div className="w-1.5 h-1.5 rounded-full bg-current opacity-75" />
-                              {DISPLAY_STATUS_LABELS[displayStatus] ??
-                                displayStatus}
+                              {getBookingStatusLabel(displayStatus)}
                             </span>
                           </div>
 
@@ -608,6 +712,30 @@ export default function SessionBookingsManagement() {
                             ))}
                           </div>
                         </div>
+
+                        <div className="pt-2 border-t border-border-default/30">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-text-muted/60 block mb-1.5">
+                            Ações
+                          </label>
+                          {canCancelBooking ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelBooking(b.id)}
+                              disabled={isUpdating}
+                              className="w-full rounded-md border border-error/30 bg-error/5 px-3 py-2 text-xs font-semibold text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Cancelar agendamento
+                            </button>
+                          ) : (
+                            <p className="text-xs text-text-muted">
+                              {b.status === "cancelado"
+                                ? "Agendamento já cancelado."
+                                : b.status === "remarcado"
+                                  ? "Booking histórico remarcado."
+                                  : "Sem ação disponível."}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </article>
                   );
@@ -640,6 +768,9 @@ export default function SessionBookingsManagement() {
                       <th className="px-5 py-4 text-center font-bold text-[10px] text-text-muted uppercase tracking-widest">
                         Presença
                       </th>
+                      <th className="px-5 py-4 text-center font-bold text-[10px] text-text-muted uppercase tracking-widest">
+                        Ações
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-default/50">
@@ -647,6 +778,10 @@ export default function SessionBookingsManagement() {
                       const isUpdating = updating === b.id;
                       const displayStatus = getDisplayStatus(b);
                       const isEvenRow = idx % 2 === 0;
+                      const canCancelBooking =
+                        canOperateSession &&
+                        !isSessionCompleted &&
+                        b.status === "agendado";
 
                       return (
                         <tr
@@ -683,12 +818,11 @@ export default function SessionBookingsManagement() {
                           <td className="px-5 py-4 text-center">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                DISPLAY_STATUS_CLASSES[displayStatus]
+                                BOOKING_STATUS_BADGE_CLASSES[displayStatus]
                               }`}
                             >
                               <div className="w-1.5 h-1.5 rounded-full bg-current opacity-75" />
-                              {DISPLAY_STATUS_LABELS[displayStatus] ??
-                                displayStatus}
+                              {getBookingStatusLabel(displayStatus)}
                             </span>
                           </td>
                           <td className="px-5 py-4 text-center">
@@ -725,6 +859,26 @@ export default function SessionBookingsManagement() {
                                 />
                               )}
                             </div>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            {canCancelBooking ? (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelBooking(b.id)}
+                                disabled={isUpdating}
+                                className="rounded-md border border-error/30 bg-error/5 px-3 py-2 text-xs font-semibold text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Cancelar
+                              </button>
+                            ) : (
+                              <span className="text-xs text-text-muted">
+                                {b.status === "cancelado"
+                                  ? "Cancelado"
+                                  : b.status === "remarcado"
+                                    ? "Histórico"
+                                    : "—"}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       );

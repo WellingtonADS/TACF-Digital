@@ -46,6 +46,12 @@ type DashboardPayload = {
   latest_order_number?: string | null;
   next_session_booking_id?: string | null;
   has_pending_swap?: boolean | null;
+  current_operational_status?:
+    | "agendado"
+    | "reagendamento_solicitado"
+    | "sem_agendamento_ativo"
+    | null;
+  latest_swap_status?: "solicitado" | "aprovado" | "cancelado" | null;
 };
 
 function mapInboxNotifications(
@@ -82,6 +88,12 @@ export default function useDashboard() {
   const [latestOrderNumber, setLatestOrderNumber] = useState<string | null>(
     null,
   );
+  const [currentOperationalStatus, setCurrentOperationalStatus] = useState<
+    DashboardPayload["current_operational_status"]
+  >(null);
+  const [latestSwapStatus, setLatestSwapStatus] = useState<
+    DashboardPayload["latest_swap_status"]
+  >(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [markingNotificationId, setMarkingNotificationId] = useState<
     string | null
@@ -131,6 +143,8 @@ export default function useDashboard() {
             setNextSessionBookingId(null);
             setHasPendingSwap(false);
             setLatestOrderNumber(null);
+            setCurrentOperationalStatus("sem_agendamento_ativo");
+            setLatestSwapStatus(null);
             // derive minimal notifications from profile only
             const notes: NotificationItem[] = [];
             const inspsau = (
@@ -194,6 +208,10 @@ export default function useDashboard() {
             setHasPendingSwap(Boolean(payload?.has_pending_swap));
 
             setLatestOrderNumber(payload?.latest_order_number ?? null);
+            setCurrentOperationalStatus(
+              payload?.current_operational_status ?? null,
+            );
+            setLatestSwapStatus(payload?.latest_swap_status ?? null);
 
             const notes: NotificationItem[] = [];
             const inspsau = (
@@ -234,6 +252,22 @@ export default function useDashboard() {
                 description: "Você ainda não tem agendamento confirmado.",
                 level: "info",
               });
+
+            if (payload?.current_operational_status === "reagendamento_solicitado") {
+              notes.unshift({
+                title: "Reagendamento em análise",
+                description:
+                  "Sua solicitação de reagendamento está pendente de avaliação da coordenação.",
+                level: "warning",
+              });
+            } else if (payload?.latest_swap_status === "cancelado") {
+              notes.unshift({
+                title: "Reagendamento indeferido",
+                description:
+                  "A solicitação mais recente de reagendamento foi indeferida.",
+                level: "warning",
+              });
+            }
 
             if (payload?.latest_order_number)
               notes.unshift({
@@ -281,6 +315,8 @@ export default function useDashboard() {
     nextSessionBookingId,
     hasPendingSwap,
     latestOrderNumber,
+    currentOperationalStatus,
+    latestSwapStatus,
     notifications,
     unreadNotificationsCount: notifications.filter(
       (item) => item.source === "in_app" && !item.isRead,

@@ -25,16 +25,54 @@ function getSwapErrorMessage(error: unknown): string {
   if (message.includes("ja existe solicitacao pendente")) {
     return "Já existe uma solicitação pendente para este agendamento.";
   }
+
   if (
     message.includes("reagendamento disponivel apenas para inapto ou falta")
   ) {
     return "Reagendamento disponível apenas para militar inapto ou com falta registrada.";
   }
+
   if (message.includes("nova sessao nao encontrada")) {
     return "Sessão de destino inválida. Selecione outra opção.";
   }
 
-  return "Falha ao enviar solicitação";
+  if (message.includes("agendamento nao encontrado")) {
+    return "O agendamento original não foi encontrado ou não está mais disponível para reagendamento.";
+  }
+
+  if (message.includes("nova sessao obrigatoria")) {
+    return "Selecione uma sessão de destino para enviar a solicitação.";
+  }
+
+  if (message.includes("justificativa obrigatoria")) {
+    return "Informe a justificativa do reagendamento antes de enviar.";
+  }
+
+  if (message.includes("nao autenticado")) {
+    return "Sua sessão expirou. Entre novamente para solicitar o reagendamento.";
+  }
+
+  if (message.includes("forbidden")) {
+    return "Você não tem permissão para solicitar reagendamento deste agendamento.";
+  }
+
+  return "Não foi possível enviar a solicitação de reagendamento. Revise os dados e tente novamente.";
+}
+
+function getAvailabilityErrorMessage(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const message = raw.toLowerCase();
+
+  if (message.includes("nao autenticado")) {
+    return "Sua sessão expirou. Entre novamente para consultar as datas disponíveis.";
+  }
+
+  return "Não foi possível carregar as sessões elegíveis para a data selecionada.";
 }
 
 interface Props {
@@ -89,12 +127,12 @@ export default function RescheduleDrawer({
       });
       if (error) throw error;
       const sessions = ((data as SessionAvailability[] | null) ?? []).filter(
-        (s) => s.available_count > 0,
+        (s) => s.status === "open" && s.available_count > 0,
       );
       setAvailableSessions(sessions);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao carregar sessões disponíveis");
+      toast.error(getAvailabilityErrorMessage(err));
     } finally {
       setLoadingSessions(false);
     }
@@ -122,7 +160,9 @@ export default function RescheduleDrawer({
         attachment: file ?? undefined,
       });
 
-      toast.success("Solicitação enviada");
+      toast.success(
+        "Solicitação de reagendamento enviada. Aguarde a análise da administração.",
+      );
       onSuccess?.();
       onClose();
     } catch (err) {

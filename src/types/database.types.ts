@@ -464,6 +464,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: Json;
       };
+      get_admin_operational_overview: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
       get_sessions_availability: {
         Args: { p_start: string; p_end: string };
         Returns: {
@@ -473,6 +477,8 @@ export interface Database {
           max_capacity: number;
           occupied_count: number;
           available_count: number;
+          session_status: SessionStatus;
+          location_name: string | null;
         }[];
       };
       get_booked_dates: {
@@ -510,7 +516,42 @@ export interface Database {
       };
       approve_swap: {
         Args: { p_request_id: string; p_admin_id: string };
-        Returns: { success: boolean; error: string }[];
+        Returns: {
+          success: boolean;
+          error: string | null;
+          original_booking_id: string | null;
+          new_booking_id: string | null;
+          new_session_id: string | null;
+          order_number: string | null;
+        }[];
+      };
+      reject_swap: {
+        Args: {
+          p_request_id: string;
+          p_admin_id: string;
+          p_reason?: string | null;
+        };
+        Returns: {
+          success: boolean;
+          error: string | null;
+          booking_id: string | null;
+          user_id: string | null;
+          swap_status: SwapStatus | null;
+        }[];
+      };
+      cancel_booking: {
+        Args: {
+          p_booking_id: string;
+          p_reason?: string | null;
+        };
+        Returns: {
+          success: boolean;
+          error: string | null;
+          booking_id: string | null;
+          user_id: string | null;
+          booking_status: BookingStatus | null;
+          cancelled_swap_requests: number;
+        }[];
       };
       close_session_with_checklist: {
         Args: { p_session_id: string; p_apply?: boolean | null };
@@ -518,6 +559,14 @@ export interface Database {
           success: boolean;
           error: string | null;
           checklist: Json;
+          session_status: SessionStatus | null;
+        }[];
+      };
+      cancel_session: {
+        Args: { p_session_id: string };
+        Returns: {
+          success: boolean;
+          error: string | null;
           session_status: SessionStatus | null;
         }[];
       };
@@ -532,6 +581,14 @@ export interface Database {
         };
         Returns: string;
       };
+      reopen_session: {
+        Args: { p_session_id: string };
+        Returns: {
+          success: boolean;
+          error: string | null;
+          session_status: SessionStatus | null;
+        }[];
+      };
       get_results_history: {
         Args: {
           p_limit: number;
@@ -540,6 +597,30 @@ export interface Database {
           p_to?: string | null;
         };
         Returns: Json;
+      };
+      get_swap_requests_with_context: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          booking_id: string;
+          status: SwapStatus;
+          reason: string;
+          created_at: string | null;
+          processed_at: string | null;
+          processed_by: string | null;
+          user_id: string | null;
+          original_session_id: string | null;
+          original_date: string | null;
+          original_period: SessionPeriod | null;
+          new_session_id: string | null;
+          new_date: string | null;
+          new_period: SessionPeriod | null;
+          full_name: string | null;
+          war_name: string | null;
+          saram: string | null;
+          rank: string | null;
+          email: string | null;
+        }[];
       };
       set_booking_result: {
         Args: { p_booking_id: string; p_result: string };

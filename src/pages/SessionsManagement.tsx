@@ -34,19 +34,26 @@ import {
   type LucideIcon,
 } from "@/icons";
 import ReschedulingManagement from "@/pages/ReschedulingManagement";
-import { createSessions } from "@/services/bookings";
+import { cancelBooking, createSessions } from "@/services/bookings";
 import {
+  cancelSession,
   closeSessionWithChecklist,
   fetchSessionBookingsWithProfiles,
   fetchSessionById,
   fetchSessionClosureChecklist,
   fetchSessionForEdit,
+  reopenSession,
   updateBookingResult,
   updateSession,
   type SessionClosureChecklist,
 } from "@/services/sessions";
-import type { SessionStatus } from "@/types/database.types";
-import { formatSessionPeriod } from "@/utils/booking";
+import type { BookingStatus, SessionStatus } from "@/types/database.types";
+import {
+  BOOKING_STATUS_BADGE_CLASSES,
+  formatSessionPeriod,
+  getBookingStatusLabel,
+} from "@/utils/booking";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
 import {
@@ -54,6 +61,7 @@ import {
   parseSessionHubTab,
   type SessionHubTab,
 } from "@/utils/sessionHub";
+import { getSessionClosureFailureMessage } from "@/utils/sessionClosure";
 import { addDays, eachDayOfInterval, endOfMonth, format, getDay, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -74,7 +82,7 @@ type BookingModalRow = {
   fullName: string;
   warName: string | null;
   saram: string | null;
-  status: string;
+  status: BookingStatus;
   result: FitnessResult | null;
 };
 
@@ -162,6 +170,12 @@ const STATUS_META: Record<
       "border-success/20 bg-success/10 text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]",
     accent: "success",
   },
+};
+
+const RESULT_BADGE_CLASSNAMES: Record<FitnessResult | "pendente", string> = {
+  apto: "bg-success/10 text-success",
+  inapto: "bg-error/10 text-error",
+  pendente: "bg-alert/10 text-alert",
 };
 
 function getShortSessionId(sessionId: string): string {
@@ -386,6 +400,9 @@ export const SessionsManagement = () => {
     null,
   );
   const [cancellingSession, setCancellingSession] = useState(false);
+  const [reopeningSessionId, setReopeningSessionId] = useState<string | null>(
+    null,
+  );
 
   const isCompactViewport = isMobile || isTablet;
   const pageSize = 10;
@@ -399,18 +416,23 @@ export const SessionsManagement = () => {
 
   const evaluatedCount = useMemo(
     () =>
-      (managementState?.rows ?? []).filter((row) => row.result !== null).length,
+      (managementState?.rows ?? []).filter(
+        (row) => row.status === "agendado" && row.result !== null,
+      ).length,
     [managementState],
   );
 
   const pendingCount = useMemo(
     () =>
-      (managementState?.rows ?? []).filter((row) => row.result === null).length,
+      (managementState?.rows ?? []).filter(
+        (row) => row.status === "agendado" && row.result === null,
+      ).length,
     [managementState],
   );
 
   const performanceRows = useMemo(
-    () => managementState?.rows ?? [],
+    () =>
+      (managementState?.rows ?? []).filter((row) => row.status === "agendado"),
     [managementState],
   );
 
@@ -637,25 +659,57 @@ export const SessionsManagement = () => {
 
     setCancellingSession(true);
     try {
-      await updateSession(cancelTarget.session_id, { status: "closed" });
+      await cancelSession(cancelTarget.session_id);
       if (managementState?.session.session_id === cancelTarget.session_id) {
         setManagementState((previous) =>
           previous
-            ? {
+          ? {
                 ...previous,
                 sessionStatus: "closed",
               }
             : previous,
         );
-      }
+        }
       setCancelTarget(null);
       toast.success("Sessão cancelada com sucesso.");
       await refresh();
     } catch (requestError) {
       console.error(requestError);
-      toast.error("Não foi possível cancelar a sessão.");
+      toast.error(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível cancelar a sessão.",
+      );
     } finally {
       setCancellingSession(false);
+    }
+  };
+
+  const handleReopenSession = async (session: SessionAvailability) => {
+    setReopeningSessionId(session.session_id);
+    try {
+      await reopenSession(session.session_id);
+      if (managementState?.session.session_id === session.session_id) {
+        setManagementState((previous) =>
+          previous
+            ? {
+                ...previous,
+                sessionStatus: "open",
+              }
+            : previous,
+        );
+      }
+      toast.success("Sessão reaberta e liberada novamente para agendamento.");
+      await refresh();
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível reabrir a sessão.",
+      );
+    } finally {
+      setReopeningSessionId(null);
     }
   };
 
@@ -841,7 +895,10 @@ export const SessionsManagement = () => {
         fullName: profile?.full_name ?? "Militar sem nome",
         warName: profile?.war_name ?? null,
         saram: profile?.saram ?? null,
-        status: String(booking.status ?? "agendado"),
+        status:
+          booking.status === "cancelado" || booking.status === "remarcado"
+            ? booking.status
+            : "agendado",
         result: parseFitnessResult(booking.result_details),
       };
     });
@@ -888,7 +945,7 @@ export const SessionsManagement = () => {
   };
 
   const openPerformanceModal = (startIndex = 0) => {
-    if (!managementState || managementState.rows.length === 0) {
+    if (!managementState || performanceRows.length === 0) {
       toast.error("Não há militares para lançamento de performance.");
       return;
     }
@@ -900,14 +957,27 @@ export const SessionsManagement = () => {
 
     const nextIndex = Math.min(
       Math.max(startIndex, 0),
-      managementState.rows.length - 1,
+      performanceRows.length - 1,
     );
-    const row = managementState.rows[nextIndex];
+    const row = performanceRows[nextIndex];
 
     setPerformanceIndex(nextIndex);
     setPerformanceDecision(row.result ?? "apto");
     setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
     setPerformanceOpen(true);
+  };
+
+  const openPerformanceModalByBookingId = (bookingId: string) => {
+    const nextIndex = performanceRows.findIndex(
+      (row) => row.bookingId === bookingId,
+    );
+
+    if (nextIndex < 0) {
+      toast.error("Somente bookings ativos permitem lançamento de resultado.");
+      return;
+    }
+
+    openPerformanceModal(nextIndex);
   };
 
   const savePerformanceResult = async () => {
@@ -923,10 +993,14 @@ export const SessionsManagement = () => {
         performanceDecision,
       );
 
-      const updatedRows = managementState.rows.map((row, rowIndex) =>
-        rowIndex === performanceIndex
+      const updatedRows = managementState.rows.map((row) =>
+        row.bookingId === currentPerformanceRow.bookingId
           ? { ...row, result: performanceDecision }
           : row,
+      );
+
+      const updatedPerformanceRows = updatedRows.filter(
+        (row) => row.status === "agendado",
       );
 
       setManagementState((previous) =>
@@ -939,8 +1013,8 @@ export const SessionsManagement = () => {
       );
 
       const nextIndex = performanceIndex + 1;
-      if (nextIndex < updatedRows.length) {
-        const nextRow = updatedRows[nextIndex];
+      if (nextIndex < updatedPerformanceRows.length) {
+        const nextRow = updatedPerformanceRows[nextIndex];
         setPerformanceIndex(nextIndex);
         setPerformanceDecision(nextRow.result ?? "apto");
         setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
@@ -953,6 +1027,86 @@ export const SessionsManagement = () => {
       toast.error("Erro ao salvar performance.");
     } finally {
       setPerformanceSaving(false);
+    }
+  };
+
+  const handleCancelManagementBooking = async (
+    row: BookingModalRow,
+  ): Promise<void> => {
+    if (!managementState) {
+      return;
+    }
+
+    if (managementState.sessionStatus !== "open") {
+      toast.error("Sessão fora de operação não permite cancelar agendamentos.");
+      return;
+    }
+
+    if (row.status !== "agendado") {
+      toast.error("Apenas agendamentos ativos podem ser cancelados.");
+      return;
+    }
+
+    const reasonInput = window.prompt(
+      `Cancelar o agendamento de ${row.warName ?? row.fullName}.\n\nInforme o motivo do cancelamento (opcional):`,
+      "",
+    );
+
+    if (reasonInput === null) {
+      return;
+    }
+
+    try {
+      const result = await cancelBooking(row.bookingId, reasonInput.trim());
+
+      if (!result.success) {
+        throw new Error(result.error ?? "Falha ao cancelar agendamento.");
+      }
+
+      let nextChecklist: SessionClosureChecklist | null = null;
+
+      try {
+        nextChecklist = await fetchSessionClosureChecklist(
+          managementState.session.session_id,
+        );
+      } catch {
+        nextChecklist = managementState.checklist;
+      }
+
+      setManagementState((previous) =>
+        previous
+          ? {
+              ...previous,
+              rows: previous.rows.map((currentRow) =>
+                currentRow.bookingId === row.bookingId
+                  ? {
+                      ...currentRow,
+                      status: result.booking_status ?? "cancelado",
+                    }
+                  : currentRow,
+              ),
+              checklist: nextChecklist,
+            }
+          : previous,
+      );
+
+      const cancelledSwaps = result.cancelled_swap_requests ?? 0;
+      toast.success(
+        cancelledSwaps > 0
+          ? `Agendamento cancelado. ${cancelledSwaps} solicitação(ões) pendente(s) de reagendamento também foram encerradas.`
+          : "Agendamento cancelado com sucesso.",
+      );
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "cancelar agendamento",
+      );
+      toast.error(
+        authMessage ??
+          (error instanceof Error
+            ? error.message
+            : "Não foi possível cancelar o agendamento."),
+      );
     }
   };
 
@@ -984,7 +1138,7 @@ export const SessionsManagement = () => {
     setFinalizing(true);
     try {
       const pendingRows = managementState.rows.filter(
-        (row) => row.result === null,
+        (row) => row.status === "agendado" && row.result === null,
       );
 
       if (pendingRows.length > 0) {
@@ -1031,7 +1185,24 @@ export const SessionsManagement = () => {
       );
     } catch (requestError) {
       console.error(requestError);
-      toast.error("Não foi possível finalizar a sessão.");
+      let nextChecklist: SessionClosureChecklist | null = null;
+
+      try {
+        nextChecklist = await fetchSessionClosureChecklist(
+          managementState.session.session_id,
+        );
+        setManagementState((previous) =>
+          previous ? { ...previous, checklist: nextChecklist } : previous,
+        );
+      } catch {
+        // Mantém a mensagem original se a checagem não puder ser atualizada.
+      }
+
+      toast.error(
+        nextChecklist
+          ? getSessionClosureFailureMessage(nextChecklist)
+          : "Não foi possível finalizar a sessão.",
+      );
     } finally {
       setFinalizing(false);
     }
@@ -1258,12 +1429,20 @@ export const SessionsManagement = () => {
                               void openEditSessionModal(session, "duplicate")
                             }
                           />
-                          <SessionActionButton
-                            label="Cancelar sessão"
-                            icon={Trash2}
-                            disabled={status !== "open"}
-                            onClick={() => setCancelTarget(session)}
-                          />
+                          {status === "open" ? (
+                            <SessionActionButton
+                              label="Cancelar sessão"
+                              icon={Trash2}
+                              onClick={() => setCancelTarget(session)}
+                            />
+                          ) : status === "closed" ? (
+                            <SessionActionButton
+                              label="Reabrir sessão"
+                              icon={CalendarClock}
+                              disabled={reopeningSessionId === session.session_id}
+                              onClick={() => void handleReopenSession(session)}
+                            />
+                          ) : null}
                           {status === "completed" && (
                             <SessionActionButton
                               label="Imprimir lista de presença"
@@ -1375,12 +1554,24 @@ export const SessionsManagement = () => {
                                     )
                                   }
                                 />
-                                <SessionActionButton
-                                  label="Cancelar sessão"
-                                  icon={Trash2}
-                                  disabled={status !== "open"}
-                                  onClick={() => setCancelTarget(session)}
-                                />
+                                {status === "open" ? (
+                                  <SessionActionButton
+                                    label="Cancelar sessão"
+                                    icon={Trash2}
+                                    onClick={() => setCancelTarget(session)}
+                                  />
+                                ) : status === "closed" ? (
+                                  <SessionActionButton
+                                    label="Reabrir sessão"
+                                    icon={CalendarClock}
+                                    disabled={
+                                      reopeningSessionId === session.session_id
+                                    }
+                                    onClick={() =>
+                                      void handleReopenSession(session)
+                                    }
+                                  />
+                                ) : null}
                                 {status === "completed" && (
                                   <SessionActionButton
                                     label="Imprimir lista de presença"
@@ -1815,72 +2006,109 @@ export const SessionsManagement = () => {
                     <th className="py-3">Posto</th>
                     <th className="py-3">Nome</th>
                     <th className="py-3">SARAM</th>
-                    <th className="py-3">Status</th>
+                    <th className="py-3">Booking</th>
+                    <th className="py-3">Resultado</th>
                     <th className="py-3 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {managementState.rows.map((row, index) => (
-                    <tr key={row.bookingId}>
-                      <td className="py-3 font-medium text-text-body">
-                        {row.rank ?? "--"}
-                      </td>
-                      <td className="py-3 text-text-body">
-                        {row.warName ?? row.fullName}
-                      </td>
-                      <td className="py-3 font-mono text-text-muted">
-                        {row.saram ?? "--"}
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            row.result === "apto"
-                              ? "bg-success/10 text-success"
+                  {managementState.rows.map((row) => {
+                    const canOperateBooking = row.status === "agendado";
+
+                    return (
+                      <tr key={row.bookingId}>
+                        <td className="py-3 font-medium text-text-body">
+                          {row.rank ?? "--"}
+                        </td>
+                        <td className="py-3 text-text-body">
+                          {row.warName ?? row.fullName}
+                        </td>
+                        <td className="py-3 font-mono text-text-muted">
+                          {row.saram ?? "--"}
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_BADGE_CLASSES[row.status]}`}
+                          >
+                            {getBookingStatusLabel(row.status)}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              RESULT_BADGE_CLASSNAMES[row.result ?? "pendente"]
+                            }`}
+                          >
+                            {row.result === "apto"
+                              ? "Apto"
                               : row.result === "inapto"
-                                ? "bg-error/10 text-error"
-                                : "bg-alert/10 text-alert"
-                          }`}
-                        >
-                          {row.result === "apto"
-                            ? "Apto"
-                            : row.result === "inapto"
-                              ? "Inapto"
-                              : "Pendente"}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right">
-                        {row.result === null ? (
-                          <button
-                            type="button"
-                            onClick={() => openPerformanceModal(index)}
-                            className="rounded-xl border border-border-default px-3 py-2 text-sm font-semibold text-text-body hover:bg-bg-default"
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <AppIcon
-                                icon={ClipboardList}
-                                size="sm"
-                                decorative
-                              />
-                              Lançar Resultado
-                            </span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => openPerformanceModal(index)}
-                            title="Editar resultado"
-                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border-default text-text-muted hover:bg-bg-default"
-                          >
-                            <AppIcon
-                              icon={ClipboardList}
-                              size="sm"
-                              decorative
-                            />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                                ? "Inapto"
+                                : "Pendente"}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canOperateBooking ? (
+                              <>
+                                {row.result === null ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openPerformanceModalByBookingId(
+                                        row.bookingId,
+                                      )
+                                    }
+                                    className="rounded-xl border border-border-default px-3 py-2 text-sm font-semibold text-text-body hover:bg-bg-default"
+                                  >
+                                    <span className="inline-flex items-center gap-2">
+                                      <AppIcon
+                                        icon={ClipboardList}
+                                        size="sm"
+                                        decorative
+                                      />
+                                      Lançar Resultado
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openPerformanceModalByBookingId(
+                                        row.bookingId,
+                                      )
+                                    }
+                                    title="Editar resultado"
+                                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border-default text-text-muted hover:bg-bg-default"
+                                  >
+                                    <AppIcon
+                                      icon={ClipboardList}
+                                      size="sm"
+                                      decorative
+                                    />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleCancelManagementBooking(row)
+                                  }
+                                  className="rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm font-semibold text-error hover:bg-error/10"
+                                >
+                                  Cancelar
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs font-medium text-text-muted">
+                                {row.status === "cancelado"
+                                  ? "Cancelado administrativamente"
+                                  : "Booking histórico remarcado"}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

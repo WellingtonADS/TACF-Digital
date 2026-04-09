@@ -73,3 +73,6 @@ COMMENT ON FUNCTION get_swap_requests_with_context() IS
 'RETURN: Tabela com swap_requests, booking, sessões (original+nova) e profile enriquecidos. '
 'PERFORMANCE: Single-pass join vs. 4 sequential queries (backend). '
 'SECURITY: Definer owner (admin) executa query; RLS configurada em nivel de table.';
+
+revoke all on function get_swap_requests_with_context() from public;
+grant execute on function get_swap_requests_with_context() to authenticated;

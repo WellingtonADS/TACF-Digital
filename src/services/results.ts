@@ -16,6 +16,7 @@ type RawResultRow = {
   id: string;
   user_id: string;
   status?: string | null;
+  metadata?: unknown;
   test_date?: string | null;
   order_number?: string | null;
   attendance_confirmed?: boolean | null;
@@ -39,7 +40,7 @@ export async function fetchResultById(
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, user_id, status, test_date, order_number, attendance_confirmed, score, result_details, created_at, session:sessions(date, period, location:locations(name, address))",
+      "id, user_id, status, metadata, test_date, order_number, attendance_confirmed, score, result_details, created_at, session:sessions(date, period, location:locations(name, address))",
     )
     .eq("id", resultId)
     .eq("user_id", user.id)
@@ -63,6 +64,7 @@ export async function fetchResultById(
   return normalizeResultSummary({
     id: data.id,
     status: data.status ?? null,
+    booking_metadata: data.metadata ?? null,
     test_date: data.test_date ?? sessionRaw?.date ?? null,
     order_number: data.order_number ?? null,
     attendance_confirmed: data.attendance_confirmed ?? null,

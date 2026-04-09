@@ -27,7 +27,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { type Coordinator, fetchCoordinators } from "../hooks/usePersonnel";
-import { fetchSessionForEdit, updateSession } from "../services/sessions";
+import {
+  cancelSession,
+  fetchSessionForEdit,
+  reopenSession,
+  updateSession,
+} from "../services/sessions";
 import type {
   Database,
   SessionPeriod,
@@ -138,12 +143,23 @@ function deriveStatus(dateStr: string, dbStatus: SessionStatus): SessionStatus {
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS: { value: SessionStatus; label: string; desc: string }[] =
-  [
-    { value: "open", label: "Aberta", desc: "Aceita novos agendamentos" },
-    { value: "closed", label: "Fechada", desc: "Sem novos agendamentos" },
-    { value: "completed", label: "Concluída", desc: "TACF já realizado" },
-  ];
+const STATUS_CONTENT: Record<
+  SessionStatus,
+  { label: string; desc: string }
+> = {
+  open: {
+    label: "Aberta",
+    desc: "Aceita novos agendamentos e ainda pode ser operada.",
+  },
+  closed: {
+    label: "Fechada",
+    desc: "Bloqueada para novos agendamentos, mas ainda pode ser reaberta.",
+  },
+  completed: {
+    label: "Concluída",
+    desc: "Sessão encerrada operacionalmente. O status não pode mais ser alterado.",
+  },
+};
 
 const STATUS_STYLE: Record<SessionStatus, string> = {
   open: "border-success/40 bg-success/10 text-success",
@@ -282,7 +298,6 @@ export default function SessionEditor() {
         date: form.date,
         period,
         max_capacity: form.maxCapacity,
-        status: form.status,
         ...(form.location_id ? { location_id: form.location_id } : {}),
         applicators: form.instructor_id ? [form.instructor_id] : [],
       } as Database["public"]["Tables"]["sessions"]["Update"]);
@@ -317,17 +332,47 @@ export default function SessionEditor() {
     setSaving(true);
     setShowCancelConfirm(false);
     try {
-      await updateSession(sessionId, {
-        status: "closed",
-      } as Database["public"]["Tables"]["sessions"]["Update"]);
+      await cancelSession(sessionId);
+      setForm((previous) => ({ ...previous, status: "closed" }));
       toast.success("Turma cancelada (fechada).");
-      navigate("/app/sessoes");
     } catch (error) {
       const authMessage = getAuthorizationErrorMessage(
         error,
         "cancelar turmas",
       );
-      toast.error(authMessage ?? "Erro ao cancelar a turma.");
+      toast.error(
+        authMessage ??
+          (error instanceof Error ? error.message : "Erro ao cancelar a turma."),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReopenSession() {
+    if (!sessionId) return;
+
+    if (!canMutate) {
+      toast.error(
+        "Acesso negado: você não tem permissão para reabrir turmas.",
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await reopenSession(sessionId);
+      setForm((previous) => ({ ...previous, status: "open" }));
+      toast.success("Turma reaberta com sucesso.");
+    } catch (error) {
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "reabrir turmas",
+      );
+      toast.error(
+        authMessage ??
+          (error instanceof Error ? error.message : "Erro ao reabrir a turma."),
+      );
     } finally {
       setSaving(false);
     }
@@ -370,7 +415,7 @@ export default function SessionEditor() {
         {!canMutate && (
           <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
             Seu perfil está em modo somente leitura. Apenas administradores
-            podem editar ou cancelar turmas.
+            podem editar ou alterar o status operacional das turmas.
           </div>
         )}
 
@@ -722,40 +767,57 @@ export default function SessionEditor() {
                       <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
                         Status da Turma
                       </label>
-                      <div className="flex flex-col gap-2">
-                        {STATUS_OPTIONS.map((opt) => (
+                      <div
+                        className={`rounded-lg border-2 px-4 py-4 ${STATUS_STYLE[form.status]}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {form.status === "open" && (
+                            <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                          )}
+                          {form.status === "closed" && (
+                            <XCircle size={16} className="mt-0.5 shrink-0" />
+                          )}
+                          {form.status === "completed" && (
+                            <CalendarDays size={16} className="mt-0.5 shrink-0" />
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {STATUS_CONTENT[form.status].label}
+                            </p>
+                            <p className="text-xs opacity-80">
+                              {STATUS_CONTENT[form.status].desc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {form.status === "open" && (
                           <button
-                            key={opt.value}
                             type="button"
-                            onClick={() => updateField("status", opt.value)}
-                            className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-all ${
-                              form.status === opt.value
-                                ? STATUS_STYLE[opt.value]
-                                : "border-border-default bg-bg-default text-text-muted hover:border-border-default"
-                            }`}
+                            onClick={() => setShowCancelConfirm(true)}
+                            disabled={saving || !canMutate}
+                            className="inline-flex items-center gap-2 rounded-lg border border-error/30 bg-error/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-error transition-colors hover:bg-error/15 disabled:opacity-40"
                           >
-                            {opt.value === "open" && (
-                              <CheckCircle2 size={16} className="shrink-0" />
-                            )}
-                            {opt.value === "closed" && (
-                              <XCircle size={16} className="shrink-0" />
-                            )}
-                            {opt.value === "completed" && (
-                              <CalendarDays size={16} className="shrink-0" />
-                            )}
-                            <div>
-                              <p className="text-sm font-semibold">
-                                {opt.label}
-                              </p>
-                              <p className="text-xs opacity-70">{opt.desc}</p>
-                            </div>
-                            {form.status === opt.value && (
-                              <span className="ml-auto text-xs font-bold uppercase tracking-wider opacity-70">
-                                Selecionado
-                              </span>
-                            )}
+                            <XCircle size={14} />
+                            Fechar Sessão
                           </button>
-                        ))}
+                        )}
+                        {form.status === "closed" && (
+                          <button
+                            type="button"
+                            onClick={() => void handleReopenSession()}
+                            disabled={saving || !canMutate}
+                            className="inline-flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-success transition-colors hover:bg-success/15 disabled:opacity-40"
+                          >
+                            <CheckCircle2 size={14} />
+                            Reabrir Sessão
+                          </button>
+                        )}
+                        <p className="self-center text-[11px] text-text-muted">
+                          Alterações de status operacional passam por RPCs
+                          dedicadas e não pelo formulário.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -767,19 +829,15 @@ export default function SessionEditor() {
                 <button
                   type="button"
                   onClick={() => setShowCancelConfirm(true)}
-                  disabled={
-                    saving ||
-                    form.status === "closed" ||
-                    form.status === "completed"
-                  }
+                  disabled={saving || form.status !== "open"}
                   title={
                     canMutate
-                      ? "Cancelar turma"
+                      ? "Fechar sessão"
                       : "Apenas administradores podem cancelar turmas"
                   }
                   className="w-full text-xs font-bold uppercase tracking-widest text-error transition-colors hover:text-error/80 disabled:opacity-40 md:w-auto"
                 >
-                  Cancelar Turma
+                  Fechar Sessão
                 </button>
                 <div className="flex w-full flex-col-reverse gap-3 md:w-auto md:flex-row">
                   <button
@@ -789,11 +847,11 @@ export default function SessionEditor() {
                   >
                     Voltar
                   </button>
-                  <button
-                    type="submit"
-                    disabled={saving || form.status === "completed"}
-                    title={
-                      form.status === "completed"
+                <button
+                  type="submit"
+                  disabled={saving || form.status === "completed"}
+                  title={
+                    form.status === "completed"
                         ? "Turmas concluídas não podem ser editadas"
                         : canMutate
                           ? "Salvar alterações"
@@ -832,12 +890,12 @@ export default function SessionEditor() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-error/10">
                   <AlertTriangle size={20} className="text-error" />
                 </div>
-                <h2 className="text-base font-bold text-text-body">
-                  Cancelar turma?
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted">
-                O status será alterado para <strong>Fechada</strong>. Nenhum
+                  <h2 className="text-base font-bold text-text-body">
+                    Fechar sessão?
+                  </h2>
+                </div>
+                <p className="text-sm text-text-muted">
+                  O status será alterado para <strong>Fechada</strong>. Nenhum
                 novo agendamento será aceito. Os agendamentos existentes{" "}
                 <em>não</em> serão removidos automaticamente.
               </p>

@@ -6,7 +6,7 @@
 
 import useAuth from "@/hooks/useAuth";
 import { fetchUserTickets, type TicketRow } from "@/services/bookings";
-import { formatSessionPeriod } from "@/utils/booking";
+import { formatSessionPeriod, getBookingStatusLabel } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import QR from "react-qr-code";
@@ -60,7 +60,7 @@ export default function TicketsListModal({
       <div className="relative z-10 max-h-[90vh] w-[min(900px,95%)] overflow-auto rounded-2xl border border-border-default bg-bg-card p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-text-body">
-            Bilhetes ({tickets.length})
+            Bilhetes Ativos ({tickets.length})
           </h3>
           <button onClick={onClose} className="text-sm text-text-muted">
             Fechar
@@ -74,7 +74,7 @@ export default function TicketsListModal({
             </div>
           ) : tickets.length === 0 ? (
             <div className="py-10 text-center text-text-muted">
-              Nenhum bilhete encontrado.
+              Nenhum bilhete ativo encontrado.
             </div>
           ) : (
             tickets.map((t) => (
@@ -91,7 +91,7 @@ export default function TicketsListModal({
                         </h1>
                       </div>
                       <div className="text-sm font-semibold">
-                        {t.status ?? "—"}
+                        {getBookingStatusLabel(t.status)}
                       </div>
                     </div>
                   </header>

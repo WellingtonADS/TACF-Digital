@@ -127,7 +127,7 @@ export const AppointmentConfirmation = () => {
             if (existing && existing.id !== booking?.id) {
               setExistingSemesterBooking(existing as unknown as BookingPreview);
               toast.error(
-                "Você já possui um agendamento neste semestre. Cancele o agendamento existente para marcar outro.",
+                "Você já possui um agendamento ativo neste semestre. Cancele ou remarque o agendamento atual para marcar outro.",
               );
               return;
             }

@@ -17,7 +17,11 @@ import {
 } from "@/icons";
 import { fetchResultById } from "@/services/results";
 import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { canOpenAppeal, type ResultSummary } from "@/utils/results";
+import {
+  canOpenAppeal,
+  getAppealAvailability,
+  type ResultSummary,
+} from "@/utils/results";
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -92,6 +96,13 @@ export default function AppealRequest() {
     ? `/app/resultados/${resultId}`
     : "/app/resultados";
   const appealAllowed = result ? canOpenAppeal(result) : false;
+  const appealAvailability = result
+    ? getAppealAvailability(result)
+    : {
+        allowed: false,
+        reason:
+          "Nenhum resultado válido foi informado para abertura do recurso.",
+      };
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -237,8 +248,7 @@ export default function AppealRequest() {
                       Recurso indisponível neste momento
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-text-muted">
-                      A abertura de recurso fica disponível somente quando o
-                      resultado final estiver classificado como apto ou inapto.
+                      {appealAvailability.reason}
                     </p>
                   </div>
                 </div>

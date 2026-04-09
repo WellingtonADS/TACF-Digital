@@ -26,8 +26,10 @@ import {
   Users,
 } from "@/icons";
 import {
+  fetchAdminOperationalOverview,
   fetchAdminGovernanceSnapshot,
   fetchAdminMetrics,
+  type AdminOperationalOverview,
   type AdminGovernanceSnapshot,
 } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
@@ -53,6 +55,8 @@ const AdminDashboard = () => {
   const [governance, setGovernance] = useState<AdminGovernanceSnapshot | null>(
     null,
   );
+  const [operationalOverview, setOperationalOverview] =
+    useState<AdminOperationalOverview | null>(null);
 
   // sessions (somente para capacidade restante e próximas turmas)
   const { sessions, loading: sessionsLoading } = useSessions();
@@ -104,10 +108,12 @@ const AdminDashboard = () => {
         const { totalInscritos, aptosMonth, pendencias } =
           await fetchAdminMetrics();
         const governanceSnapshot = await fetchAdminGovernanceSnapshot();
+        const operationalSnapshot = await fetchAdminOperationalOverview();
         setTotalInscritos(totalInscritos);
         setAptosMonth(aptosMonth);
         setPendencias(pendencias);
         setGovernance(governanceSnapshot);
+        setOperationalOverview(operationalSnapshot);
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -340,6 +346,91 @@ const AdminDashboard = () => {
               icon={CheckCircle}
               accent="success"
             />
+          </div>
+        </section>
+
+        <section className="mb-4">
+          <div className="mb-4 border-t border-border-default pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+              Painel Operacional
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <div className="rounded-2xl border border-border-default bg-bg-card p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-text-body">
+                  Sessões abertas sem vaga
+                </h4>
+                <span className="text-xs font-semibold text-text-muted">
+                  {operationalOverview?.open_full_sessions.length ?? 0}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {(operationalOverview?.open_full_sessions ?? []).length ===
+                0 ? (
+                  <p className="text-sm text-text-muted">
+                    Nenhuma sessão aberta está lotada neste momento.
+                  </p>
+                ) : (
+                  operationalOverview?.open_full_sessions.map((session) => (
+                    <div
+                      key={session.session_id}
+                      className="rounded-xl border border-error/20 bg-error/5 px-4 py-3"
+                    >
+                      <p className="text-sm font-bold text-text-body">
+                        {format(parseISO(session.date), "dd/MM/yyyy", {
+                          locale: ptBR,
+                        })}{" "}
+                        • {formatSessionPeriod(session.period)}
+                      </p>
+                      <p className="mt-1 text-xs text-text-muted">
+                        Ocupação: {session.occupied_count ?? 0}/
+                        {session.max_capacity ?? 0}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border-default bg-bg-card p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-text-body">
+                  Sessões prontas para encerramento
+                </h4>
+                <span className="text-xs font-semibold text-text-muted">
+                  {operationalOverview?.ready_to_close_sessions.length ?? 0}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {(operationalOverview?.ready_to_close_sessions ?? []).length ===
+                0 ? (
+                  <p className="text-sm text-text-muted">
+                    Nenhuma sessão elegível para encerramento no momento.
+                  </p>
+                ) : (
+                  operationalOverview?.ready_to_close_sessions.map((session) => (
+                    <div
+                      key={session.session_id}
+                      className="rounded-xl border border-success/20 bg-success/5 px-4 py-3"
+                    >
+                      <p className="text-sm font-bold text-text-body">
+                        {format(parseISO(session.date), "dd/MM/yyyy", {
+                          locale: ptBR,
+                        })}{" "}
+                        • {formatSessionPeriod(session.period)}
+                      </p>
+                      <p className="mt-1 text-xs text-text-muted">
+                        Agendamentos: {session.bookings_total ?? 0} • Pendências
+                        de resultado: {session.results_pending ?? 0} • Swaps
+                        pendentes: {session.pending_swap_requests ?? 0}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </section>
 

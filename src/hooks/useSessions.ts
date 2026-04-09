@@ -23,28 +23,10 @@ export type SessionAvailability = {
 
 type SessionAvailabilityRpcRow = Omit<
   SessionAvailability,
-  "status" | "location_name"
->;
-
-type SessionMetaRow = {
-  id: string;
-  status: SessionStatus;
-  location:
-    | {
-        name?: string | null;
-      }
-    | Array<{
-        name?: string | null;
-      }>
-    | null;
+  "status"
+> & {
+  session_status: SessionStatus;
 };
-
-function extractLocationName(
-  location: SessionMetaRow["location"],
-): string | null {
-  const rawLocation = Array.isArray(location) ? location[0] : location;
-  return rawLocation?.name?.trim() || null;
-}
 
 export function useSessions(startDate?: string, endDate?: string) {
   const [sessions, setSessions] = useState<SessionAvailability[]>([]);
@@ -67,21 +49,14 @@ export function useSessions(startDate?: string, endDate?: string) {
         .split("T")[0];
 
     try {
-      const [availabilityResponse, sessionMetaResponse] = await Promise.all([
-        supabase.rpc("get_sessions_availability", {
+      const availabilityResponse = await supabase.rpc(
+        "get_sessions_availability",
+        {
           p_start: effectiveStartDate,
           p_end: effectiveEndDate,
-        }),
-        supabase
-          .from("sessions")
-          .select("id, status, location:locations(name)")
-          .gte("date", effectiveStartDate)
-          .lte("date", effectiveEndDate),
-      ]);
-
+        },
+      );
       const { data: rpcRaw, error: rpcError } = availabilityResponse;
-      const { data: sessionMetaRows, error: sessionMetaError } =
-        sessionMetaResponse;
 
       if (rpcError) {
         if (mountedRef.current) setError(rpcError.message);
@@ -98,28 +73,17 @@ export function useSessions(startDate?: string, endDate?: string) {
         if (mountedRef.current) setError("Resposta inesperada do servidor");
         if (mountedRef.current) setSessions([]);
       } else {
-        if (sessionMetaError) {
-          console.error("useSessions metadata error:", sessionMetaError);
-        }
-
-        const sessionMetaMap = new Map(
-          ((sessionMetaRows as SessionMetaRow[] | null) ?? []).map((row) => [
-            row.id,
-            {
-              status: row.status,
-              locationName: extractLocationName(row.location),
-            },
-          ]),
-        );
-
         const normalizedSessions = (rpcRaw as SessionAvailabilityRpcRow[]).map(
           (session) => {
-            const sessionMeta = sessionMetaMap.get(session.session_id);
-
             return {
-              ...session,
-              status: sessionMeta?.status ?? "open",
-              location_name: sessionMeta?.locationName ?? null,
+              session_id: session.session_id,
+              date: session.date,
+              period: session.period,
+              max_capacity: session.max_capacity,
+              occupied_count: session.occupied_count,
+              available_count: session.available_count,
+              status: session.session_status,
+              location_name: session.location_name,
             };
           },
         );

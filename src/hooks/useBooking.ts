@@ -6,7 +6,8 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import supabase from "@/services/supabase";
+import { confirmarAgendamentoRPC } from "@/services/supabase";
+import { translateBookingError } from "@/utils/booking";
 import { useState } from "react";
 
 type BookingResult = {
@@ -53,18 +54,12 @@ export async function bookSession(
   sessionId: string,
 ): Promise<BookingResult> {
   try {
-    const { data, error: rpcError } = await supabase.rpc("book_session", {
-      p_user_id: userId,
-      p_session_id: sessionId,
-    });
-
-    if (rpcError) {
-      return { success: false, booking_id: null, error: rpcError.message };
-    }
-
-    const result = Array.isArray(data) ? data[0] : data;
-    if (!result || !result.success) {
-      const err = result?.error ?? "Erro desconhecido ao agendar.";
+    const result = await confirmarAgendamentoRPC(userId, sessionId);
+    if (!result.success || !result.booking_id) {
+      const err =
+        translateBookingError(result.error) ??
+        result.error ??
+        "Erro desconhecido ao agendar.";
       return { success: false, booking_id: null, error: err };
     }
 

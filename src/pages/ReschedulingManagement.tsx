@@ -22,6 +22,7 @@ import {
   X,
   XCircle,
 } from "@/icons";
+import { isAdminLike } from "@/utils/routeAccess";
 import { toast } from "sonner";
 
 const STATUS_META: Record<SwapStatus, { label: string; badgeClass: string }> = {
@@ -44,6 +45,22 @@ const FILTER_OPTIONS: Array<{ value: SwapStatus; label: string }> = [
   { value: "aprovado", label: "Aprovados" },
   { value: "cancelado", label: "Recusados" },
 ];
+
+function formatRequestTimestamp(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
 
 function PageHero({ total: _total }: { total: number }) {
   return (
@@ -168,7 +185,7 @@ function ActionButtons({
   const isDisabled = !canAct || !canMutate;
   const title = canMutate
     ? undefined
-    : "Perfil coordenador em modo leitura: ação indisponível.";
+    : "Seu perfil está em modo leitura para esta ação.";
 
   return (
     <div
@@ -228,7 +245,7 @@ export default function ReschedulingManagement({
     changeStatus,
   } = useReschedulingManagement();
 
-  const canMutate = profile?.role === "admin";
+  const canMutate = isAdminLike(profile?.role);
 
   function handleUnauthorizedAction(action: "aprovar" | "indeferir") {
     toast.error(
@@ -319,16 +336,24 @@ export default function ReschedulingManagement({
                 <p className="mt-1 font-mono text-[11px] font-semibold text-text-muted">
                   SARAM: {row.saram || "----"}
                 </p>
-                <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
-                  <p className="flex items-center gap-2 text-text-muted">
-                    <Calendar size={12} />
-                    Data original: {row.originalDate ?? "--"}
-                  </p>
-                  <p className="flex items-center gap-2 text-primary">
-                    <CalendarClock size={12} />
-                    Nova data: {row.newDate ?? "--"}
-                  </p>
-                </div>
+        <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
+          <p className="flex items-center gap-2 text-text-muted">
+            <Calendar size={12} />
+            Data original: {row.originalDate ?? "--"}
+          </p>
+          <p className="flex items-center gap-2 text-primary">
+            <CalendarClock size={12} />
+            Nova data: {row.newDate ?? "--"}
+          </p>
+          <p className="text-text-muted">
+            Solicitado em: {formatRequestTimestamp(row.createdAt) ?? "--"}
+          </p>
+          {row.status !== "solicitado" && (
+            <p className="text-text-muted">
+              Processado em: {formatRequestTimestamp(row.processedAt) ?? "--"}
+            </p>
+          )}
+        </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <StatusBadge status={row.status} />
                   <ReasonButton onClick={() => setSelected(row)} />
@@ -374,6 +399,9 @@ export default function ReschedulingManagement({
                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
                   Nova Data
                 </th>
+                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
+                  Tramitação
+                </th>
                 <th className="px-6 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-text-muted">
                   Motivo
                 </th>
@@ -388,7 +416,7 @@ export default function ReschedulingManagement({
             <tbody className="divide-y divide-border-default">
               {visibleRows.length === 0 ? (
                 <tr>
-                  <td className="px-6 py-8" colSpan={7}>
+                  <td className="px-6 py-8" colSpan={8}>
                     <EmptyRequestsState />
                   </td>
                 </tr>
@@ -418,6 +446,24 @@ export default function ReschedulingManagement({
                       <div className="flex items-center gap-2 text-xs font-bold text-primary">
                         <CalendarClock size={14} />
                         {row.newDate ?? "--"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="space-y-1 text-xs text-text-muted">
+                        <p>
+                          Solicitação:{" "}
+                          <span className="font-semibold text-text-body">
+                            {formatRequestTimestamp(row.createdAt) ?? "--"}
+                          </span>
+                        </p>
+                        {row.status !== "solicitado" && (
+                          <p>
+                            Processamento:{" "}
+                            <span className="font-semibold text-text-body">
+                              {formatRequestTimestamp(row.processedAt) ?? "--"}
+                            </span>
+                          </p>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-5 text-center">
@@ -485,6 +531,23 @@ export default function ReschedulingManagement({
               <span className="text-xs italic font-semibold text-text-body">
                 {selected.reasonText}
               </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                Situação operacional
+              </span>
+              <div className="mt-1 flex items-center gap-2">
+                <StatusBadge status={selected.status} />
+              </div>
+              <span className="mt-2 text-xs text-text-muted">
+                Solicitado em: {formatRequestTimestamp(selected.createdAt) ?? "--"}
+              </span>
+              {selected.status !== "solicitado" && (
+                <span className="text-xs text-text-muted">
+                  Processado em:{" "}
+                  {formatRequestTimestamp(selected.processedAt) ?? "--"}
+                </span>
+              )}
             </div>
             {selected.attachmentUrl && (
               <div className="pt-2">

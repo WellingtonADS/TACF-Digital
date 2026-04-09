@@ -13,6 +13,6 @@ as $$
   where b.user_id = auth.uid()
     and b.test_date >= p_start
     and b.test_date <= p_end
-    and b.status::text in ('agendado', 'remarcado')
+    and b.status = 'agendado'
   order by b.test_date;
 $$;

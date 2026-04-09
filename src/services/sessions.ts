@@ -46,6 +46,14 @@ type CloseSessionWithChecklistRow = {
     | null;
 };
 
+type SessionStatusActionRow = {
+  success: boolean;
+  error: string | null;
+  session_status:
+    | Database["public"]["Tables"]["sessions"]["Row"]["status"]
+    | null;
+};
+
 export type SessionBasic = {
   id: string;
   date: string | null;
@@ -94,6 +102,24 @@ function mapCloseChecklistRpcError(error: unknown): Error {
   return error instanceof Error
     ? error
     : new Error("Falha ao executar operacao de encerramento da sessao.");
+}
+
+function mapSessionStatusActionError(error: unknown, rpcName: string): Error {
+  const rpcError = error as SupabaseRpcError | null;
+
+  if (
+    rpcError?.code === "PGRST202" &&
+    typeof rpcError.message === "string" &&
+    rpcError.message.includes(rpcName)
+  ) {
+    return new Error(
+      `RPC ${rpcName} indisponivel no ambiente atual. Aplique as migrations do banco (yarn db:apply) e atualize o cache de schema do Supabase.`,
+    );
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("Falha ao executar operacao de status da sessao.");
 }
 
 export async function fetchSessionForEdit(sessionId: string): Promise<{
@@ -152,6 +178,14 @@ function getChecklistRpcRow(
   return (data as CloseSessionWithChecklistRow | null) ?? null;
 }
 
+function getSessionStatusActionRow(data: unknown): SessionStatusActionRow | null {
+  if (Array.isArray(data)) {
+    return (data[0] as SessionStatusActionRow | undefined) ?? null;
+  }
+
+  return (data as SessionStatusActionRow | null) ?? null;
+}
+
 export async function fetchSessionClosureChecklist(
   sessionId: string,
 ): Promise<SessionClosureChecklist> {
@@ -187,6 +221,48 @@ export async function closeSessionWithChecklist(
 
   if (!row.success) {
     throw new Error(row.error ?? "Checklist incompleto para encerramento.");
+  }
+
+  return row;
+}
+
+export async function cancelSession(
+  sessionId: string,
+): Promise<SessionStatusActionRow> {
+  const { data, error } = await supabase.rpc("cancel_session", {
+    p_session_id: sessionId,
+  });
+
+  if (error) throw mapSessionStatusActionError(error, "cancel_session");
+
+  const row = getSessionStatusActionRow(data);
+  if (!row) {
+    throw new Error("Falha ao cancelar sessao.");
+  }
+
+  if (!row.success) {
+    throw new Error(row.error ?? "Falha ao cancelar sessao.");
+  }
+
+  return row;
+}
+
+export async function reopenSession(
+  sessionId: string,
+): Promise<SessionStatusActionRow> {
+  const { data, error } = await supabase.rpc("reopen_session", {
+    p_session_id: sessionId,
+  });
+
+  if (error) throw mapSessionStatusActionError(error, "reopen_session");
+
+  const row = getSessionStatusActionRow(data);
+  if (!row) {
+    throw new Error("Falha ao reabrir sessao.");
+  }
+
+  if (!row.success) {
+    throw new Error(row.error ?? "Falha ao reabrir sessao.");
   }
 
   return row;

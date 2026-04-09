@@ -231,12 +231,10 @@ begin
   select
     s.date,
     s.max_capacity,
-    coalesce(s.capacity, 0),
     s.status
   into
     v_session_date,
     v_max_capacity,
-    v_current_capacity,
     v_session_status
   from public.sessions s
   where s.id = p_session_id
@@ -259,6 +257,12 @@ begin
     select false, null::uuid, 'session not open'::text, null::text;
     return;
   end if;
+
+  select count(*)::integer
+    into v_current_capacity
+  from public.bookings b
+  where b.session_id = p_session_id
+    and b.status = 'agendado';
 
   if v_current_capacity >= v_max_capacity then
     return query
@@ -307,7 +311,17 @@ begin
       and b.test_date between v_semester_start and v_semester_end
   ) then
     return query
-    select false, null::uuid, 'user already has booking this semester'::text, null::text;
+    select false, null::uuid, 'user already has active booking this semester'::text, null::text;
+    return;
+  end if;
+
+  if public.user_has_semester_approved_result(
+    p_user_id,
+    v_semester_start,
+    v_semester_end
+  ) then
+    return query
+    select false, null::uuid, 'user already approved this semester'::text, null::text;
     return;
   end if;
 
@@ -344,7 +358,7 @@ begin
 exception
   when unique_violation then
     return query
-    select false, null::uuid, 'duplicate booking'::text, null::text;
+    select false, null::uuid, 'user already has active booking this semester'::text, null::text;
   when others then
     return query
     select false, null::uuid, sqlerrm::text, null::text;

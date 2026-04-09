@@ -1,4 +1,28 @@
 import supabase from "@/services/supabase";
+import type { BookingStatus } from "@/types/database.types";
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  agendado: "Agendado",
+  remarcado: "Remarcado",
+  cancelado: "Cancelado",
+};
+
+export const BOOKING_STATUS_BADGE_CLASSES: Record<BookingStatus, string> = {
+  agendado: "border-success/40 bg-success/10 text-success",
+  remarcado: "border-alert/40 bg-alert/10 text-alert",
+  cancelado: "bg-bg-default text-text-muted",
+};
+
+export function isActiveBookingStatus(
+  status?: BookingStatus | null,
+): status is "agendado" {
+  return status === "agendado";
+}
+
+export function getBookingStatusLabel(status?: BookingStatus | null) {
+  if (!status) return "—";
+  return BOOKING_STATUS_LABELS[status] ?? status;
+}
 
 export const formatSessionPeriod = (period: string) => {
   const normalized = (period ?? "").toString().trim().toLowerCase();
@@ -17,6 +41,10 @@ export const translateBookingError = (err?: string | null) => {
   const map: Record<string, string> = {
     "user already has booking this semester":
       "Você já possui um agendamento neste semestre. Cancele o agendamento existente para marcar outro.",
+    "user already has active booking this semester":
+      "Você já possui um agendamento ativo neste semestre. Cancele ou remarque o agendamento atual para marcar outro.",
+    "user already approved this semester":
+      "Você já possui resultado apto/aprovado neste semestre e não pode abrir novo agendamento.",
     "session full": "Sessão cheia.",
     "session not found": "Sessão não encontrada.",
     "unauthorized: user mismatch": "Usuário não autorizado para esta ação.",

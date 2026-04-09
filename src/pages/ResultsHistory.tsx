@@ -14,17 +14,26 @@ import Layout from "@/components/layout/Layout";
 import ResultStatusBadge from "@/components/Results/ResultStatusBadge";
 import { ChevronRight, ClipboardList, ExternalLink, MapPin } from "@/icons";
 import { fetchPendingSwapsByBookingIds } from "@/services/bookings";
+import supabase from "@/services/supabase";
+import {
+  getMilitaryBookingStatusLabel,
+  getMilitaryBookingStatusTone,
+  getResultAttendanceLabel,
+  getResultAttendanceTone,
+  getResultBookingStatus,
+} from "@/utils/resultOperational";
 import {
   canOpenAppeal,
   normalizeResultSummary,
   type ResultSummary,
 } from "@/utils/results";
+import { isActiveBookingStatus } from "@/utils/booking";
 import { isAfter, parseISO } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PageSkeleton from "../components/PageSkeleton";
 import RescheduleDrawer from "../components/RescheduleDrawer";
-import usePaginatedQuery from "../hooks/usePaginatedQuery";
+import useAuth from "../hooks/useAuth";
 import useResponsive from "../hooks/useResponsive";
 import { prefetchRoute } from "../utils/prefetchRoutes";
 
@@ -34,26 +43,86 @@ type Result = ResultSummary & {
   saram?: string | null;
   result_details?: unknown;
   status?: string | null;
+  booking_metadata?: unknown;
 };
 
+function StatusChip({
+  label,
+  className,
+}: {
+  label: string;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export default function ResultsHistory() {
+  const { user, loading: authLoading } = useAuth();
   const { isMobile, isTablet } = useResponsive();
   const isCompactViewport = isMobile || isTablet;
-
-  const { items, loading, hasMore, fetchPage } = usePaginatedQuery<Result>(
-    "get_results_history",
-    { limit: 25 },
-  );
+  const [items, setItems] = useState<Result[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
 
   const [pendingSwaps, setPendingSwaps] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
   const [drawerCurrentDate, setDrawerCurrentDate] = useState<string>("");
 
+  const fetchPage = useCallback(
+    async (nextCursor: string | null, replace = false) => {
+      if (authLoading || !user) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("get_results_history", {
+          p_limit: 25,
+          p_cursor: nextCursor,
+          p_from: null,
+          p_to: null,
+        });
+
+        if (error) {
+          console.error(error.message);
+          return;
+        }
+
+        const payload = data as {
+          rows?: Result[];
+          next_cursor?: string | null;
+          has_more?: boolean;
+        } | null;
+
+        if (!payload || !Array.isArray(payload.rows)) {
+          console.error("Paginated RPC returned unexpected shape", payload);
+          return;
+        }
+
+        const nextRows = payload.rows ?? [];
+        setItems((prev) => (replace ? nextRows : [...prev, ...nextRows]));
+        setCursor(payload.next_cursor ?? null);
+        setHasMore(Boolean(payload.has_more));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authLoading, user],
+  );
+
   useEffect(() => {
-    fetchPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading || !user) return;
+    setItems([]);
+    setCursor(null);
+    setHasMore(true);
+    void fetchPage(null, true);
+  }, [authLoading, fetchPage, user]);
 
   const rows = useMemo(() => {
     return items.map((r) => ({
@@ -95,7 +164,9 @@ export default function ResultsHistory() {
     loadPending();
   }, [dedupedRows]);
 
-  if (loading) return <FullPageLoading message="Carregando registros" />;
+  if (loading || authLoading) {
+    return <FullPageLoading message="Carregando registros" />;
+  }
 
   return (
     <Layout>
@@ -136,6 +207,7 @@ export default function ResultsHistory() {
                 const isFuture = r.test_date
                   ? isAfter(parseISO(r.test_date), new Date())
                   : false;
+                const bookingStatus = getResultBookingStatus(r);
                 const canAppeal = canOpenAppeal(r);
                 const dateLabel = r.test_date
                   ? new Date(r.test_date)
@@ -166,7 +238,9 @@ export default function ResultsHistory() {
                           {dateLabel}
                         </p>
                       </div>
-                      <ResultStatusBadge status={r.result_status ?? null} />
+                      <div className="flex flex-col items-end gap-2">
+                        <ResultStatusBadge status={r.result_status ?? null} />
+                      </div>
                     </div>
 
                     <div className="mb-3 flex items-center gap-2 text-sm text-text-muted">
@@ -188,6 +262,22 @@ export default function ResultsHistory() {
                           </span>
                         )}
                       </p>
+                      {pendingSwaps.has(r.id) && (
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-alert">
+                          Reagendamento em análise
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <StatusChip
+                        label={getMilitaryBookingStatusLabel(r)}
+                        className={getMilitaryBookingStatusTone(r)}
+                      />
+                      <StatusChip
+                        label={getResultAttendanceLabel(r)}
+                        className={getResultAttendanceTone(r)}
+                      />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 border-t border-border-default pt-3">
@@ -215,7 +305,7 @@ export default function ResultsHistory() {
                           />
                         </Link>
                       )}
-                      {isFuture && (
+                      {isFuture && isActiveBookingStatus(bookingStatus) && (
                         <button
                           onClick={() => {
                             setDrawerBookingId(r.id);
@@ -252,6 +342,12 @@ export default function ResultsHistory() {
                       Média / Conceito
                     </th>
                     <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
+                      Booking
+                    </th>
+                    <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
+                      Presença
+                    </th>
+                    <th className="border-b border-border-default px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
                       Resultado
                     </th>
                     <th className="border-b border-border-default px-4 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-muted sm:px-6">
@@ -264,6 +360,7 @@ export default function ResultsHistory() {
                     const isFuture = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
+                    const bookingStatus = getResultBookingStatus(r);
                     const canAppeal = canOpenAppeal(r);
                     const dateLabel = r.test_date
                       ? new Date(r.test_date)
@@ -306,7 +403,26 @@ export default function ResultsHistory() {
                           )}
                         </td>
                         <td className="px-4 py-5 text-center sm:px-6">
-                          <ResultStatusBadge status={r.result_status ?? null} />
+                          <StatusChip
+                            label={getMilitaryBookingStatusLabel(r)}
+                            className={getMilitaryBookingStatusTone(r)}
+                          />
+                        </td>
+                        <td className="px-4 py-5 text-center sm:px-6">
+                          <StatusChip
+                            label={getResultAttendanceLabel(r)}
+                            className={getResultAttendanceTone(r)}
+                          />
+                        </td>
+                        <td className="px-4 py-5 text-center sm:px-6">
+                          <div className="flex flex-col items-center gap-2">
+                            <ResultStatusBadge status={r.result_status ?? null} />
+                            {pendingSwaps.has(r.id) && (
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-alert">
+                                Reagendamento em análise
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-5 text-right sm:px-6">
                           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
@@ -340,7 +456,8 @@ export default function ResultsHistory() {
                                 />
                               </Link>
                             )}
-                            {isFuture && (
+                            {isFuture &&
+                              isActiveBookingStatus(bookingStatus) && (
                               <button
                                 onClick={() => {
                                   setDrawerBookingId(r.id);
@@ -350,11 +467,11 @@ export default function ResultsHistory() {
                                 className="text-xs font-bold text-primary transition-colors hover:text-primary/80"
                               >
                                 Reagendar
-                                {pendingSwaps.has(r.id) && (
-                                  <span className="ml-1 text-[10px] text-text-muted">
-                                    (Pendente)
-                                  </span>
-                                )}
+                                  {pendingSwaps.has(r.id) && (
+                                    <span className="ml-1 text-[10px] text-text-muted">
+                                      (Pendente)
+                                    </span>
+                                  )}
                               </button>
                             )}
                           </div>
@@ -375,7 +492,7 @@ export default function ResultsHistory() {
             </span>
             {hasMore && (
               <button
-                onClick={() => fetchPage()}
+                onClick={() => void fetchPage(cursor)}
                 className="flex items-center gap-1 self-start transition-colors hover:text-primary sm:self-auto"
                 disabled={loading}
               >

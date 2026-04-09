@@ -2,6 +2,12 @@ import AppIcon from "@/components/atomic/AppIcon";
 import { Calendar, CheckCircle, Clock, Hash, MapPin } from "@/icons";
 import { formatSessionPeriod } from "@/utils/booking";
 import { formatDatePtBr } from "@/utils/date";
+import {
+  getMilitaryBookingStatusLabel,
+  getMilitaryBookingStatusTone,
+  getResultAttendanceLabel,
+  getResultAttendanceTone,
+} from "@/utils/resultOperational";
 import type { ResultSummary } from "@/utils/results";
 import type { ReactNode } from "react";
 import ResultStatusBadge from "./ResultStatusBadge";
@@ -34,6 +40,22 @@ function DetailItem({ label, value, icon }: DetailItemProps) {
   );
 }
 
+function StatusChip({
+  label,
+  className,
+}: {
+  label: string;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export default function ResultSummaryCard({
   result,
   eyebrow = "Resultado",
@@ -48,10 +70,9 @@ export default function ResultSummaryCard({
   const scoreLabel = result.score ?? "--";
   const conceptLabel = result.concept ? `Conceito ${result.concept}` : "-";
   const locationLabel = result.location ?? "Local não informado";
-  const attendanceLabel = result.attendance_confirmed
-    ? "Confirmada"
-    : "Sem confirmação";
+  const attendanceLabel = getResultAttendanceLabel(result);
   const orderLabel = result.order_number ?? "Não informado";
+  const bookingLabel = getMilitaryBookingStatusLabel(result);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
@@ -70,7 +91,19 @@ export default function ResultSummaryCard({
               </p>
             )}
           </div>
-          <ResultStatusBadge status={result.result_status ?? null} />
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            <ResultStatusBadge status={result.result_status ?? null} />
+            <div className="flex flex-wrap gap-2">
+              <StatusChip
+                label={bookingLabel}
+                className={getMilitaryBookingStatusTone(result)}
+              />
+              <StatusChip
+                label={attendanceLabel}
+                className={getResultAttendanceTone(result)}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -87,6 +120,7 @@ export default function ResultSummaryCard({
           value={`${scoreLabel} ${result.concept ? `• ${conceptLabel}` : ""}`.trim()}
           icon={CheckCircle}
         />
+        <DetailItem label="Status do booking" value={bookingLabel} icon={Hash} />
         <DetailItem label="Número de ordem" value={orderLabel} icon={Hash} />
         <DetailItem
           label="Presença"
