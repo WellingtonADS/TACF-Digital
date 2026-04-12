@@ -103,23 +103,17 @@ export async function createSwapRequest(params: SwapRequestParams) {
     attachmentUrl = urlData.publicUrl;
   }
 
-  type SwapInsertStrict =
-    Database["public"]["Tables"]["swap_requests"]["Insert"];
-
-  const payload: SwapInsertStrict = {
-    booking_id: params.bookingId,
-    requested_by: params.requestedBy,
-    new_session_id: params.newSessionId,
-    reason: JSON.stringify({
-      text: params.reasonText,
-      new_date: params.newDate,
-      attachment_url: attachmentUrl,
-    }),
-  };
-
-  const { data, error } = await supabase
-    .from("swap_requests")
-    .insert([payload]);
+  const { data, error } = await supabase.rpc(
+    "create_swap_request_if_eligible",
+    {
+      p_booking_id: params.bookingId,
+      p_requested_by: params.requestedBy,
+      p_new_session_id: params.newSessionId,
+      p_reason_text: params.reasonText,
+      p_new_date: params.newDate,
+      p_attachment_url: attachmentUrl,
+    },
+  );
   if (error) throw error;
   return data;
 }
