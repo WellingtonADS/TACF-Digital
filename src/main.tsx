@@ -42,7 +42,9 @@ const appRoutableEntries = getRoutableAppRoutes().map((route) => ({
 }));
 
 function withAccessGuard(access: RouteAccess, element: React.ReactElement) {
-  if (access === "admin") return <AdminRoute>{element}</AdminRoute>;
+  if (access === "platform_admin" || access === "session_manager") {
+    return <AdminRoute access={access}>{element}</AdminRoute>;
+  }
   if (access === "user") return <UserRoute>{element}</UserRoute>;
   return <ProtectedRoute>{element}</ProtectedRoute>;
 }
@@ -133,7 +135,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/sessoes"
           element={
-            <AdminRoute>
+            <AdminRoute access="session_manager">
               <Navigate to="/app/turmas" replace />
             </AdminRoute>
           }
@@ -141,7 +143,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/sessoes/nova"
           element={
-            <AdminRoute>
+            <AdminRoute access="session_manager">
               <Navigate to="/app/turmas/nova" replace />
             </AdminRoute>
           }
@@ -149,7 +151,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/sessoes/:sessionId/agendamentos"
           element={
-            <AdminRoute>
+            <AdminRoute access="session_manager">
               <LegacySessionRouteRedirect suffix="agendamentos" />
             </AdminRoute>
           }
@@ -157,7 +159,7 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/sessoes/:sessionId/editar"
           element={
-            <AdminRoute>
+            <AdminRoute access="session_manager">
               <LegacySessionRouteRedirect suffix="editar" />
             </AdminRoute>
           }

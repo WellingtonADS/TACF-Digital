@@ -23,12 +23,9 @@ test.describe("Observabilidade: Configurações e Perfis de Acesso", () => {
     await page.goto("/app/configuracoes");
     await waitForPageReady(page);
 
-    await expect(page.getByTestId("system-settings-page")).toBeVisible({
-      timeout: 15000,
-    });
     await expect(
-      page.getByRole("heading", { name: "Configurações do Sistema" }),
-    ).toBeVisible();
+      page.getByRole("heading", { name: /configuracoes do sistema/i }),
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("admin vê painel de seções nas configurações", async ({ page }) => {
@@ -38,15 +35,20 @@ test.describe("Observabilidade: Configurações e Perfis de Acesso", () => {
     await page.goto("/app/configuracoes");
     await waitForPageReady(page);
 
-    await expect(page.getByTestId("system-settings-page")).toBeVisible({
-      timeout: 15000,
-    });
-
-    // Lateral de seções (aside com botões de seção)
     await expect(
-      page
-        .getByRole("button", { name: /semestre|geral|usuários|segurança/i })
-        .first(),
+      page.getByRole("button", { name: /geral/i }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("button", { name: /tabelas/i }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("button", { name: /locais/i }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("button", { name: /perfis/i }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("button", { name: /logs/i }),
     ).toBeVisible({ timeout: 10000 });
   });
 

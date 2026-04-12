@@ -12,7 +12,10 @@ import Layout from "@/components/layout/Layout";
 import useLocations from "@/hooks/useLocations";
 import { fetchCoordinators, type Coordinator } from "@/hooks/usePersonnel";
 import { useResponsive } from "@/hooks/useResponsive";
-import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
+import {
+  useSessionHubSessions,
+  type SessionAvailability,
+} from "@/hooks/useSessions";
 import {
   Calendar,
   CalendarClock,
@@ -57,6 +60,11 @@ import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessa
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
 import {
+  buildStructuredBookingResultPayload,
+  parseStructuredBookingResultDetails,
+  type StructuredBookingResultDetails,
+} from "@/utils/results";
+import {
   buildSessionHubPath,
   parseSessionHubTab,
   type SessionHubTab,
@@ -74,6 +82,7 @@ type PeriodOption = "manha" | "tarde";
 type RecurrenceOption = "single" | "week" | "biweekly" | "month";
 type FitnessResult = "apto" | "inapto";
 type CreatorModalMode = "create" | "edit" | "duplicate";
+type ManagementMode = "manage" | "view";
 
 type BookingModalRow = {
   bookingId: string;
@@ -84,11 +93,13 @@ type BookingModalRow = {
   saram: string | null;
   status: BookingStatus;
   result: FitnessResult | null;
+  resultDetails: StructuredBookingResultDetails | null;
 };
 
 type ManagementState = {
   session: SessionAvailability;
   sessionStatus: SessionStatus;
+  mode: ManagementMode;
   rows: BookingModalRow[];
   checklist: SessionClosureChecklist | null;
 };
@@ -242,13 +253,7 @@ function getRecurringDates(
 }
 
 function parseFitnessResult(value: unknown): FitnessResult | null {
-  if (typeof value === "string") {
-    const normalized = value.toLowerCase();
-    if (normalized === "apto") return "apto";
-    if (normalized === "inapto") return "inapto";
-  }
-
-  return null;
+  return parseStructuredBookingResultDetails(value)?.result_status ?? null;
 }
 
 function AppModal({
@@ -353,7 +358,7 @@ function SessionActionButton({
 export const SessionsManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isMobile, isTablet } = useResponsive();
-  const { sessions, loading, error, refresh } = useSessions(
+  const { sessions, loading, error, refresh } = useSessionHubSessions(
     ADMIN_START_STR,
     ADMIN_END_STR,
   );
@@ -663,11 +668,12 @@ export const SessionsManagement = () => {
       if (managementState?.session.session_id === cancelTarget.session_id) {
         setManagementState((previous) =>
           previous
-          ? {
-                ...previous,
-                sessionStatus: "closed",
-              }
-            : previous,
+              ? {
+                  ...previous,
+                  sessionStatus: "closed",
+                  mode: "view",
+                }
+              : previous,
         );
         }
       setCancelTarget(null);
@@ -695,6 +701,7 @@ export const SessionsManagement = () => {
             ? {
                 ...previous,
                 sessionStatus: "open",
+                mode: "manage",
               }
             : previous,
         );
@@ -755,7 +762,7 @@ export const SessionsManagement = () => {
 
   const handleCreateSessions = async () => {
     if (!creatorState.locationId || !creatorState.applicatorId) {
-      toast.error("Preencha local e aplicador responsável.");
+      toast.error("Preencha o local e o coordenador aplicador da sessão.");
       return;
     }
 
@@ -900,6 +907,9 @@ export const SessionsManagement = () => {
             ? booking.status
             : "agendado",
         result: parseFitnessResult(booking.result_details),
+        resultDetails: parseStructuredBookingResultDetails(
+          booking.result_details,
+        ),
       };
     });
   };
@@ -907,14 +917,12 @@ export const SessionsManagement = () => {
   const openManagementModal = async (session: SessionAvailability) => {
     try {
       const sessionDetails = await fetchSessionById(session.session_id);
-      const sessionStatus = sessionDetails?.status ?? session.status;
-
-      if (sessionStatus !== "open") {
-        toast.error(
-          "Turma finalizada/cancelada não pode ser gerida. Somente rascunho/aberta permite gestão.",
-        );
-        return;
-      }
+      const sessionStatus = getSessionStatus({
+        ...session,
+        status: sessionDetails?.status ?? session.status,
+      });
+      const mode: ManagementMode =
+        sessionStatus === "open" ? "manage" : "view";
 
       setManagementOpen(true);
       setManagementLoading(true);
@@ -929,6 +937,7 @@ export const SessionsManagement = () => {
       setManagementState({
         session,
         sessionStatus,
+        mode,
         rows: buildManagementRows(
           bookingsResponse.bookings,
           bookingsResponse.profilesById,
@@ -950,8 +959,8 @@ export const SessionsManagement = () => {
       return;
     }
 
-    if (managementState.sessionStatus === "completed") {
-      toast.error("Sessão concluída está em modo somente leitura.");
+    if (managementState.mode === "view") {
+      toast.error("Sessão em consulta não permite alterar resultados.");
       return;
     }
 
@@ -960,10 +969,15 @@ export const SessionsManagement = () => {
       performanceRows.length - 1,
     );
     const row = performanceRows[nextIndex];
+    const existingDetails = row.resultDetails;
 
     setPerformanceIndex(nextIndex);
     setPerformanceDecision(row.result ?? "apto");
-    setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
+    setPerformanceInputs({
+      flexao: existingDetails?.flexao ?? "",
+      abdominal: existingDetails?.abdominal ?? "",
+      corrida: existingDetails?.corrida ?? "",
+    });
     setPerformanceOpen(true);
   };
 
@@ -988,14 +1002,23 @@ export const SessionsManagement = () => {
     setPerformanceSaving(true);
 
     try {
+      const payload = buildStructuredBookingResultPayload(
+        performanceDecision,
+        performanceInputs,
+      );
+
       await updateBookingResult(
         currentPerformanceRow.bookingId,
-        performanceDecision,
+        payload,
       );
 
       const updatedRows = managementState.rows.map((row) =>
         row.bookingId === currentPerformanceRow.bookingId
-          ? { ...row, result: performanceDecision }
+          ? {
+              ...row,
+              result: performanceDecision,
+              resultDetails: payload,
+            }
           : row,
       );
 
@@ -1017,7 +1040,11 @@ export const SessionsManagement = () => {
         const nextRow = updatedPerformanceRows[nextIndex];
         setPerformanceIndex(nextIndex);
         setPerformanceDecision(nextRow.result ?? "apto");
-        setPerformanceInputs({ flexao: "", abdominal: "", corrida: "" });
+        setPerformanceInputs({
+          flexao: nextRow.resultDetails?.flexao ?? "",
+          abdominal: nextRow.resultDetails?.abdominal ?? "",
+          corrida: nextRow.resultDetails?.corrida ?? "",
+        });
       } else {
         setPerformanceOpen(false);
         toast.success("Último militar processado.");
@@ -1037,8 +1064,8 @@ export const SessionsManagement = () => {
       return;
     }
 
-    if (managementState.sessionStatus !== "open") {
-      toast.error("Sessão fora de operação não permite cancelar agendamentos.");
+    if (managementState.mode !== "manage") {
+      toast.error("Sessão em consulta não permite cancelar agendamentos.");
       return;
     }
 
@@ -1144,7 +1171,10 @@ export const SessionsManagement = () => {
       if (pendingRows.length > 0) {
         await Promise.all(
           pendingRows.map((row) =>
-            updateBookingResult(row.bookingId, "inapto"),
+            updateBookingResult(
+              row.bookingId,
+              buildStructuredBookingResultPayload("inapto"),
+            ),
           ),
         );
       }
@@ -1152,6 +1182,8 @@ export const SessionsManagement = () => {
       const finalizedRows = managementState.rows.map((row) => ({
         ...row,
         result: row.result ?? "inapto",
+        resultDetails:
+          row.resultDetails ?? buildStructuredBookingResultPayload("inapto"),
       }));
 
       await closeSessionWithChecklist(managementState.session.session_id);
@@ -1181,7 +1213,9 @@ export const SessionsManagement = () => {
       setManagementOpen(false);
       setManagementState(null);
       toast.success(
-        "Sessão finalizada e relatório técnico PDF gerado automaticamente.",
+        pendingRows.length > 0
+          ? "Sessão finalizada. Pendências foram convertidas para inapto e o relatório técnico foi gerado."
+          : "Sessão finalizada e relatório técnico PDF gerado automaticamente.",
       );
     } catch (requestError) {
       console.error(requestError);
@@ -1208,13 +1242,6 @@ export const SessionsManagement = () => {
     }
   };
 
-  const handleSaveDraft = () => {
-    setFinalizeOpen(false);
-    toast.success(
-      "Rascunho salvo. A sessão permanece aberta para novos ajustes.",
-    );
-  };
-
   if (loading) {
     return (
       <FullPageLoading
@@ -1238,7 +1265,7 @@ export const SessionsManagement = () => {
                 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
                 data-testid="sessions-management-title"
               >
-                Hub de Sessões Dashboard
+                Hub de Sessões
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-normal text-white/80 md:text-base">
                 Centro operacional para criação, acompanhamento e execução das
@@ -1409,9 +1436,8 @@ export const SessionsManagement = () => {
 
                         <div className="mt-5 flex items-center justify-end gap-2 border-t border-border-default pt-4">
                           <SessionActionButton
-                            label="Gerir sessão"
+                            label="Abrir sessão"
                             icon={ClipboardList}
-                            disabled={status !== "open"}
                             onClick={() => void openManagementModal(session)}
                           />
                           <SessionActionButton
@@ -1529,9 +1555,8 @@ export const SessionsManagement = () => {
                             <td className="px-5 py-4 md:px-6">
                               <div className="flex justify-end gap-2">
                                 <SessionActionButton
-                                  label="Gerir sessão"
+                                  label="Abrir sessão"
                                   icon={ClipboardList}
-                                  disabled={status !== "open"}
                                   onClick={() =>
                                     void openManagementModal(session)
                                   }
@@ -1676,6 +1701,10 @@ export const SessionsManagement = () => {
                 <span className="text-sm font-semibold text-text-body">
                   Local
                 </span>
+                <p className="text-xs text-text-muted">
+                  Esta alteração vale apenas para a sessão atual. O padrão global
+                  do local é mantido em Configurações.
+                </p>
                 <select
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
                   value={creatorState.locationId}
@@ -1694,8 +1723,12 @@ export const SessionsManagement = () => {
 
               <label className="space-y-1">
                 <span className="text-sm font-semibold text-text-body">
-                  Aplicador Responsável
+                  Coordenador Aplicador
                 </span>
+                <p className="text-xs text-text-muted">
+                  Selecione o coordenador responsável por aplicar o teste no dia
+                  desta sessão.
+                </p>
                 <select
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm"
                   value={creatorState.applicatorId}
@@ -1710,7 +1743,7 @@ export const SessionsManagement = () => {
                   <option value="">
                     {loadingCoordinators
                       ? "Carregando..."
-                      : "Selecione um responsável"}
+                      : "Selecione o coordenador aplicador"}
                   </option>
                   {coordinators.map((coordinator) => (
                     <option key={coordinator.id} value={coordinator.id}>
@@ -1824,6 +1857,10 @@ export const SessionsManagement = () => {
                 />
               </label>
             </div>
+            <p className="text-xs text-text-muted">
+              As capacidades abaixo ajustam apenas esta sessão e não alteram o
+              padrão global cadastrado para o local.
+            </p>
 
             <div className="space-y-3">
               {creatorMode !== "edit" ? (
@@ -1948,7 +1985,9 @@ export const SessionsManagement = () => {
           <header className="flex items-center justify-between gap-4 border-b border-border-default px-6 py-5">
             <div className="min-w-0 flex-1">
               <h2 className="text-2xl font-bold text-text-body">
-                Gestão da Turma
+                {managementState?.mode === "view"
+                  ? "Consulta da Sessão"
+                  : "Operação da Sessão"}
               </h2>
               {managementState && (
                 <div className="mt-2 flex flex-wrap items-center gap-4 rounded-xl border border-border-default bg-bg-default px-4 py-2.5">
@@ -2013,7 +2052,9 @@ export const SessionsManagement = () => {
                 </thead>
                 <tbody className="divide-y divide-border-default">
                   {managementState.rows.map((row) => {
-                    const canOperateBooking = row.status === "agendado";
+                    const canOperateBooking =
+                      managementState.mode === "manage" &&
+                      row.status === "agendado";
 
                     return (
                       <tr key={row.bookingId}>
@@ -2099,9 +2140,11 @@ export const SessionsManagement = () => {
                               </>
                             ) : (
                               <span className="text-xs font-medium text-text-muted">
-                                {row.status === "cancelado"
+                                {managementState.mode === "view"
+                                  ? "Consulta somente leitura"
+                                  : row.status === "cancelado"
                                   ? "Cancelado administrativamente"
-                                  : "Booking histórico remarcado"}
+                                  : "Agendamento histórico remarcado"}
                               </span>
                             )}
                           </div>
@@ -2126,7 +2169,7 @@ export const SessionsManagement = () => {
                 disabled={managementState?.sessionStatus !== "open"}
                 className="rounded-xl border border-border-default px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Editar Dados da Sessão
+                Editar Sessão
               </button>
               <button
                 type="button"
@@ -2139,7 +2182,7 @@ export const SessionsManagement = () => {
             <button
               type="button"
               onClick={() => setFinalizeOpen(true)}
-              disabled={!managementState}
+              disabled={!managementState || managementState.mode !== "manage"}
               className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               Finalizar Sessão
@@ -2156,7 +2199,7 @@ export const SessionsManagement = () => {
         <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] border border-border-default bg-bg-card shadow-2xl md:max-h-[calc(100vh-3rem)]">
           <header className="flex items-center justify-between border-b border-border-default px-6 py-4">
             <h3 className="text-xl font-bold text-text-body">
-              Lançamento de Performance
+              Lançamento de Índices e Resultado
             </h3>
             <button
               type="button"
@@ -2251,7 +2294,7 @@ export const SessionsManagement = () => {
                 />
               </div>
               <p className="mt-2 text-center text-sm text-text-muted">
-                Variante{" "}
+                Avaliado{" "}
                 {Math.min(performanceIndex + 1, performanceRows.length)} de{" "}
                 {performanceRows.length || 1}
               </p>
@@ -2321,8 +2364,8 @@ export const SessionsManagement = () => {
             </div>
 
             <p className="text-sm text-text-body">
-              Você está prestes a finalizar a sessão. Os dados dos avaliados
-              serão processados.
+              Você está prestes a finalizar a sessão. Pendências sem lançamento
+              serão convertidas automaticamente para inapto.
             </p>
           </div>
 
@@ -2334,13 +2377,6 @@ export const SessionsManagement = () => {
             >
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="rounded-xl border border-primary/40 px-4 py-2 text-sm font-semibold text-primary"
-            >
-              Salvar como Rascunho
-            </button>
             <div className="flex flex-col items-end gap-1">
               <button
                 type="button"
@@ -2351,8 +2387,7 @@ export const SessionsManagement = () => {
                 {finalizing ? "Finalizando..." : "Finalizar e Gerar PDF"}
               </button>
               <p className="text-[11px] text-text-muted">
-                Atenção: Avaliações pendentes serão convertidas para "Não
-                Realizado".
+                Atenção: avaliações pendentes serão convertidas para inapto.
               </p>
             </div>
           </footer>

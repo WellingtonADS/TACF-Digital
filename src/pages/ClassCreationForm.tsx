@@ -13,6 +13,7 @@ import { AlertCircle, CalendarDays, Clock3, Save, XCircle } from "@/icons";
 import { createSessions } from "@/services/bookings";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
+import { isSessionManager } from "@/utils/routeAccess";
 import { startOfDay, startOfMonth } from "date-fns";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -148,7 +149,7 @@ export default function ClassCreationForm() {
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
     [form.maxCapacity],
   );
-  const canMutate = profile?.role === "admin";
+  const canMutate = isSessionManager(profile?.role);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -228,7 +229,7 @@ export default function ClassCreationForm() {
           ? "Turma publicada com sucesso."
           : `${count} turmas publicadas com sucesso.`,
       );
-      navigate("/app/agendamentos");
+      navigate("/app/turmas");
     } catch (error: unknown) {
       const pg = error as { code?: string; message?: string };
       if (pg.code === "23505") {
@@ -267,8 +268,8 @@ export default function ClassCreationForm() {
 
         {!canMutate && (
           <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
-            Seu perfil está em modo somente leitura. Apenas administradores
-            podem publicar novas turmas.
+            Seu perfil está em modo somente leitura. Apenas administradores ou
+            coordenadores podem publicar novas turmas.
           </div>
         )}
 
@@ -604,7 +605,7 @@ export default function ClassCreationForm() {
             <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-5 py-5 sm:px-8 sm:py-8 md:flex-row md:px-12">
               <button
                 type="button"
-                onClick={() => navigate("/app/sessoes")}
+                onClick={() => navigate("/app/turmas")}
                 className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
               >
                 Cancelar
@@ -615,7 +616,7 @@ export default function ClassCreationForm() {
                 title={
                   canMutate
                     ? "Publicar turma"
-                    : "Apenas administradores podem publicar turmas"
+                    : "Apenas administradores ou coordenadores podem publicar turmas"
                 }
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
               >

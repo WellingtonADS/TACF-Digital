@@ -6,6 +6,7 @@
  */
 
 import supabase from "@/services/supabase";
+import type { BookingStatus } from "@/types/database.types";
 import { formatSessionPeriod, isActiveBookingStatus } from "@/utils/booking";
 import { formatDateTicket } from "@/utils/date";
 import { useEffect, useState } from "react";
@@ -27,6 +28,14 @@ interface TicketRouteState {
   orderNumber?: string | null;
   sessionId?: string;
 }
+
+type TicketBookingRow = {
+  id: string;
+  user_id: string | null;
+  session_id: string | null;
+  order_number: string | null;
+  status: BookingStatus | null;
+};
 
 /**
  * Hook encarregado de carregar os dados do bilhete digital. A fonte
@@ -66,23 +75,14 @@ export default function useTicket(initial?: TicketData) {
         }
 
         let resolvedBookingId = bookingId;
-        let bookingData:
-          | {
-              id: string;
-              user_id: string | null;
-              session_id: string | null;
-              order_number: string | null;
-              status: string | null;
-            }
-          | null
-          | undefined;
+        let bookingData: TicketBookingRow | null | undefined;
 
         if (resolvedBookingId) {
           const { data } = await supabase
             .from("bookings")
             .select("id, user_id, session_id, order_number, status")
             .eq("id", resolvedBookingId)
-            .maybeSingle();
+            .maybeSingle<TicketBookingRow>();
 
           bookingData = data;
 
@@ -127,12 +127,16 @@ export default function useTicket(initial?: TicketData) {
             .from("bookings")
             .select("id, user_id, session_id, order_number, status")
             .eq("id", resolvedBookingId)
-            .maybeSingle();
+            .maybeSingle<TicketBookingRow>();
 
           bookingData = data;
         }
 
         if (!bookingData || cancelled) return;
+        if (!bookingData.session_id || !bookingData.user_id) {
+          setTicket(null);
+          return;
+        }
 
         const [sessionResp, profileResp] = await Promise.all([
           supabase

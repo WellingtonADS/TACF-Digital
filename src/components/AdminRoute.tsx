@@ -5,6 +5,7 @@
  */
 
 import useAuth from "@/hooks/useAuth";
+import type { RouteAccess } from "@/types";
 import { canAccessRoute } from "@/utils/routeAccess";
 import { Navigate } from "react-router-dom";
 import ForbiddenState from "./ForbiddenState";
@@ -17,8 +18,10 @@ import FullPageLoading from "./FullPageLoading";
  */
 export default function AdminRoute({
   children,
+  access = "session_manager",
 }: {
   children: JSX.Element | null;
+  access?: Extract<RouteAccess, "platform_admin" | "session_manager">;
 }) {
   const { user, profile, loading } = useAuth();
 
@@ -30,14 +33,24 @@ export default function AdminRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (canAccessRoute(profile?.role, "admin")) {
+  if (canAccessRoute(profile?.role, access)) {
     return children;
   }
 
+  const isPlatformAdminRoute = access === "platform_admin";
+
   return (
     <ForbiddenState
-      title="Area administrativa restrita"
-      description="Seu perfil nao possui permissao para acessar funcionalidades administrativas."
+      title={
+        isPlatformAdminRoute
+          ? "Area administrativa restrita"
+          : "Area operacional restrita"
+      }
+      description={
+        isPlatformAdminRoute
+          ? "Seu perfil nao possui permissao para acessar funcionalidades administrativas."
+          : "Seu perfil nao possui permissao para acessar funcionalidades operacionais de sessoes."
+      }
       actionTo="/app"
     />
   );

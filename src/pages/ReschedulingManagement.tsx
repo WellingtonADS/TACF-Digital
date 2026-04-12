@@ -314,7 +314,8 @@ export default function ReschedulingManagement({
       {!canMutate && (
         <div className="mt-3 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
           Seu perfil está em modo somente leitura. Solicitações podem ser
-          visualizadas, mas apenas administradores podem deferir ou indeferir.
+          visualizadas, mas apenas administradores ou coordenadores podem
+          deferir ou indeferir.
         </div>
       )}
 

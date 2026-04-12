@@ -6,8 +6,10 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import KpiCard from "@/components/atomic/KpiCard";
+import ForbiddenState from "@/components/ForbiddenState";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import {
   fetchPersonnelList,
   getProfileWithHistory,
@@ -32,6 +34,7 @@ import {
   X,
   XCircle,
 } from "@/icons";
+import { isPlatformAdmin } from "@/utils/routeAccess";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -197,6 +200,7 @@ type UserDetail = {
 };
 
 export default function PersonnelManagement() {
+  const { profile, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
@@ -357,6 +361,21 @@ export default function PersonnelManagement() {
       rows.length > 0 ? Math.round((apto / rows.length) * 100) : 0;
     return { apto, vencido, inapto, testsThisMonth, aptoPercent };
   }, [rows]);
+
+  if (authLoading) {
+    return <FullPageLoading message="Carregando permissões" />;
+  }
+
+  if (!isPlatformAdmin(profile?.role)) {
+    return (
+      <Layout>
+        <ForbiddenState
+          title="Gestão de efetivo restrita"
+          description="Apenas administradores podem acessar e alterar o efetivo."
+        />
+      </Layout>
+    );
+  }
 
   if (loading) {
     return <FullPageLoading message="Carregando efetivo" />;

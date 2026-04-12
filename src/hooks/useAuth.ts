@@ -33,8 +33,9 @@ export default function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData?.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUser = sessionData?.session?.user ?? null;
+      const uid = authUser?.id;
       if (!uid) {
         // no logged user; in development allow a preview profile fallback
         setUser(null);
@@ -60,7 +61,13 @@ export default function useAuth() {
         return;
       }
 
-      setUser(userData?.user ?? null);
+      if (!authUser) {
+        setUser(null);
+        setProfile(null);
+        return;
+      }
+
+      setUser(authUser);
 
       const { data: p } = await supabase
         .from("profiles")
@@ -69,7 +76,7 @@ export default function useAuth() {
         .maybeSingle();
 
       const val = buildProfileDraftFromUser(
-        userData.user,
+        authUser,
         (p as Profile) ?? null,
       );
       setProfile(val);
@@ -90,8 +97,9 @@ export default function useAuth() {
   // para evitar o loop infinito (getUser() dispara novo evento de auth no Supabase v2)
   const loadProfileFromSession = useCallback(
     async (session: Session | null) => {
-      const uid = session?.user?.id;
-      if (!uid) {
+      const sessionUser = session?.user ?? null;
+      const uid = sessionUser?.id;
+      if (!uid || !sessionUser) {
         setUser(null);
         setProfile(null);
         try {
@@ -103,7 +111,7 @@ export default function useAuth() {
         return;
       }
 
-      setUser(session!.user as User);
+      setUser(sessionUser);
 
       const { data: p } = await supabase
         .from("profiles")
@@ -112,7 +120,7 @@ export default function useAuth() {
         .maybeSingle();
 
       const val = buildProfileDraftFromUser(
-        session.user as User,
+        sessionUser,
         (p as Profile) ?? null,
       );
       setProfile(val);

@@ -28,7 +28,11 @@ type SessionAvailabilityRpcRow = Omit<
   session_status: SessionStatus;
 };
 
-export function useSessions(startDate?: string, endDate?: string) {
+function useSessionsRpc(
+  rpcName: "get_sessions_availability" | "get_session_hub_sessions",
+  startDate?: string,
+  endDate?: string,
+) {
   const [sessions, setSessions] = useState<SessionAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,27 +53,21 @@ export function useSessions(startDate?: string, endDate?: string) {
         .split("T")[0];
 
     try {
-      const availabilityResponse = await supabase.rpc(
-        "get_sessions_availability",
-        {
-          p_start: effectiveStartDate,
-          p_end: effectiveEndDate,
-        },
-      );
+      const availabilityResponse = await supabase.rpc(rpcName, {
+        p_start: effectiveStartDate,
+        p_end: effectiveEndDate,
+      });
       const { data: rpcRaw, error: rpcError } = availabilityResponse;
 
       if (rpcError) {
         if (mountedRef.current) setError(rpcError.message);
-        console.error("useSessions RPC error:", rpcError);
+        console.error(`${rpcName} RPC error:`, rpcError);
         if (mountedRef.current) setSessions([]);
       } else if (!Array.isArray(rpcRaw)) {
         // if RPC returns unexpected shape, log and fallback
-        console.warn(
-          "get_sessions_availability RPC returned unexpected shape",
-          {
-            sample: rpcRaw,
-          },
-        );
+        console.warn(`${rpcName} RPC returned unexpected shape`, {
+          sample: rpcRaw,
+        });
         if (mountedRef.current) setError("Resposta inesperada do servidor");
         if (mountedRef.current) setSessions([]);
       } else {
@@ -96,7 +94,7 @@ export function useSessions(startDate?: string, endDate?: string) {
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [endDate, rpcName, startDate]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -107,6 +105,14 @@ export function useSessions(startDate?: string, endDate?: string) {
   }, [fetchSessions]);
 
   return { sessions, loading, error, refresh: fetchSessions };
+}
+
+export function useSessions(startDate?: string, endDate?: string) {
+  return useSessionsRpc("get_sessions_availability", startDate, endDate);
+}
+
+export function useSessionHubSessions(startDate?: string, endDate?: string) {
+  return useSessionsRpc("get_session_hub_sessions", startDate, endDate);
 }
 
 export default useSessions;

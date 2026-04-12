@@ -36,7 +36,7 @@ import {
   generateUnitPerformancePdf,
 } from "@/utils/pdf/generateAnalyticsReports";
 import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
-import { isAdminLike } from "@/utils/routeAccess";
+import { isPlatformAdmin } from "@/utils/routeAccess";
 import {
   addDays,
   addYears,
@@ -140,7 +140,7 @@ function presetRange(preset: DatePreset): { from: string; to: string } {
 
 export default function AnalyticsDashboard() {
   const { profile, loading: authLoading } = useAuth();
-  const canManage = isAdminLike(profile?.role);
+  const canManage = isPlatformAdmin(profile?.role);
 
   // Date state
   const [datePreset, setDatePreset] = useState<DatePreset>("year");
@@ -791,7 +791,7 @@ export default function AnalyticsDashboard() {
               <h1 className="text-lg font-bold">Acesso restrito</h1>
               <p className="mt-1 text-sm">
                 Esta area de analytics esta disponivel apenas para
-                administradores e coordenadores.
+                administradores.
               </p>
             </div>
           </div>

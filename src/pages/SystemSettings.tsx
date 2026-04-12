@@ -8,11 +8,17 @@ import AppIcon from "@/components/atomic/AppIcon";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import useLocations from "@/hooks/useLocations";
 import {
   createAccessProfile,
   fetchAllProfilesForAccess,
   updateProfile,
 } from "@/hooks/usePersonnel";
+import {
+  fetchEvaluationIndexRows,
+  saveEvaluationIndexRow,
+  type EvaluationIndexRow,
+} from "@/services/evaluationTables";
 import {
   fetchAuditLogs,
   fetchSystemSettings,
@@ -32,6 +38,7 @@ import {
 import type {
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
+  LocationStatus,
   ProfileRole,
   Profile as UserProfile,
 } from "@/types";
@@ -46,20 +53,12 @@ type AuditLogRow = DBAuditLogRow;
 type TabKey = "general" | "evaluation" | "locations" | "profiles" | "audit";
 type Level2Modal = "index" | "om" | "permissions" | "newCoordinator" | null;
 
-type EvaluationRow = {
-  id: string;
-  faixa: string;
-  corrida: string;
-  flexao: string;
-  abdominal: string;
-  conceito: string;
-};
-
-type OmCard = {
+type LocationCard = {
   id: string;
   nome: string;
   endereco: string;
   capacidade: number;
+  status: LocationStatus;
 };
 
 type ProfileCard = {
@@ -77,57 +76,9 @@ type NewCoordinatorForm = {
 const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "general", label: "Geral", icon: Settings },
   { key: "evaluation", label: "Tabelas", icon: BarChart2 },
-  { key: "locations", label: "Locais / OM", icon: MapPin },
+  { key: "locations", label: "Locais", icon: MapPin },
   { key: "profiles", label: "Perfis", icon: ShieldCheck },
   { key: "audit", label: "Logs", icon: Clock3 },
-];
-
-const INITIAL_EVALUATION_ROWS: EvaluationRow[] = [
-  {
-    id: "24",
-    faixa: "Ate 24 anos",
-    corrida: "12:00",
-    flexao: "30",
-    abdominal: "35",
-    conceito: "EXCELENTE",
-  },
-  {
-    id: "29",
-    faixa: "25 a 29 anos",
-    corrida: "12:30",
-    flexao: "28",
-    abdominal: "33",
-    conceito: "MUITO BOM",
-  },
-  {
-    id: "35",
-    faixa: "30 a 35 anos",
-    corrida: "13:00",
-    flexao: "25",
-    abdominal: "30",
-    conceito: "BOM",
-  },
-];
-
-const INITIAL_OMS: OmCard[] = [
-  {
-    id: "1gac",
-    nome: "1 GAC",
-    endereco: "Av. Brig. Lima e Silva, 1000",
-    capacidade: 45,
-  },
-  {
-    id: "3cia",
-    nome: "3 Cia Int",
-    endereco: "Rua do Arsenal, 245",
-    capacidade: 32,
-  },
-  {
-    id: "12bda",
-    nome: "12 Bda Inf Leve",
-    endereco: "QG Setorial, Bloco B",
-    capacidade: 58,
-  },
 ];
 
 const INITIAL_PROFILES: ProfileCard[] = [
@@ -145,6 +96,14 @@ const INITIAL_PROFILES: ProfileCard[] = [
 
 export default function SystemSettings() {
   const { profile, loading: authLoading } = useAuth();
+  const {
+    locations,
+    loading: locationsLoading,
+    fetch: fetchLocations,
+    create: createLocation,
+    update: updateLocation,
+    remove: removeLocation,
+  } = useLocations();
 
   const canView = profile?.role === "admin";
 
@@ -157,8 +116,12 @@ export default function SystemSettings() {
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
-  const [evaluationRows, setEvaluationRows] = useState(INITIAL_EVALUATION_ROWS);
-  const [oms, setOms] = useState(INITIAL_OMS);
+  const [evaluationRows, setEvaluationRows] = useState<EvaluationIndexRow[]>(
+    [],
+  );
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [savingEvaluation, setSavingEvaluation] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
   const [accessProfiles, setAccessProfiles] = useState<UserProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
@@ -172,8 +135,8 @@ export default function SystemSettings() {
 
   const [level2Modal, setLevel2Modal] = useState<Level2Modal>(null);
   const [editingEvaluation, setEditingEvaluation] =
-    useState<EvaluationRow | null>(null);
-  const [editingOm, setEditingOm] = useState<OmCard | null>(null);
+    useState<EvaluationIndexRow | null>(null);
+  const [editingOm, setEditingOm] = useState<LocationCard | null>(null);
   const [selectedRole, setSelectedRole] = useState<ProfileRole | null>(null);
 
   const pageLoading = authLoading || settingsLoading;
@@ -231,6 +194,39 @@ export default function SystemSettings() {
   }, [activeTab, canView]);
 
   useEffect(() => {
+    if (activeTab !== "evaluation" || !canView) {
+      return;
+    }
+
+    async function loadEvaluationRows() {
+      setEvaluationLoading(true);
+      try {
+        const data = await fetchEvaluationIndexRows();
+        setEvaluationRows(data);
+      } catch (error) {
+        console.error(error);
+        const authMessage = getAuthorizationErrorMessage(
+          error,
+          "visualizar tabelas de indices",
+        );
+        toast.error(authMessage ?? "Falha ao carregar tabelas de índices.");
+      } finally {
+        setEvaluationLoading(false);
+      }
+    }
+
+    void loadEvaluationRows();
+  }, [activeTab, canView]);
+
+  useEffect(() => {
+    if (activeTab !== "locations" || !canView) {
+      return;
+    }
+
+    void fetchLocations({ limit: 100 });
+  }, [activeTab, canView, fetchLocations]);
+
+  useEffect(() => {
     if (activeTab !== "profiles" || !canView) {
       return;
     }
@@ -262,6 +258,17 @@ export default function SystemSettings() {
       ),
     [accessProfiles],
   );
+  const locationCards = useMemo<LocationCard[]>(
+    () =>
+      locations.map((location) => ({
+        id: location.id,
+        nome: location.name,
+        endereco: location.address,
+        capacidade: location.max_capacity,
+        status: location.status,
+      })),
+    [locations],
+  );
 
   const getRoleLabel = (role: ProfileRole) => {
     if (role === "admin") return "Administrador";
@@ -272,6 +279,18 @@ export default function SystemSettings() {
   const getRoleMainModule = (role: ProfileRole) => {
     const routes = getSidebarRoutesForRole(role);
     return routes[0]?.sidebarLabel ?? "--";
+  };
+
+  const getLocationStatusLabel = (status: LocationStatus) => {
+    if (status === "active") return "Ativo";
+    if (status === "maintenance") return "Manutenção";
+    return "Inativo";
+  };
+
+  const getLocationStatusTone = (status: LocationStatus) => {
+    if (status === "active") return "bg-emerald-100 text-emerald-700";
+    if (status === "maintenance") return "bg-amber-100 text-amber-700";
+    return "bg-slate-200 text-slate-700";
   };
 
   const closeLevel2 = () => {
@@ -391,33 +410,95 @@ export default function SystemSettings() {
     }
   };
 
-  const saveEvaluationRow = () => {
+  const saveEvaluationRow = async () => {
     if (!editingEvaluation) return;
 
-    setEvaluationRows((previous) =>
-      previous.map((row) =>
-        row.id === editingEvaluation.id ? editingEvaluation : row,
-      ),
-    );
-    toast.success("Indice atualizado com sucesso.");
-    closeLevel2();
+    setSavingEvaluation(true);
+    try {
+      const updatedRow = await saveEvaluationIndexRow(editingEvaluation);
+      setEvaluationRows((previous) =>
+        previous.map((row) => (row.id === updatedRow.id ? updatedRow : row)),
+      );
+      toast.success("Tabela de índices atualizada com sucesso.");
+      closeLevel2();
+    } catch (error) {
+      console.error(error);
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "salvar tabela de indices",
+      );
+      toast.error(authMessage ?? "Falha ao salvar tabela de índices.");
+    } finally {
+      setSavingEvaluation(false);
+    }
   };
 
-  const saveOm = () => {
+  const saveOm = async () => {
     if (!editingOm) return;
 
-    setOms((previous) => {
-      const exists = previous.some((row) => row.id === editingOm.id);
-      if (exists) {
-        return previous.map((row) =>
-          row.id === editingOm.id ? editingOm : row,
-        );
-      }
-      return [...previous, editingOm];
-    });
+    if (!editingOm.nome.trim() || !editingOm.endereco.trim()) {
+      toast.error("Nome e endereço do local são obrigatórios.");
+      return;
+    }
 
-    toast.success("Cadastro de OM salvo.");
-    closeLevel2();
+    if (editingOm.capacidade < 1) {
+      toast.error("A capacidade máxima padrão deve ser maior que zero.");
+      return;
+    }
+
+    setSavingLocation(true);
+    try {
+      const payload = {
+        name: editingOm.nome.trim(),
+        address: editingOm.endereco.trim(),
+        max_capacity: editingOm.capacidade,
+        status: editingOm.status,
+        facilities: [],
+        metadata: null,
+      };
+
+      const existing = locationCards.some((row) => row.id === editingOm.id);
+
+      if (existing) {
+        await updateLocation(editingOm.id, payload);
+      } else {
+        await createLocation(payload);
+      }
+
+      toast.success("Padrão global do local salvo.");
+      closeLevel2();
+      await fetchLocations({ limit: 100 });
+    } catch (error) {
+      console.error(error);
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "salvar local de aplicacao",
+      );
+      toast.error(authMessage ?? "Falha ao salvar o local.");
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const inactivateLocation = async () => {
+    if (!editingOm) return;
+
+    setSavingLocation(true);
+    try {
+      await removeLocation(editingOm.id);
+      toast.success("Local inativado.");
+      closeLevel2();
+      await fetchLocations({ limit: 100 });
+    } catch (error) {
+      console.error(error);
+      const authMessage = getAuthorizationErrorMessage(
+        error,
+        "inativar local de aplicacao",
+      );
+      toast.error(authMessage ?? "Falha ao inativar o local.");
+    } finally {
+      setSavingLocation(false);
+    }
   };
 
   const savePermissions = () => {
@@ -516,6 +597,10 @@ export default function SystemSettings() {
       case "evaluation":
         return (
           <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Tabelas persistidas de índices usadas como referência
+              administrativa global.
+            </div>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[720px] text-left">
                 <thead className="bg-slate-900 text-xs font-bold uppercase tracking-[0.08em] text-white">
@@ -529,7 +614,26 @@ export default function SystemSettings() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
-                  {evaluationRows.map((row) => (
+                  {evaluationLoading ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-6 text-center text-sm text-slate-600"
+                      >
+                        Carregando tabelas de índices...
+                      </td>
+                    </tr>
+                  ) : evaluationRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-6 text-center text-sm text-slate-600"
+                      >
+                        Nenhuma tabela de índices cadastrada.
+                      </td>
+                    </tr>
+                  ) : (
+                    evaluationRows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-3 font-semibold text-slate-900">
                         {row.faixa}
@@ -556,7 +660,8 @@ export default function SystemSettings() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -566,27 +671,41 @@ export default function SystemSettings() {
       case "locations":
         return (
           <div className="space-y-5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Cadastre os padrões globais dos locais de aplicação. Alterações
+              feitas no Hub afetam apenas a sessão selecionada.
+            </div>
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => {
                   setEditingOm({
-                    id: `om-${Date.now()}`,
+                    id: crypto.randomUUID(),
                     nome: "",
                     endereco: "",
                     capacidade: 21,
+                    status: "active",
                   });
                   setLevel2Modal("om");
                 }}
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
               >
                 <AppIcon icon={Plus} size="sm" decorative />
-                Nova OM
+                Novo Local
               </button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {oms.map((om) => (
+              {locationsLoading ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+                  Carregando locais...
+                </div>
+              ) : locationCards.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+                  Nenhum local cadastrado.
+                </div>
+              ) : (
+                locationCards.map((om) => (
                 <article
                   key={om.id}
                   className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -600,10 +719,21 @@ export default function SystemSettings() {
                         {om.endereco}
                       </p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                      {om.capacidade} vagas
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getLocationStatusTone(om.status)}`}
+                      >
+                        {getLocationStatusLabel(om.status)}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {om.capacidade} vagas
+                      </span>
+                    </div>
                   </div>
+
+                  <p className="mt-3 text-xs text-slate-500">
+                    Padrão global reutilizado ao criar ou editar sessões.
+                  </p>
 
                   <button
                     type="button"
@@ -617,7 +747,8 @@ export default function SystemSettings() {
                     Editar
                   </button>
                 </article>
-              ))}
+                ))
+              )}
             </div>
           </div>
         );
@@ -863,7 +994,7 @@ export default function SystemSettings() {
             <section className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
-                  Edicao de Indice
+                  Edição de Tabela de Índices
                 </h2>
                 <button
                   type="button"
@@ -875,6 +1006,23 @@ export default function SystemSettings() {
               </header>
 
               <div className="space-y-4 px-5 py-5">
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Faixa
+                  </span>
+                  <input
+                    type="text"
+                    value={editingEvaluation.faixa}
+                    onChange={(event) =>
+                      setEditingEvaluation((previous) =>
+                        previous
+                          ? { ...previous, faixa: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
                 <label className="space-y-1">
                   <span className="text-sm font-semibold text-slate-700">
                     Corrida
@@ -894,7 +1042,7 @@ export default function SystemSettings() {
                 </label>
                 <label className="space-y-1">
                   <span className="text-sm font-semibold text-slate-700">
-                    Flexao
+                    Flexão
                   </span>
                   <input
                     type="text"
@@ -926,6 +1074,23 @@ export default function SystemSettings() {
                     className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                   />
                 </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Conceito
+                  </span>
+                  <input
+                    type="text"
+                    value={editingEvaluation.conceito}
+                    onChange={(event) =>
+                      setEditingEvaluation((previous) =>
+                        previous
+                          ? { ...previous, conceito: event.target.value }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  />
+                </label>
               </div>
 
               <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
@@ -938,10 +1103,11 @@ export default function SystemSettings() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveEvaluationRow}
+                  onClick={() => void saveEvaluationRow()}
+                  disabled={savingEvaluation}
                   className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                 >
-                  Salvar
+                  {savingEvaluation ? "Salvando..." : "Salvar"}
                 </button>
               </footer>
             </section>
@@ -951,7 +1117,7 @@ export default function SystemSettings() {
             <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-slate-900">
-                  Cadastro de OM
+                  Padrão Global do Local
                 </h2>
                 <button
                   type="button"
@@ -1017,9 +1183,45 @@ export default function SystemSettings() {
                     className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                   />
                 </label>
+                <label className="space-y-1">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Status
+                  </span>
+                  <select
+                    value={editingOm.status}
+                    onChange={(event) =>
+                      setEditingOm((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              status: event.target.value as LocationStatus,
+                            }
+                          : previous,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                  >
+                    <option value="active">Ativo</option>
+                    <option value="maintenance">Manutenção</option>
+                    <option value="inactive">Inativo</option>
+                  </select>
+                </label>
               </div>
 
-              <footer className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+              <footer className="flex flex-wrap justify-between gap-3 border-t border-slate-200 px-5 py-4">
+                <div>
+                  {locationCards.some((row) => row.id === editingOm.id) ? (
+                    <button
+                      type="button"
+                      onClick={() => void inactivateLocation()}
+                      disabled={savingLocation || editingOm.status === "inactive"}
+                      className="rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50"
+                    >
+                      Inativar
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={closeLevel2}
@@ -1029,11 +1231,13 @@ export default function SystemSettings() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveOm}
+                  onClick={() => void saveOm()}
+                  disabled={savingLocation}
                   className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                 >
-                  Salvar
+                  {savingLocation ? "Salvando..." : "Salvar"}
                 </button>
+                </div>
               </footer>
             </section>
           )}

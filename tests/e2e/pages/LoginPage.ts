@@ -15,7 +15,10 @@ export class LoginPage {
 
   async goto() {
     await this.page.goto("/login");
-    await expect(this.emailInput).toBeVisible();
+    await expect(this.page.getByTestId("full-page-loading")).toHaveCount(0, {
+      timeout: 15000,
+    });
+    await expect(this.emailInput).toBeVisible({ timeout: 15000 });
   }
 
   async login(email: string, password: string) {

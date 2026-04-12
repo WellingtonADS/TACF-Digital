@@ -1,5 +1,5 @@
 import AppIcon from "@/components/atomic/AppIcon";
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/icons";
 
 export type KpiAccent = "primary" | "secondary" | "success" | "error";
 

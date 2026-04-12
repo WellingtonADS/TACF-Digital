@@ -104,16 +104,16 @@ export default function useLocations(): UseLocationsResult {
           /* CustomEvent dispatch may throw in test/restricted environments */
         }
         return loc;
-      } catch (err: unknown) {
-        console.error("useLocations create error", err);
-        const msg =
-          getAuthorizationErrorMessage(err, "criar unidades") ||
-          (err instanceof Error ? err.message : String(err));
-        setError(msg || "Erro ao criar unidade");
-        return null;
-      } finally {
-        setLoading(false);
-      }
+    } catch (err: unknown) {
+      console.error("useLocations create error", err);
+      const msg =
+        getAuthorizationErrorMessage(err, "criar unidades") ||
+        (err instanceof Error ? err.message : String(err));
+      setError(msg || "Erro ao criar unidade");
+      throw err instanceof Error ? err : new Error(msg || "Erro ao criar unidade");
+    } finally {
+      setLoading(false);
+    }
     },
     [],
   );
@@ -147,7 +147,9 @@ export default function useLocations(): UseLocationsResult {
         getAuthorizationErrorMessage(err, "atualizar unidades") ||
         (err instanceof Error ? err.message : String(err));
       setError(msg || "Erro ao atualizar unidade");
-      return null;
+      throw err instanceof Error
+        ? err
+        : new Error(msg || "Erro ao atualizar unidade");
     } finally {
       setLoading(false);
     }
@@ -172,6 +174,7 @@ export default function useLocations(): UseLocationsResult {
         getAuthorizationErrorMessage(err, "remover unidades") ||
         (err instanceof Error ? err.message : String(err));
       setError(msg || "Erro ao remover unidade");
+      throw err instanceof Error ? err : new Error(msg || "Erro ao remover unidade");
     } finally {
       setLoading(false);
     }

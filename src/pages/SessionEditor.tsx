@@ -22,6 +22,7 @@ import {
 import type { SessionRow as DBSessionRow } from "@/types";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { PT_MONTHS } from "@/utils/ptMonths";
+import { isSessionManager } from "@/utils/routeAccess";
 import { parseISO, startOfDay, startOfMonth } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -196,7 +197,7 @@ export default function SessionEditor() {
     () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
     [form.maxCapacity],
   );
-  const canMutate = profile?.role === "admin";
+  const canMutate = isSessionManager(profile?.role);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -258,7 +259,7 @@ export default function SessionEditor() {
       })
       .catch(() => {
         toast.error("Turma não encontrada.");
-        navigate("/app/sessoes");
+        navigate("/app/turmas");
       })
       .finally(() => {
         setLoading(false);
@@ -302,7 +303,7 @@ export default function SessionEditor() {
         applicators: form.instructor_id ? [form.instructor_id] : [],
       } as Database["public"]["Tables"]["sessions"]["Update"]);
       toast.success("Turma atualizada com sucesso.");
-      navigate("/app/sessoes");
+      navigate("/app/turmas");
     } catch (err) {
       const pgErr = err as { code?: string; message?: string } | null;
       if (pgErr?.code === "23505") {
@@ -414,8 +415,9 @@ export default function SessionEditor() {
 
         {!canMutate && (
           <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
-            Seu perfil está em modo somente leitura. Apenas administradores
-            podem editar ou alterar o status operacional das turmas.
+            Seu perfil está em modo somente leitura. Apenas administradores ou
+            coordenadores podem editar ou alterar o status operacional das
+            turmas.
           </div>
         )}
 
@@ -833,7 +835,7 @@ export default function SessionEditor() {
                   title={
                     canMutate
                       ? "Fechar sessão"
-                      : "Apenas administradores podem cancelar turmas"
+                      : "Apenas administradores ou coordenadores podem cancelar turmas"
                   }
                   className="w-full text-xs font-bold uppercase tracking-widest text-error transition-colors hover:text-error/80 disabled:opacity-40 md:w-auto"
                 >
@@ -842,7 +844,7 @@ export default function SessionEditor() {
                 <div className="flex w-full flex-col-reverse gap-3 md:w-auto md:flex-row">
                   <button
                     type="button"
-                    onClick={() => navigate("/app/sessoes")}
+                    onClick={() => navigate("/app/turmas")}
                     className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
                   >
                     Voltar
@@ -855,7 +857,7 @@ export default function SessionEditor() {
                         ? "Turmas concluídas não podem ser editadas"
                         : canMutate
                           ? "Salvar alterações"
-                          : "Apenas administradores podem editar turmas"
+                          : "Apenas administradores ou coordenadores podem editar turmas"
                     }
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
                   >
@@ -902,7 +904,7 @@ export default function SessionEditor() {
             </div>
             <div className="flex gap-3 border-t border-border-default bg-bg-default px-8 py-6">
               <button
-                onClick={() => navigate("/app/sessoes")}
+                onClick={() => navigate("/app/turmas")}
                 className="flex-1 rounded-lg border border-border-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:bg-bg-default"
               >
                 Voltar
@@ -912,7 +914,7 @@ export default function SessionEditor() {
                 title={
                   canMutate
                     ? "Confirmar cancelamento"
-                    : "Apenas administradores podem cancelar turmas"
+                    : "Apenas administradores ou coordenadores podem cancelar turmas"
                 }
                 className="flex-1 rounded-lg bg-error py-3 text-xs font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-error/90"
               >

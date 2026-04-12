@@ -1,5 +1,5 @@
 import type { AppRouteMeta, ProfileRole } from "@/types";
-import { isAdminLike } from "./routeAccess";
+import { canAccessRoute } from "./routeAccess";
 
 // Initial route metadata registry to progressively replace hardcoded route lists.
 export const appRouteRegistry: AppRouteMeta[] = [
@@ -17,7 +17,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/admin",
-    access: "admin",
+    access: "platform_admin",
     section: "dashboard",
     showInSidebar: true,
     prefetch: true,
@@ -111,7 +111,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/sessoes",
-    access: "admin",
+    access: "session_manager",
     section: "turmas",
     showInSidebar: true,
     prefetch: true,
@@ -123,7 +123,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/turmas",
-    access: "admin",
+    access: "session_manager",
     section: "turmas",
     showInSidebar: false,
     prefetch: true,
@@ -131,7 +131,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/turmas/nova",
-    access: "admin",
+    access: "session_manager",
     section: "turmas",
     showInSidebar: false,
     prefetch: true,
@@ -139,7 +139,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/efetivo",
-    access: "admin",
+    access: "platform_admin",
     section: "efetivo",
     showInSidebar: true,
     prefetch: true,
@@ -150,7 +150,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/efetivo/:userId/editar",
-    access: "admin",
+    access: "platform_admin",
     section: "efetivo",
     showInSidebar: false,
     prefetch: false,
@@ -158,7 +158,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/analytics",
-    access: "admin",
+    access: "platform_admin",
     section: "governanca",
     showInSidebar: true,
     prefetch: true,
@@ -169,7 +169,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/configuracoes",
-    access: "admin",
+    access: "platform_admin",
     section: "governanca",
     showInSidebar: true,
     prefetch: true,
@@ -180,7 +180,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/configuracoes/perfis",
-    access: "admin",
+    access: "platform_admin",
     section: "governanca",
     showInSidebar: false,
     prefetch: true,
@@ -188,7 +188,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/auditoria",
-    access: "admin",
+    access: "platform_admin",
     section: "governanca",
     showInSidebar: true,
     prefetch: true,
@@ -199,7 +199,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/turmas/:sessionId/agendamentos",
-    access: "admin",
+    access: "session_manager",
     section: "turmas",
     showInSidebar: false,
     prefetch: false,
@@ -207,7 +207,7 @@ export const appRouteRegistry: AppRouteMeta[] = [
   },
   {
     path: "/app/turmas/:sessionId/editar",
-    access: "admin",
+    access: "session_manager",
     section: "turmas",
     showInSidebar: false,
     prefetch: false,
@@ -216,13 +216,11 @@ export const appRouteRegistry: AppRouteMeta[] = [
 ];
 
 export function getSidebarRoutesForRole(role: ProfileRole | null | undefined) {
-  const access = isAdminLike(role) ? "admin" : "user";
-
   return appRouteRegistry
     .filter(
       (route) =>
         route.showInSidebar &&
-        route.access === access &&
+        canAccessRoute(role, route.access) &&
         route.sidebarLabel &&
         route.sidebarIcon,
     )

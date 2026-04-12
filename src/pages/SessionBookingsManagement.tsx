@@ -731,7 +731,7 @@ export default function SessionBookingsManagement() {
                               {b.status === "cancelado"
                                 ? "Agendamento já cancelado."
                                 : b.status === "remarcado"
-                                  ? "Booking histórico remarcado."
+                                  ? "Agendamento histórico remarcado."
                                   : "Sem ação disponível."}
                             </p>
                           )}

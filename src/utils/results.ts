@@ -1,6 +1,14 @@
 import { getResultBookingStatus } from "@/utils/resultOperational";
 
 export type ResultStatus = "apto" | "inapto" | "pendente" | null;
+export type BookingResultStatus = Exclude<ResultStatus, "pendente" | null>;
+
+export type StructuredBookingResultDetails = {
+  result_status: BookingResultStatus;
+  corrida: string | null;
+  flexao: string | null;
+  abdominal: string | null;
+};
 
 export type ResultSummary = {
   id: string;
@@ -34,7 +42,7 @@ const NOTE_KEYS = [
   "motivo",
 ] as const;
 
-function parseResultDetails(raw: unknown): Record<string, unknown> | null {
+function parseResultDetailsObject(raw: unknown): Record<string, unknown> | null {
   if (!raw) return null;
 
   if (typeof raw === "string") {
@@ -65,6 +73,57 @@ function normalizeResultStatus(value: unknown): ResultStatus {
   }
 
   return null;
+}
+
+function sanitizeMetric(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
+export function extractResultStatus(
+  raw: unknown,
+): StructuredBookingResultDetails["result_status"] | null {
+  const detail = parseResultDetailsObject(raw);
+  const normalized =
+    normalizeResultStatus(detail?.result_status) ??
+    normalizeResultStatus(detail?.status) ??
+    normalizeResultStatus(raw);
+
+  return normalized === "apto" || normalized === "inapto" ? normalized : null;
+}
+
+export function parseStructuredBookingResultDetails(
+  raw: unknown,
+): StructuredBookingResultDetails | null {
+  const detail = parseResultDetailsObject(raw);
+  const resultStatus = extractResultStatus(raw);
+
+  if (!resultStatus) {
+    return null;
+  }
+
+  return {
+    result_status: resultStatus,
+    corrida: sanitizeMetric(detail?.corrida),
+    flexao: sanitizeMetric(detail?.flexao),
+    abdominal: sanitizeMetric(detail?.abdominal),
+  };
+}
+
+export function buildStructuredBookingResultPayload(
+  resultStatus: StructuredBookingResultDetails["result_status"],
+  metrics?: Partial<
+    Pick<StructuredBookingResultDetails, "corrida" | "flexao" | "abdominal">
+  >,
+): StructuredBookingResultDetails {
+  return {
+    result_status: resultStatus,
+    corrida: sanitizeMetric(metrics?.corrida) ?? null,
+    flexao: sanitizeMetric(metrics?.flexao) ?? null,
+    abdominal: sanitizeMetric(metrics?.abdominal) ?? null,
+  };
 }
 
 export function canOpenAppeal(result: Pick<ResultSummary, "result_status">) {
@@ -106,8 +165,8 @@ export function getAppealAvailability(
 export function normalizeResultSummary(
   input: ResultSummaryInput,
 ): ResultSummary {
-  const detail = parseResultDetails(input.result_details);
-  const rawStatus = normalizeResultStatus(input.result_details);
+  const detail = parseResultDetailsObject(input.result_details);
+  const rawStatus = extractResultStatus(input.result_details);
 
   let notes: string | null = null;
 
@@ -131,6 +190,7 @@ export function normalizeResultSummary(
     concept: getStringField(detail, "concept") ?? input.concept ?? null,
     result_status:
       normalizeResultStatus(getStringField(detail, "result_status")) ??
+      normalizeResultStatus(getStringField(detail, "status")) ??
       normalizeResultStatus(input.result_status) ??
       rawStatus,
     order_number: input.order_number ?? null,

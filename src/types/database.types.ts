@@ -318,6 +318,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      evaluation_index_rows: {
+        Row: {
+          id: string;
+          faixa: string;
+          corrida: string;
+          flexao: string;
+          abdominal: string;
+          conceito: string;
+          sort_order: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Insert: {
+          id?: string;
+          faixa: string;
+          corrida: string;
+          flexao: string;
+          abdominal: string;
+          conceito: string;
+          sort_order?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          faixa?: string;
+          corrida?: string;
+          flexao?: string;
+          abdominal?: string;
+          conceito?: string;
+          sort_order?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       swap_requests: {
         Row: {
           id: string;
@@ -460,6 +496,22 @@ export interface Database {
         Args: { p_id: string };
         Returns: undefined;
       };
+      get_evaluation_index_rows: {
+        Args: Record<string, never>;
+        Returns: Database["public"]["Tables"]["evaluation_index_rows"]["Row"][];
+      };
+      save_evaluation_index_row: {
+        Args: {
+          p_id: string;
+          p_faixa: string;
+          p_corrida: string;
+          p_flexao: string;
+          p_abdominal: string;
+          p_conceito: string;
+          p_sort_order?: number | null;
+        };
+        Returns: Database["public"]["Tables"]["evaluation_index_rows"]["Row"];
+      };
       get_user_dashboard_summary: {
         Args: Record<string, never>;
         Returns: Json;
@@ -469,6 +521,19 @@ export interface Database {
         Returns: Json;
       };
       get_sessions_availability: {
+        Args: { p_start: string; p_end: string };
+        Returns: {
+          session_id: string;
+          date: string;
+          period: string;
+          max_capacity: number;
+          occupied_count: number;
+          available_count: number;
+          session_status: SessionStatus;
+          location_name: string | null;
+        }[];
+      };
+      get_session_hub_sessions: {
         Args: { p_start: string; p_end: string };
         Returns: {
           session_id: string;
@@ -592,7 +657,7 @@ export interface Database {
       get_results_history: {
         Args: {
           p_limit: number;
-          p_cursor: string;
+          p_cursor?: string | null;
           p_from?: string | null;
           p_to?: string | null;
         };
@@ -623,7 +688,7 @@ export interface Database {
         }[];
       };
       set_booking_result: {
-        Args: { p_booking_id: string; p_result: string };
+        Args: { p_booking_id: string; p_result: Json };
         Returns: undefined;
       };
       set_booking_attendance: {

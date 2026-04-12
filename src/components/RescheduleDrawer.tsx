@@ -8,10 +8,14 @@ import CustomCalendar from "@/components/atomic/CustomCalendar";
 import type { SessionAvailability } from "@/hooks/useSessions";
 import { createSwapRequest } from "@/services/bookings";
 import supabase from "@/services/supabase";
+import type { Database } from "@/types/database.types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { parseISO, startOfDay, startOfMonth } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+type SessionAvailabilityRpcRow =
+  Database["public"]["Functions"]["get_sessions_availability"]["Returns"][number];
 
 function getSwapErrorMessage(error: unknown): string {
   const raw =
@@ -126,9 +130,18 @@ export default function RescheduleDrawer({
         p_end: date,
       });
       if (error) throw error;
-      const sessions = ((data as SessionAvailability[] | null) ?? []).filter(
-        (s) => s.status === "open" && s.available_count > 0,
-      );
+      const sessions = ((data as SessionAvailabilityRpcRow[] | null) ?? [])
+        .map<SessionAvailability>((session) => ({
+          session_id: session.session_id,
+          date: session.date,
+          period: session.period,
+          max_capacity: session.max_capacity,
+          occupied_count: session.occupied_count,
+          available_count: session.available_count,
+          status: session.session_status,
+          location_name: session.location_name,
+        }))
+        .filter((session) => session.status === "open" && session.available_count > 0);
       setAvailableSessions(sessions);
     } catch (err) {
       console.error(err);

@@ -265,6 +265,7 @@ export type AnalyticsProfileRow = {
   id: string;
   full_name: string | null;
   war_name: string | null;
+  email: string | null;
   saram: string | null;
   rank: string | null;
   sector: string | null;
@@ -279,7 +280,7 @@ export type AnalyticsBookingRow = {
   test_date: string | null;
   created_at: string | null;
   status: string | null;
-  result_details: string | null;
+  result_details: unknown;
 };
 
 export type AnalyticsSessionRow = Pick<
@@ -309,7 +310,7 @@ export async function fetchAnalyticsData(
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, war_name, saram, rank, sector, active"),
+      .select("id, full_name, war_name, email, saram, rank, sector, active"),
     supabase
       .from("bookings")
       .select(

@@ -14,7 +14,11 @@ export type SystemSettingsRow =
 export type ProfileRole =
   import("./database.types").Database["public"]["Tables"]["profiles"]["Row"]["role"];
 
-export type RouteAccess = "authenticated" | "user" | "admin";
+export type RouteAccess =
+  | "authenticated"
+  | "user"
+  | "platform_admin"
+  | "session_manager";
 
 export type RouteSection =
   | "dashboard"

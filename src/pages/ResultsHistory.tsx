@@ -84,7 +84,7 @@ export default function ResultsHistory() {
       try {
         const { data, error } = await supabase.rpc("get_results_history", {
           p_limit: 25,
-          p_cursor: nextCursor,
+          p_cursor: nextCursor ?? "",
           p_from: null,
           p_to: null,
         });

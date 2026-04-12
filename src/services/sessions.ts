@@ -5,6 +5,7 @@
  */
 
 import type { Database } from "@/types/database.types";
+import type { StructuredBookingResultDetails } from "@/utils/results";
 import supabase from "./supabase";
 
 export type SessionForEdit = {
@@ -73,8 +74,12 @@ export type SessionBookingBasic = {
   id: string;
   session_id: string;
   user_id: string;
-  result_details: string | null;
+  result_details: Database["public"]["Tables"]["bookings"]["Row"]["result_details"];
 };
+
+export type UpdateBookingResultInput =
+  | StructuredBookingResultDetails
+  | StructuredBookingResultDetails["result_status"];
 
 type SupabaseRpcError = {
   code?: string;
@@ -372,7 +377,7 @@ export async function fetchSessionBookings(sessionId: string): Promise<{
 
 export async function updateBookingResult(
   bookingId: string,
-  resultDetails: string,
+  resultDetails: UpdateBookingResultInput,
 ): Promise<void> {
   const { error } = await supabase.rpc("set_booking_result", {
     p_booking_id: bookingId,
