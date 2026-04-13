@@ -15,41 +15,43 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function ReschedulingNotification() {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<PendingSwapBooking[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [notificacoes, setNotificacoes] = useState<PendingSwapBooking[]>([]);
 
   useEffect(() => {
     let mounted = true;
-    async function load() {
-      setLoading(true);
+    async function carregarNotificacoes() {
+      setCarregando(true);
       try {
         const data = await fetchPendingSwapBookings();
-        if (mounted) setItems(data);
+        if (mounted) setNotificacoes(data);
       } catch (err) {
         console.error(err);
         toast.error("Erro ao carregar notificações");
-        setItems([]);
+        setNotificacoes([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setCarregando(false);
       }
     }
 
-    load();
+    carregarNotificacoes();
     return () => {
       mounted = false;
     };
   }, []);
 
-  function markAsRead(id: string) {
+  function descartarNotificacao(id: string) {
     // Descarta a notificação da UI — a gestão do status do reagendamento
     // é feita pela página /app/reagendamentos via useReschedulingManagement.
-    setItems((prev) => prev.filter((p) => p.id !== id));
+    setNotificacoes((anteriores) =>
+      anteriores.filter((notificacao) => notificacao.id !== id),
+    );
     toast.success("Notificação descartada");
   }
 
-  if (loading) return <PageSkeleton />;
+  if (carregando) return <PageSkeleton />;
 
-  const first = items[0] ?? null;
+  const primeiraNotificacao = notificacoes[0] ?? null;
 
   return (
     <Layout>
@@ -67,7 +69,7 @@ export default function ReschedulingNotification() {
       </header>
 
       <main className="max-w-[1100px] mx-auto p-4 md:p-8 space-y-4 md:space-y-6">
-        {first ? (
+        {primeiraNotificacao ? (
           <article className="rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
             <div className="flex items-start gap-4">
               <div className="flex-1">
@@ -78,7 +80,9 @@ export default function ReschedulingNotification() {
                     </h2>
                     <p className="text-sm text-text-muted">
                       Recebida em{" "}
-                      {new Date(first.created_at ?? "").toLocaleString()}
+                      {new Date(
+                        primeiraNotificacao.created_at ?? "",
+                      ).toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">
@@ -89,14 +93,19 @@ export default function ReschedulingNotification() {
                 </div>
 
                 <div className="mt-4 text-sm text-text-body">
-                  <p className="font-semibold">Militar ID: {first.user_id}</p>
+                  <p className="font-semibold">
+                    Militar ID: {primeiraNotificacao.user_id}
+                  </p>
                   <p className="mt-2">
-                    Motivo: <span className="italic">{first.swap_reason}</span>
+                    Motivo:{" "}
+                    <span className="italic">
+                      {primeiraNotificacao.swap_reason}
+                    </span>
                   </p>
                   <p className="mt-2">
                     Data solicitada:{" "}
                     <strong className="text-primary">
-                      {first.test_date ?? "--"}
+                      {primeiraNotificacao.test_date ?? "--"}
                     </strong>
                   </p>
                 </div>
@@ -104,13 +113,15 @@ export default function ReschedulingNotification() {
                 <div className="mt-6 flex gap-3 justify-end">
                   <a
                     className="inline-flex items-center gap-2 rounded-lg border-2 border-primary px-4 py-2 font-semibold text-primary transition-all hover:bg-primary hover:text-primary-foreground"
-                    href={`/app/reagendamentos?bookingId=${first.id}`}
+                    href={`/app/reagendamentos?bookingId=${primeiraNotificacao.id}`}
                   >
                     Ir para Gestão
                     <ArrowRight size={16} />
                   </a>
                   <button
-                    onClick={() => markAsRead(first.id)}
+                    onClick={() =>
+                      descartarNotificacao(primeiraNotificacao.id)
+                    }
                     className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground"
                   >
                     Marcar como lida
@@ -130,28 +141,33 @@ export default function ReschedulingNotification() {
 
         {/* list summary */}
         <section className="grid grid-cols-1 gap-3">
-          {items.slice(0, 6).map((it) => (
+          {notificacoes.slice(0, 6).map((notificacao) => (
             <div
-              key={it.id}
+              key={notificacao.id}
               className="flex items-center justify-between rounded-lg border border-border-default bg-bg-card p-3"
             >
               <div className="text-sm">
-                <div className="font-bold">Militar ID: {it.user_id}</div>
+                <div className="font-bold">
+                  Militar ID: {notificacao.user_id}
+                </div>
                 <div className="text-xs text-text-muted">
-                  {it.swap_reason?.slice(0, 80)}
-                  {it.swap_reason && it.swap_reason.length > 80 ? "..." : ""}
+                  {notificacao.swap_reason?.slice(0, 80)}
+                  {notificacao.swap_reason &&
+                  notificacao.swap_reason.length > 80
+                    ? "..."
+                    : ""}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => markAsRead(it.id)}
+                  onClick={() => descartarNotificacao(notificacao.id)}
                   className="text-xs px-3 py-1 rounded border"
                 >
                   Marcar
                 </button>
                 <a
                   className="text-xs text-primary"
-                  href={`/app/reagendamentos?bookingId=${it.id}`}
+                  href={`/app/reagendamentos?bookingId=${notificacao.id}`}
                 >
                   Abrir
                 </a>

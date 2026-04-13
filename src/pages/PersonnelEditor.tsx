@@ -8,7 +8,7 @@ import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import { getProfileById, updateProfile } from "@/hooks/usePersonnel";
+import { getProfileById, updateProfile } from "@/services/personnel";
 import { ArrowLeft, Building2, Loader2, Save, UserCheck, UserX } from "@/icons";
 import type { Profile } from "@/types";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
@@ -19,35 +19,35 @@ export default function PersonnelEditor() {
   const { profile: authProfile } = useAuth();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [perfilMilitar, setPerfilMilitar] = useState<Profile | null>(null);
   const [active, setActive] = useState(true);
   const [sector, setSector] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const canMutate = authProfile?.role === "admin";
   useEffect(() => {
     if (!userId) return;
-    setLoading(true);
+    setCarregando(true);
     getProfileById(userId)
-      .then((p) => {
-        if (!p) {
-          setLoadError("Militar nao encontrado.");
-          setLoading(false);
+      .then((perfil) => {
+        if (!perfil) {
+          setErroCarregamento("Militar nao encontrado.");
+          setCarregando(false);
           return;
         }
-        setProfile(p);
-        setActive(p.active !== false);
-        setSector(p.sector ?? "");
-        setLoading(false);
+        setPerfilMilitar(perfil);
+        setActive(perfil.active !== false);
+        setSector(perfil.sector ?? "");
+        setCarregando(false);
       })
       .catch((err) => {
         console.error("[PersonnelEditor] query error:", err);
-        setLoadError(err.message ?? "Erro ao carregar dados do militar.");
-        setLoading(false);
+        setErroCarregamento(err.message ?? "Erro ao carregar dados do militar.");
+        setCarregando(false);
       });
   }, [userId]);
-  async function handleSave() {
+  async function salvarAlteracoes() {
     if (!userId) return;
     if (!canMutate) {
       toast.error(
@@ -56,7 +56,7 @@ export default function PersonnelEditor() {
       return;
     }
 
-    setSaving(true);
+    setSalvando(true);
     try {
       await updateProfile(userId, { active, sector: sector.trim() || null });
       toast.success(active ? "Militar ativado." : "Militar inativado.");
@@ -69,10 +69,10 @@ export default function PersonnelEditor() {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(authMessage ?? `Erro ao salvar: ${msg}`);
     } finally {
-      setSaving(false);
+      setSalvando(false);
     }
   }
-  if (loading) {
+  if (carregando) {
     return (
       <Layout>
         {" "}
@@ -84,7 +84,7 @@ export default function PersonnelEditor() {
       </Layout>
     );
   }
-  if (loadError || !profile) {
+  if (erroCarregamento || !perfilMilitar) {
     return (
       <Layout>
         {" "}
@@ -92,7 +92,7 @@ export default function PersonnelEditor() {
           {" "}
           <p className="text-error font-semibold">
             {" "}
-            {loadError ?? "Militar nao encontrado."}{" "}
+            {erroCarregamento ?? "Militar nao encontrado."}{" "}
           </p>{" "}
           <Button
             type="button"
@@ -108,7 +108,7 @@ export default function PersonnelEditor() {
     );
   }
   const displayName =
-    [profile.rank, profile.war_name ?? profile.full_name]
+    [perfilMilitar.rank, perfilMilitar.war_name ?? perfilMilitar.full_name]
       .filter(Boolean)
       .join(" ") || "desconhecido";
   return (
@@ -191,8 +191,8 @@ export default function PersonnelEditor() {
           </Button>{" "}
           <Button
             type="button"
-            disabled={saving || !canMutate}
-            onClick={handleSave}
+            disabled={salvando || !canMutate}
+            onClick={salvarAlteracoes}
             title={
               canMutate
                 ? "Salvar alterações"
@@ -201,7 +201,7 @@ export default function PersonnelEditor() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
             {" "}
-            {saving ? (
+            {salvando ? (
               <Loader2 size={15} className="animate-spin" />
             ) : (
               <Save size={15} />

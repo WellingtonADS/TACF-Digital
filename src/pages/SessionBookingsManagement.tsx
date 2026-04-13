@@ -32,13 +32,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-type BookingRow = DBBookingRow;
-type ProfileLookup = Pick<
+type AgendamentoRow = DBBookingRow;
+type PerfilLookup = Pick<
   Profile,
   "id" | "full_name" | "war_name" | "saram" | "rank" | "email"
 >;
 
-interface BookingWithProfile extends BookingRow {
+interface AgendamentoComPerfil extends AgendamentoRow {
   full_name: string | null;
   war_name: string | null;
   saram: string | null;
@@ -46,7 +46,7 @@ interface BookingWithProfile extends BookingRow {
   email: string | null;
 }
 
-type SessionInfo = {
+type InformacoesSessao = {
   id: string;
   date: string;
   period: string;
@@ -55,75 +55,78 @@ type SessionInfo = {
   status: "open" | "closed" | "completed";
 };
 
-type DisplayStatus = BookingRow["status"] | "confirmado";
+type StatusExibicao = AgendamentoRow["status"] | "confirmado";
 
-const DISPLAY_STATUS_LABELS: Record<DisplayStatus, string> = {
+const STATUS_EXIBICAO_LABELS: Record<StatusExibicao, string> = {
   agendado: "Agendado",
   remarcado: "Remarcado",
   cancelado: "Cancelado",
   confirmado: "Confirmado",
 };
 
-const DISPLAY_STATUS_CLASSES: Record<DisplayStatus, string> = {
+const STATUS_EXIBICAO_CLASSES: Record<StatusExibicao, string> = {
   agendado: "border-success/40 bg-success/10 text-success",
   remarcado: "border-alert/40 bg-alert/10 text-alert",
   cancelado: "bg-bg-default text-text-muted",
   confirmado: "border-primary/40 bg-primary/10 text-primary",
 };
 
-type StatusFilterOption = "all" | BookingRow["status"];
+type OpcaoFiltroStatus = "all" | AgendamentoRow["status"];
 
 export default function SessionBookingsManagement() {
   const { profile } = useAuth();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [bookings, setBookings] = useState<BookingWithProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [closureChecklist, setClosureChecklist] =
+  const [sessao, setSessao] = useState<InformacoesSessao | null>(null);
+  const [agendamentos, setAgendamentos] = useState<AgendamentoComPerfil[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [agendamentoAtualizandoId, setAgendamentoAtualizandoId] = useState<
+    string | null
+  >(null);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState<OpcaoFiltroStatus>("all");
+  const [termoBusca, setTermoBusca] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [checklistEncerramento, setChecklistEncerramento] =
     useState<SessionClosureChecklist | null>(null);
-  const [closingSession, setClosingSession] = useState(false);
-  const canMutate = profile?.role === "admin";
-  const itemsPerPage = 10;
-  const isSessionCompleted = session?.status === "completed";
-  const canManageAttendance = canMutate && !isSessionCompleted;
+  const [encerrandoSessao, setEncerrandoSessao] = useState(false);
+  const podeAlterar = profile?.role === "admin";
+  const itensPorPagina = 10;
+  const sessaoEncerrada = sessao?.status === "completed";
+  const podeGerirPresenca = podeAlterar && !sessaoEncerrada;
 
-  const load = useCallback(async () => {
+  const carregarDadosSessao = useCallback(async () => {
     if (!sessionId) return;
-    setLoading(true);
+    setCarregando(true);
     try {
       const sessionData = await fetchSessionById(sessionId);
       if (!sessionData) {
         throw new Error("Sessão não encontrada.");
       }
-      setSession(sessionData as SessionInfo);
+      setSessao(sessionData as InformacoesSessao);
 
       const { bookings: bookingsData, profilesById } =
         await fetchSessionBookingsWithProfiles(sessionId);
-      const booksRaw = bookingsData as BookingRow[];
+      const agendamentosBrutos = bookingsData as AgendamentoRow[];
 
-      const enriched: BookingWithProfile[] = booksRaw.map((b) => {
-        const p = profilesById.get(b.user_id) as ProfileLookup | undefined;
-        return {
-          ...b,
-          full_name: p?.full_name ?? null,
-          war_name: p?.war_name ?? null,
-          saram: p?.saram ?? null,
-          rank: p?.rank ?? null,
-          email: p?.email ?? null,
-        };
-      });
+      const agendamentosComPerfil: AgendamentoComPerfil[] =
+        agendamentosBrutos.map((b) => {
+          const p = profilesById.get(b.user_id) as PerfilLookup | undefined;
+          return {
+            ...b,
+            full_name: p?.full_name ?? null,
+            war_name: p?.war_name ?? null,
+            saram: p?.saram ?? null,
+            rank: p?.rank ?? null,
+            email: p?.email ?? null,
+          };
+        });
 
-      setBookings(enriched);
+      setAgendamentos(agendamentosComPerfil);
 
       const checklist = await fetchSessionClosureChecklist(sessionId);
-      setClosureChecklist(checklist);
+      setChecklistEncerramento(checklist);
     } catch (err) {
       const authMessage = getAuthorizationErrorMessage(
         err,
@@ -131,32 +134,32 @@ export default function SessionBookingsManagement() {
       );
       toast.error(authMessage ?? "Erro ao carregar agendamentos da turma.");
       console.error(err);
-      setClosureChecklist(null);
+      setChecklistEncerramento(null);
     } finally {
-      setLoading(false);
+      setCarregando(false);
     }
   }, [sessionId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    carregarDadosSessao();
+  }, [carregarDadosSessao]);
 
-  const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return bookings.filter((b) => {
-      const matchStatus = statusFilter === "all" || b.status === statusFilter;
+  const agendamentosFiltrados = useMemo(() => {
+    const buscaNormalizada = termoBusca.trim().toLowerCase();
+    return agendamentos.filter((b) => {
+      const matchStatus = filtroStatus === "all" || b.status === filtroStatus;
       const matchSearch =
-        !q ||
-        (b.full_name ?? "").toLowerCase().includes(q) ||
-        (b.war_name ?? "").toLowerCase().includes(q) ||
-        (b.saram ?? "").toLowerCase().includes(q) ||
-        (b.order_number ?? "").toLowerCase().includes(q);
+        !buscaNormalizada ||
+        (b.full_name ?? "").toLowerCase().includes(buscaNormalizada) ||
+        (b.war_name ?? "").toLowerCase().includes(buscaNormalizada) ||
+        (b.saram ?? "").toLowerCase().includes(buscaNormalizada) ||
+        (b.order_number ?? "").toLowerCase().includes(buscaNormalizada);
       return matchStatus && matchSearch;
     });
-  }, [bookings, statusFilter, searchQuery]);
+  }, [agendamentos, filtroStatus, termoBusca]);
 
-  const counts = useMemo(() => {
-    return bookings.reduce(
+  const contadores = useMemo(() => {
+    return agendamentos.reduce(
       (acc, booking) => {
         acc.all += 1;
         acc[booking.status] += 1;
@@ -164,22 +167,24 @@ export default function SessionBookingsManagement() {
       },
       { all: 0, agendado: 0, remarcado: 0, cancelado: 0 },
     );
-  }, [bookings]);
+  }, [agendamentos]);
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, searchQuery]);
+    setPaginaAtual(1);
+  }, [filtroStatus, termoBusca]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedResults = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    return filtered.slice(start, end);
-  }, [filtered, currentPage, itemsPerPage]);
+  // Cálculo da paginação
+  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
+  const resultadosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    return agendamentosFiltrados.slice(inicio, fim);
+  }, [agendamentosFiltrados, paginaAtual, itensPorPagina]);
 
-  function getDisplayStatus(booking: BookingWithProfile): DisplayStatus {
+  function obterStatusExibicao(
+    booking: AgendamentoComPerfil,
+  ): StatusExibicao {
     // Exibe status baseado na presença confirmada
     if (booking.attendance_confirmed) {
       return "confirmado";
@@ -187,32 +192,32 @@ export default function SessionBookingsManagement() {
     return "cancelado";
   }
 
-  async function handleAttendanceChange(bookingId: string, next: boolean) {
-    if (!canMutate) {
+  async function atualizarPresenca(bookingId: string, next: boolean) {
+    if (!podeAlterar) {
       toast.error(
         "Acesso negado: você não tem permissão para confirmar presença.",
       );
       return;
     }
 
-    if (isSessionCompleted) {
+    if (sessaoEncerrada) {
       toast.error("Sessão encerrada não permite alterar presença.");
       return;
     }
 
     const current =
-      bookings.find((booking) => booking.id === bookingId)
+      agendamentos.find((booking) => booking.id === bookingId)
         ?.attendance_confirmed ?? false;
 
     if (current === next) {
       return;
     }
 
-    setUpdating(bookingId);
+    setAgendamentoAtualizandoId(bookingId);
     try {
       await updateBookingAttendance(bookingId, next);
       toast.success(next ? "Presença confirmada." : "Presença removida.");
-      setBookings((prev) =>
+      setAgendamentos((prev) =>
         prev.map((b) =>
           b.id === bookingId ? { ...b, attendance_confirmed: next } : b,
         ),
@@ -224,32 +229,32 @@ export default function SessionBookingsManagement() {
       );
       toast.error(authMessage ?? "Não foi possível atualizar a presença.");
     } finally {
-      setUpdating(null);
+      setAgendamentoAtualizandoId(null);
     }
   }
 
-  async function handleCloseSession() {
+  async function encerrarSessao() {
     if (!sessionId) {
       return;
     }
 
-    if (!canMutate) {
+    if (!podeAlterar) {
       toast.error(
         "Acesso negado: você não tem permissão para encerrar sessão.",
       );
       return;
     }
 
-    if (isSessionCompleted) {
+    if (sessaoEncerrada) {
       toast.success("Sessão já está encerrada.");
       return;
     }
 
-    setClosingSession(true);
+    setEncerrandoSessao(true);
     try {
       const result = await closeSessionWithChecklist(sessionId);
-      setClosureChecklist(result.checklist);
-      setSession((prev) =>
+      setChecklistEncerramento(result.checklist);
+      setSessao((prev) =>
         prev
           ? {
               ...prev,
@@ -269,39 +274,39 @@ export default function SessionBookingsManagement() {
 
       try {
         const checklist = await fetchSessionClosureChecklist(sessionId);
-        setClosureChecklist(checklist);
+        setChecklistEncerramento(checklist);
       } catch {
-        setClosureChecklist(null);
+        setChecklistEncerramento(null);
       }
     } finally {
-      setClosingSession(false);
+      setEncerrandoSessao(false);
     }
   }
 
-  async function handleGenerateAttendancePdf() {
-    if (!session) {
+  async function gerarPdfListaPresenca() {
+    if (!sessao) {
       toast.error("Sessão não carregada para gerar PDF.");
       return;
     }
 
-    if (bookings.length === 0) {
+    if (agendamentos.length === 0) {
       toast.error("Não há agendamentos para gerar a lista de presença.");
       return;
     }
 
     const startedAt = Date.now();
-    setGeneratingPdf(true);
+    setGerandoPdf(true);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 0));
       // convert undefined order_number to null for PDF generator
-      const validBookings = bookings.map((b) => ({
+      const validBookings = agendamentos.map((b) => ({
         ...b,
         order_number: b.order_number ?? null,
         attendance_confirmed: b.attendance_confirmed ?? null,
       }));
       generateAttendanceListPdf({
-        session,
+        session: sessao,
         bookings: validBookings,
       });
       toast.success("Lista de presença gerada em PDF.");
@@ -313,28 +318,28 @@ export default function SessionBookingsManagement() {
       if (elapsed < 500) {
         await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
       }
-      setGeneratingPdf(false);
+      setGerandoPdf(false);
     }
   }
 
-  const dateLabel = session
-    ? format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
+  const dataFormatada = sessao
+    ? format(parseISO(sessao.date), "dd 'de' MMMM 'de' yyyy", {
         locale: ptBR,
       })
     : "—";
-  const periodLabel = session ? formatSessionPeriod(session.period) : "—";
+  const turnoFormatado = sessao ? formatSessionPeriod(sessao.period) : "—";
 
-  const filterTabs: { key: StatusFilterOption; label: string }[] = [
-    { key: "all", label: `Todos (${counts.all})` },
-    { key: "agendado", label: `Agendados (${counts.agendado})` },
-    { key: "remarcado", label: `Remarcados (${counts.remarcado})` },
-    { key: "cancelado", label: `Cancelados (${counts.cancelado})` },
+  const abasFiltro: { key: OpcaoFiltroStatus; label: string }[] = [
+    { key: "all", label: `Todos (${contadores.all})` },
+    { key: "agendado", label: `Agendados (${contadores.agendado})` },
+    { key: "remarcado", label: `Remarcados (${contadores.remarcado})` },
+    { key: "cancelado", label: `Cancelados (${contadores.cancelado})` },
   ];
 
   return (
     <Layout>
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4">
-        {/* Hero with enhanced visual hierarchy */}
+        {/* Cabeçalho principal */}
         <section className="mb-8">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-primary/90 px-5 py-6 text-white shadow-2xl shadow-primary/25 md:px-8 md:py-8 lg:px-10 lg:py-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
@@ -345,24 +350,23 @@ export default function SessionBookingsManagement() {
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl lg:text-4xl">
                   Agendamentos da Turma
                 </h1>
-                {session ? (
+                {sessao ? (
                   <div className="mt-3 space-y-1">
                     <p className="text-sm text-white/90 md:text-base font-medium">
-                      {dateLabel} <span className="text-white/60">•</span>{" "}
-                      {periodLabel}
+                      {dataFormatada} <span className="text-white/60">•</span>{" "}
+                      {turnoFormatado}
                     </p>
-                    {session.max_capacity != null && (
+                    {sessao.max_capacity != null && (
                       <p className="text-xs text-white/75 md:text-sm">
                         Capacidade:{" "}
                         <span className="font-bold">
-                          {session.max_capacity}
+                          {sessao.max_capacity}
                         </span>{" "}
                         vagas
                       </p>
                     )}
                     <p className="text-xs text-white/80 md:text-sm">
-                      Situação:{" "}
-                      {isSessionCompleted ? "Encerrada" : "Em execução"}
+                      Situação: {sessaoEncerrada ? "Encerrada" : "Em execução"}
                     </p>
                   </div>
                 ) : (
@@ -375,7 +379,7 @@ export default function SessionBookingsManagement() {
           </div>
         </section>
 
-        {closureChecklist && (
+        {checklistEncerramento && (
           <section className="mb-6 rounded-xl border border-border-default bg-bg-card p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -390,16 +394,16 @@ export default function SessionBookingsManagement() {
               </div>
               <button
                 type="button"
-                onClick={handleCloseSession}
+                onClick={encerrarSessao}
                 disabled={
-                  !canMutate ||
-                  isSessionCompleted ||
-                  !closureChecklist.can_close ||
-                  closingSession
+                  !podeAlterar ||
+                  sessaoEncerrada ||
+                  !checklistEncerramento.can_close ||
+                  encerrandoSessao
                 }
                 className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {closingSession ? "Encerrando..." : "Encerrar Sessão"}
+                {encerrandoSessao ? "Encerrando..." : "Encerrar Sessão"}
               </button>
             </div>
 
@@ -409,7 +413,7 @@ export default function SessionBookingsManagement() {
                   Resultados pendentes
                 </p>
                 <p className="mt-1 text-base font-bold text-text-body">
-                  {closureChecklist.results_pending}
+                  {checklistEncerramento.results_pending}
                 </p>
               </div>
               <div className="rounded-lg border border-border-default bg-bg-default p-3">
@@ -417,7 +421,7 @@ export default function SessionBookingsManagement() {
                   Reagendamentos pendentes
                 </p>
                 <p className="mt-1 text-base font-bold text-text-body">
-                  {closureChecklist.pending_swap_requests}
+                  {checklistEncerramento.pending_swap_requests}
                 </p>
               </div>
               <div className="rounded-lg border border-border-default bg-bg-default p-3">
@@ -425,24 +429,24 @@ export default function SessionBookingsManagement() {
                   Agendamentos ativos
                 </p>
                 <p className="mt-1 text-base font-bold text-text-body">
-                  {closureChecklist.bookings_total}
+                  {checklistEncerramento.bookings_total}
                 </p>
               </div>
             </div>
           </section>
         )}
 
-        {/* Enhanced filters with visual hierarchy */}
+        {/* Filtros e busca */}
         <div className="mb-6 space-y-4">
-          {/* Status filter tabs with indicator */}
+          {/* Abas de status */}
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <div className="flex gap-1 bg-bg-default rounded-lg p-1.5 overflow-x-auto flex-1 sm:flex-none">
-              {filterTabs.map((tab) => {
-                const isActive = statusFilter === tab.key;
+              {abasFiltro.map((tab) => {
+                const isActive = filtroStatus === tab.key;
                 return (
                   <button
                     key={tab.key}
-                    onClick={() => setStatusFilter(tab.key)}
+                    onClick={() => setFiltroStatus(tab.key)}
                     className={`relative px-3.5 py-2 rounded-md text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
                       isActive
                         ? "bg-bg-card text-primary shadow-sm"
@@ -459,7 +463,7 @@ export default function SessionBookingsManagement() {
             </div>
           </div>
 
-          {/* Enhanced search box */}
+          {/* Campo de busca */}
           <div className="relative w-full">
             <Search
               size={16}
@@ -468,14 +472,14 @@ export default function SessionBookingsManagement() {
             <input
               type="text"
               placeholder="Buscar nome, guerra ou SARAM..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border-2 border-border-default bg-bg-card text-text-body placeholder:text-text-muted transition-all duration-200 focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/20"
             />
           </div>
         </div>
 
-        {!canMutate && (
+        {!podeAlterar && (
           <div className="mb-6 rounded-lg border-2 border-alert/30 bg-alert/5 px-4 py-3 text-sm font-semibold text-alert flex items-start gap-3">
             <div className="mt-0.5 flex-shrink-0">
               <div className="flex h-2 w-2 rounded-full bg-alert/80" />
@@ -489,14 +493,14 @@ export default function SessionBookingsManagement() {
           </div>
         )}
 
-        {/* Data display with enhanced visual hierarchy */}
+        {/* Listagem de dados */}
         <div className="bg-bg-card rounded-xl border border-border-default overflow-hidden shadow-sm">
-          {loading ? (
+          {carregando ? (
             <div className="flex items-center justify-center gap-3 text-text-muted py-20">
               <Loader2 size={20} className="animate-spin text-primary/60" />
               <span className="font-medium">Carregando agendamentos...</span>
             </div>
-          ) : filtered.length === 0 ? (
+          ) : agendamentosFiltrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-3">
               <div className="rounded-full bg-primary/10 p-4">
                 <CalendarClock size={40} className="text-primary/40" />
@@ -510,18 +514,18 @@ export default function SessionBookingsManagement() {
             </div>
           ) : (
             <>
-              {/* Mobile view: Enhanced cards */}
+              {/* Visualização mobile */}
               <div className="space-y-3 p-4 md:hidden">
-                {paginatedResults.map((b) => {
-                  const isUpdating = updating === b.id;
-                  const displayStatus = getDisplayStatus(b);
+                {resultadosPaginados.map((b) => {
+                  const isUpdating = agendamentoAtualizandoId === b.id;
+                  const displayStatus = obterStatusExibicao(b);
 
                   return (
                     <article
                       key={b.id}
                       className="group rounded-lg border border-border-default bg-gradient-to-br from-bg-card to-white/50 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
                     >
-                      {/* Header with rank and number */}
+                      {/* Cabeçalho com posto e número */}
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -544,7 +548,7 @@ export default function SessionBookingsManagement() {
                         </div>
                       </div>
 
-                      {/* Sub-info line */}
+                      {/* Linha de apoio */}
                       <p className="text-xs text-text-muted mb-3 line-clamp-1">
                         <span className="inline-block">
                           Guerra: {b.war_name ?? "—"}
@@ -555,7 +559,7 @@ export default function SessionBookingsManagement() {
                         </span>
                       </p>
 
-                      {/* Status and Attendance section */}
+                      {/* Status e presença */}
                       <div className="space-y-2 pt-3 border-t border-border-default/50">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1">
@@ -564,11 +568,11 @@ export default function SessionBookingsManagement() {
                             </label>
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                DISPLAY_STATUS_CLASSES[displayStatus]
+                                STATUS_EXIBICAO_CLASSES[displayStatus]
                               }`}
                             >
                               <div className="w-1.5 h-1.5 rounded-full bg-current opacity-75" />
-                              {DISPLAY_STATUS_LABELS[displayStatus] ??
+                              {STATUS_EXIBICAO_LABELS[displayStatus] ??
                                 displayStatus}
                             </span>
                           </div>
@@ -583,7 +587,7 @@ export default function SessionBookingsManagement() {
                           )}
                         </div>
 
-                        {/* Attendance control */}
+                        {/* Controle de presença */}
                         <div className="pt-2 border-t border-border-default/30">
                           <label className="text-[9px] font-black uppercase tracking-widest text-text-muted/60 block mb-1.5">
                             Presença
@@ -593,9 +597,9 @@ export default function SessionBookingsManagement() {
                               <button
                                 key={val}
                                 onClick={() =>
-                                  handleAttendanceChange(b.id, val === "sim")
+                                  atualizarPresenca(b.id, val === "sim")
                                 }
-                                disabled={isUpdating || !canManageAttendance}
+                                disabled={isUpdating || !podeGerirPresenca}
                                 className={`flex-1 px-2 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
                                   (b.attendance_confirmed ? "sim" : "nao") ===
                                   val
@@ -614,7 +618,7 @@ export default function SessionBookingsManagement() {
                 })}
               </div>
 
-              {/* Desktop view: Enhanced table */}
+              {/* Visualização desktop */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                   <thead>
@@ -643,9 +647,9 @@ export default function SessionBookingsManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-default/50">
-                    {paginatedResults.map((b, idx) => {
-                      const isUpdating = updating === b.id;
-                      const displayStatus = getDisplayStatus(b);
+                    {resultadosPaginados.map((b, idx) => {
+                      const isUpdating = agendamentoAtualizandoId === b.id;
+                      const displayStatus = obterStatusExibicao(b);
                       const isEvenRow = idx % 2 === 0;
 
                       return (
@@ -683,11 +687,11 @@ export default function SessionBookingsManagement() {
                           <td className="px-5 py-4 text-center">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                DISPLAY_STATUS_CLASSES[displayStatus]
+                                STATUS_EXIBICAO_CLASSES[displayStatus]
                               }`}
                             >
                               <div className="w-1.5 h-1.5 rounded-full bg-current opacity-75" />
-                              {DISPLAY_STATUS_LABELS[displayStatus] ??
+                              {STATUS_EXIBICAO_LABELS[displayStatus] ??
                                 displayStatus}
                             </span>
                           </td>
@@ -698,13 +702,13 @@ export default function SessionBookingsManagement() {
                                   <button
                                     key={val}
                                     onClick={() =>
-                                      handleAttendanceChange(
+                                      atualizarPresenca(
                                         b.id,
                                         val === "sim",
                                       )
                                     }
                                     disabled={
-                                      isUpdating || !canManageAttendance
+                                      isUpdating || !podeGerirPresenca
                                     }
                                     className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all duration-150 ${
                                       (b.attendance_confirmed
@@ -736,10 +740,10 @@ export default function SessionBookingsManagement() {
           )}
         </div>
 
-        {/* Action bar with buttons and pagination */}
-        {!loading && filtered.length > 0 && (
+        {/* Barra de ações e paginação */}
+        {!carregando && agendamentosFiltrados.length > 0 && (
           <div className="mt-6 space-y-4">
-            {/* Action buttons */}
+            {/* Botões de ação */}
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
               <button
                 type="button"
@@ -752,11 +756,13 @@ export default function SessionBookingsManagement() {
               <button
                 type="button"
                 aria-label="Gerar Lista de Presença"
-                onClick={handleGenerateAttendancePdf}
-                disabled={loading || generatingPdf || bookings.length === 0}
+                onClick={gerarPdfListaPresenca}
+                disabled={
+                  carregando || gerandoPdf || agendamentos.length === 0
+                }
                 className="inline-flex items-center justify-center sm:justify-start gap-2 rounded-lg bg-success hover:bg-success/95 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {generatingPdf ? (
+                {gerandoPdf ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
                     <span>Processando...</span>
@@ -770,13 +776,13 @@ export default function SessionBookingsManagement() {
               </button>
             </div>
 
-            {/* Pagination controls */}
-            {totalPages > 1 && (
+            {/* Controles de paginação */}
+            {totalPaginas > 1 && (
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() => setPaginaAtual(Math.max(1, paginaAtual - 1))}
+                  disabled={paginaAtual === 1}
                   className="inline-flex items-center gap-1.5 rounded-lg border-2 border-border-default hover:border-primary/30 bg-bg-card px-3 py-2 text-xs font-semibold text-text-body transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ArrowLeft size={14} />
@@ -784,13 +790,13 @@ export default function SessionBookingsManagement() {
                 </button>
 
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(
                     (page) => (
                       <button
                         key={page}
-                        onClick={() => setCurrentPage(page)}
+                        onClick={() => setPaginaAtual(page)}
                         className={`h-8 w-8 rounded-md text-xs font-semibold transition-all ${
-                          currentPage === page
+                          paginaAtual === page
                             ? "bg-primary text-white shadow-sm"
                             : "bg-bg-default text-text-muted hover:bg-bg-card"
                         }`}
@@ -804,9 +810,9 @@ export default function SessionBookingsManagement() {
                 <button
                   type="button"
                   onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    setPaginaAtual(Math.min(totalPaginas, paginaAtual + 1))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={paginaAtual === totalPaginas}
                   className="inline-flex items-center gap-1.5 rounded-lg border-2 border-border-default hover:border-primary/30 bg-bg-card px-3 py-2 text-xs font-semibold text-text-body transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span>Próxima</span>
@@ -817,20 +823,20 @@ export default function SessionBookingsManagement() {
           </div>
         )}
 
-        {!loading && filtered.length > 0 && (
+        {!carregando && agendamentosFiltrados.length > 0 && (
           <div className="mt-5 flex items-center justify-between px-1">
             <p className="text-xs text-text-muted/70">
               <span className="font-semibold text-text-body">
-                {filtered.length}
+                {agendamentosFiltrados.length}
               </span>{" "}
               de{" "}
               <span className="font-semibold text-text-body">
-                {bookings.length}
+                {agendamentos.length}
               </span>{" "}
-              agendamento{bookings.length !== 1 ? "s" : ""}
+              agendamento{agendamentos.length !== 1 ? "s" : ""}
             </p>
             <div className="flex gap-1.5 text-[10px] text-text-muted/60">
-              {Object.entries(counts)
+              {Object.entries(contadores)
                 .filter(([k]) => k !== "all")
                 .map(
                   ([status, count]) =>

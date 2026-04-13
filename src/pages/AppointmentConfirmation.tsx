@@ -18,8 +18,12 @@ import {
   formatSessionPeriod,
   translateBookingError,
 } from "@/utils/booking";
-import { formatDatePtBr, getSemesterFromDate } from "@/utils/date";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
+import {
+  formatDatePtBr,
+  getMilitaryBookingRuleMessage,
+  getSemesterFromDate,
+} from "@/utils/date";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -27,91 +31,100 @@ import PageSkeleton from "../components/PageSkeleton";
 
 export const AppointmentConfirmation = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  type LocationState = { bookingId?: string; sessionId?: string };
+  const localRoteamento = useLocation();
+  type EstadoRoteamento = { bookingId?: string; sessionId?: string };
 
-  type BookingPreview = AppointmentBookingPreview;
-  type SessionPreview = AppointmentSessionPreview;
-  type ProfilePreview = AppointmentProfilePreview;
+  type PreviaAgendamento = AppointmentBookingPreview;
+  type PreviaSessao = AppointmentSessionPreview;
+  type PreviaPerfil = AppointmentProfilePreview;
 
-  const bookingIdFromState = (location.state as LocationState)?.bookingId;
-  const sessionIdFromState = (location.state as LocationState)?.sessionId;
-  const urlParams = new URLSearchParams(location.search);
-  const bookingIdFromQuery = urlParams.get("bookingId");
-  const sessionIdFromQuery = urlParams.get("sessionId");
+  const bookingIdState = (localRoteamento.state as EstadoRoteamento)?.bookingId;
+  const sessionIdState = (localRoteamento.state as EstadoRoteamento)?.sessionId;
+  const parametrosUrl = new URLSearchParams(localRoteamento.search);
+  const bookingIdQuery = parametrosUrl.get("bookingId");
+  const sessionIdQuery = parametrosUrl.get("sessionId");
 
-  const bookingId = bookingIdFromState ?? bookingIdFromQuery ?? null;
-  const sessionIdInput = sessionIdFromState ?? sessionIdFromQuery ?? null;
+  const bookingId = bookingIdState ?? bookingIdQuery ?? null;
+  const sessaoIdEntrada = sessionIdState ?? sessionIdQuery ?? null;
 
-  const [loading, setLoading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [booking, setBooking] = useState<BookingPreview | null>(null);
-  const [session, setSession] = useState<SessionPreview | null>(null);
-  const [profile, setProfile] = useState<ProfilePreview | null>(null);
-  const [existingBookingForDate, setExistingBookingForDate] =
-    useState<BookingPreview | null>(null);
-  const [existingSemesterBooking, setExistingSemesterBooking] =
-    useState<BookingPreview | null>(null);
-  // ensure analyzer sees usage in all build contexts
-  void existingBookingForDate;
-  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(
-    sessionIdInput,
+  const [carregando, setCarregando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [agendamento, setAgendamento] = useState<PreviaAgendamento | null>(null);
+  const [sessao, setSessao] = useState<PreviaSessao | null>(null);
+  const [perfil, setPerfil] = useState<PreviaPerfil | null>(null);
+  const [agendamentoExistenteNaData, setAgendamentoExistenteNaData] =
+    useState<PreviaAgendamento | null>(null);
+  const [agendamentoExistenteSemestre, setAgendamentoExistenteSemestre] =
+    useState<PreviaAgendamento | null>(null);
+  // Garante que o analisador reconheça o uso em todos os contextos de build.
+  void agendamentoExistenteNaData;
+  const [sessaoIdResolvida, setSessaoIdResolvida] = useState<string | null>(
+    sessaoIdEntrada,
   );
 
-  // helpers imported from utils/booking
+  const mensagemRegraAgendamento = sessao?.date
+    ? getMilitaryBookingRuleMessage(sessao.date)
+    : null;
+
+  // Auxiliares importados de `utils/booking`.
 
   useEffect(() => {
     async function fetchData() {
-      if (!bookingId && !sessionIdInput) {
-        setLoading(false);
+      if (!bookingId && !sessaoIdEntrada) {
+        setCarregando(false);
         return;
       }
 
-      setLoading(true);
+      setCarregando(true);
       try {
-        const userResp = await supabase.auth.getUser();
-        const userId = userResp.data.user?.id ?? null;
+        const respostaUsuario = await supabase.auth.getUser();
+        const userId = respostaUsuario.data.user?.id ?? null;
         const data = await fetchAppointmentContext({
           bookingId,
-          sessionIdInput,
+          sessionIdInput: sessaoIdEntrada,
           userId,
         });
 
-        setBooking(data.booking as BookingPreview | null);
-        setSession(data.session as SessionPreview | null);
-        setProfile(data.profile as ProfilePreview | null);
-        setExistingBookingForDate(
-          data.existingBookingForDate as BookingPreview | null,
+        setAgendamento(data.booking as PreviaAgendamento | null);
+        setSessao(data.session as PreviaSessao | null);
+        setPerfil(data.profile as PreviaPerfil | null);
+        setAgendamentoExistenteNaData(
+          data.existingBookingForDate as PreviaAgendamento | null,
         );
-        setResolvedSessionId(data.resolvedSessionId);
+        setSessaoIdResolvida(data.resolvedSessionId);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        setCarregando(false);
       }
     }
 
     fetchData();
-  }, [bookingId, sessionIdInput]);
+  }, [bookingId, sessaoIdEntrada]);
 
-  function handleBack() {
-    // Always return to the agendamentos list instead of relying on history
+  function voltarParaAgendamentos() {
+    // Sempre volta para a lista de agendamentos, sem depender do histórico.
     navigate("/app/agendamentos");
   }
 
-  async function handleConfirm() {
-    if (!resolvedSessionId) {
+  async function confirmarAgendamento() {
+    if (!sessaoIdResolvida) {
       toast.error("Sessão inválida para confirmação.");
       return;
     }
 
-    setConfirming(true);
+    setConfirmando(true);
     try {
-      const userResp = await supabase.auth.getUser();
-      const userId = userResp.data.user?.id;
+      const respostaUsuario = await supabase.auth.getUser();
+      const userId = respostaUsuario.data.user?.id;
 
       if (!userId) {
         toast.error("Usuário não autenticado.");
+        return;
+      }
+
+      if (mensagemRegraAgendamento) {
+        toast.error(mensagemRegraAgendamento);
         return;
       }
 
@@ -119,12 +132,15 @@ export const AppointmentConfirmation = () => {
       // confirmado no mesmo semestre da sessão, para evitar a chamada RPC
       // que retornaria erro do servidor.
       try {
-        if (session?.date) {
-          const semester = getSemesterFromDate(session.date!);
-          if (semester) {
-            const existing = await fetchExistingSemesterBooking(semester);
-            if (existing && existing.id !== booking?.id) {
-              setExistingSemesterBooking(existing as unknown as BookingPreview);
+        if (sessao?.date) {
+          const semestre = getSemesterFromDate(sessao.date!);
+          if (semestre) {
+            const agendamentoExistente =
+              await fetchExistingSemesterBooking(semestre);
+            if (agendamentoExistente && agendamentoExistente.id !== agendamento?.id) {
+              setAgendamentoExistenteSemestre(
+                agendamentoExistente as unknown as PreviaAgendamento,
+              );
               toast.error(
                 "Você já possui um agendamento neste semestre. Cancele o agendamento existente para marcar outro.",
               );
@@ -136,7 +152,7 @@ export const AppointmentConfirmation = () => {
         // falhar silenciosamente na pré-validação e deixar a RPC tratar
       }
 
-      const result = await confirmarAgendamentoRPC(userId, resolvedSessionId);
+      const result = await confirmarAgendamentoRPC(userId, sessaoIdResolvida);
 
       if (!result.success || !result.booking_id) {
         const translated = translateBookingError(result.error);
@@ -153,18 +169,18 @@ export const AppointmentConfirmation = () => {
         state: {
           bookingId: result.booking_id,
           orderNumber: result.order_number ?? null,
-          sessionId: resolvedSessionId,
+          sessionId: sessaoIdResolvida,
         },
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao confirmar.";
       toast.error(msg);
     } finally {
-      setConfirming(false);
+      setConfirmando(false);
     }
   }
 
-  if (!bookingId && !sessionIdInput) {
+  if (!bookingId && !sessaoIdEntrada) {
     return (
       <Layout>
         <div className="p-6 max-w-2xl mx-auto">Agendamento não encontrado.</div>
@@ -181,7 +197,7 @@ export const AppointmentConfirmation = () => {
               Revisar Agendamento
             </h2>
 
-            {/* Stepper — etapa 2 ativa */}
+            {/* Etapas do fluxo: etapa 2 ativa */}
             <div className="sm:hidden">
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col items-center gap-1">
@@ -244,7 +260,7 @@ export const AppointmentConfirmation = () => {
           <div className="bg-bg-card rounded-xl shadow-2xl overflow-hidden border border-border-default relative">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
             <div className="p-5 sm:p-8 md:p-10">
-              {loading ? (
+              {carregando ? (
                 <PageSkeleton rows={6} />
               ) : (
                 <div className="space-y-8">
@@ -258,11 +274,11 @@ export const AppointmentConfirmation = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-base font-bold text-text-body sm:text-lg">
-                          {profile?.war_name ?? profile?.full_name ?? "--"}
+                          {perfil?.war_name ?? perfil?.full_name ?? "--"}
                         </p>
                         <p className="text-sm text-text-muted break-words">
-                          SARAM: {profile?.saram ?? "--"} • Posto/Graduação:{" "}
-                          {profile?.rank ?? "--"}
+                          SARAM: {perfil?.saram ?? "--"} • Posto/Graduação:{" "}
+                          {perfil?.rank ?? "--"}
                         </p>
                       </div>
                     </div>
@@ -278,11 +294,11 @@ export const AppointmentConfirmation = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-text-body sm:text-lg">
-                          {session?.location_name ?? "Local não informado"}
+                          {sessao?.location_name ?? "Local não informado"}
                         </p>
-                        {session?.location_address && (
+                        {sessao?.location_address && (
                           <p className="mt-1 break-words text-sm text-text-muted">
-                            {session.location_address}
+                            {sessao.location_address}
                           </p>
                         )}
                       </div>
@@ -297,14 +313,14 @@ export const AppointmentConfirmation = () => {
                       <div className="flex items-center gap-3">
                         <Calendar className="text-primary/70" size={18} />
                         <span className="text-base font-bold text-text-body sm:text-lg">
-                          {session?.date ? formatDatePtBr(session.date) : "--"}
+                          {sessao?.date ? formatDatePtBr(sessao.date) : "--"}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mt-2">
                         <Clock className="text-primary/70" size={18} />
                         <span className="text-base font-bold text-primary sm:text-lg">
-                          {session?.period
-                            ? formatSessionPeriod(session.period)
+                          {sessao?.period
+                            ? formatSessionPeriod(sessao.period)
                             : "--"}
                         </span>
                       </div>
@@ -331,9 +347,15 @@ export const AppointmentConfirmation = () => {
                     </div>
                   </div>
 
-                  {booking?.order_number && (
+                  {agendamento?.order_number && (
                     <div className="mt-4 rounded-lg border border-success/20 bg-success/10 p-4 text-success">
-                      Bilhete gerado: <strong>{booking.order_number}</strong>
+                      Bilhete gerado: <strong>{agendamento.order_number}</strong>
+                    </div>
+                  )}
+
+                  {mensagemRegraAgendamento && (
+                    <div className="rounded-lg border border-alert/20 bg-alert/10 p-4 text-sm text-alert">
+                      {mensagemRegraAgendamento}
                     </div>
                   )}
                 </div>
@@ -341,45 +363,46 @@ export const AppointmentConfirmation = () => {
             </div>
 
             <div className="bg-bg-default p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border-default">
-              {existingBookingForDate &&
-                existingBookingForDate.id !== booking?.id && (
+              {agendamentoExistenteNaData &&
+                agendamentoExistenteNaData.id !== agendamento?.id && (
                   <div className="mb-3 w-full rounded-lg border border-alert/20 bg-alert/10 p-3 text-sm text-alert">
                     Você já possui um agendamento nesta data (
-                    {formatDatePtBr(existingBookingForDate.test_date ?? "")}).
+                    {formatDatePtBr(agendamentoExistenteNaData.test_date ?? "")}).
                     Para agendar outra data, cancele primeiro o agendamento
                     existente.
                   </div>
                 )}
-              {existingSemesterBooking &&
-                existingSemesterBooking.id !== booking?.id && (
+              {agendamentoExistenteSemestre &&
+                agendamentoExistenteSemestre.id !== agendamento?.id && (
                   <div className="mb-3 w-full rounded-lg border border-alert/20 bg-alert/10 p-3 text-sm text-alert">
                     Você já possui um agendamento neste semestre (
-                    {formatDatePtBr(existingSemesterBooking.test_date ?? "")}).
+                    {formatDatePtBr(agendamentoExistenteSemestre.test_date ?? "")}).
                     Cancele o agendamento existente para marcar outro.
                   </div>
                 )}
               <button
-                onClick={handleBack}
+                onClick={voltarParaAgendamentos}
                 className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-text-muted hover:text-text-body transition-colors uppercase tracking-widest flex items-center gap-2"
               >
                 <ArrowLeft size={16} /> Voltar e Editar
               </button>
               <button
-                onClick={handleConfirm}
+                onClick={confirmarAgendamento}
                 onMouseEnter={() => prefetchRoute("/app/ticket")}
                 disabled={
-                  loading ||
-                  confirming ||
-                  !resolvedSessionId ||
+                  carregando ||
+                  confirmando ||
+                  !sessaoIdResolvida ||
+                  !!mensagemRegraAgendamento ||
                   !!(
-                    existingBookingForDate &&
-                    existingBookingForDate.id !== booking?.id
+                    agendamentoExistenteNaData &&
+                    agendamentoExistenteNaData.id !== agendamento?.id
                   )
                 }
                 className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-lg transition-all flex items-center justify-center gap-3"
               >
                 <span className="text-sm font-bold uppercase tracking-widest">
-                  {confirming ? "Confirmando..." : "Confirmar Agendamento"}
+                  {confirmando ? "Confirmando..." : "Confirmar Agendamento"}
                 </span>
                 <CheckCircle size={18} />
               </button>

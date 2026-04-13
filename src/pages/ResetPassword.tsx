@@ -5,7 +5,7 @@
  * @path src/pages/ResetPassword.tsx
  */
 
-import AuthLayout from "@/components/AuthLayout";
+import AuthLayout from "@/components/layout/AuthLayout";
 import PasswordInput from "@/components/atomic/PasswordInput";
 import { AlertCircle, ArrowLeft, ShieldCheck } from "@/icons";
 import { supabase } from "@/services/supabase";
@@ -16,61 +16,61 @@ import { toast } from "sonner";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const [sessionReady, setSessionReady] = useState(false);
-  const [invalidLink, setInvalidLink] = useState(false);
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [sessaoPronta, setSessaoPronta] = useState(false);
+  const [linkInvalido, setLinkInvalido] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     // Aguarda o evento PASSWORD_RECOVERY que o Supabase dispara após o usuário
     // clicar no link de recuperação. Se não chegar em 3s, verifica a sessão.
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: ouvinte } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setSessionReady(true);
+        setSessaoPronta(true);
       }
     });
 
-    const timer = window.setTimeout(async () => {
+    const temporizador = window.setTimeout(async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        setInvalidLink(true);
+        setLinkInvalido(true);
       }
     }, 3000);
 
     return () => {
-      listener.subscription.unsubscribe();
-      window.clearTimeout(timer);
+      ouvinte.subscription.unsubscribe();
+      window.clearTimeout(temporizador);
     };
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const redefinirSenha = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 8) {
+    if (novaSenha.length < 8) {
       toast.error("Senha deve ter ao menos 8 caracteres.");
       return;
     }
 
-    if (password !== confirm) {
+    if (novaSenha !== confirmacaoSenha) {
       toast.error("Senhas não conferem.");
       return;
     }
 
-    setLoading(true);
+    setSalvando(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
       if (error) throw error;
       toast.success("Senha redefinida com sucesso. Faça login para continuar.");
       navigate("/login");
     } catch (err: unknown) {
       toast.error(getAuthErrorMessage(err, "Erro ao redefinir senha."));
     } finally {
-      setLoading(false);
+      setSalvando(false);
     }
   };
 
-  if (invalidLink) {
+  if (linkInvalido) {
     return (
       <AuthLayout>
         <div className="text-center space-y-6">
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  if (!sessionReady) {
+  if (!sessaoPronta) {
     return (
       <AuthLayout>
         <div className="text-center space-y-4">
@@ -137,7 +137,7 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        <form className="space-y-6 text-left" onSubmit={handleSubmit}>
+        <form className="space-y-6 text-left" onSubmit={redefinirSenha}>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
               Nova Senha
@@ -145,9 +145,9 @@ export default function ResetPasswordPage() {
             <PasswordInput
               required
               placeholder="Mínimo 8 caracteres"
-              value={password}
+              value={novaSenha}
               autoComplete="new-password"
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => setNovaSenha(e.target.value)}
             />
           </div>
 
@@ -158,18 +158,18 @@ export default function ResetPasswordPage() {
             <PasswordInput
               required
               placeholder="Repita a nova senha"
-              value={confirm}
+              value={confirmacaoSenha}
               autoComplete="new-password"
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={(e) => setConfirmacaoSenha(e.target.value)}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={salvando}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all disabled:opacity-60"
           >
-            {loading ? "Salvando..." : "Redefinir Senha"}
+            {salvando ? "Salvando..." : "Redefinir Senha"}
           </button>
         </form>
 

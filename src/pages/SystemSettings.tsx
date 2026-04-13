@@ -12,7 +12,7 @@ import {
   fetchAuditLogs,
   fetchSystemSettings,
   saveSystemSettings,
-} from "@/hooks/useSystemSettings";
+} from "@/services/systemSettings";
 import {
   BarChart2,
   Clock3,
@@ -34,10 +34,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type SystemSettingsRow = DBSystemSettingsRow;
-type AuditLogRow = DBAuditLogRow;
+type ConfiguracaoSistemaRow = DBSystemSettingsRow;
+type RegistroAuditoriaRow = DBAuditLogRow;
 
-const TABS = [
+const SECOES_CONFIGURACAO = [
   { key: "general", label: "Geral", icon: Settings },
   { key: "evaluation", label: "Tabelas de Avaliação", icon: BarChart2 },
   { key: "locations", label: "Locais / OM", icon: MapPin },
@@ -45,47 +45,52 @@ const TABS = [
   { key: "audit", label: "Logs de Auditoria", icon: Clock3 },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
-type TabItem = { key: TabKey; label: string; icon: LucideIcon };
+type ChaveSecao = (typeof SECOES_CONFIGURACAO)[number]["key"];
+type ItemSecao = { key: ChaveSecao; label: string; icon: LucideIcon };
 
 export default function SystemSettings() {
   const navigate = useNavigate();
-  const { profile, loading: authLoading } = useAuth();
-  const canView = profile?.role === "admin";
-  const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
-  const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const { profile, loading: autenticacaoCarregando } = useAuth();
+  const podeVisualizar = profile?.role === "admin";
+  const [secaoAtiva, setSecaoAtiva] = useState<ChaveSecao>("evaluation");
+  const [configuracoes, setConfiguracoes] =
+    useState<ConfiguracaoSistemaRow | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [carregandoConfiguracoes, setCarregandoConfiguracoes] = useState(true);
 
-  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
+  const [registrosAuditoria, setRegistrosAuditoria] = useState<
+    RegistroAuditoriaRow[]
+  >([]);
+  const [carregandoAuditoria, setCarregandoAuditoria] = useState(false);
 
-  // state para edição de tabelas de avaliação
-  const [editingStandardId, setEditingStandardId] = useState<string | null>(
+  // Estado da edição das tabelas de avaliação
+  const [padraoEditandoId, setPadraoEditandoId] = useState<string | null>(
     null,
   );
-  const [editFormData, setEditFormData] = useState({
+  const [formularioEdicao, setFormularioEdicao] = useState({
     corrida: "",
     flexao: "",
     abdominal: "",
   });
 
-  // local form state for "general" tab
-  const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
+  // Estado local do formulário da aba "Geral"
+  const [formularioGeral, setFormularioGeral] = useState<
+    Partial<ConfiguracaoSistemaRow>
+  >({});
 
   useEffect(() => {
-    if (!canView) {
-      setSettingsLoading(false);
+    if (!podeVisualizar) {
+      setCarregandoConfiguracoes(false);
       return;
     }
 
-    async function load() {
-      setSettingsLoading(true);
-      setLoading(true);
+    async function carregarConfiguracoes() {
+      setCarregandoConfiguracoes(true);
+      setCarregando(true);
       try {
         const data = await fetchSystemSettings();
-        setSettings(data);
-        setFormState(data ?? {});
+        setConfiguracoes(data);
+        setFormularioGeral(data ?? {});
       } catch (err) {
         console.error(err);
         const authMessage = getAuthorizationErrorMessage(
@@ -94,20 +99,20 @@ export default function SystemSettings() {
         );
         toast.error(authMessage ?? "Falha ao carregar configurações");
       } finally {
-        setLoading(false);
-        setSettingsLoading(false);
+        setCarregando(false);
+        setCarregandoConfiguracoes(false);
       }
     }
-    load();
-  }, [canView]);
+    carregarConfiguracoes();
+  }, [podeVisualizar]);
 
   useEffect(() => {
-    if (activeTab === "audit" && canView) {
-      const loadLogs = async () => {
-        setAuditLoading(true);
+    if (secaoAtiva === "audit" && podeVisualizar) {
+      const carregarLogs = async () => {
+        setCarregandoAuditoria(true);
         try {
           const data = await fetchAuditLogs();
-          setAuditLogs(data);
+          setRegistrosAuditoria(data);
         } catch (err) {
           console.error(err);
           const authMessage = getAuthorizationErrorMessage(
@@ -116,22 +121,25 @@ export default function SystemSettings() {
           );
           toast.error(authMessage ?? "Erro ao carregar logs de auditoria");
         } finally {
-          setAuditLoading(false);
+          setCarregandoAuditoria(false);
         }
       };
 
-      loadLogs();
+      carregarLogs();
     }
-  }, [activeTab, canView]);
+  }, [secaoAtiva, podeVisualizar]);
 
-  async function saveGeneral() {
-    if (!settings) return;
-    setLoading(true);
+  async function salvarConfiguracoesGerais() {
+    if (!configuracoes) return;
+    setCarregando(true);
     try {
-      const updated = await saveSystemSettings(settings.id, formState);
+      const updated = await saveSystemSettings(
+        configuracoes.id,
+        formularioGeral,
+      );
       toast.success("Configurações salvas");
-      setSettings(updated);
-      setFormState(updated ?? {});
+      setConfiguracoes(updated);
+      setFormularioGeral(updated ?? {});
     } catch (err) {
       console.error(err);
       const authMessage = getAuthorizationErrorMessage(
@@ -140,12 +148,12 @@ export default function SystemSettings() {
       );
       toast.error(authMessage ?? "Falha ao salvar configurações");
     } finally {
-      setLoading(false);
+      setCarregando(false);
     }
   }
 
-  function renderContent() {
-    if (loading && activeTab === "general") {
+  function renderizarConteudo() {
+    if (carregando && secaoAtiva === "general") {
       return (
         <div className="space-y-3">
           <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
@@ -156,7 +164,7 @@ export default function SystemSettings() {
       );
     }
 
-    switch (activeTab) {
+    switch (secaoAtiva) {
       case "general":
         return (
           <div>
@@ -171,9 +179,12 @@ export default function SystemSettings() {
                 <input
                   type="text"
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
-                  value={formState.system_name ?? ""}
+                  value={formularioGeral.system_name ?? ""}
                   onChange={(e) =>
-                    setFormState((s) => ({ ...s, system_name: e.target.value }))
+                    setFormularioGeral((estadoAtual) => ({
+                      ...estadoAtual,
+                      system_name: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -184,10 +195,10 @@ export default function SystemSettings() {
                 <input
                   type="text"
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
-                  value={formState.organization_name ?? ""}
+                  value={formularioGeral.organization_name ?? ""}
                   onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
+                    setFormularioGeral((estadoAtual) => ({
+                      ...estadoAtual,
                       organization_name: e.target.value,
                     }))
                   }
@@ -201,10 +212,10 @@ export default function SystemSettings() {
                   <input
                     type="number"
                     className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formState.min_capacity ?? 0}
+                    value={formularioGeral.min_capacity ?? 0}
                     onChange={(e) =>
-                      setFormState((s) => ({
-                        ...s,
+                      setFormularioGeral((estadoAtual) => ({
+                        ...estadoAtual,
                         min_capacity: Number(e.target.value),
                       }))
                     }
@@ -217,10 +228,10 @@ export default function SystemSettings() {
                   <input
                     type="number"
                     className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formState.max_capacity ?? 0}
+                    value={formularioGeral.max_capacity ?? 0}
                     onChange={(e) =>
-                      setFormState((s) => ({
-                        ...s,
+                      setFormularioGeral((estadoAtual) => ({
+                        ...estadoAtual,
                         max_capacity: Number(e.target.value),
                       }))
                     }
@@ -232,10 +243,10 @@ export default function SystemSettings() {
                   id="allow_swaps"
                   type="checkbox"
                   className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formState.allow_swaps)}
+                  checked={Boolean(formularioGeral.allow_swaps)}
                   onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
+                    setFormularioGeral((estadoAtual) => ({
+                      ...estadoAtual,
                       allow_swaps: e.target.checked,
                     }))
                   }
@@ -249,10 +260,10 @@ export default function SystemSettings() {
                   id="require_quorum"
                   type="checkbox"
                   className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formState.require_quorum)}
+                  checked={Boolean(formularioGeral.require_quorum)}
                   onChange={(e) =>
-                    setFormState((s) => ({
-                      ...s,
+                    setFormularioGeral((estadoAtual) => ({
+                      ...estadoAtual,
                       require_quorum: e.target.checked,
                     }))
                   }
@@ -266,9 +277,9 @@ export default function SystemSettings() {
               </div>
               <div>
                 <button
-                  onClick={saveGeneral}
+                  onClick={salvarConfiguracoesGerais}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded"
-                  disabled={loading}
+                  disabled={carregando}
                   type="button"
                 >
                   Salvar
@@ -345,7 +356,7 @@ export default function SystemSettings() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-default">
-                    {/* sample rows, real data would come from API */}
+                    {/* linhas de exemplo; em produção os dados virão da API */}
                     <tr className="hover:bg-bg-card transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-text-body">
                         Até 24 anos
@@ -368,8 +379,8 @@ export default function SystemSettings() {
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingStandardId("24");
-                            setEditFormData({
+                            setPadraoEditandoId("24");
+                            setFormularioEdicao({
                               corrida: "12:00",
                               flexao: "30",
                               abdominal: "35",
@@ -426,7 +437,7 @@ export default function SystemSettings() {
             <h2 className="mb-4 text-lg font-bold text-text-body">
               Logs de Auditoria
             </h2>
-            {auditLoading ? (
+            {carregandoAuditoria ? (
               <div className="space-y-3">
                 <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
                 <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
@@ -436,7 +447,7 @@ export default function SystemSettings() {
             ) : (
               <div className="max-h-[400px] overflow-auto">
                 <div className="space-y-2 p-3 md:hidden">
-                  {auditLogs.map((log) => (
+                  {registrosAuditoria.map((log) => (
                     <article
                       key={log.id}
                       className="rounded-lg border border-border-default bg-bg-card p-3"
@@ -476,7 +487,7 @@ export default function SystemSettings() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-default">
-                      {auditLogs.map((log) => (
+                      {registrosAuditoria.map((log) => (
                         <tr
                           key={log.id}
                           className="hover:bg-bg-card transition-colors"
@@ -501,13 +512,14 @@ export default function SystemSettings() {
     }
   }
 
-  const pageLoading = authLoading || settingsLoading;
+  const paginaCarregando =
+    autenticacaoCarregando || carregandoConfiguracoes;
 
-  if (pageLoading) {
+  if (paginaCarregando) {
     return <FullPageLoading message="Carregando configuracoes" />;
   }
 
-  if (!canView) {
+  if (!podeVisualizar) {
     return (
       <Layout>
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
@@ -566,13 +578,13 @@ export default function SystemSettings() {
                 </span>
               </div>
               <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                {(TABS as ReadonlyArray<TabItem>).map((tab) => {
-                  const active = tab.key === activeTab;
+                {(SECOES_CONFIGURACAO as ReadonlyArray<ItemSecao>).map((tab) => {
+                  const active = tab.key === secaoAtiva;
                   return (
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setActiveTab(tab.key)}
+                      onClick={() => setSecaoAtiva(tab.key)}
                       aria-current={active ? "page" : undefined}
                       className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
                         active
@@ -594,22 +606,22 @@ export default function SystemSettings() {
           </aside>
 
           <section className="bg-bg-card rounded-3xl border border-border-default shadow-sm min-h-[480px]">
-            <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
+            <div className="p-4 sm:p-6 lg:p-8">{renderizarConteudo()}</div>
           </section>
         </div>
 
-        {/* Modal de edição de tabelas de avaliação */}
-        {editingStandardId && (
+        {/* Janela de edição das tabelas de avaliação */}
+        {padraoEditandoId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-2xl bg-bg-card border border-border-default shadow-2xl">
-              {/* Header */}
+              {/* Cabeçalho */}
               <div className="border-b border-border-default bg-bg-default/50 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-text-body">
                   Editar Requisitos - Até 24 anos
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setEditingStandardId(null)}
+                  onClick={() => setPadraoEditandoId(null)}
                   className="text-text-muted hover:text-text-body transition-colors"
                   aria-label="Fechar"
                 >
@@ -625,10 +637,10 @@ export default function SystemSettings() {
                   </label>
                   <input
                     type="text"
-                    value={editFormData.corrida}
+                    value={formularioEdicao.corrida}
                     onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
+                      setFormularioEdicao({
+                        ...formularioEdicao,
                         corrida: e.target.value,
                       })
                     }
@@ -643,10 +655,10 @@ export default function SystemSettings() {
                   </label>
                   <input
                     type="text"
-                    value={editFormData.flexao}
+                    value={formularioEdicao.flexao}
                     onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
+                      setFormularioEdicao({
+                        ...formularioEdicao,
                         flexao: e.target.value,
                       })
                     }
@@ -661,10 +673,10 @@ export default function SystemSettings() {
                   </label>
                   <input
                     type="text"
-                    value={editFormData.abdominal}
+                    value={formularioEdicao.abdominal}
                     onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
+                      setFormularioEdicao({
+                        ...formularioEdicao,
                         abdominal: e.target.value,
                       })
                     }
@@ -674,11 +686,11 @@ export default function SystemSettings() {
                 </div>
               </div>
 
-              {/* Footer */}
+              {/* Rodapé */}
               <div className="border-t border-border-default bg-bg-default/50 px-6 py-4 flex gap-3 justify-end">
                 <button
                   type="button"
-                  onClick={() => setEditingStandardId(null)}
+                  onClick={() => setPadraoEditandoId(null)}
                   className="px-4 py-2 text-sm font-semibold text-text-muted border border-border-default rounded-lg hover:bg-bg-card transition-colors"
                 >
                   Cancelar
@@ -687,7 +699,7 @@ export default function SystemSettings() {
                   type="button"
                   onClick={() => {
                     toast.success("Requisitos de desempenho atualizados!");
-                    setEditingStandardId(null);
+                    setPadraoEditandoId(null);
                   }}
                   className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:brightness-110 transition-all"
                 >

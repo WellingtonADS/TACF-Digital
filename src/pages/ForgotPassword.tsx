@@ -4,7 +4,7 @@
  * @path src/pages/ForgotPassword.tsx
  */
 
-import AuthLayout from "@/components/AuthLayout";
+import AuthLayout from "@/components/layout/AuthLayout";
 import { AlertCircle, ArrowLeft, KeyRound, Mail } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
@@ -13,9 +13,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-// using shared AuthLayout to match Login page image, typography and theme
+// Usa o AuthLayout compartilhado para manter a mesma composição visual do login.
 
-type InputFieldProps = {
+type PropsCampoEntrada = {
   label: string;
   icon: ComponentType<{ size?: number | string }>;
   type?: string;
@@ -25,7 +25,7 @@ type InputFieldProps = {
   onChange: ChangeEventHandler<HTMLInputElement>;
 };
 
-const InputField = ({
+const CampoEntrada = ({
   label,
   icon: Icon,
   type = "text",
@@ -33,7 +33,7 @@ const InputField = ({
   required = false,
   value,
   onChange,
-}: InputFieldProps) => (
+}: PropsCampoEntrada) => (
   <div className="space-y-2">
     <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1">
       {label}
@@ -56,21 +56,24 @@ const InputField = ({
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [emailInstitucional, setEmailInstitucional] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const solicitarRecuperacao = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    if (!emailInstitucional) {
       toast.error("Informe o e-mail institucional.");
       return;
     }
-    setLoading(true);
+    setEnviando(true);
     try {
       // supabase v2 API: resetPasswordForEmail accepts an email string
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        emailInstitucional,
+        {
         redirectTo: `${window.location.origin}/reset-password`,
-      });
+        },
+      );
       if (error) throw error;
       toast.success(
         "E-mail de recuperação enviado. Verifique sua caixa de entrada.",
@@ -81,7 +84,7 @@ export default function ForgotPasswordPage() {
         getAuthErrorMessage(err, "Erro ao solicitar recuperação de senha."),
       );
     } finally {
-      setLoading(false);
+      setEnviando(false);
     }
   };
 
@@ -102,20 +105,20 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        <form className="space-y-6 text-left" onSubmit={handleSubmit}>
-          <InputField
+        <form className="space-y-6 text-left" onSubmit={solicitarRecuperacao}>
+          <CampoEntrada
             label="E-mail Institucional"
             icon={Mail}
             placeholder="Ex.: joao.silva@fab.mil.br"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={emailInstitucional}
+            onChange={(e) => setEmailInstitucional(e.target.value)}
           />
           <button
-            disabled={loading}
+            disabled={enviando}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 transition-all"
           >
-            {loading ? "Enviando..." : "Enviar Instruções"}
+            {enviando ? "Enviando..." : "Enviar Instruções"}
           </button>
         </form>
 

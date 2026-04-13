@@ -1,9 +1,8 @@
 /**
  * ARCHIVED: SidebarItem
- * Reason: Arquivado porque não está sendo importado em `src/` e evita
- * manter código morto no diretório ativo de componentes.
- * TODO: Remover permanentemente se não houver plano de uso; caso contrário,
- * mover de volta para `atomic/` e atualizar chamadas.
+ * Reason: componente sem imports ativos em `src/`; mantido fora da árvore
+ * principal para referência.
+ * Original path: src/components/atomic/archived/SidebarItem.tsx
  */
 
 import type { ReactNode } from "react";

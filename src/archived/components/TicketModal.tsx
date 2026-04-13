@@ -1,7 +1,8 @@
 /**
- * @page TicketModal
- * @description Modal para visualizar ou baixar bilhetes.
- * @path src/components/TicketModal.tsx
+ * ARCHIVED: TicketModal
+ * Reason: substituído por `src/components/Booking/TicketDialog.tsx` durante a
+ * padronização dos overlays para o shell canônico de dialog.
+ * Original path: src/components/TicketModal.tsx
  */
 
 import useTicket from "@/hooks/useTicket";

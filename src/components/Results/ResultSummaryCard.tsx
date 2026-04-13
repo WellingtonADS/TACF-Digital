@@ -41,17 +41,17 @@ export default function ResultSummaryCard({
   description,
   actions,
 }: ResultSummaryCardProps) {
-  const dateLabel = result.test_date ? formatDatePtBr(result.test_date) : "-";
-  const periodLabel = result.session_period
+  const dataAvaliacao = result.test_date ? formatDatePtBr(result.test_date) : "-";
+  const turnoSessao = result.session_period
     ? formatSessionPeriod(result.session_period as "manha" | "tarde")
     : "-";
-  const scoreLabel = result.score ?? "--";
-  const conceptLabel = result.concept ? `Conceito ${result.concept}` : "-";
-  const locationLabel = result.location ?? "Local não informado";
-  const attendanceLabel = result.attendance_confirmed
+  const notaResultado = result.score ?? "--";
+  const conceitoResultado = result.concept ? `Conceito ${result.concept}` : "-";
+  const localResultado = result.location ?? "Local não informado";
+  const presencaResultado = result.attendance_confirmed
     ? "Confirmada"
     : "Sem confirmação";
-  const orderLabel = result.order_number ?? "Não informado";
+  const numeroOrdem = result.order_number ?? "Não informado";
 
   return (
     <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
@@ -77,20 +77,20 @@ export default function ResultSummaryCard({
       <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
         <DetailItem
           label="Data da avaliação"
-          value={dateLabel}
+          value={dataAvaliacao}
           icon={Calendar}
         />
-        <DetailItem label="Turno" value={periodLabel} icon={Clock} />
-        <DetailItem label="Local" value={locationLabel} icon={MapPin} />
+        <DetailItem label="Turno" value={turnoSessao} icon={Clock} />
+        <DetailItem label="Local" value={localResultado} icon={MapPin} />
         <DetailItem
           label="Média / conceito"
-          value={`${scoreLabel} ${result.concept ? `• ${conceptLabel}` : ""}`.trim()}
+          value={`${notaResultado} ${result.concept ? `• ${conceitoResultado}` : ""}`.trim()}
           icon={CheckCircle}
         />
-        <DetailItem label="Número de ordem" value={orderLabel} icon={Hash} />
+        <DetailItem label="Número de ordem" value={numeroOrdem} icon={Hash} />
         <DetailItem
           label="Presença"
-          value={attendanceLabel}
+          value={presencaResultado}
           icon={CheckCircle}
         />
       </div>

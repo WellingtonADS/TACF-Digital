@@ -1,11 +1,5 @@
 import type { Database } from "@/types/database.types";
-import supabase, { confirmarAgendamentoRPC } from "./supabase";
-
-export async function getSessions() {
-  // Placeholder: implementar apenas quando houver uso real.
-  // Mantido como lembrete, mas evite implementações até que sejam necessárias.
-  return [] as unknown[];
-}
+import supabase from "./supabase";
 
 export async function createSessions(
   rows: Database["public"]["Tables"]["sessions"]["Insert"][],
@@ -24,10 +18,6 @@ export async function createSessions(
 
   const { error } = await supabase.from("sessions").insert(rows);
   if (error) throw error;
-}
-
-export async function confirmBooking(userId: string, sessionId: string) {
-  return confirmarAgendamentoRPC(userId, sessionId);
 }
 
 export async function fetchSwapRequests() {
@@ -84,7 +74,7 @@ interface SwapRequestParams {
   attachment?: File;
 }
 
-// `createSwapRequest` é consumido por `RescheduleDrawer` (src/components/RescheduleDrawer.tsx)
+// `createSwapRequest` é consumido por `RescheduleDialog` (src/components/Booking/RescheduleDialog.tsx)
 export async function createSwapRequest(params: SwapRequestParams) {
   let attachmentUrl: string | null = null;
 
@@ -220,6 +210,112 @@ export async function fetchPendingSwapsByBookingIds(
   const set = new Set<string>();
   (data ?? []).forEach((r) => r.booking_id && set.add(r.booking_id));
   return set;
+}
+
+export type UserDashboardFallbackSummary = {
+  bookingsCount: number;
+  resultsCount: number;
+  nextSession: {
+    bookingId: string;
+    orderNumber: string | null;
+    sessionId: string;
+    date: string;
+    period: string;
+    maxCapacity: number | null;
+    locationName: string | null;
+  } | null;
+  hasPendingSwap: boolean;
+};
+
+export async function fetchUserDashboardFallbackSummary(
+  userId: string,
+): Promise<UserDashboardFallbackSummary> {
+  const [
+    { count: bookingsCount, error: bookingsError },
+    { count: resultsCount, error: resultsError },
+    { data: nextBookingData, error: nextBookingError },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "agendado"),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .not("result_details", "is", null),
+    supabase
+      .from("bookings")
+      .select(
+        "id, order_number, session_id, test_date, created_at, session:sessions!inner(id, date, period, max_capacity, location:locations(name))",
+      )
+      .eq("user_id", userId)
+      .eq("status", "agendado")
+      .order("test_date", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (bookingsError) throw bookingsError;
+  if (resultsError) throw resultsError;
+  if (nextBookingError) throw nextBookingError;
+
+  const nextBooking = nextBookingData as
+    | {
+        id: string;
+        order_number: string | null;
+        session_id: string;
+        session?: {
+          id?: string;
+          date?: string | null;
+          period?: string | null;
+          max_capacity?: number | null;
+          location?:
+            | { name?: string | null }
+            | Array<{ name?: string | null }>
+            | null;
+        } | null;
+      }
+    | null;
+
+  const normalizedLocation = Array.isArray(nextBooking?.session?.location)
+    ? nextBooking?.session?.location[0] ?? null
+    : nextBooking?.session?.location ?? null;
+
+  let hasPendingSwap = false;
+  if (nextBooking?.id) {
+    const { count: pendingSwapCount, error: pendingSwapError } = await supabase
+      .from("swap_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("booking_id", nextBooking.id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- enum inference mismatch
+      .eq("status", "solicitado" as any);
+
+    if (pendingSwapError) throw pendingSwapError;
+    hasPendingSwap = (pendingSwapCount ?? 0) > 0;
+  }
+
+  return {
+    bookingsCount: bookingsCount ?? 0,
+    resultsCount: resultsCount ?? 0,
+    nextSession:
+      nextBooking?.session?.id &&
+      nextBooking.session.date &&
+      nextBooking.session.period
+        ? {
+            bookingId: nextBooking.id,
+            orderNumber: nextBooking.order_number,
+            sessionId: nextBooking.session.id,
+            date: nextBooking.session.date,
+            period: nextBooking.session.period,
+            maxCapacity: nextBooking.session.max_capacity ?? null,
+            locationName: normalizedLocation?.name ?? null,
+          }
+        : null,
+    hasPendingSwap,
+  };
 }
 
 export async function fetchAdminMetrics(): Promise<{
@@ -508,13 +604,3 @@ export async function fetchUserTickets(userId: string): Promise<TicketRow[]> {
   if (error) throw error;
   return Array.isArray(data) ? (data as TicketRow[]) : [];
 }
-
-export default {
-  getSessions,
-  confirmBooking,
-  fetchSwapRequests,
-  updateSwapRequestStatus,
-  updateBookingStatus,
-  fetchPendingSwapBookings,
-  fetchAdminMetrics,
-};

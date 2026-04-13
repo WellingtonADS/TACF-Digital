@@ -60,16 +60,18 @@ test.describe("Observabilidade: Log de Auditoria", () => {
     });
 
     // Tabela ou mensagem de sem dados
-    const hasTable = await page
+    const conteudoAuditoria = page.getByTestId("audit-log-page");
+
+    const hasTable = await conteudoAuditoria
       .locator("table")
       .isVisible()
       .catch(() => false);
-    const hasEmptyMsg = await page
+    const hasEmptyMsg = await conteudoAuditoria
       .getByText(/nenhum evento|sem registros|no events/i)
       .isVisible()
       .catch(() => false);
-    const hasList = await page
-      .locator("ul li")
+    const hasList = await conteudoAuditoria
+      .locator("article")
       .first()
       .isVisible()
       .catch(() => false);

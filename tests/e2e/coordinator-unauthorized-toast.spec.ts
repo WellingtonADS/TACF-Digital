@@ -21,7 +21,7 @@ async function loginAsCoordinator(loginPage: LoginPage) {
 }
 
 test.describe("Autorização: Coordenador", () => {
-  test("coordenador recebe toast de não autorizado ao tentar criar turma", async ({
+  test("coordenador vê ação de publicar turma bloqueada por permissão", async ({
     page,
   }) => {
     const loginPage = new LoginPage(page);
@@ -38,12 +38,14 @@ test.describe("Autorização: Coordenador", () => {
     await page.locator('input[type="date"]').first().fill("2026-04-15");
     await page.locator('input[type="time"]').fill("08:00");
 
-    await page.getByRole("button", { name: /publicar turma/i }).click();
+    const botaoPublicar = page.getByRole("button", {
+      name: /publicar turma/i,
+    });
 
-    await expect(
-      page.getByText(
-        "Acesso negado: você não tem permissão para criar turmas.",
-      ),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(botaoPublicar).toBeDisabled();
+    await expect(botaoPublicar).toHaveAttribute(
+      "title",
+      "Apenas administradores podem publicar turmas",
+    );
   });
 });

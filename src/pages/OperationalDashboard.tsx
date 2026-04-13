@@ -8,8 +8,8 @@ import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
-import RescheduleDrawer from "@/components/RescheduleDrawer";
-import TicketsListModal from "@/components/TicketsListModal";
+import RescheduleDialog from "@/components/Booking/RescheduleDialog";
+import TicketsListDialog from "@/components/Booking/TicketsListDialog";
 import useDashboard from "@/hooks/useDashboard";
 import {
   Award,
@@ -19,9 +19,9 @@ import {
   Info,
   MoreHorizontal,
 } from "@/icons";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import type { Profile as DBProfile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
@@ -32,39 +32,39 @@ export const OperationalDashboard = () => {
     user,
     profile,
     loading,
-    bookingsCount,
-    resultsCount,
-    nextSession,
-    nextSessionBookingId,
-    hasPendingSwap,
+    bookingsCount: totalAgendamentos,
+    resultsCount: totalResultados,
+    nextSession: proximaSessao,
+    nextSessionBookingId: idAgendamentoProximaSessao,
+    hasPendingSwap: temReagendamentoPendente,
     latestOrderNumber: _latestOrderNumber,
-    notifications: derivedNotifications,
+    notifications: notificacoesDerivadas,
     inspsauStatus: _inspsauStatus,
-    loading: dashboardLoading,
+    loading: carregandoPainel,
     refresh,
   } = useDashboard();
 
   const typedProfile = profile as DBProfile | null;
 
-  const displayName =
+  const nomeExibicao =
     typedProfile?.full_name ||
     typedProfile?.war_name ||
     user?.email ||
     "Usuário";
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [reagendamentoAberto, setReagendamentoAberto] = useState(false);
 
   const navigate = useNavigate();
 
-  type NextSessionWithOptionalDetails = NonNullable<typeof nextSession> & {
+  type ProximaSessaoComDetalhes = NonNullable<typeof proximaSessao> & {
     time?: string | null;
     location?: string | null;
   };
 
-  const nextSessionDetails =
-    nextSession as NextSessionWithOptionalDetails | null;
+  const detalhesProximaSessao =
+    proximaSessao as ProximaSessaoComDetalhes | null;
 
-  const actionCards = [
+  const cartoesAcao = [
     {
       icon: CalendarPlus,
       label: "Novo Agendamento",
@@ -80,7 +80,7 @@ export const OperationalDashboard = () => {
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/resultados",
-      count: resultsCount,
+      count: totalResultados,
     },
     {
       icon: Award,
@@ -89,7 +89,7 @@ export const OperationalDashboard = () => {
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/ticket",
-      count: bookingsCount,
+      count: totalAgendamentos,
     },
     {
       icon: FileText,
@@ -101,21 +101,21 @@ export const OperationalDashboard = () => {
     },
   ];
 
-  const notifications = derivedNotifications;
-  const [showTicketsModal, setShowTicketsModal] = useState(false);
+  const notificacoes = notificacoesDerivadas;
+  const [dialogoBilhetesAberto, setDialogoBilhetesAberto] = useState(false);
 
-  return loading || dashboardLoading ? (
-    <FullPageLoading message="Carregando dashboard" />
+  return loading || carregandoPainel ? (
+    <FullPageLoading message="Carregando painel operacional" />
   ) : (
     <Layout>
-      {/* Greeting Card */}
+      {/* Cabeçalho principal */}
       <section className="mb-8" data-testid="operational-dashboard">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10">
             <div>
               <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
-                Olá, {displayName}
+                Olá, {nomeExibicao}
               </h2>
               <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                 Seja bem-vindo ao portal de agendamento do HACO
@@ -125,13 +125,13 @@ export const OperationalDashboard = () => {
         </div>
       </section>
 
-      {/* Action Grid */}
+      {/* Grade de ações */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {actionCards.map((card, index) => (
+        {cartoesAcao.map((card, index) => (
           <button
             key={index}
             onClick={() => {
-              if (card.to === "/app/ticket") setShowTicketsModal(true);
+              if (card.to === "/app/ticket") setDialogoBilhetesAberto(true);
               else navigate(card.to ?? "/");
             }}
             onMouseEnter={() => {
@@ -173,23 +173,22 @@ export const OperationalDashboard = () => {
           </button>
         ))}
       </section>
-      <TicketsListModal
-        open={showTicketsModal}
-        onClose={() => setShowTicketsModal(false)}
+      <TicketsListDialog
+        open={dialogoBilhetesAberto}
+        onClose={() => setDialogoBilhetesAberto(false)}
       />
 
-      {/* Drawer for rescheduling */}
-      <RescheduleDrawer
-        open={drawerOpen}
-        bookingId={nextSessionBookingId ?? ""}
-        currentDate={nextSession?.date ?? ""}
-        onClose={() => setDrawerOpen(false)}
+      <RescheduleDialog
+        open={reagendamentoAberto}
+        bookingId={idAgendamentoProximaSessao ?? ""}
+        currentDate={proximaSessao?.date ?? ""}
+        onClose={() => setReagendamentoAberto(false)}
         onSuccess={() => void refresh()}
       />
 
-      {/* Bottom Section: Status & Notifications */}
+      {/* Bloco inferior: status e avisos */}
       <section className="flex flex-col xl:flex-row gap-6">
-        {/* Status Card */}
+        {/* Cartão de status */}
         <div className="flex-1 bg-bg-card rounded-3xl p-4 md:p-6 lg:p-8 border border-border-default shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -213,25 +212,25 @@ export const OperationalDashboard = () => {
             />
           </div>
           <div className="flex flex-col items-center justify-center py-6 md:py-8 rounded-2xl">
-            {dashboardLoading ? (
+            {carregandoPainel ? (
               <div className="flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
                   <AppIcon icon={Info} size="md" decorative={true} />
                 </div>
                 <p className="text-text-muted font-medium">Carregando...</p>
               </div>
-            ) : nextSession ? (
+            ) : proximaSessao ? (
               <div className="w-full">
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                   <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border-default flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-2xl md:text-3xl font-extrabold text-primary">
-                        {format(parseISO(nextSession.date), "dd", {
+                        {format(parseISO(proximaSessao.date), "dd", {
                           locale: ptBR,
                         })}
                       </div>
                       <div className="text-xs md:text-sm uppercase text-text-muted">
-                        {format(parseISO(nextSession.date), "MMM", {
+                        {format(parseISO(proximaSessao.date), "MMM", {
                           locale: ptBR,
                         })}
                       </div>
@@ -241,18 +240,18 @@ export const OperationalDashboard = () => {
                   <div className="flex-1 text-center md:text-left">
                     <p className="text-lg md:text-xl font-extrabold text-text-body">
                       {format(
-                        parseISO(nextSession.date),
+                        parseISO(proximaSessao.date),
                         "EEEE, dd 'de' MMMM",
                         { locale: ptBR },
                       )}
                     </p>
                     <p className="text-sm text-text-muted mt-1">
-                      {nextSessionDetails?.time ??
-                        `Turno: ${formatSessionPeriod(nextSession.period)}`}
+                        {detalhesProximaSessao?.time ??
+                        `Turno: ${formatSessionPeriod(proximaSessao.period)}`}
                     </p>
-                    {nextSessionDetails?.location && (
+                    {detalhesProximaSessao?.location && (
                       <p className="text-sm text-text-muted mt-1">
-                        {nextSessionDetails.location}
+                        {detalhesProximaSessao.location}
                       </p>
                     )}
 
@@ -264,16 +263,16 @@ export const OperationalDashboard = () => {
                         Ver agendamento
                       </a>
 
-                      {nextSessionBookingId && (
+                      {idAgendamentoProximaSessao && (
                         <button
-                          onClick={() => setDrawerOpen(true)}
+                          onClick={() => setReagendamentoAberto(true)}
                           className="inline-flex items-center rounded-lg border border-primary bg-primary/5 px-4 py-2 font-semibold text-primary transition-colors hover:bg-primary/10"
                         >
                           Solicitar Reagendamento
                         </button>
                       )}
 
-                      {hasPendingSwap && (
+                      {temReagendamentoPendente && (
                         <span className="inline-flex items-center rounded-full bg-error/10 px-3 py-1 text-xs font-semibold text-error">
                           Reagendamento Pendente
                         </span>
@@ -301,14 +300,14 @@ export const OperationalDashboard = () => {
           </div>
         </div>
 
-        {/* Info Section */}
+        {/* Bloco de avisos */}
         <div className="w-full xl:w-96 bg-primary/5 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10">
           <h4 className="text-sm font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes
           </h4>
           <div className="space-y-4">
-            {notifications.map((n, idx) => (
+            {notificacoes.map((n, idx) => (
               <div
                 key={idx}
                 className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"

@@ -1,7 +1,7 @@
 /**
  * @page AuthLayout
  * @description Layout usado nas telas de autenticação.
- * @path src/components/AuthLayout.tsx
+ * @path src/components/layout/AuthLayout.tsx
  */
 
 

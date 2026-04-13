@@ -5,14 +5,18 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import { getDefaultHomeByRole } from "@/utils/routeAccess";
+import { getDefaultHomeByRole } from "@/router/routeAccess";
 import { Navigate } from "react-router-dom";
 import FullPageLoading from "./FullPageLoading";
 
 export default function AutoRedirect() {
-  const { user, profile, loading } = useAuth();
+  const {
+    user,
+    profile,
+    loading: autenticacaoCarregando,
+  } = useAuth();
 
-  if (loading) {
+  if (autenticacaoCarregando) {
     return <FullPageLoading />;
   }
 

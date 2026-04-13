@@ -5,7 +5,7 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import { canAccessRoute, getDefaultHomeByRole } from "@/utils/routeAccess";
+import { canAccessRoute, getDefaultHomeByRole } from "@/router/routeAccess";
 import { Navigate } from "react-router-dom";
 import FullPageLoading from "./FullPageLoading";
 
@@ -19,9 +19,13 @@ export default function UserRoute({
 }: {
   children: JSX.Element | null;
 }) {
-  const { user, profile, loading } = useAuth();
+  const {
+    user,
+    profile,
+    loading: autenticacaoCarregando,
+  } = useAuth();
 
-  if (loading) {
+  if (autenticacaoCarregando) {
     return <FullPageLoading />;
   }
 

@@ -8,7 +8,7 @@ import FullPageLoading from "@/components/FullPageLoading";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useResponsive from "@/hooks/useResponsive";
-import { fetchFullAuditLog } from "@/hooks/useSystemSettings";
+import { fetchFullAuditLog } from "@/services/systemSettings";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -28,31 +28,34 @@ import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type AuditLogRow = DBAuditLogRow;
+type LinhaAuditoria = DBAuditLogRow;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function extractIp(details: string | null | undefined): string {
+function extrairIp(detalhes: string | null | undefined): string {
   try {
-    if (!details) return "-";
-    const obj = JSON.parse(details) as Record<string, unknown>;
+    if (!detalhes) return "-";
+    const obj = JSON.parse(detalhes) as Record<string, unknown>;
     return typeof obj.ip === "string" ? obj.ip : "-";
   } catch {
     return "-";
   }
 }
 
-function formatJson(raw: string): string {
+function formatarJson(bruto: string): string {
   try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
+    return JSON.stringify(JSON.parse(bruto), null, 2);
   } catch {
-    return raw;
+    return bruto;
   }
 }
 
-function ActionBadge({ action }: { action: string | null | undefined }) {
-  const a = (action ?? "").toUpperCase();
-  if (a.includes("INSERT") || a.includes("CREATE")) {
+function BadgeAcao({ action }: { action: string | null | undefined }) {
+  const acaoNormalizada = (action ?? "").toUpperCase();
+  if (
+    acaoNormalizada.includes("INSERT") ||
+    acaoNormalizada.includes("CREATE")
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-success/40 bg-success/10 text-success">
         <Plus size={11} />
@@ -60,7 +63,10 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
       </span>
     );
   }
-  if (a.includes("UPDATE") || a.includes("EDIT")) {
+  if (
+    acaoNormalizada.includes("UPDATE") ||
+    acaoNormalizada.includes("EDIT")
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-alert/40 bg-alert/10 text-alert">
         <Filter size={11} />
@@ -68,7 +74,7 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
       </span>
     );
   }
-  if (a.includes("DELETE")) {
+  if (acaoNormalizada.includes("DELETE")) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border-error/40 bg-error/10 text-error">
         <Trash2 size={11} />
@@ -83,100 +89,116 @@ function ActionBadge({ action }: { action: string | null | undefined }) {
   );
 }
 
-function rowAccent(action: string | null | undefined): string {
-  const a = (action ?? "").toUpperCase();
-  if (a.includes("INSERT") || a.includes("CREATE")) return "border-l-success";
-  if (a.includes("UPDATE") || a.includes("EDIT")) return "border-l-alert";
-  if (a.includes("DELETE")) return "border-l-error";
+function destaqueLinha(action: string | null | undefined): string {
+  const acaoNormalizada = (action ?? "").toUpperCase();
+  if (
+    acaoNormalizada.includes("INSERT") ||
+    acaoNormalizada.includes("CREATE")
+  ) {
+    return "border-l-success";
+  }
+  if (
+    acaoNormalizada.includes("UPDATE") ||
+    acaoNormalizada.includes("EDIT")
+  ) {
+    return "border-l-alert";
+  }
+  if (acaoNormalizada.includes("DELETE")) return "border-l-error";
   return "border-l-border-default";
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AuditLog() {
-  const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<AuditLogRow[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [registros, setRegistros] = useState<LinhaAuditoria[]>([]);
 
-  const [filterUser, setFilterUser] = useState("");
-  const [filterAction, setFilterAction] = useState("");
-  const [filterModule, setFilterModule] = useState("");
+  const [filtroUsuario, setFiltroUsuario] = useState("");
+  const [filtroAcao, setFiltroAcao] = useState("");
+  const [filtroModulo, setFiltroModulo] = useState("");
 
-  const perPage = 20;
-  const [currentPage, setCurrentPage] = useState(1);
-  const [detailRecord, setDetailRecord] = useState<AuditLogRow | null>(null);
+  const itensPorPagina = 20;
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [registroDetalhe, setRegistroDetalhe] = useState<LinhaAuditoria | null>(
+    null,
+  );
   const { isMobile, isTablet } = useResponsive();
-  const isCompactViewport = isMobile || isTablet;
+  const viewportCompacto = isMobile || isTablet;
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoading(true);
+    let ativo = true;
+    async function carregar() {
+      setCarregando(true);
       try {
         const data = await fetchFullAuditLog(500);
-        if (mounted) setRecords(data);
+        if (ativo) setRegistros(data);
       } catch (error) {
         console.error(error);
         toast.error("Erro ao carregar logs de auditoria");
-        if (mounted) setRecords([]);
+        if (ativo) setRegistros([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (ativo) setCarregando(false);
       }
     }
-    load();
+    carregar();
     return () => {
-      mounted = false;
+      ativo = false;
     };
   }, []);
 
-  const filtered = useMemo(() => {
-    return records.filter((r) => {
+  const registrosFiltrados = useMemo(() => {
+    return registros.filter((r) => {
       if (
-        filterUser &&
-        !r.user_name?.toLowerCase().includes(filterUser.toLowerCase())
+        filtroUsuario &&
+        !r.user_name?.toLowerCase().includes(filtroUsuario.toLowerCase())
       )
         return false;
       if (
-        filterAction &&
-        !r.action?.toLowerCase().includes(filterAction.toLowerCase())
+        filtroAcao &&
+        !r.action?.toLowerCase().includes(filtroAcao.toLowerCase())
       )
         return false;
       if (
-        filterModule &&
-        !r.entity?.toLowerCase().includes(filterModule.toLowerCase())
+        filtroModulo &&
+        !r.entity?.toLowerCase().includes(filtroModulo.toLowerCase())
       )
         return false;
       return true;
     });
-  }, [records, filterUser, filterAction, filterModule]);
+  }, [registros, filtroUsuario, filtroAcao, filtroModulo]);
 
-  const totalPages = Math.ceil(filtered.length / perPage) || 1;
-  const pageItems = useMemo(
-    () => filtered.slice((currentPage - 1) * perPage, currentPage * perPage),
-    [filtered, currentPage],
-  );
-
-  const statsDelete = useMemo(
+  const totalPaginas = Math.ceil(registrosFiltrados.length / itensPorPagina) || 1;
+  const itensPagina = useMemo(
     () =>
-      records.filter((r) => r.action?.toUpperCase().includes("DELETE")).length,
-    [records],
+      registrosFiltrados.slice(
+        (paginaAtual - 1) * itensPorPagina,
+        paginaAtual * itensPorPagina,
+      ),
+    [registrosFiltrados, paginaAtual],
   );
-  const uniqueUsers = useMemo(
-    () => new Set(records.map((r) => r.user_name)).size,
-    [records],
+
+  const totalExclusoes = useMemo(
+    () =>
+      registros.filter((r) => r.action?.toUpperCase().includes("DELETE")).length,
+    [registros],
+  );
+  const usuariosUnicos = useMemo(
+    () => new Set(registros.map((r) => r.user_name)).size,
+    [registros],
   );
 
   useEffect(() => {
-    if (!detailRecord) return undefined;
+    if (!registroDetalhe) return undefined;
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setDetailRecord(null);
+        setRegistroDetalhe(null);
       }
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [detailRecord]);
+  }, [registroDetalhe]);
 
-  if (loading) {
+  if (carregando) {
     return (
       <FullPageLoading
         message="Carregando logs de auditoria"
@@ -212,19 +234,19 @@ export default function AuditLog() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             title="Total de Eventos"
-            value={records.length}
+            value={registros.length}
             icon={Shield}
           />
           <StatCard
             title="Deleções"
-            value={statsDelete}
+            value={totalExclusoes}
             icon={AlertTriangle}
             iconBg="bg-error/10"
             iconColor="text-error"
           />
           <StatCard
             title="Usuários Distintos"
-            value={uniqueUsers}
+            value={usuariosUnicos}
             icon={Timer}
             iconBg="bg-success/10"
             iconColor="text-success"
@@ -246,10 +268,10 @@ export default function AuditLog() {
                 <input
                   className="w-full pl-9 pr-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40 font-mono"
                   placeholder="Ex: 7234567 ou Nome"
-                  value={filterUser}
+                  value={filtroUsuario}
                   onChange={(e) => {
-                    setFilterUser(e.target.value);
-                    setCurrentPage(1);
+                    setFiltroUsuario(e.target.value);
+                    setPaginaAtual(1);
                   }}
                 />
               </div>
@@ -261,14 +283,14 @@ export default function AuditLog() {
               </label>
               <select
                 className="w-full px-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40"
-                value={filterAction}
+                value={filtroAcao}
                 onChange={(e) => {
-                  setFilterAction(e.target.value);
-                  setCurrentPage(1);
+                  setFiltroAcao(e.target.value);
+                  setPaginaAtual(1);
                 }}
               >
                 <option value="">Todos os Tipos</option>
-                {Array.from(new Set(records.map((r) => r.action)))
+                {Array.from(new Set(registros.map((r) => r.action)))
                   .filter(Boolean)
                   .map((a) => (
                     <option key={a} value={a!}>
@@ -284,14 +306,14 @@ export default function AuditLog() {
               </label>
               <select
                 className="w-full px-4 py-2.5 bg-bg-default border border-border-default rounded-lg text-sm focus:ring-2 focus:ring-primary/40"
-                value={filterModule}
+                value={filtroModulo}
                 onChange={(e) => {
-                  setFilterModule(e.target.value);
-                  setCurrentPage(1);
+                  setFiltroModulo(e.target.value);
+                  setPaginaAtual(1);
                 }}
               >
                 <option value="">Todos os Módulos</option>
-                {Array.from(new Set(records.map((r) => r.entity)))
+                {Array.from(new Set(registros.map((r) => r.entity)))
                   .filter(Boolean)
                   .map((m) => (
                     <option key={m} value={m!}>
@@ -304,7 +326,7 @@ export default function AuditLog() {
               <button
                 type="button"
                 className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-primary/90 transition-colors flex justify-center items-center gap-2 text-sm"
-                onClick={() => setCurrentPage(1)}
+                onClick={() => setPaginaAtual(1)}
               >
                 <Filter size={15} />
                 Filtrar
@@ -315,16 +337,16 @@ export default function AuditLog() {
 
         {/* Table */}
         <section className="bg-bg-card rounded-2xl border border-border-default overflow-hidden">
-          {pageItems.length === 0 ? (
+          {itensPagina.length === 0 ? (
             <div className="px-5 py-14 text-center text-text-muted text-sm">
               Nenhum registro encontrado para os filtros aplicados.
             </div>
-          ) : isCompactViewport ? (
+          ) : viewportCompacto ? (
             <div className="divide-y divide-border-default">
-              {pageItems.map((r) => (
+              {itensPagina.map((r) => (
                 <article
                   key={r.id}
-                  className={`p-4 flex flex-col gap-3 border-l-4 ${rowAccent(r.action)}`}
+                  className={`p-4 flex flex-col gap-3 border-l-4 ${destaqueLinha(r.action)}`}
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div>
@@ -339,7 +361,7 @@ export default function AuditLog() {
                         )}
                       </p>
                     </div>
-                    <ActionBadge action={r.action} />
+                    <BadgeAcao action={r.action} />
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
@@ -362,13 +384,13 @@ export default function AuditLog() {
                       <span className="font-semibold text-text-muted uppercase tracking-widest block text-[10px]">
                         IP
                       </span>
-                      {extractIp(r.details)}
+                      {extrairIp(r.details)}
                     </div>
                     {r.details && (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
-                        onClick={() => setDetailRecord(r)}
+                        onClick={() => setRegistroDetalhe(r)}
                       >
                         <Code2 size={13} />
                         JSON
@@ -404,10 +426,10 @@ export default function AuditLog() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {pageItems.map((r) => (
+                  {itensPagina.map((r) => (
                     <tr
                       key={r.id}
-                      className={`border-l-4 ${rowAccent(r.action)} hover:bg-bg-default/60 transition-colors`}
+                      className={`border-l-4 ${destaqueLinha(r.action)} hover:bg-bg-default/60 transition-colors`}
                     >
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className="text-sm font-semibold text-text-body block">
@@ -437,7 +459,7 @@ export default function AuditLog() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <ActionBadge action={r.action} />
+                        <BadgeAcao action={r.action} />
                       </td>
 
                       <td className="px-5 py-4">
@@ -448,7 +470,7 @@ export default function AuditLog() {
 
                       <td className="px-5 py-4">
                         <span className="text-xs font-mono text-text-muted">
-                          {extractIp(r.details)}
+                          {extrairIp(r.details)}
                         </span>
                       </td>
 
@@ -457,7 +479,7 @@ export default function AuditLog() {
                           <button
                             type="button"
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
-                            onClick={() => setDetailRecord(r)}
+                            onClick={() => setRegistroDetalhe(r)}
                           >
                             <Code2 size={13} />
                             JSON
@@ -474,15 +496,15 @@ export default function AuditLog() {
           {/* Pagination footer */}
           <div className="bg-bg-default px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border-default">
             <span className="text-sm text-text-muted">
-              {filtered.length > 0 ? (
+              {registrosFiltrados.length > 0 ? (
                 <>
                   Exibindo{" "}
                   <strong className="text-text-body">
-                    {(currentPage - 1) * perPage + 1}–
-                    {Math.min(currentPage * perPage, filtered.length)}
+                    {(paginaAtual - 1) * itensPorPagina + 1}–
+                    {Math.min(paginaAtual * itensPorPagina, registrosFiltrados.length)}
                   </strong>{" "}
                   de{" "}
-                  <strong className="text-text-body">{filtered.length}</strong>{" "}
+                  <strong className="text-text-body">{registrosFiltrados.length}</strong>{" "}
                   registros
                 </>
               ) : (
@@ -493,48 +515,48 @@ export default function AuditLog() {
             <div className="flex items-center gap-1 overflow-x-auto sm:overflow-visible w-full sm:w-auto justify-center">
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(1)}
+                disabled={paginaAtual === 1}
+                onClick={() => setPaginaAtual(1)}
                 aria-label="Primeira página"
               >
                 <ChevronsLeft size={16} />
               </button>
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={paginaAtual === 1}
+                onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
                 aria-label="Página anterior"
               >
                 <ChevronLeft size={16} />
               </button>
 
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+              {Array.from({ length: Math.min(totalPaginas, 5) }, (_, i) => {
                 const start = Math.max(
                   1,
-                  Math.min(currentPage - 2, totalPages - 4),
+                  Math.min(paginaAtual - 2, totalPaginas - 4),
                 );
-                const page = start + i;
+                const pagina = start + i;
                 return (
                   <button
-                    key={page}
+                    key={pagina}
                     type="button"
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-                      page === currentPage
+                      pagina === paginaAtual
                         ? "bg-primary text-white"
                         : "hover:bg-bg-default text-text-muted"
                     }`}
-                    onClick={() => setCurrentPage(page)}
+                    onClick={() => setPaginaAtual(pagina)}
                   >
-                    {page}
+                    {pagina}
                   </button>
                 );
               })}
 
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
-                disabled={currentPage === totalPages}
+                disabled={paginaAtual === totalPaginas}
                 onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))
                 }
                 aria-label="Próxima página"
               >
@@ -542,8 +564,8 @@ export default function AuditLog() {
               </button>
               <button
                 className="p-1.5 rounded-lg hover:bg-bg-default text-text-muted disabled:opacity-30"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(totalPages)}
+                disabled={paginaAtual === totalPaginas}
+                onClick={() => setPaginaAtual(totalPaginas)}
                 aria-label="Última página"
               >
                 <ChevronsRight size={16} />
@@ -552,13 +574,13 @@ export default function AuditLog() {
           </div>
         </section>
 
-        {/* JSON Detail Modal */}
-        {detailRecord !== null && (
+        {/* JSON detail dialog */}
+        {registroDetalhe !== null && (
           <div
             className="fixed inset-0 bg-primary/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"
-            onClick={() => setDetailRecord(null)}
+            onClick={() => setRegistroDetalhe(null)}
           >
             <div
               className="bg-bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
@@ -571,21 +593,21 @@ export default function AuditLog() {
                     Detalhes da Alteração
                   </h4>
                   <p className="text-xs text-text-muted mt-0.5 font-mono">
-                    {detailRecord.action} · {detailRecord.entity} ·{" "}
-                    {detailRecord.user_name}
+                    {registroDetalhe.action} · {registroDetalhe.entity} ·{" "}
+                    {registroDetalhe.user_name}
                   </p>
                 </div>
                 <button
                   type="button"
                   className="p-1.5 rounded-lg text-text-muted hover:text-text-muted hover:bg-bg-default transition-colors"
-                  onClick={() => setDetailRecord(null)}
+                  onClick={() => setRegistroDetalhe(null)}
                   aria-label="Fechar"
                 >
                   <X size={18} />
                 </button>
               </div>
               <pre className="p-6 overflow-auto max-h-[70vh] text-xs font-mono text-text-body bg-bg-default">
-                {formatJson(detailRecord.details ?? "")}
+                {formatarJson(registroDetalhe.details ?? "")}
               </pre>
             </div>
           </div>

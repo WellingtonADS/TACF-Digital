@@ -1,10 +1,8 @@
 /**
- * @page Icon
- * @description Componente SVG genérico para ícones.
- * @path src/components/atomic/Icon.tsx
+ * ARCHIVED: Icon
+ * Reason: componente SVG genérico sem consumidores ativos na árvore `src/`.
+ * Original path: src/components/atomic/Icon.tsx
  */
-
-
 
 import type { SVGProps } from "react";
 

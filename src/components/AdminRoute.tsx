@@ -5,7 +5,7 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import { canAccessRoute } from "@/utils/routeAccess";
+import { canAccessRoute } from "@/router/routeAccess";
 import { Navigate } from "react-router-dom";
 import ForbiddenState from "./ForbiddenState";
 import FullPageLoading from "./FullPageLoading";

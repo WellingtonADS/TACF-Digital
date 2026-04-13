@@ -1,8 +1,8 @@
 /**
- * @module Domínio
- * @page useBooking
- * @description Descrição concisa da funcionalidade.
- * @path src\hooks\useBooking.ts
+ * ARCHIVED: useBooking
+ * Reason: hook sem consumidores ativos após consolidação do fluxo em
+ * `AppointmentConfirmation` e RPCs diretas.
+ * Original path: src/hooks/useBooking.ts
  */
 
 import useAuth from "@/hooks/useAuth";

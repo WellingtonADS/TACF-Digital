@@ -8,8 +8,8 @@ import FullPageLoading from "@/components/FullPageLoading";
 import ResultSummaryCard from "@/components/Results/ResultSummaryCard";
 import Layout from "@/components/layout/Layout";
 import { ArrowLeft, ExternalLink, Info } from "@/icons";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { fetchResultById } from "@/services/results";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { canOpenAppeal, type ResultSummary } from "@/utils/results";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -17,51 +17,52 @@ import { toast } from "sonner";
 
 export default function ResultDetails() {
   const navigate = useNavigate();
-  const { resultId } = useParams<{ resultId: string }>();
+  const { resultId: resultadoId } = useParams<{ resultId: string }>();
 
-  const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<ResultSummary | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [resultado, setResultado] = useState<ResultSummary | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    async function loadResult() {
-      if (!resultId) {
-        setResult(null);
-        setLoading(false);
+    async function carregarResultado() {
+      if (!resultadoId) {
+        setResultado(null);
+        setCarregando(false);
         return;
       }
 
-      setLoading(true);
+      setCarregando(true);
 
       try {
-        const data = await fetchResultById(resultId);
+        const data = await fetchResultById(resultadoId);
         if (active) {
-          setResult(data);
+          setResultado(data);
         }
       } catch (error) {
         console.error(error);
         if (active) {
-          setResult(null);
+          setResultado(null);
           toast.error("Não foi possível carregar o resultado.");
         }
       } finally {
         if (active) {
-          setLoading(false);
+          setCarregando(false);
         }
       }
     }
 
-    void loadResult();
+    void carregarResultado();
 
     return () => {
       active = false;
     };
-  }, [resultId]);
+  }, [resultadoId]);
 
-  const appealAvailable = result ? canOpenAppeal(result) : false;
+  const recursoDisponivel = resultado ? canOpenAppeal(resultado) : false;
+  const caminhoHistorico = "/app/resultados";
 
-  if (loading) {
+  if (carregando) {
     return <FullPageLoading message="Carregando resultado" />;
   }
 
@@ -78,7 +79,7 @@ export default function ResultDetails() {
           </p>
         </header>
 
-        {!result ? (
+        {!resultado ? (
           <section className="rounded-3xl border border-border-default bg-bg-card p-8 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
               Resultado indisponível
@@ -93,7 +94,7 @@ export default function ResultDetails() {
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/app/resultados")}
+                onClick={() => navigate(caminhoHistorico)}
                 className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
               >
                 <ArrowLeft size={16} />
@@ -104,7 +105,7 @@ export default function ResultDetails() {
         ) : (
           <div className="space-y-6">
             <ResultSummaryCard
-              result={result}
+              result={resultado}
               eyebrow="Resultado consolidado"
               title="Resumo da Avaliação"
               description="Os dados abaixo refletem o registro atualmente disponível para consulta no sistema."
@@ -112,19 +113,19 @@ export default function ResultDetails() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     type="button"
-                    onClick={() => navigate("/app/resultados")}
+                    onClick={() => navigate(caminhoHistorico)}
                     className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
                   >
                     <ArrowLeft size={16} />
                     Voltar ao Histórico
                   </button>
 
-                  {appealAvailable && (
+                  {recursoDisponivel && (
                     <button
                       type="button"
                       onMouseEnter={() => prefetchRoute("/app/recurso")}
                       onClick={() =>
-                        navigate(`/app/recurso?result=${result.id}`)
+                        navigate(`/app/recurso?result=${resultado.id}`)
                       }
                       className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                     >
@@ -144,7 +145,7 @@ export default function ResultDetails() {
                     Próximo passo recomendado
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-text-muted">
-                    {appealAvailable
+                    {recursoDisponivel
                       ? "Se houver divergência no resultado apresentado, utilize a ação de recurso para registrar a contestação formal."
                       : "Este registro está disponível apenas para consulta. A abertura de recurso é liberada somente para resultados finais apto ou inapto."}
                   </p>

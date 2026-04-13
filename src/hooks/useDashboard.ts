@@ -5,9 +5,10 @@
  * @path src\hooks\useDashboard.ts
  */
 
+import { fetchUserDashboardFallbackSummary } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
 import { callRpcWithRetry } from "@/utils/rpc";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAuth from "./useAuth";
 
@@ -56,19 +57,118 @@ export default function useDashboard() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [refreshTick, setRefreshTick] = useState(0);
 
+  const buildNotifications = useCallback(
+    (payload: {
+      nextSession: SessionInfo | null;
+      bookingsCount: number;
+      latestOrderNumber: string | null;
+    }) => {
+      const notes: NotificationItem[] = [];
+      const inspsau = (
+        profile as { inspsau_valid_until?: string | null } | null
+      )?.inspsau_valid_until;
+      if (inspsau) {
+        const d = new Date(typeof inspsau === "string" ? inspsau : inspsau);
+        const now = new Date();
+        const days = Math.ceil(
+          (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (days <= 0)
+          notes.push({
+            title: "Inspeção de Saúde vencida",
+            description:
+              "Sua INSPSAU está vencida — procure a OM para atualizar.",
+            level: "warning",
+          });
+        else if (days <= 45)
+          notes.push({
+            title: "Inspeção de Saúde próxima",
+            description: `Sua INSPSAU vence em ${days} dias.`,
+            level: "info",
+          });
+      }
+
+      if (payload.nextSession)
+        notes.push({
+          title: "Próximo Agendamento",
+          description: `Você tem agendamento em ${payload.nextSession.date} (${formatSessionPeriod(payload.nextSession.period)}).`,
+          level: "info",
+        });
+      else if (payload.bookingsCount === 0)
+        notes.push({
+          title: "Sem agendamentos",
+          description: "Você ainda não tem agendamento confirmado.",
+          level: "info",
+        });
+
+      if (payload.latestOrderNumber)
+        notes.unshift({
+          title: "Bilhete disponível",
+          description: `Código: ${payload.latestOrderNumber}`,
+        });
+
+      return notes;
+    },
+    [profile],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       if (!user && !profile) return;
       setLoading(true);
+
+      const applyFallbackSummary = async () => {
+        if (!user?.id) return false;
+
+        try {
+          const fallback = await fetchUserDashboardFallbackSummary(user.id);
+          if (cancelled) return true;
+
+          setBookingsCount(fallback.bookingsCount);
+          setResultsCount(fallback.resultsCount);
+          setNextSession(
+            fallback.nextSession
+              ? {
+                  id: fallback.nextSession.sessionId,
+                  date: fallback.nextSession.date,
+                  period: fallback.nextSession.period,
+                  max_capacity: fallback.nextSession.maxCapacity ?? null,
+                }
+              : null,
+          );
+          setNextSessionBookingId(fallback.nextSession?.bookingId ?? null);
+          setHasPendingSwap(fallback.hasPendingSwap);
+          setLatestOrderNumber(fallback.nextSession?.orderNumber ?? null);
+          setNotifications(
+            buildNotifications({
+              nextSession: fallback.nextSession
+                ? {
+                    id: fallback.nextSession.sessionId,
+                    date: fallback.nextSession.date,
+                    period: fallback.nextSession.period,
+                    max_capacity: fallback.nextSession.maxCapacity ?? null,
+                  }
+                : null,
+              bookingsCount: fallback.bookingsCount,
+              latestOrderNumber: fallback.nextSession?.orderNumber ?? null,
+            }),
+          );
+          return true;
+        } catch (fallbackError) {
+          console.warn("Dashboard fallback summary failed", fallbackError);
+          return false;
+        }
+      };
+
       try {
         /* try single RPC first to minimize round-trips */
         const { data: rpcData, error: rpcError } =
           await callRpcWithRetry<unknown>(
             "get_user_dashboard_summary",
             {},
-            { timeoutMs: 3000, retries: 1 },
+            { timeoutMs: 10000, retries: 2, backoffMs: 500 },
           );
         if (!rpcError && rpcData) {
           const payloadCandidate = Array.isArray(rpcData)
@@ -130,7 +230,7 @@ export default function useDashboard() {
             setNotifications(notes);
             return;
           } else {
-            const payload = payloadCandidate as DashboardPayload;
+            let payload = payloadCandidate as DashboardPayload;
             let resolvedNextSession: SessionInfo | null = null;
 
             if (payload?.next_session) {
@@ -140,6 +240,53 @@ export default function useDashboard() {
                 period: payload.next_session.period,
                 max_capacity: payload.next_session.max_capacity ?? null,
               };
+            }
+
+            if (
+              user?.id &&
+              Number(payload?.bookings_count ?? 0) === 0 &&
+              !resolvedNextSession
+            ) {
+              try {
+                const fallback =
+                  await fetchUserDashboardFallbackSummary(user.id);
+
+                if (fallback.bookingsCount > 0 || fallback.nextSession) {
+                  payload = {
+                    ...payload,
+                    bookings_count: fallback.bookingsCount,
+                    results_count: fallback.resultsCount,
+                    next_session: fallback.nextSession
+                      ? {
+                          session_id: fallback.nextSession.sessionId,
+                          date: fallback.nextSession.date,
+                          period: fallback.nextSession.period,
+                          max_capacity: fallback.nextSession.maxCapacity ?? null,
+                        }
+                      : null,
+                    next_session_booking_id:
+                      fallback.nextSession?.bookingId ?? null,
+                    has_pending_swap: fallback.hasPendingSwap,
+                    latest_order_number:
+                      fallback.nextSession?.orderNumber ?? null,
+                  };
+
+                  resolvedNextSession = fallback.nextSession
+                    ? {
+                        id: fallback.nextSession.sessionId,
+                        date: fallback.nextSession.date,
+                        period: fallback.nextSession.period,
+                        max_capacity:
+                          fallback.nextSession.maxCapacity ?? null,
+                      }
+                    : null;
+                }
+              } catch (fallbackError) {
+                console.warn(
+                  "Dashboard fallback summary failed",
+                  fallbackError,
+                );
+              }
             }
 
             if (cancelled) return;
@@ -152,58 +299,25 @@ export default function useDashboard() {
 
             setLatestOrderNumber(payload?.latest_order_number ?? null);
 
-            const notes: NotificationItem[] = [];
-            const inspsau = (
-              profile as { inspsau_valid_until?: string | null } | null
-            )?.inspsau_valid_until;
-            if (inspsau) {
-              const d = new Date(
-                typeof inspsau === "string" ? inspsau : inspsau,
-              );
-              const now = new Date();
-              const days = Math.ceil(
-                (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-              );
-              if (days <= 0)
-                notes.push({
-                  title: "Inspeção de Saúde vencida",
-                  description:
-                    "Sua INSPSAU está vencida — procure a OM para atualizar.",
-                  level: "warning",
-                });
-              else if (days <= 45)
-                notes.push({
-                  title: "Inspeção de Saúde próxima",
-                  description: `Sua INSPSAU vence em ${days} dias.`,
-                  level: "info",
-                });
-            }
-
-            if (payload?.next_session)
-              notes.push({
-                title: "Próximo Agendamento",
-                description: `Você tem agendamento em ${payload.next_session.date} (${formatSessionPeriod(payload.next_session.period)}).`,
-                level: "info",
-              });
-            else if (Number(payload?.bookings_count ?? 0) === 0)
-              notes.push({
-                title: "Sem agendamentos",
-                description: "Você ainda não tem agendamento confirmado.",
-                level: "info",
-              });
-
-            if (payload?.latest_order_number)
-              notes.unshift({
-                title: "Bilhete disponível",
-                description: `Código: ${payload.latest_order_number}`,
-              });
-
-            setNotifications(notes);
+            setNotifications(
+              buildNotifications({
+                nextSession: resolvedNextSession,
+                bookingsCount: Number(payload?.bookings_count ?? 0),
+                latestOrderNumber: payload?.latest_order_number ?? null,
+              }),
+            );
             return;
           }
         }
+
+        if (await applyFallbackSummary()) {
+          return;
+        }
       } catch (err) {
         console.error(err);
+        if (await applyFallbackSummary()) {
+          return;
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -216,7 +330,7 @@ export default function useDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user, profile, refreshTick]);
+  }, [user, profile, refreshTick, buildNotifications]);
 
   return {
     user,

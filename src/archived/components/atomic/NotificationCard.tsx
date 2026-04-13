@@ -1,7 +1,7 @@
 /**
- * @page NotificationCard
- * @description Card para exibir notificações e alertas.
- * @path src/components/atomic/NotificationCard.tsx
+ * ARCHIVED: NotificationCard
+ * Reason: componente sem consumidores ativos na árvore `src/`.
+ * Original path: src/components/atomic/NotificationCard.tsx
  */
 
 import type { ReactNode } from "react";

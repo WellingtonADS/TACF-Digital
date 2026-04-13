@@ -8,10 +8,10 @@
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
 import { LogOut, Shield, X } from "@/icons";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
-import { getRoleLabel } from "@/utils/routeAccess";
-import { getSidebarRoutesForRole } from "@/utils/routeRegistry";
-import { sidebarIconMap } from "@/utils/sidebarIcons";
+import { prefetchRoute } from "@/router/prefetchRoutes";
+import { getRoleLabel } from "@/router/routeAccess";
+import { getSidebarRoutesForRole } from "@/router/routeRegistry";
+import { sidebarIconMap } from "@/router/sidebarIcons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 type SidebarProps = {

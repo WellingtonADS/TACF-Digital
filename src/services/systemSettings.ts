@@ -1,8 +1,7 @@
 /**
- * @module Domínio
- * @hook useSystemSettings
+ * @module systemSettings
  * @description Acesso centralizado às configurações do sistema e logs de auditoria.
- * @path src/hooks/useSystemSettings.ts
+ * @path src/services/systemSettings.ts
  */
 
 import supabase from "@/services/supabase";

@@ -11,8 +11,13 @@ import {
 } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import PageSkeleton from "@/components/PageSkeleton";
+import RescheduleDialog from "@/components/Booking/RescheduleDialog";
 import ResultStatusBadge from "@/components/Results/ResultStatusBadge";
+import usePaginatedQuery from "@/hooks/usePaginatedQuery";
+import useResponsive from "@/hooks/useResponsive";
 import { ChevronRight, ClipboardList, ExternalLink, MapPin } from "@/icons";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { fetchPendingSwapsByBookingIds } from "@/services/bookings";
 import {
   canOpenAppeal,
@@ -22,13 +27,8 @@ import {
 import { isAfter, parseISO } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import PageSkeleton from "../components/PageSkeleton";
-import RescheduleDrawer from "../components/RescheduleDrawer";
-import usePaginatedQuery from "../hooks/usePaginatedQuery";
-import useResponsive from "../hooks/useResponsive";
-import { prefetchRoute } from "../utils/prefetchRoutes";
 
-type Result = ResultSummary & {
+type ResultadoHistorico = ResultSummary & {
   profile_id?: string | null;
   full_name?: string | null;
   saram?: string | null;
@@ -38,62 +38,68 @@ type Result = ResultSummary & {
 
 export default function ResultsHistory() {
   const { isMobile, isTablet } = useResponsive();
-  const isCompactViewport = isMobile || isTablet;
+  const viewportCompacto = isMobile || isTablet;
 
-  const { items, loading, hasMore, fetchPage } = usePaginatedQuery<Result>(
+  const { items, loading, hasMore, fetchPage } =
+    usePaginatedQuery<ResultadoHistorico>(
     "get_results_history",
     { limit: 25 },
   );
 
-  const [pendingSwaps, setPendingSwaps] = useState<Set<string>>(new Set());
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
-  const [drawerCurrentDate, setDrawerCurrentDate] = useState<string>("");
+  const [reagendamentosPendentes, setReagendamentosPendentes] = useState<
+    Set<string>
+  >(new Set());
+  const [dialogoReagendamentoAberto, setDialogoReagendamentoAberto] =
+    useState(false);
+  const [agendamentoSelecionadoId, setAgendamentoSelecionadoId] = useState<
+    string | null
+  >(null);
+  const [dataAtualSelecionada, setDataAtualSelecionada] = useState<string>("");
 
   useEffect(() => {
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rows = useMemo(() => {
+  const linhas = useMemo(() => {
     return items.map((r) => ({
-      ...(r as Result),
-      ...normalizeResultSummary(r as Result),
+      ...(r as ResultadoHistorico),
+      ...normalizeResultSummary(r as ResultadoHistorico),
     }));
   }, [items]);
 
-  // deduplicate rows by id to avoid duplicate React keys
-  const dedupedRows = useMemo(() => {
+  // Remove duplicidades por id para evitar chaves repetidas no React.
+  const linhasUnicas = useMemo(() => {
     const seen = new Set<string>();
-    const out: (Result & {
+    const out: (ResultadoHistorico & {
       concept?: string | null;
       location?: string | null;
     })[] = [];
-    for (const r of rows) {
+    for (const r of linhas) {
       if (!r || !r.id) continue;
       if (seen.has(r.id)) continue;
       seen.add(r.id);
       out.push(r);
     }
     return out;
-  }, [rows]);
+  }, [linhas]);
 
   useEffect(() => {
     async function loadPending() {
-      const ids = dedupedRows.map((r) => r.id);
+      const ids = linhasUnicas.map((r) => r.id);
       if (ids.length === 0) {
-        setPendingSwaps(new Set());
+        setReagendamentosPendentes(new Set());
         return;
       }
       try {
         const set = await fetchPendingSwapsByBookingIds(ids);
-        setPendingSwaps(set);
+        setReagendamentosPendentes(set);
       } catch (err) {
         console.error(err);
       }
     }
     loadPending();
-  }, [dedupedRows]);
+  }, [linhasUnicas]);
 
   if (loading) return <FullPageLoading message="Carregando registros" />;
 
@@ -122,22 +128,22 @@ export default function ResultsHistory() {
               Registros de Avaliações
             </h2>
           </div>
-          {dedupedRows.length === 0 && loading ? (
+          {linhasUnicas.length === 0 && loading ? (
             <div className="px-3 py-6">
               <PageSkeleton rows={6} />
             </div>
-          ) : dedupedRows.length === 0 ? (
+          ) : linhasUnicas.length === 0 ? (
             <div className="px-4 py-12 text-center text-text-muted sm:px-6">
               Você ainda não possui resultados registrados.
             </div>
-          ) : isCompactViewport ? (
+          ) : viewportCompacto ? (
             <div className="grid grid-cols-1 gap-3 p-4 sm:p-6">
-              {dedupedRows.map((r) => {
-                const isFuture = r.test_date
+              {linhasUnicas.map((r) => {
+                const agendamentoFuturo = r.test_date
                   ? isAfter(parseISO(r.test_date), new Date())
                   : false;
-                const canAppeal = canOpenAppeal(r);
-                const dateLabel = r.test_date
+                const podeRecorrer = canOpenAppeal(r);
+                const dataFormatada = r.test_date
                   ? new Date(r.test_date)
                       .toLocaleDateString("pt-BR", {
                         day: "2-digit",
@@ -152,7 +158,7 @@ export default function ResultsHistory() {
                   <article
                     key={r.id}
                     className={`${CARD_INTERACTIVE_CLASS} rounded-2xl border p-6 ${
-                      isFuture
+                      agendamentoFuturo
                         ? "border-primary/30 bg-primary/5"
                         : "border-border-default bg-bg-card"
                     }`}
@@ -163,7 +169,7 @@ export default function ResultsHistory() {
                           Data
                         </p>
                         <p className="text-sm font-bold uppercase text-text-body">
-                          {dateLabel}
+                          {dataFormatada}
                         </p>
                       </div>
                       <ResultStatusBadge status={r.result_status ?? null} />
@@ -201,7 +207,7 @@ export default function ResultsHistory() {
                         Ver Resultado
                         <AppIcon icon={ChevronRight} size="xs" tone="primary" />
                       </Link>
-                      {canAppeal && (
+                      {podeRecorrer && (
                         <Link
                           to={`/app/recurso?result=${r.id}`}
                           onMouseEnter={() => prefetchRoute("/app/recurso")}
@@ -215,17 +221,17 @@ export default function ResultsHistory() {
                           />
                         </Link>
                       )}
-                      {isFuture && (
+                      {agendamentoFuturo && (
                         <button
                           onClick={() => {
-                            setDrawerBookingId(r.id);
-                            setDrawerCurrentDate(r.test_date ?? "");
-                            setDrawerOpen(true);
+                            setAgendamentoSelecionadoId(r.id);
+                            setDataAtualSelecionada(r.test_date ?? "");
+                            setDialogoReagendamentoAberto(true);
                           }}
                           className="text-xs font-bold text-primary transition-colors hover:text-primary/80"
                         >
                           Reagendar
-                          {pendingSwaps.has(r.id) && (
+                          {reagendamentosPendentes.has(r.id) && (
                             <span className="ml-1 text-[10px] text-text-muted">
                               (Pendente)
                             </span>
@@ -260,12 +266,12 @@ export default function ResultsHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {dedupedRows.map((r) => {
-                    const isFuture = r.test_date
+                  {linhasUnicas.map((r) => {
+                    const agendamentoFuturo = r.test_date
                       ? isAfter(parseISO(r.test_date), new Date())
                       : false;
-                    const canAppeal = canOpenAppeal(r);
-                    const dateLabel = r.test_date
+                    const podeRecorrer = canOpenAppeal(r);
+                    const dataFormatada = r.test_date
                       ? new Date(r.test_date)
                           .toLocaleDateString("pt-BR", {
                             day: "2-digit",
@@ -279,12 +285,12 @@ export default function ResultsHistory() {
                       <tr
                         key={r.id}
                         className={`hover:bg-bg-default/80 transition-colors ${
-                          isFuture ? "bg-primary/5" : ""
+                          agendamentoFuturo ? "bg-primary/5" : ""
                         }`}
                       >
                         <td className="px-4 py-5 sm:px-6">
                           <span className="text-sm font-bold text-text-body uppercase">
-                            {dateLabel}
+                            {dataFormatada}
                           </span>
                         </td>
                         <td className="px-4 py-5 sm:px-6">
@@ -324,7 +330,7 @@ export default function ResultsHistory() {
                                 tone="primary"
                               />
                             </Link>
-                            {canAppeal && (
+                            {podeRecorrer && (
                               <Link
                                 to={`/app/recurso?result=${r.id}`}
                                 onMouseEnter={() =>
@@ -340,17 +346,17 @@ export default function ResultsHistory() {
                                 />
                               </Link>
                             )}
-                            {isFuture && (
+                            {agendamentoFuturo && (
                               <button
                                 onClick={() => {
-                                  setDrawerBookingId(r.id);
-                                  setDrawerCurrentDate(r.test_date ?? "");
-                                  setDrawerOpen(true);
+                                  setAgendamentoSelecionadoId(r.id);
+                                  setDataAtualSelecionada(r.test_date ?? "");
+                                  setDialogoReagendamentoAberto(true);
                                 }}
                                 className="text-xs font-bold text-primary transition-colors hover:text-primary/80"
                               >
                                 Reagendar
-                                {pendingSwaps.has(r.id) && (
+                                {reagendamentosPendentes.has(r.id) && (
                                   <span className="ml-1 text-[10px] text-text-muted">
                                     (Pendente)
                                   </span>
@@ -369,8 +375,8 @@ export default function ResultsHistory() {
 
           <div className="flex flex-col gap-2 border-t border-border-default bg-bg-default px-4 py-4 text-xs font-semibold uppercase tracking-widest text-text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <span>
-              {dedupedRows.length > 0
-                ? `${dedupedRows.length} registro(s)`
+              {linhasUnicas.length > 0
+                ? `${linhasUnicas.length} registro(s)`
                 : ""}
             </span>
             {hasMore && (
@@ -387,11 +393,11 @@ export default function ResultsHistory() {
         </section>
       </div>
 
-      <RescheduleDrawer
-        open={drawerOpen}
-        bookingId={drawerBookingId ?? ""}
-        currentDate={drawerCurrentDate}
-        onClose={() => setDrawerOpen(false)}
+      <RescheduleDialog
+        open={dialogoReagendamentoAberto}
+        bookingId={agendamentoSelecionadoId ?? ""}
+        currentDate={dataAtualSelecionada}
+        onClose={() => setDialogoReagendamentoAberto(false)}
         onSuccess={() => {}}
       />
     </Layout>

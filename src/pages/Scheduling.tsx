@@ -6,21 +6,14 @@
 
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
-import TicketModal from "@/components/TicketModal";
+import SessionMonthCalendar from "@/components/Calendar/SessionMonthCalendar";
+import TicketDialog from "@/components/Booking/TicketDialog";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
-import {
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Hash,
-  MapPin,
-} from "@/icons";
+import { Calendar, Check, ChevronRight, Clock, Hash, MapPin } from "@/icons";
 import { fetchSessionLocationBySessionId } from "@/services/locations";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { fetchBookedDatesForUser, formatSessionPeriod } from "@/utils/booking";
-import { formatDatePtBr } from "@/utils/date";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { canMilitaryBookDate, formatDatePtBr } from "@/utils/date";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -32,9 +25,7 @@ type SessionLocation = {
   address: string | null;
 };
 
-const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-function toDateKey(date: Date): string {
+function formatarChaveData(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -43,130 +34,142 @@ function toDateKey(date: Date): string {
 
 export const Scheduling = () => {
   const navigate = useNavigate();
-  // useDashboard was previously called here but its return value was unused.
-  // Removed to avoid unnecessary work (hook runs only where its data is consumed).
-  const [showTicketModal, setShowTicketModal] = useState(false);
+  // `useDashboard` era chamado aqui, mas seu retorno não era consumido.
+  // A chamada foi removida para evitar trabalho desnecessário.
+  const [dialogoTicketAberto, setDialogoTicketAberto] = useState(false);
 
-  const [viewDate, setViewDate] = useState(() => new Date());
-  const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-  const endOfMonth = new Date(
-    viewDate.getFullYear(),
-    viewDate.getMonth() + 1,
+  const [dataVisualizacao, setDataVisualizacao] = useState(() => new Date());
+  const inicioMes = new Date(
+    dataVisualizacao.getFullYear(),
+    dataVisualizacao.getMonth(),
+    1,
+  );
+  const fimMes = new Date(
+    dataVisualizacao.getFullYear(),
+    dataVisualizacao.getMonth() + 1,
     0,
   );
-  const startStr = toDateKey(startOfMonth);
-  const endStr = toDateKey(endOfMonth);
+  const inicioMesStr = formatarChaveData(inicioMes);
+  const fimMesStr = formatarChaveData(fimMes);
 
-  const { sessions, loading } = useSessions(startStr, endStr);
+  const { sessions, loading: carregandoSessoes } = useSessions(
+    inicioMesStr,
+    fimMesStr,
+  );
 
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [sessionLocation, setSessionLocation] =
+  const [dataSelecionada, setDataSelecionada] = useState<string | null>(null);
+  const [sessaoSelecionadaId, setSessaoSelecionadaId] = useState<string | null>(
+    null,
+  );
+  const [localSessao, setLocalSessao] =
     useState<SessionLocation | null>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
+  const [carregandoLocal, setCarregandoLocal] = useState(false);
+  const [datasAgendadas, setDatasAgendadas] = useState<Set<string>>(new Set());
 
-  const sessionsByDate = useMemo(() => {
+  const sessoesElegiveis = useMemo(
+    () => (sessions ?? []).filter((session) => canMilitaryBookDate(session.date)),
+    [sessions],
+  );
+
+  const sessoesPorData = useMemo(() => {
     const map: Record<string, SessionAvailability[]> = {};
-    (sessions ?? []).forEach((s) => {
+    sessoesElegiveis.forEach((s) => {
       const key = s.date as string;
       map[key] = map[key] ?? [];
       map[key].push(s);
     });
     return map;
-  }, [sessions]);
+  }, [sessoesElegiveis]);
 
-  // pick first FUTURE available date (and keep selection in sync when sessions change)
+  // Seleciona a primeira data futura disponível e mantém a seleção sincronizada.
   useEffect(() => {
-    const todayStr = toDateKey(new Date());
-    // only consider sessions from today forward
-    const futureSessions = (sessions ?? []).filter(
-      (s) => (s.date as string) >= todayStr,
+    const hojeStr = formatarChaveData(new Date());
+    // Considera apenas sessões de hoje em diante.
+    const sessoesFuturas = sessoesElegiveis.filter(
+      (s) => (s.date as string) >= hojeStr,
     );
 
-    if (futureSessions.length > 0) {
-      // reset selection if: nothing selected, current selection is gone, or it's in the past
+    if (sessoesFuturas.length > 0) {
+      // Limpa a seleção se não houver data válida, se a data sumiu ou já passou.
       if (
-        !selectedDate ||
-        !sessionsByDate[selectedDate] ||
-        selectedDate < todayStr
+        !dataSelecionada ||
+        !sessoesPorData[dataSelecionada] ||
+        dataSelecionada < hojeStr
       ) {
-        setSelectedDate(futureSessions[0].date as string);
-        setSelectedSession(null);
+        setDataSelecionada(sessoesFuturas[0].date as string);
+        setSessaoSelecionadaId(null);
       }
     } else {
-      // no future sessions this month, clear selection
-      setSelectedDate(null);
-      setSelectedSession(null);
+      // Sem sessões futuras no mês visível: limpa a seleção.
+      setDataSelecionada(null);
+      setSessaoSelecionadaId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, sessionsByDate]);
+  }, [sessoesElegiveis, sessoesPorData]);
 
-  function handleSelectSession(sessionId: string) {
-    setSelectedSession(sessionId);
+  function selecionarSessao(sessionId: string) {
+    setSessaoSelecionadaId(sessionId);
   }
 
-  function handleBook() {
-    if (!selectedSession) {
+  function continuarAgendamento() {
+    if (!sessaoSelecionadaId) {
       toast.error("Selecione um horário antes de continuar.");
       return;
     }
 
     navigate("/app/agendamentos/confirmacao", {
-      state: { sessionId: selectedSession },
+      state: { sessionId: sessaoSelecionadaId },
     });
   }
 
-  const daysInMonth = endOfMonth.getDate();
-
-  // sessions available for the currently selected date (empty array if none)
-  const sessionsForSelected: SessionAvailability[] =
-    selectedDate && sessionsByDate[selectedDate]
-      ? sessionsByDate[selectedDate]
+  // Sessões disponíveis para a data selecionada.
+  const sessoesDataSelecionada: SessionAvailability[] =
+    dataSelecionada && sessoesPorData[dataSelecionada]
+      ? sessoesPorData[dataSelecionada]
       : [];
 
-  const sessionIdForLocation =
-    selectedSession ?? sessionsForSelected[0]?.session_id ?? null;
+  const sessaoIdParaLocal =
+    sessaoSelecionadaId ?? sessoesDataSelecionada[0]?.session_id ?? null;
 
   useEffect(() => {
-    async function fetchSessionLocation(sessionId: string) {
-      setLocationLoading(true);
+    async function carregarLocalSessao(sessionId: string) {
+      setCarregandoLocal(true);
 
       try {
         const location = await fetchSessionLocationBySessionId(sessionId);
-        setSessionLocation(location);
+        setLocalSessao(location);
       } catch {
-        setSessionLocation(null);
+        setLocalSessao(null);
       } finally {
-        setLocationLoading(false);
+        setCarregandoLocal(false);
       }
     }
 
-    if (!sessionIdForLocation) {
-      setSessionLocation(null);
-      setLocationLoading(false);
+    if (!sessaoIdParaLocal) {
+      setLocalSessao(null);
+      setCarregandoLocal(false);
       return;
     }
 
-    fetchSessionLocation(sessionIdForLocation);
-  }, [sessionIdForLocation]);
+    carregarLocalSessao(sessaoIdParaLocal);
+  }, [sessaoIdParaLocal]);
 
-  // fetch user's bookings on the visible month range and mark dates as booked
+  // Busca os agendamentos do usuário no mês visível e marca as datas ocupadas.
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
-      const set = await fetchBookedDatesForUser(startStr, endStr);
-      if (mounted) setBookedDates(set);
+    async function carregarDatasAgendadas() {
+      const datas = await fetchBookedDatesForUser(inicioMesStr, fimMesStr);
+      if (mounted) setDatasAgendadas(datas);
     }
 
-    load();
+    carregarDatasAgendadas();
     return () => {
       mounted = false;
     };
-  }, [startStr, endStr]);
+  }, [inicioMesStr, fimMesStr]);
 
-  if (loading) return <FullPageLoading message="Carregando sessões" />;
+  if (carregandoSessoes) return <FullPageLoading message="Carregando sessões" />;
 
   return (
     <Layout>
@@ -183,7 +186,7 @@ export const Scheduling = () => {
             </p>
           </header>
 
-          {/* Stepper */}
+          {/* Etapas do fluxo */}
           <div className="mb-8 sm:mb-10">
             <div className="max-w-4xl mx-auto rounded-2xl border border-border-default bg-bg-card shadow-sm px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex items-center justify-between relative">
@@ -219,145 +222,39 @@ export const Scheduling = () => {
             </div>
           </div>
 
-          {/* Main Grid */}
+          {/* Grade principal */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-            {/* Left: Calendar */}
+            {/* Coluna esquerda: calendário */}
             <div className="lg:col-span-8 bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-border-default flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-text-body">
-                    Calendário de Testes
-                  </h3>
-                  <p className="text-sm text-text-muted">
-                    {viewDate.toLocaleString("pt-BR", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setViewDate(
-                        new Date(
-                          viewDate.getFullYear(),
-                          viewDate.getMonth() - 1,
-                          1,
-                        ),
-                      )
-                    }
-                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
-                  >
-                    <AppIcon icon={ChevronLeft} size="md" tone="muted" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setViewDate(
-                        new Date(
-                          viewDate.getFullYear(),
-                          viewDate.getMonth() + 1,
-                          1,
-                        ),
-                      )
-                    }
-                    className="p-2 rounded-lg hover:bg-bg-default text-text-muted transition-colors"
-                  >
-                    <AppIcon icon={ChevronRight} size="md" tone="muted" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-6">
-                <div className="grid grid-cols-7 gap-1 mb-4 text-center">
-                  {WEEK_DAYS.map((d) => (
-                    <div
-                      key={d}
-                      className="py-2 text-xs font-bold text-text-muted uppercase"
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
-                {loading ? (
-                  <div className="grid grid-cols-7 gap-2 sm:gap-3">
-                    {Array.from({ length: Math.min(daysInMonth, 28) }).map(
-                      (_, i) => (
-                        <div
-                          key={i}
-                          className="aspect-square bg-bg-default rounded animate-pulse"
-                        />
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-7 gap-2 sm:gap-3">
-                    {/* células vazias para alinhar o dia 1 ao dia da semana correto */}
-                    {Array.from({ length: startOfMonth.getDay() }).map(
-                      (_, i) => (
-                        <div key={`pad-${i}`} />
-                      ),
-                    )}
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                      const day = i + 1;
-                      const dateObj = new Date(
-                        viewDate.getFullYear(),
-                        viewDate.getMonth(),
-                        day,
-                      );
-                      const dateKey = toDateKey(dateObj);
-                      const hasSessions =
-                        (sessionsByDate[dateKey] || []).length > 0;
-                      const isBooked = bookedDates.has(dateKey);
-                      const isSelected = selectedDate === dateKey;
-                      const isPast =
-                        dateObj < new Date(new Date().setHours(0, 0, 0, 0));
-
-                      if (isPast) {
-                        return (
-                          <div
-                            key={i}
-                            className="aspect-square rounded-xl flex items-center justify-center text-text-muted/40 bg-bg-default/40 text-sm"
-                          >
-                            {day}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            if (hasSessions && !isBooked) {
-                              setSelectedDate(dateKey);
-                              setSelectedSession(null);
-                            }
-                          }}
-                          className={`aspect-square relative rounded-xl flex items-center justify-center font-medium text-sm transition-all ${
-                            isSelected
-                              ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/25"
-                              : isBooked
-                                ? "text-error bg-error/15 cursor-not-allowed"
-                                : hasSessions
-                                  ? "text-text-body bg-border-default/20 hover:bg-border-default/40 cursor-pointer"
-                                  : "text-text-muted/50 bg-transparent cursor-not-allowed"
-                          }`}
-                          disabled={!hasSessions || isBooked}
-                        >
-                          {day}
-                          {/* indicador de sessão disponível (bg-success = disponível, bg-error = agendado) */}
-                          {hasSessions && !isBooked && !isSelected && (
-                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-success" />
-                          )}
-                          {isBooked && (
-                            <span className="absolute bottom-1.5 w-2.5 h-2.5 rounded-full bg-error" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <SessionMonthCalendar
+                viewDate={dataVisualizacao}
+                sessionsByDate={sessoesPorData}
+                bookedDates={datasAgendadas}
+                selectedDate={dataSelecionada}
+                loading={carregandoSessoes}
+                onPrevMonth={() =>
+                  setDataVisualizacao(
+                    new Date(
+                      dataVisualizacao.getFullYear(),
+                      dataVisualizacao.getMonth() - 1,
+                      1,
+                    ),
+                  )
+                }
+                onNextMonth={() =>
+                  setDataVisualizacao(
+                    new Date(
+                      dataVisualizacao.getFullYear(),
+                      dataVisualizacao.getMonth() + 1,
+                      1,
+                    ),
+                  )
+                }
+                onSelectDate={(dateKey) => {
+                  setDataSelecionada(dateKey);
+                  setSessaoSelecionadaId(null);
+                }}
+              />
 
               <div className="p-4 sm:p-6 bg-bg-default flex flex-wrap gap-4 sm:gap-6 items-center justify-center border-t border-border-default">
                 <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
@@ -377,7 +274,7 @@ export const Scheduling = () => {
               </div>
             </div>
 
-            {/* Right: Details */}
+            {/* Coluna direita: detalhes */}
             <div className="lg:col-span-4 space-y-6">
               <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
                 <div className="p-6 bg-primary text-primary-foreground">
@@ -385,8 +282,8 @@ export const Scheduling = () => {
                     Detalhes da Sessão
                   </p>
                   <h3 className="text-xl font-bold">
-                    {selectedDate
-                      ? formatDatePtBr(selectedDate)
+                    {dataSelecionada
+                      ? formatDatePtBr(dataSelecionada)
                       : "Selecione uma data"}
                   </h3>
                 </div>
@@ -401,13 +298,13 @@ export const Scheduling = () => {
                         Localização
                       </p>
                       <p className="text-text-body font-semibold">
-                        {locationLoading
+                        {carregandoLocal
                           ? "Carregando local..."
-                          : (sessionLocation?.name ?? "Local não informado")}
+                          : (localSessao?.name ?? "Local não informado")}
                       </p>
-                      {sessionLocation?.address && (
+                      {localSessao?.address && (
                         <p className="text-xs text-text-muted">
-                          {sessionLocation.address}
+                          {localSessao.address}
                         </p>
                       )}
                     </div>
@@ -417,25 +314,25 @@ export const Scheduling = () => {
                     <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">
                       Horários Disponíveis
                     </p>
-                    {loading ? (
+                    {carregandoSessoes ? (
                       <PageSkeleton rows={3} />
-                    ) : !selectedDate ? (
+                    ) : !dataSelecionada ? (
                       <div className="text-sm text-text-muted">
                         Selecione uma data no calendário.
                       </div>
-                    ) : sessionsForSelected.length === 0 ? (
+                    ) : sessoesDataSelecionada.length === 0 ? (
                       <div className="text-sm text-text-muted">
                         Nenhuma sessão disponível nesta data.
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-3">
-                        {sessionsForSelected.map((s) => (
+                        {sessoesDataSelecionada.map((s) => (
                           <button
                             key={s.session_id}
-                            onClick={() => handleSelectSession(s.session_id)}
+                            onClick={() => selecionarSessao(s.session_id)}
                             disabled={s.available_count <= 0}
                             className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 ${
-                              selectedSession === s.session_id
+                              sessaoSelecionadaId === s.session_id
                                 ? "border-primary bg-primary/5"
                                 : "border-border-default hover:bg-bg-default"
                             }`}
@@ -468,11 +365,11 @@ export const Scheduling = () => {
               </div>
 
               <button
-                onClick={handleBook}
+                onClick={continuarAgendamento}
                 onMouseEnter={() =>
                   prefetchRoute("/app/agendamentos/confirmacao")
                 }
-                disabled={!selectedSession}
+                disabled={!sessaoSelecionadaId}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 CONTINUAR PARA CONFIRMAÇÃO
@@ -487,9 +384,9 @@ export const Scheduling = () => {
           </div>
         </div>
       </main>
-      <TicketModal
-        open={showTicketModal}
-        onClose={() => setShowTicketModal(false)}
+      <TicketDialog
+        open={dialogoTicketAberto}
+        onClose={() => setDialogoTicketAberto(false)}
       />
     </Layout>
   );

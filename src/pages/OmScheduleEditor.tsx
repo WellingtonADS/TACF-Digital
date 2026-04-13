@@ -28,7 +28,7 @@ import { toast } from "sonner";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
-const DAYS: { num: number; short: string; long: string }[] = [
+const DIAS: { num: number; short: string; long: string }[] = [
   { num: 1, short: "Seg", long: "Segunda-feira" },
   { num: 2, short: "Ter", long: "Terça-feira" },
   { num: 3, short: "Qua", long: "Quarta-feira" },
@@ -36,70 +36,70 @@ const DAYS: { num: number; short: string; long: string }[] = [
   { num: 5, short: "Sex", long: "Sexta-feira" },
 ];
 
-const PERIODS: { key: SessionPeriod; label: string }[] = [
+const TURNOS: { key: SessionPeriod; label: string }[] = [
   { key: "manha", label: "Manhã" },
   { key: "tarde", label: "Tarde" },
 ];
 
-const DEFAULT_TIMES: Record<SessionPeriod, string> = {
+const HORARIOS_PADRAO: Record<SessionPeriod, string> = {
   manha: "07:00",
   tarde: "13:00",
 };
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-type SlotKey = `${number}-${SessionPeriod}`;
+type ChaveHorario = `${number}-${SessionPeriod}`;
 
-type SlotState = {
+type EstadoHorario = {
   day_of_week: number;
   period: SessionPeriod;
   start_time: string;
   is_active: boolean;
 };
 
-type DayFilter = "all" | "active" | "inactive";
+type FiltroDia = "all" | "active" | "inactive";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function buildDefaultSlots(): Record<SlotKey, SlotState> {
-  const result = {} as Record<SlotKey, SlotState>;
-  for (const d of DAYS) {
-    for (const p of PERIODS) {
-      const key: SlotKey = `${d.num}-${p.key}`;
-      result[key] = {
-        day_of_week: d.num,
-        period: p.key,
-        start_time: DEFAULT_TIMES[p.key],
+function criarHorariosPadrao(): Record<ChaveHorario, EstadoHorario> {
+  const resultado = {} as Record<ChaveHorario, EstadoHorario>;
+  for (const dia of DIAS) {
+    for (const turno of TURNOS) {
+      const chave: ChaveHorario = `${dia.num}-${turno.key}`;
+      resultado[chave] = {
+        day_of_week: dia.num,
+        period: turno.key,
+        start_time: HORARIOS_PADRAO[turno.key],
         is_active: false,
       };
     }
   }
-  return result;
+  return resultado;
 }
 
-function mergeDbSlots(
-  defaults: Record<SlotKey, SlotState>,
+function mesclarHorariosBanco(
+  horariosPadrao: Record<ChaveHorario, EstadoHorario>,
   rows: LocationSchedule[],
-): Record<SlotKey, SlotState> {
-  const merged = { ...defaults };
+): Record<ChaveHorario, EstadoHorario> {
+  const mesclado = { ...horariosPadrao };
   for (const row of rows) {
-    const key: SlotKey = `${row.day_of_week}-${row.period}`;
-    merged[key] = {
+    const chave: ChaveHorario = `${row.day_of_week}-${row.period}`;
+    mesclado[chave] = {
       day_of_week: row.day_of_week,
       period: row.period,
       start_time: row.start_time.slice(0, 5), // "HH:MM"
       is_active: row.is_active,
     };
   }
-  return merged;
+  return mesclado;
 }
 
-function PageHero({
-  locationName,
+function HeroPagina({
+  nomeLocal,
   activeCount: _activeCount,
   onBack: _onBack,
 }: {
-  locationName: string;
+  nomeLocal: string;
   activeCount: number;
   onBack: () => void;
 }) {
@@ -114,7 +114,7 @@ function PageHero({
             </h1>
             <p className="mt-2 text-sm text-white/85 md:text-base">
               Controle operacional de turnos e janelas de atendimento para{" "}
-              <span className="font-semibold">{locationName}</span>.
+              <span className="font-semibold">{nomeLocal}</span>.
             </p>
           </div>
         </div>
@@ -123,16 +123,16 @@ function PageHero({
   );
 }
 
-function Toolbar({
-  query,
-  setQuery,
-  filter,
-  setFilter,
+function BarraFerramentas({
+  busca,
+  setBusca,
+  filtro,
+  setFiltro,
 }: {
-  query: string;
-  setQuery: (value: string) => void;
-  filter: DayFilter;
-  setFilter: (value: DayFilter) => void;
+  busca: string;
+  setBusca: (value: string) => void;
+  filtro: FiltroDia;
+  setFiltro: (value: FiltroDia) => void;
 }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
@@ -141,8 +141,8 @@ function Toolbar({
           <input
             type="text"
             placeholder="Buscar dia ou turno..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={busca}
+            onChange={(event) => setBusca(event.target.value)}
             className="w-full rounded-xl border-none bg-bg-default py-2 pl-10 pr-4 text-sm text-text-body placeholder:text-text-muted focus:ring-2 focus:ring-primary/20"
           />
           <Search
@@ -166,9 +166,9 @@ function Toolbar({
             <button
               key={value}
               type="button"
-              onClick={() => setFilter(value)}
+              onClick={() => setFiltro(value)}
               className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors md:px-3 ${
-                filter === value
+                filtro === value
                   ? "bg-primary/10 text-primary shadow-sm"
                   : "text-text-muted hover:text-text-body"
               }`}
@@ -182,16 +182,16 @@ function Toolbar({
   );
 }
 
-function SummaryCard({
-  locationName,
-  activeCount,
-  morningCount,
-  afternoonCount,
+function CardResumo({
+  nomeLocal,
+  totalAtivos,
+  totalManha,
+  totalTarde,
 }: {
-  locationName: string;
-  activeCount: number;
-  morningCount: number;
-  afternoonCount: number;
+  nomeLocal: string;
+  totalAtivos: number;
+  totalManha: number;
+  totalTarde: number;
 }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
@@ -207,7 +207,7 @@ function SummaryCard({
             <Building2 size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-base font-bold text-text-body">{locationName}</p>
+            <p className="text-base font-bold text-text-body">{nomeLocal}</p>
             <p className="mt-1 text-sm text-text-muted">
               Distribuição atual de disponibilidade por turno.
             </p>
@@ -220,7 +220,7 @@ function SummaryCard({
               Total Ativo
             </p>
             <p className="mt-1 text-lg font-bold text-text-body">
-              {activeCount}
+              {totalAtivos}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -229,7 +229,7 @@ function SummaryCard({
                 Manhã
               </p>
               <p className="mt-1 text-lg font-bold text-text-body">
-                {morningCount}
+                {totalManha}
               </p>
             </div>
             <div className="rounded-2xl border border-border-default bg-bg-default px-4 py-3">
@@ -237,7 +237,7 @@ function SummaryCard({
                 Tarde
               </p>
               <p className="mt-1 text-lg font-bold text-text-body">
-                {afternoonCount}
+                {totalTarde}
               </p>
             </div>
           </div>
@@ -247,7 +247,7 @@ function SummaryCard({
   );
 }
 
-function GuidanceCard() {
+function CardOrientacoes() {
   return (
     <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
       <div className="border-b border-border-default px-5 py-4">
@@ -279,14 +279,14 @@ function GuidanceCard() {
 export default function OmScheduleEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { locations, fetch, loading: loadingLocation } = useLocations();
+  const { locations, fetch, loading: carregandoLocal } = useLocations();
 
-  const [slots, setSlots] =
-    useState<Record<SlotKey, SlotState>>(buildDefaultSlots);
-  const [loadingSchedules, setLoadingSchedules] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<DayFilter>("all");
+  const [horarios, setHorarios] =
+    useState<Record<ChaveHorario, EstadoHorario>>(criarHorariosPadrao);
+  const [carregandoHorarios, setCarregandoHorarios] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<FiltroDia>("all");
 
   // Carrega dados da OM
   useEffect(() => {
@@ -296,37 +296,42 @@ export default function OmScheduleEditor() {
   // Carrega horários existentes do banco
   useEffect(() => {
     if (!id) return;
-    setLoadingSchedules(true);
+    setCarregandoHorarios(true);
     fetchLocationSchedules(id)
       .then((data) => {
-        setSlots((prev) => mergeDbSlots(prev, data as LocationSchedule[]));
+        setHorarios((estadoAtual) =>
+          mesclarHorariosBanco(estadoAtual, data as LocationSchedule[]),
+        );
       })
       .catch((error) => {
         toast.error("Erro ao carregar horários.");
         console.error(error);
       })
       .finally(() => {
-        setLoadingSchedules(false);
+        setCarregandoHorarios(false);
       });
   }, [id]);
 
-  const location = locations.find((l) => l.id === id);
-  const isLoading = loadingLocation || loadingSchedules;
+  const local = locations.find((item) => item.id === id);
+  const carregandoPagina = carregandoLocal || carregandoHorarios;
 
-  function updateSlot(key: SlotKey, patch: Partial<SlotState>) {
-    setSlots((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  function atualizarHorario(chave: ChaveHorario, patch: Partial<EstadoHorario>) {
+    setHorarios((estadoAtual) => ({
+      ...estadoAtual,
+      [chave]: { ...estadoAtual[chave], ...patch },
+    }));
   }
 
-  async function handleSave() {
+  async function salvarHorarios() {
     if (!id) return;
-    setSaving(true);
+    setSalvando(true);
     try {
-      const rows = Object.values(slots).map((s) => ({
+      const rows = Object.values(horarios).map((horario) => ({
         location_id: id,
-        day_of_week: s.day_of_week,
-        period: s.period,
-        start_time: s.start_time,
-        is_active: s.is_active,
+        day_of_week: horario.day_of_week,
+        period: horario.period,
+        start_time: horario.start_time,
+        is_active: horario.is_active,
       }));
 
       await upsertLocationSchedules(rows);
@@ -335,58 +340,60 @@ export default function OmScheduleEditor() {
       console.error(err);
       toast.error("Erro ao salvar horários.");
     } finally {
-      setSaving(false);
+      setSalvando(false);
     }
   }
 
-  const activeCount = useMemo(
-    () => Object.values(slots).filter((s) => s.is_active).length,
-    [slots],
+  const totalAtivos = useMemo(
+    () => Object.values(horarios).filter((horario) => horario.is_active).length,
+    [horarios],
   );
 
-  const morningCount = useMemo(
+  const totalManha = useMemo(
     () =>
-      Object.values(slots).filter((s) => s.period === "manha" && s.is_active)
-        .length,
-    [slots],
+      Object.values(horarios).filter(
+        (horario) => horario.period === "manha" && horario.is_active,
+      ).length,
+    [horarios],
   );
 
-  const afternoonCount = useMemo(
+  const totalTarde = useMemo(
     () =>
-      Object.values(slots).filter((s) => s.period === "tarde" && s.is_active)
-        .length,
-    [slots],
+      Object.values(horarios).filter(
+        (horario) => horario.period === "tarde" && horario.is_active,
+      ).length,
+    [horarios],
   );
 
-  const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+  const buscaNormalizada = busca.trim().toLocaleLowerCase("pt-BR");
 
-  const filteredDays = useMemo(() => {
-    return DAYS.filter((day) => {
-      const daySlots = PERIODS.map(
-        (period) => slots[`${day.num}-${period.key}`],
+  const diasFiltrados = useMemo(() => {
+    return DIAS.filter((dia) => {
+      const horariosDia = TURNOS.map(
+        (turno) => horarios[`${dia.num}-${turno.key}`],
       );
-      const hasActiveSlot = daySlots.some((slot) => slot.is_active);
+      const possuiHorarioAtivo = horariosDia.some((horario) => horario.is_active);
 
-      const matchesFilter =
-        filter === "all"
+      const correspondeFiltro =
+        filtro === "all"
           ? true
-          : filter === "active"
-            ? hasActiveSlot
-            : !hasActiveSlot;
+          : filtro === "active"
+            ? possuiHorarioAtivo
+            : !possuiHorarioAtivo;
 
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        day.long.toLocaleLowerCase("pt-BR").includes(normalizedQuery) ||
-        day.short.toLocaleLowerCase("pt-BR").includes(normalizedQuery) ||
-        PERIODS.some((period) =>
-          period.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery),
+      const correspondeBusca =
+        buscaNormalizada.length === 0 ||
+        dia.long.toLocaleLowerCase("pt-BR").includes(buscaNormalizada) ||
+        dia.short.toLocaleLowerCase("pt-BR").includes(buscaNormalizada) ||
+        TURNOS.some((turno) =>
+          turno.label.toLocaleLowerCase("pt-BR").includes(buscaNormalizada),
         );
 
-      return matchesFilter && matchesQuery;
+      return correspondeFiltro && correspondeBusca;
     });
-  }, [filter, normalizedQuery, slots]);
+  }, [filtro, buscaNormalizada, horarios]);
 
-  if (isLoading) {
+  if (carregandoPagina) {
     return (
       <FullPageLoading
         message="Carregando horários"
@@ -398,17 +405,17 @@ export default function OmScheduleEditor() {
   return (
     <Layout>
       <div className="mx-auto w-full max-w-6xl pb-16">
-        <PageHero
-          locationName={location?.name ?? "OM não encontrada"}
-          activeCount={activeCount}
+        <HeroPagina
+          nomeLocal={local?.name ?? "OM não encontrada"}
+          activeCount={totalAtivos}
           onBack={() => navigate("/app/om-locations")}
         />
 
-        <Toolbar
-          query={query}
-          setQuery={setQuery}
-          filter={filter}
-          setFilter={setFilter}
+        <BarraFerramentas
+          busca={busca}
+          setBusca={setBusca}
+          filtro={filtro}
+          setFiltro={setFiltro}
         />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
@@ -435,7 +442,7 @@ export default function OmScheduleEditor() {
             <div className="p-6 md:p-8">
               <div className="mb-3 grid grid-cols-3 gap-4">
                 <div />
-                {PERIODS.map((period) => (
+                {TURNOS.map((period) => (
                   <div
                     key={period.key}
                     className="flex items-center justify-center gap-2 rounded-xl bg-bg-default py-3 text-xs font-bold uppercase tracking-widest text-text-muted"
@@ -450,7 +457,7 @@ export default function OmScheduleEditor() {
                 ))}
               </div>
 
-              {filteredDays.length === 0 ? (
+              {diasFiltrados.length === 0 ? (
                 <div className="rounded-2xl border border-border-default bg-bg-default px-6 py-10 text-center">
                   <p className="text-sm font-semibold text-text-body">
                     Nenhum horário encontrado para os filtros atuais.
@@ -462,7 +469,7 @@ export default function OmScheduleEditor() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredDays.map((day) => (
+                  {diasFiltrados.map((day) => (
                     <div
                       key={day.num}
                       className="grid grid-cols-3 items-center gap-4"
@@ -472,9 +479,9 @@ export default function OmScheduleEditor() {
                         <span className="block md:hidden">{day.short}</span>
                       </div>
 
-                      {PERIODS.map((period) => {
-                        const key: SlotKey = `${day.num}-${period.key}`;
-                        const slot = slots[key];
+                      {TURNOS.map((period) => {
+                        const key: ChaveHorario = `${day.num}-${period.key}`;
+                        const slot = horarios[key];
 
                         return (
                           <div
@@ -497,7 +504,7 @@ export default function OmScheduleEditor() {
                                   className="peer sr-only"
                                   checked={slot.is_active}
                                   onChange={(event) =>
-                                    updateSlot(key, {
+                                    atualizarHorario(key, {
                                       is_active: event.target.checked,
                                     })
                                   }
@@ -517,7 +524,7 @@ export default function OmScheduleEditor() {
                                   type="time"
                                   value={slot.start_time}
                                   onChange={(event) =>
-                                    updateSlot(key, {
+                                    atualizarHorario(key, {
                                       start_time: event.target.value,
                                     })
                                   }
@@ -544,30 +551,30 @@ export default function OmScheduleEditor() {
               </button>
               <button
                 type="button"
-                onClick={handleSave}
-                disabled={saving}
+                onClick={salvarHorarios}
+                disabled={salvando}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
               >
-                {saving ? (
+                {salvando ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Save size={16} />
                 )}
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  {saving ? "Salvando…" : "Salvar Horários"}
+                  {salvando ? "Salvando…" : "Salvar Horários"}
                 </span>
               </button>
             </div>
           </div>
 
           <div className="space-y-6">
-            <SummaryCard
-              locationName={location?.name ?? "OM não encontrada"}
-              activeCount={activeCount}
-              morningCount={morningCount}
-              afternoonCount={afternoonCount}
+            <CardResumo
+              nomeLocal={local?.name ?? "OM não encontrada"}
+              totalAtivos={totalAtivos}
+              totalManha={totalManha}
+              totalTarde={totalTarde}
             />
-            <GuidanceCard />
+            <CardOrientacoes />
           </div>
         </div>
       </div>

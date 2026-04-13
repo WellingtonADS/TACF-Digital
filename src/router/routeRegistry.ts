@@ -1,7 +1,6 @@
 import type { AppRouteMeta, ProfileRole } from "@/types";
 import { isAdminLike } from "./routeAccess";
 
-// Initial route metadata registry to progressively replace hardcoded route lists.
 export const appRouteRegistry: AppRouteMeta[] = [
   {
     path: "/app",

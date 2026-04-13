@@ -25,6 +25,12 @@ export const translateBookingError = (err?: string | null) => {
     "session date unknown": "Data da sessão desconhecida.",
     "duplicate booking": "Agendamento duplicado.",
     "booking semester missing": "Semestre do agendamento ausente.",
+    "weekend sessions are not allowed":
+      "Sábados e domingos não estão disponíveis para agendamento.",
+    "cannot book weekend session":
+      "Sábados e domingos não estão disponíveis para agendamento.",
+    "military booking requires at least 2 days of lead time":
+      "O militar só pode agendar com antecedência mínima de 2 dias.",
   };
 
   for (const [k, v] of Object.entries(map)) {

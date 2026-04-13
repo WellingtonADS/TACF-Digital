@@ -29,8 +29,8 @@ import { ptBR } from "date-fns/locale";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-type ViewMode = "table" | "cards";
-type StatusFilter = "all" | "open" | "closed" | "concluded";
+type ModoVisualizacao = "table" | "cards";
+type FiltroStatus = "all" | "open" | "closed" | "concluded";
 
 // Datas fixas para cobrir histórico e futuro no painel admin
 const ADMIN_START = new Date();
@@ -43,69 +43,82 @@ const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 export const SessionsManagement = () => {
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
-  const { sessions, loading, error, refresh } = useSessions(
+  const {
+    sessions: sessoes,
+    loading: carregandoSessoes,
+    error: erroSessoes,
+    refresh: recarregarSessoes,
+  } = useSessions(
     ADMIN_START_STR,
     ADMIN_END_STR,
   );
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const isCompactViewport = isMobile || isTablet;
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    isCompactViewport ? "cards" : "table",
-  );
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const pageSize = 10;
-  const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
+  const [termoBusca, setTermoBusca] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const viewportCompacto = isMobile || isTablet;
+  const [modoVisualizacao, setModoVisualizacao] =
+    useState<ModoVisualizacao>(() =>
+      viewportCompacto ? "cards" : "table",
+    );
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("all");
+  const itensPorPagina = 10;
+  const modoVisualizacaoAtivo: ModoVisualizacao = viewportCompacto
+    ? "cards"
+    : modoVisualizacao;
 
   // timestamp do início do dia atual — primitivo estável como dep
-  const todayTs = useMemo(() => startOfDay(new Date()).getTime(), []);
+  const inicioHojeTs = useMemo(() => startOfDay(new Date()).getTime(), []);
 
-  const getSessionStatus = useCallback(
+  const obterStatusSessao = useCallback(
     (session: SessionAvailability): "open" | "closed" | "concluded" => {
       const sessionDate = startOfDay(parseISO(session.date)).getTime();
-      if (sessionDate <= todayTs) return "concluded";
+      if (sessionDate <= inicioHojeTs) return "concluded";
       return (session.available_count ?? 0) > 0 ? "open" : "closed";
     },
-    [todayTs],
+    [inicioHojeTs],
   );
 
-  const filteredSessions = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return sessions.filter((session) => {
+  const sessoesFiltradas = useMemo(() => {
+    const termoNormalizado = termoBusca.trim().toLowerCase();
+    return sessoes.filter((session) => {
       const dateLabel = format(
         parseISO(session.date),
         "dd MMM yyyy",
       ).toLowerCase();
       const matchSearch =
-        !term ||
-        session.session_id.toLowerCase().includes(term) ||
-        session.period.toLowerCase().includes(term) ||
-        formatSessionPeriod(session.period).toLowerCase().includes(term) ||
-        dateLabel.includes(term);
-      const status = getSessionStatus(session);
-      const matchStatus = statusFilter === "all" || status === statusFilter;
+        !termoNormalizado ||
+        session.session_id.toLowerCase().includes(termoNormalizado) ||
+        session.period.toLowerCase().includes(termoNormalizado) ||
+        formatSessionPeriod(session.period)
+          .toLowerCase()
+          .includes(termoNormalizado) ||
+        dateLabel.includes(termoNormalizado);
+      const status = obterStatusSessao(session);
+      const matchStatus = filtroStatus === "all" || status === filtroStatus;
       return matchSearch && matchStatus;
     });
-  }, [sessions, searchTerm, statusFilter, getSessionStatus]);
+  }, [sessoes, termoBusca, filtroStatus, obterStatusSessao]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
-  const paginatedSessions = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredSessions.slice(start, start + pageSize);
-  }, [filteredSessions, page, pageSize]);
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(sessoesFiltradas.length / itensPorPagina),
+  );
+  const sessoesPaginadas = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    return sessoesFiltradas.slice(inicio, inicio + itensPorPagina);
+  }, [sessoesFiltradas, paginaAtual, itensPorPagina]);
 
-  const openCount = sessions.filter(
-    (s) => getSessionStatus(s) === "open",
+  const totalAbertas = sessoes.filter(
+    (s) => obterStatusSessao(s) === "open",
   ).length;
-  const closedCount = sessions.filter(
-    (s) => getSessionStatus(s) === "closed",
+  const totalFechadas = sessoes.filter(
+    (s) => obterStatusSessao(s) === "closed",
   ).length;
-  const concludedCount = sessions.filter(
-    (s) => getSessionStatus(s) === "concluded",
+  const totalConcluidas = sessoes.filter(
+    (s) => obterStatusSessao(s) === "concluded",
   ).length;
 
-  if (loading) {
+  if (carregandoSessoes) {
     return (
       <FullPageLoading
         message="Carregando turmas"
@@ -114,7 +127,7 @@ export const SessionsManagement = () => {
     );
   }
 
-  const renderOccupancyBar = (session: SessionAvailability) => {
+  const renderizarBarraOcupacao = (session: SessionAvailability) => {
     const occupied = session.occupied_count;
     const max = session.max_capacity;
     const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -156,7 +169,7 @@ export const SessionsManagement = () => {
         className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6"
         data-testid="sessions-management-page"
       >
-        {/* hero */}
+        {/* Cabeçalho principal */}
         <section>
           <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
@@ -177,12 +190,12 @@ export const SessionsManagement = () => {
           </div>
         </section>
 
-        {/* summary stats */}
+        {/* Resumo de indicadores */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total" value={sessions.length} icon={Calendar} />
+          <StatCard title="Total" value={sessoes.length} icon={Calendar} />
           <StatCard
             title="Abertas"
-            value={openCount}
+            value={totalAbertas}
             icon={Calendar}
             className="border-b-4 border-primary/30"
             iconBg="bg-primary/10"
@@ -190,7 +203,7 @@ export const SessionsManagement = () => {
           />
           <StatCard
             title="Canceladas"
-            value={closedCount}
+            value={totalFechadas}
             icon={Calendar}
             className="border-b-4 border-error/30"
             iconBg="bg-error/10"
@@ -198,7 +211,7 @@ export const SessionsManagement = () => {
           />
           <StatCard
             title="Concluídas"
-            value={concludedCount}
+            value={totalConcluidas}
             icon={Calendar}
             className="border-b-4 border-success/30"
             iconBg="bg-success/10"
@@ -206,19 +219,19 @@ export const SessionsManagement = () => {
           />
         </div>
 
-        {/* toolbar */}
+        {/* Barra de ferramentas */}
         <div className="bg-bg-card rounded-2xl shadow-sm border border-border-default overflow-hidden">
           <div className="p-3 md:p-5 border-b border-border-default flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-            {/* search */}
+            {/* Busca */}
             <div className="relative w-full sm:flex-1 sm:min-w-0">
               <input
                 className="pl-10 pr-4 py-2 bg-bg-default border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
                 placeholder="Buscar turma, data ou turno..."
                 type="text"
-                value={searchTerm}
+                value={termoBusca}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
+                  setTermoBusca(e.target.value);
+                  setPaginaAtual(1);
                 }}
               />
               <AppIcon
@@ -230,18 +243,18 @@ export const SessionsManagement = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-              {/* status filter */}
+              {/* Filtro de status */}
               <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
                 {(["all", "open", "closed", "concluded"] as const).map((f) => (
                   <button
                     key={f}
                     type="button"
                     onClick={() => {
-                      setStatusFilter(f);
-                      setPage(1);
+                      setFiltroStatus(f);
+                      setPaginaAtual(1);
                     }}
                     className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                      statusFilter === f
+                      filtroStatus === f
                         ? "bg-primary/10 text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -257,15 +270,15 @@ export const SessionsManagement = () => {
                 ))}
               </div>
 
-              {/* view toggle */}
-              {!isCompactViewport && (
+              {/* Alternância de visualização */}
+              {!viewportCompacto && (
                 <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1">
                   <button
                     type="button"
-                    onClick={() => setViewMode("table")}
+                    onClick={() => setModoVisualizacao("table")}
                     aria-label="Modo tabela"
                     className={`p-1.5 rounded-lg transition-colors ${
-                      viewMode === "table"
+                      modoVisualizacao === "table"
                         ? "bg-bg-card text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -274,10 +287,10 @@ export const SessionsManagement = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode("cards")}
+                    onClick={() => setModoVisualizacao("cards")}
                     aria-label="Modo cards"
                     className={`p-1.5 rounded-lg transition-colors ${
-                      viewMode === "cards"
+                      modoVisualizacao === "cards"
                         ? "bg-bg-card text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -298,19 +311,19 @@ export const SessionsManagement = () => {
             </div>
           </div>
         </div>
-        {/* content */}
-        {error ? (
+        {/* Conteúdo */}
+        {erroSessoes ? (
           <div className="p-5 md:p-10 text-center text-sm text-error">
-            {error}
+                {erroSessoes}
             <button
               type="button"
               className="ml-3 text-primary font-semibold hover:underline"
-              onClick={refresh}
+                  onClick={recarregarSessoes}
             >
               Tentar novamente
             </button>
           </div>
-        ) : paginatedSessions.length === 0 ? (
+        ) : sessoesPaginadas.length === 0 ? (
           <div className="p-16 text-center">
             <AppIcon
               icon={Calendar}
@@ -320,7 +333,7 @@ export const SessionsManagement = () => {
             />
             <p className="text-sm text-text-muted">Nenhuma turma encontrada.</p>
           </div>
-        ) : activeViewMode === "table" ? (
+        ) : modoVisualizacaoAtivo === "table" ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left">
               <thead className="bg-bg-default">
@@ -346,8 +359,8 @@ export const SessionsManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-default">
-                {paginatedSessions.map((s) => {
-                  const status = getSessionStatus(s);
+                {sessoesPaginadas.map((s) => {
+                  const status = obterStatusSessao(s);
                   const isOpen = status === "open";
                   const isConcluded = status === "concluded";
                   return (
@@ -375,7 +388,7 @@ export const SessionsManagement = () => {
                           {formatSessionPeriod(s.period)}
                         </span>
                       </td>
-                      <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
+                      <td className="px-6 py-5">{renderizarBarraOcupacao(s)}</td>
                       <td className="px-6 py-5">
                         <span
                           className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
@@ -460,10 +473,10 @@ export const SessionsManagement = () => {
             </table>
           </div>
         ) : (
-          /* cards view */
+          /* Visualização em cards */
           <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {paginatedSessions.map((s) => {
-              const status = getSessionStatus(s);
+            {sessoesPaginadas.map((s) => {
+              const status = obterStatusSessao(s);
               const isOpen = status === "open";
               const isConcluded = status === "concluded";
               const occupied = s.occupied_count;
@@ -579,19 +592,19 @@ export const SessionsManagement = () => {
           </div>
         )}
 
-        {/* pagination */}
-        {!loading && !error && filteredSessions.length > pageSize && (
+        {/* Paginação */}
+        {!carregandoSessoes && !erroSessoes && sessoesFiltradas.length > itensPorPagina && (
           <div className="px-6 py-4 bg-bg-default border-t border-border-default flex justify-between items-center text-sm">
             <p className="text-text-muted text-xs">
-              {paginatedSessions.length} de {filteredSessions.length} turmas
+              {sessoesPaginadas.length} de {sessoesFiltradas.length} turmas
             </p>
             <div className="flex gap-1">
               <button
                 type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((c) => Math.max(1, c - 1))}
+                disabled={paginaAtual <= 1}
+                onClick={() => setPaginaAtual((c) => Math.max(1, c - 1))}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  page <= 1
+                  paginaAtual <= 1
                     ? "bg-bg-default text-text-muted opacity-60 border-border-default"
                     : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}
@@ -599,13 +612,13 @@ export const SessionsManagement = () => {
               >
                 <AppIcon icon={ChevronLeft} size="sm" decorative />
               </button>
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map((v) => (
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((v) => (
                 <button
                   key={v}
                   type="button"
-                  onClick={() => setPage(v)}
+                  onClick={() => setPaginaAtual(v)}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
-                    v === page
+                    v === paginaAtual
                       ? "bg-primary text-white border-primary"
                       : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                   }`}
@@ -615,10 +628,12 @@ export const SessionsManagement = () => {
               ))}
               <button
                 type="button"
-                disabled={page >= pageCount}
-                onClick={() => setPage((c) => Math.min(pageCount, c + 1))}
+                disabled={paginaAtual >= totalPaginas}
+                onClick={() =>
+                  setPaginaAtual((c) => Math.min(totalPaginas, c + 1))
+                }
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  page >= pageCount
+                  paginaAtual >= totalPaginas
                     ? "bg-bg-default text-text-muted opacity-60 border-border-default"
                     : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}

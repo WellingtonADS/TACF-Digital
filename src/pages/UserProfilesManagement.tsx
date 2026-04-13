@@ -1,6 +1,6 @@
 /**
  * @page UserProfilesManagement
- * @description Gestão de perfis de usuário e papéis/roles.
+ * @description Gestão de perfis de usuário e papéis.
  * @path src/pages/UserProfilesManagement.tsx
  */
 
@@ -8,7 +8,7 @@ import PasswordInput from "@/components/atomic/PasswordInput";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
-import { getProfileById } from "@/hooks/usePersonnel";
+import { getProfileById } from "@/services/personnel";
 import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import type { Profile } from "@/types";
 import { formatDateShortPtBr, formatDateTimePtBr } from "@/utils/date";
@@ -33,7 +33,7 @@ function formatPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-type UserProfileView = Profile & {
+type PerfilUsuarioView = Profile & {
   inspsau_valid_until?: string | null;
   inspsau_last_inspection?: string | null;
   birth_date?: string | null;
@@ -41,69 +41,75 @@ type UserProfileView = Profile & {
 };
 
 export default function UserProfilesManagement() {
-  const { user, profile: authProfile, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<UserProfileView | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
+  const {
+    user,
+    profile: perfilAutenticado,
+    loading: autenticacaoCarregando,
+  } = useAuth();
+  const [perfil, setPerfil] = useState<PerfilUsuarioView | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [mostrarAlterarSenha, setMostrarAlterarSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
-    // prefer profile already loaded by useAuth to avoid duplicate fetches
-    if (authProfile) {
-      setProfile(authProfile);
+    if (autenticacaoCarregando) return;
+    // Prefere o perfil já carregado por `useAuth` para evitar nova busca.
+    if (perfilAutenticado) {
+      setPerfil(perfilAutenticado);
       return;
     }
-    loadProfile();
+    carregarPerfil();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id, authProfile]);
+  }, [autenticacaoCarregando, user?.id, perfilAutenticado]);
 
-  async function loadProfile() {
+  async function carregarPerfil() {
     if (!user?.id) {
-      setProfile(null);
+      setPerfil(null);
       return;
     }
 
-    setLoading(true);
+    setCarregando(true);
     try {
-      const data = (await getProfileById(user.id)) as UserProfileView | null;
-      setProfile(data ?? null);
+      const data = (await getProfileById(user.id)) as PerfilUsuarioView | null;
+      setPerfil(data ?? null);
     } catch (err) {
       console.error(err);
-      setProfile(null);
+      setPerfil(null);
       toast.error("Não foi possível carregar seu perfil.");
     } finally {
-      setLoading(false);
+      setCarregando(false);
     }
   }
 
-  function handleChange<K extends keyof UserProfileView>(
-    key: K,
-    value: UserProfileView[K],
+  function atualizarCampo<K extends keyof PerfilUsuarioView>(
+    campo: K,
+    valor: PerfilUsuarioView[K],
   ) {
-    setProfile((p) => (p ? { ...p, [key]: value } : p));
+    setPerfil((estadoAtual) =>
+      estadoAtual ? { ...estadoAtual, [campo]: valor } : estadoAtual,
+    );
   }
 
-  async function handleSave(e?: FormEvent) {
+  async function salvarPerfil(e?: FormEvent) {
     if (e) e.preventDefault();
-    if (!profile) return;
+    if (!perfil) return;
     if (!user?.id) {
       toast.error("Usuário não autenticado.");
       return;
     }
 
     // validações obrigatórias para conclusão do cadastro militar
-    const nomeGuerra = profile.war_name?.trim() ?? "";
-    const saram = onlyDigits(profile.saram ?? "");
-    const rank = profile.rank?.trim() ?? "";
-    const setor = profile.sector?.trim() ?? "";
-    const email = profile.email?.trim().toLowerCase() ?? "";
-    const phone = formatPhone(profile.phone_number ?? "");
+    const nomeGuerra = perfil.war_name?.trim() ?? "";
+    const saram = onlyDigits(perfil.saram ?? "");
+    const rank = perfil.rank?.trim() ?? "";
+    const setor = perfil.sector?.trim() ?? "";
+    const email = perfil.email?.trim().toLowerCase() ?? "";
+    const phone = formatPhone(perfil.phone_number ?? "");
 
-    if (!profile.full_name || !email) {
+    if (!perfil.full_name || !email) {
       toast.error("Preencha nome e e-mail antes de salvar.");
       return;
     }
@@ -125,11 +131,11 @@ export default function UserProfilesManagement() {
       return;
     }
 
-    setSaving(true);
+    setSalvando(true);
     try {
       const { data, error } = await upsertProfile({
         id: user.id,
-        full_name: profile.full_name?.trim(),
+        full_name: perfil.full_name?.trim(),
         email,
         rank,
         saram,
@@ -143,68 +149,68 @@ export default function UserProfilesManagement() {
       } else {
         toast.success("Alterações salvas com sucesso.");
         const saved = (Array.isArray(data) ? data[0] : data) as
-          | UserProfileView
+          | PerfilUsuarioView
           | null
           | undefined;
-        setProfile(saved ?? profile);
+        setPerfil(saved ?? perfil);
       }
     } catch (err: unknown) {
       console.error(err);
       toast.error("Erro ao salvar o perfil.");
     } finally {
-      setSaving(false);
+      setSalvando(false);
     }
   }
 
-  async function handleChangePassword(e?: FormEvent) {
+  async function alterarSenha(e?: FormEvent) {
     if (e) e.preventDefault();
     if (!user) {
       toast.error("Usuário não autenticado.");
       return;
     }
 
-    if (!newPassword) {
+    if (!novaSenha) {
       toast.error("Informe a nova senha.");
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (novaSenha.length < 8) {
       toast.error("Senha deve ter ao menos 8 caracteres.");
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (novaSenha !== confirmacaoSenha) {
       toast.error("Senhas não conferem.");
       return;
     }
 
-    setChangingPassword(true);
+    setAlterandoSenha(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+        password: novaSenha,
       });
       if (error) {
         toast.error(getAuthErrorMessage(error, "Erro ao alterar senha."));
       } else {
         toast.success("Senha alterada com sucesso.");
-        setShowChangePassword(false);
-        setNewPassword("");
-        setConfirmPassword("");
+        setMostrarAlterarSenha(false);
+        setNovaSenha("");
+        setConfirmacaoSenha("");
       }
     } catch (err) {
       console.error(err);
       toast.error(getAuthErrorMessage(err, "Erro ao alterar senha."));
     } finally {
-      setChangingPassword(false);
+      setAlterandoSenha(false);
     }
   }
 
-  const lastAccess = user?.last_sign_in_at
+  const ultimoAcesso = user?.last_sign_in_at
     ? formatDateTimePtBr(user.last_sign_in_at)
     : "--";
 
-  // avoid flicker: if we already have a profile to show, render it
-  if ((authLoading || loading) && !profile) {
+  // Evita cintilação: se já existe perfil em memória, renderiza direto.
+  if ((autenticacaoCarregando || carregando) && !perfil) {
     return <FullPageLoading message="Carregando perfil" />;
   }
 
@@ -221,17 +227,17 @@ export default function UserProfilesManagement() {
         </header>
 
         <div className="w-full text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default mb-6">
-          Último acesso: {lastAccess}
+          Último acesso: {ultimoAcesso}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left column: profile summary */}
+          {/* Coluna esquerda: resumo do perfil */}
           <div className="lg:w-72 flex-shrink-0">
             <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default p-4 md:p-8 flex flex-col items-center text-center">
               {/* Avatar */}
               <div className="w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20 flex items-center justify-center mb-4">
                 <span className="text-xl md:text-3xl font-black text-primary tracking-tight">
-                  {(profile?.war_name ?? profile?.full_name ?? "?")
+                  {(perfil?.war_name ?? perfil?.full_name ?? "?")
                     .split(" ")
                     .slice(0, 2)
                     .map((n) => n[0])
@@ -239,19 +245,19 @@ export default function UserProfilesManagement() {
                 </span>
               </div>
               <h3 className="text-lg font-black text-primary uppercase tracking-tight">
-                {profile?.war_name ?? profile?.full_name ?? "--"}
+                {perfil?.war_name ?? perfil?.full_name ?? "--"}
               </h3>
               <p className="text-sm text-text-muted font-medium">
-                {profile?.rank ?? "--"}
+                {perfil?.rank ?? "--"}
               </p>
 
-              {/* Status chip */}
+              {/* Indicador de status */}
               <div className="mt-5 w-full">
                 <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
                   Status de Aptidão
                 </p>
-                {profile?.inspsau_valid_until ? (
-                  isAfter(parseISO(profile.inspsau_valid_until), new Date()) ? (
+                {perfil?.inspsau_valid_until ? (
+                  isAfter(parseISO(perfil.inspsau_valid_until), new Date()) ? (
                     <div className="flex items-center justify-center gap-2 rounded-2xl border border-success/20 bg-success/10 px-4 py-3">
                       <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
                       <span className="text-xs font-bold uppercase tracking-wide text-success">
@@ -275,17 +281,17 @@ export default function UserProfilesManagement() {
                 )}
               </div>
 
-              {/* Age & group */}
+              {/* Idade e grupo */}
               <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-border-default">
                 <div className="text-center">
                   <p className="text-[10px] font-bold text-text-muted uppercase">
                     Idade
                   </p>
                   <p className="font-bold text-text-body text-lg">
-                    {profile?.birth_date
+                    {perfil?.birth_date
                       ? differenceInYears(
                           new Date(),
-                          parseISO(profile.birth_date),
+                          parseISO(perfil.birth_date),
                         )
                       : "--"}
                   </p>
@@ -295,17 +301,17 @@ export default function UserProfilesManagement() {
                     Grupo
                   </p>
                   <p className="font-bold text-text-body text-lg">
-                    {profile?.physical_group ?? "--"}
+                    {perfil?.physical_group ?? "--"}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right column: form */}
+          {/* Coluna direita: formulário */}
           <div className="flex-1">
             <div className="bg-bg-card rounded-3xl shadow-2xl border border-border-default/50 p-4 md:p-8 lg:p-10">
-              <form className="space-y-10" onSubmit={handleSave}>
+              <form className="space-y-10" onSubmit={salvarPerfil}>
                 <p className="text-xs text-text-muted">
                   Campos com <span className="font-bold">*</span> são
                   obrigatórios para concluir o cadastro.
@@ -324,9 +330,9 @@ export default function UserProfilesManagement() {
                         Nome Completo *
                       </label>
                       <input
-                        value={profile?.full_name ?? ""}
+                        value={perfil?.full_name ?? ""}
                         onChange={(e) =>
-                          handleChange("full_name", e.target.value)
+                          atualizarCampo("full_name", e.target.value)
                         }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
@@ -340,8 +346,10 @@ export default function UserProfilesManagement() {
                         E-mail Institucional *
                       </label>
                       <input
-                        value={profile?.email ?? ""}
-                        onChange={(e) => handleChange("email", e.target.value)}
+                        value={perfil?.email ?? ""}
+                        onChange={(e) =>
+                          atualizarCampo("email", e.target.value)
+                        }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="email"
                         placeholder="Ex.: joao.silva@fab.mil.br"
@@ -353,9 +361,9 @@ export default function UserProfilesManagement() {
                         Telefone / WhatsApp
                       </label>
                       <input
-                        value={profile?.phone_number ?? ""}
+                        value={perfil?.phone_number ?? ""}
                         onChange={(e) =>
-                          handleChange(
+                          atualizarCampo(
                             "phone_number",
                             formatPhone(e.target.value),
                           )
@@ -382,9 +390,9 @@ export default function UserProfilesManagement() {
                         Nome de Guerra *
                       </label>
                       <input
-                        value={profile?.war_name ?? ""}
+                        value={perfil?.war_name ?? ""}
                         onChange={(e) =>
-                          handleChange("war_name", e.target.value)
+                          atualizarCampo("war_name", e.target.value)
                         }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
@@ -397,9 +405,9 @@ export default function UserProfilesManagement() {
                         SARAM *
                       </label>
                       <input
-                        value={profile?.saram ?? ""}
+                        value={perfil?.saram ?? ""}
                         onChange={(e) =>
-                          handleChange(
+                          atualizarCampo(
                             "saram",
                             onlyDigits(e.target.value).slice(0, 7),
                           )
@@ -418,8 +426,10 @@ export default function UserProfilesManagement() {
                         Posto/Graduação *
                       </label>
                       <select
-                        value={profile?.rank ?? ""}
-                        onChange={(e) => handleChange("rank", e.target.value)}
+                        value={perfil?.rank ?? ""}
+                        onChange={(e) =>
+                          atualizarCampo("rank", e.target.value)
+                        }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         required
                         title="Posto/Graduação"
@@ -446,8 +456,10 @@ export default function UserProfilesManagement() {
                         OM / Setor *
                       </label>
                       <input
-                        value={profile?.sector ?? ""}
-                        onChange={(e) => handleChange("sector", e.target.value)}
+                        value={perfil?.sector ?? ""}
+                        onChange={(e) =>
+                          atualizarCampo("sector", e.target.value)
+                        }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: 2º/10º GAV"
@@ -477,9 +489,9 @@ export default function UserProfilesManagement() {
                           Última Inspeção
                         </p>
                         <p className="font-semibold text-text-body">
-                          {profile?.inspsau_last_inspection
+                          {perfil?.inspsau_last_inspection
                             ? formatDateShortPtBr(
-                                profile.inspsau_last_inspection,
+                                perfil.inspsau_last_inspection,
                               )
                             : "--"}
                         </p>
@@ -494,8 +506,8 @@ export default function UserProfilesManagement() {
                           Validade da INSPSAU
                         </p>
                         <p className="font-semibold text-text-body">
-                          {profile?.inspsau_valid_until
-                            ? formatDateShortPtBr(profile.inspsau_valid_until)
+                          {perfil?.inspsau_valid_until
+                            ? formatDateShortPtBr(perfil.inspsau_valid_until)
                             : "--"}
                         </p>
                       </div>
@@ -518,10 +530,10 @@ export default function UserProfilesManagement() {
                         </p>
                       </div>
                     </div>
-                    {!showChangePassword ? (
+                    {!mostrarAlterarSenha ? (
                       <button
                         type="button"
-                        onClick={() => setShowChangePassword(true)}
+                        onClick={() => setMostrarAlterarSenha(true)}
                         className="w-full md:w-auto px-6 py-2 border border-border-default rounded-lg text-sm font-bold text-primary hover:bg-bg-card transition-colors uppercase tracking-widest"
                       >
                         Alterar Senha
@@ -529,7 +541,7 @@ export default function UserProfilesManagement() {
                     ) : (
                       <div className="w-full md:w-auto mt-4 bg-bg-card p-4 rounded-2xl border border-border-default">
                         <form
-                          onSubmit={handleChangePassword}
+                          onSubmit={alterarSenha}
                           className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
                         >
                           <div className="flex flex-col">
@@ -537,8 +549,8 @@ export default function UserProfilesManagement() {
                               Nova senha
                             </label>
                             <PasswordInput
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
+                              value={novaSenha}
+                              onChange={(e) => setNovaSenha(e.target.value)}
                             />
                           </div>
 
@@ -547,9 +559,9 @@ export default function UserProfilesManagement() {
                               Confirme a nova senha
                             </label>
                             <PasswordInput
-                              value={confirmPassword}
+                              value={confirmacaoSenha}
                               onChange={(e) =>
-                                setConfirmPassword(e.target.value)
+                                setConfirmacaoSenha(e.target.value)
                               }
                             />
                           </div>
@@ -558,9 +570,9 @@ export default function UserProfilesManagement() {
                             <button
                               type="button"
                               onClick={() => {
-                                setShowChangePassword(false);
-                                setNewPassword("");
-                                setConfirmPassword("");
+                                setMostrarAlterarSenha(false);
+                                setNovaSenha("");
+                                setConfirmacaoSenha("");
                               }}
                               className="px-4 py-2 text-sm font-bold text-text-muted rounded-lg border border-border-default"
                             >
@@ -568,10 +580,10 @@ export default function UserProfilesManagement() {
                             </button>
                             <button
                               type="submit"
-                              disabled={changingPassword}
+                              disabled={alterandoSenha}
                               className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-bold"
                             >
-                              {changingPassword
+                              {alterandoSenha
                                 ? "SALVANDO..."
                                 : "SALVAR SENHA"}
                             </button>
@@ -585,18 +597,18 @@ export default function UserProfilesManagement() {
                 <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-8">
                   <button
                     type="button"
-                    onClick={() => loadProfile()}
+                    onClick={() => carregarPerfil()}
                     className="w-full sm:w-auto px-8 py-4 text-text-muted font-bold uppercase tracking-widest text-sm hover:text-text-body transition-colors"
                   >
                     CANCELAR
                   </button>
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={salvando}
                     className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl shadow-primary/20 flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    {saving ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
+                    {salvando ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
                   </button>
                 </div>
               </form>

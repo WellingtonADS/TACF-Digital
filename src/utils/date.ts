@@ -95,3 +95,76 @@ export const getSemesterFromDate = (dateStr: string) => {
     return null;
   }
 };
+
+function parseDateOnly(dateInput: string | Date) {
+  if (dateInput instanceof Date) {
+    if (Number.isNaN(dateInput.getTime())) return null;
+    return new Date(
+      dateInput.getFullYear(),
+      dateInput.getMonth(),
+      dateInput.getDate(),
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+
+  const [year, month, day] = dateInput.split("-").map(Number);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(year, month - 1, day, 12, 0, 0, 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export const getMondayFirstWeekdayIndex = (dateInput: string | Date) => {
+  const parsed = parseDateOnly(dateInput);
+  if (!parsed) return 0;
+  return (parsed.getDay() + 6) % 7;
+};
+
+export const isWeekendDate = (dateInput: string | Date) => {
+  const parsed = parseDateOnly(dateInput);
+  if (!parsed) return false;
+  const weekday = parsed.getDay();
+  return weekday === 0 || weekday === 6;
+};
+
+export const getCalendarDayDiff = (
+  targetDate: string,
+  baseDate: Date = new Date(),
+) => {
+  const target = parseDateOnly(targetDate);
+  const base = parseDateOnly(baseDate);
+  if (!target || !base) return null;
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((target.getTime() - base.getTime()) / millisecondsPerDay);
+};
+
+export const getMilitaryBookingRuleMessage = (
+  targetDate: string,
+  baseDate: Date = new Date(),
+) => {
+  if (isWeekendDate(targetDate)) {
+    return "Sábados e domingos não estão disponíveis para agendamento.";
+  }
+
+  const dayDiff = getCalendarDayDiff(targetDate, baseDate);
+  if (dayDiff !== null && dayDiff < 2) {
+    return "O militar só pode agendar com antecedência mínima de 2 dias.";
+  }
+
+  return null;
+};
+
+export const canMilitaryBookDate = (
+  targetDate: string,
+  baseDate: Date = new Date(),
+) => getMilitaryBookingRuleMessage(targetDate, baseDate) === null;

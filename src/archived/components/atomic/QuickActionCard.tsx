@@ -1,9 +1,8 @@
 /**
  * ARCHIVED: QuickActionCard
- * Reason: Arquivado porque não está sendo importado em `src/` e para evitar
- * manter componentes não utilizados no diretório `atomic`.
- * TODO: Remover permanentemente se não houver plano de uso; caso contrário,
- * mover de volta para `atomic/` e atualizar chamadas.
+ * Reason: componente sem imports ativos em `src/`; mantido fora da árvore
+ * principal para referência.
+ * Original path: src/components/atomic/archived/QuickActionCard.tsx
  */
 
 import type { ReactNode } from "react";

@@ -78,6 +78,14 @@ lista_chamada_*.pdf
 
 # Supabase local development & test data
 supabase/
+!supabase/
+supabase/*
+!supabase/rpc/
+supabase/rpc/*
+!supabase/rpc/*.sql
+!supabase/policies/
+!supabase/policies/*.sql
+!supabase/schema.sql
 .supabase/
 supabase/tests.sql
 supabase/seed.sql

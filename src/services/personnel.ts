@@ -1,8 +1,7 @@
 /**
- * @module Domínio
- * @page usePersonnel
- * @description Descrição concisa da funcionalidade.
- * @path src\hooks\usePersonnel.ts
+ * @module personnel
+ * @description Acesso a perfis, histórico e listagens de efetivo.
+ * @path src/services/personnel.ts
  */
 
 import supabase from "@/services/supabase";

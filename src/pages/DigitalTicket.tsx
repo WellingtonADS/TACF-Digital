@@ -18,29 +18,29 @@ import {
   Printer,
   ShieldCheck,
 } from "@/icons";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { useCallback, useMemo, useState } from "react";
 import QR from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import Breadcrumbs from "../components/Breadcrumbs";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import FullPageLoading from "../components/FullPageLoading";
 
 // no longer need formatTicketDate or route state types; they live in the hook
 
 export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   const navigate = useNavigate();
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [codigoCopiado, setCodigoCopiado] = useState(false);
 
   // centralizamos o carregamento em um hook reaproveitável
-  const { ticket: ticketData, loading } = useTicket(ticket);
+  const { ticket: ticketData, loading: carregando } = useTicket(ticket);
 
-  const generatePdf = useCallback(async () => {
+  const gerarPdf = useCallback(async () => {
     if (!ticketData) return;
-    setIsGeneratingPdf(true);
+    setGerandoPdf(true);
     try {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -103,26 +103,26 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
       toast.error("Falha ao gerar PDF. Abrindo impressão como alternativa.");
       window.print();
     } finally {
-      setIsGeneratingPdf(false);
+      setGerandoPdf(false);
     }
   }, [ticketData]);
 
-  const handlePrint = useCallback(() => {
+  const imprimirBilhete = useCallback(() => {
     window.print();
   }, []);
 
   const qrValue = useMemo(() => ticketData?.code ?? "", [ticketData]);
 
-  const copyValidationCode = useCallback(async () => {
+  const copiarCodigoValidacao = useCallback(async () => {
     if (!ticketData?.code) return;
 
     try {
       await navigator.clipboard.writeText(ticketData.code);
-      setCopiedCode(true);
+      setCodigoCopiado(true);
       toast.success("Código de validação copiado.");
 
       window.setTimeout(() => {
-        setCopiedCode(false);
+        setCodigoCopiado(false);
       }, 1800);
     } catch {
       toast.error("Não foi possível copiar o código neste dispositivo.");
@@ -133,7 +133,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
     navigate("/app/agendamentos");
   }
 
-  if (loading) {
+  if (carregando) {
     return (
       <Layout>
         <FullPageLoading
@@ -292,12 +292,14 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
               </div>
 
               <button
-                onClick={copyValidationCode}
+                onClick={copiarCodigoValidacao}
                 className="mt-4 w-full rounded-xl border border-primary/20 bg-bg-card px-4 py-3 text-sm font-semibold text-primary transition hover:bg-primary/5"
               >
                 <span className="inline-flex items-center justify-center gap-2">
-                  {copiedCode ? <Check size={16} /> : <Copy size={16} />}
-                  {copiedCode ? "CODIGO COPIADO" : "COPIAR CODIGO DE VALIDACAO"}
+                  {codigoCopiado ? <Check size={16} /> : <Copy size={16} />}
+                  {codigoCopiado
+                    ? "CODIGO COPIADO"
+                    : "COPIAR CODIGO DE VALIDACAO"}
                 </span>
               </button>
 
@@ -319,7 +321,7 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row print:hidden">
           <button
-            onClick={handlePrint}
+            onClick={imprimirBilhete}
             className="flex-1 rounded-xl border-2 border-primary/20 px-6 py-3 font-bold text-primary transition hover:bg-primary/5"
           >
             <span className="inline-flex items-center justify-center gap-2">
@@ -328,13 +330,13 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
             </span>
           </button>
           <button
-            onClick={generatePdf}
-            disabled={isGeneratingPdf}
+            onClick={gerarPdf}
+            disabled={gerandoPdf}
             className="flex-1 rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span className="inline-flex items-center justify-center gap-2">
               <Download size={18} />
-              {isGeneratingPdf ? "GERANDO PDF..." : "SALVAR COMO PDF"}
+              {gerandoPdf ? "GERANDO PDF..." : "SALVAR COMO PDF"}
             </span>
           </button>
         </div>

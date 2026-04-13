@@ -1,7 +1,8 @@
 /**
- * @page TicketsListModal
- * @description Modal com lista de tickets vinculados ao usuário.
- * @path src/components/TicketsListModal.tsx
+ * ARCHIVED: TicketsListModal
+ * Reason: substituído por `src/components/Booking/TicketsListDialog.tsx` durante a
+ * padronização dos overlays para o shell canônico de dialog.
+ * Original path: src/components/TicketsListModal.tsx
  */
 
 import useAuth from "@/hooks/useAuth";

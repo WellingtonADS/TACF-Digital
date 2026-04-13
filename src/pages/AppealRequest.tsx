@@ -15,8 +15,8 @@ import {
   Loader2,
   Paperclip,
 } from "@/icons";
+import { prefetchRoute } from "@/router/prefetchRoutes";
 import { fetchResultById } from "@/services/results";
-import { prefetchRoute } from "@/utils/prefetchRoutes";
 import { canOpenAppeal, type ResultSummary } from "@/utils/results";
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -30,97 +30,97 @@ const MOTIVOS = [
   "Outro motivo",
 ] as const;
 
-type FormState = {
+type EstadoFormulario = {
   motivo: string;
   justificativa: string;
-  file: File | null;
+  arquivo: File | null;
 };
 
 export default function AppealRequest() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const resultId = searchParams.get("result");
+  const resultadoId = searchParams.get("result");
 
-  const [loadingContext, setLoadingContext] = useState(true);
-  const [result, setResult] = useState<ResultSummary | null>(null);
-  const [form, setForm] = useState<FormState>({
+  const [carregandoContexto, setCarregandoContexto] = useState(true);
+  const [resultado, setResultado] = useState<ResultSummary | null>(null);
+  const [formulario, setFormulario] = useState<EstadoFormulario>({
     motivo: "",
     justificativa: "",
-    file: null,
+    arquivo: null,
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
 
   useEffect(() => {
     let active = true;
 
-    async function loadContext() {
-      if (!resultId) {
-        setResult(null);
-        setLoadingContext(false);
+    async function carregarContexto() {
+      if (!resultadoId) {
+        setResultado(null);
+        setCarregandoContexto(false);
         return;
       }
 
-      setLoadingContext(true);
+      setCarregandoContexto(true);
 
       try {
-        const data = await fetchResultById(resultId);
+        const data = await fetchResultById(resultadoId);
         if (active) {
-          setResult(data);
+          setResultado(data);
         }
       } catch (error) {
         console.error(error);
         if (active) {
-          setResult(null);
+          setResultado(null);
           toast.error("Não foi possível carregar o contexto do resultado.");
         }
       } finally {
         if (active) {
-          setLoadingContext(false);
+          setCarregandoContexto(false);
         }
       }
     }
 
-    void loadContext();
+    void carregarContexto();
 
     return () => {
       active = false;
     };
-  }, [resultId]);
+  }, [resultadoId]);
 
-  const detailPath = resultId
-    ? `/app/resultados/${resultId}`
+  const caminhoDetalhe = resultadoId
+    ? `/app/resultados/${resultadoId}`
     : "/app/resultados";
-  const appealAllowed = result ? canOpenAppeal(result) : false;
+  const recursoDisponivel = resultado ? canOpenAppeal(resultado) : false;
 
-  async function handleSubmit(e: FormEvent) {
+  async function enviarSolicitacao(e: FormEvent) {
     e.preventDefault();
-    if (!form.motivo) {
+    if (!formulario.motivo) {
       toast.error("Selecione o motivo do recurso.");
       return;
     }
-    if (form.justificativa.trim().length < 30) {
+    if (formulario.justificativa.trim().length < 30) {
       toast.error("A justificativa deve ter pelo menos 30 caracteres.");
       return;
     }
 
-    setSubmitting(true);
+    setEnviando(true);
     try {
       // RPC appeals ainda não implementada — informar usuário
       toast.info(
         "Funcionalidade em desenvolvimento. Sua solicitação será registrada em breve.",
       );
-      setSubmitted(true);
+      setEnviado(true);
     } finally {
-      setSubmitting(false);
+      setEnviando(false);
     }
   }
 
-  if (loadingContext) {
+  if (carregandoContexto) {
     return <FullPageLoading message="Carregando contexto do recurso" />;
   }
 
-  if (submitted) {
+  if (enviado) {
     return (
       <Layout>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
@@ -174,7 +174,7 @@ export default function AppealRequest() {
           </p>
         </header>
 
-        {!result ? (
+        {!resultado ? (
           <section className="rounded-3xl border border-border-default bg-bg-card p-8 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
               Contexto indisponível
@@ -201,7 +201,7 @@ export default function AppealRequest() {
         ) : (
           <div className="space-y-6">
             <ResultSummaryCard
-              result={result}
+              result={resultado}
               eyebrow="Resultado em análise"
               title="Confirme os dados antes de recorrer"
               description="O recurso deve ser aberto com base no resultado final já disponibilizado no sistema."
@@ -212,7 +212,7 @@ export default function AppealRequest() {
                     onMouseEnter={() =>
                       prefetchRoute("/app/resultados/:resultId")
                     }
-                    onClick={() => navigate(detailPath)}
+                    onClick={() => navigate(caminhoDetalhe)}
                     className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
                   >
                     <ArrowLeft size={16} />
@@ -225,7 +225,7 @@ export default function AppealRequest() {
               }
             />
 
-            {!appealAllowed ? (
+            {!recursoDisponivel ? (
               <section className="rounded-3xl border border-border-default bg-bg-card p-6 shadow-sm">
                 <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 p-4">
                   <Info
@@ -245,7 +245,7 @@ export default function AppealRequest() {
               </section>
             ) : (
               <form
-                onSubmit={handleSubmit}
+                onSubmit={enviarSolicitacao}
                 className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm"
               >
                 <div className="border-b border-border-default bg-bg-default/50 p-6">
@@ -263,9 +263,12 @@ export default function AppealRequest() {
                       Motivo do Recurso *
                     </label>
                     <select
-                      value={form.motivo}
+                      value={formulario.motivo}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, motivo: e.target.value }))
+                        setFormulario((estadoAtual) => ({
+                          ...estadoAtual,
+                          motivo: e.target.value,
+                        }))
                       }
                       required
                       title="Motivo do Recurso"
@@ -286,10 +289,10 @@ export default function AppealRequest() {
                       Justificativa *
                     </label>
                     <textarea
-                      value={form.justificativa}
+                      value={formulario.justificativa}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
+                        setFormulario((estadoAtual) => ({
+                          ...estadoAtual,
                           justificativa: e.target.value.slice(0, 2000),
                         }))
                       }
@@ -299,7 +302,7 @@ export default function AppealRequest() {
                       className="w-full resize-none rounded-xl border border-border-default bg-bg-default p-3.5 text-text-body transition focus:border-primary focus:ring-2 focus:ring-primary"
                     />
                     <p className="text-right text-[10px] font-medium text-text-muted">
-                      {form.justificativa.length}/2000
+                      {formulario.justificativa.length}/2000
                     </p>
                   </div>
 
@@ -313,8 +316,8 @@ export default function AppealRequest() {
                     >
                       <Paperclip className="text-text-muted" size={20} />
                       <span className="text-sm font-medium text-text-muted">
-                        {form.file
-                          ? form.file.name
+                        {formulario.arquivo
+                          ? formulario.arquivo.name
                           : "Clique para anexar (PDF, JPG, PNG — máx 5MB)"}
                       </span>
                     </label>
@@ -324,9 +327,9 @@ export default function AppealRequest() {
                       accept=".pdf,.jpg,.jpeg,.png"
                       className="sr-only"
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          file: e.target.files?.[0] ?? null,
+                        setFormulario((estadoAtual) => ({
+                          ...estadoAtual,
+                          arquivo: e.target.files?.[0] ?? null,
                         }))
                       }
                     />
@@ -353,22 +356,22 @@ export default function AppealRequest() {
                     onMouseEnter={() =>
                       prefetchRoute("/app/resultados/:resultId")
                     }
-                    onClick={() => navigate(detailPath)}
+                    onClick={() => navigate(caminhoDetalhe)}
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-text-muted transition-colors hover:text-text-body"
                   >
                     <ArrowLeft size={16} /> Voltar ao Resultado
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={enviando}
                     className="inline-flex items-center gap-3 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {submitting ? (
+                    {enviando ? (
                       <Loader2 size={18} className="animate-spin" />
                     ) : (
                       <FileText size={18} />
                     )}
-                    {submitting ? "Enviando..." : "Enviar Solicitação"}
+                    {enviando ? "Enviando..." : "Enviar Solicitação"}
                   </button>
                 </div>
               </form>

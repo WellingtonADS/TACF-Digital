@@ -4,7 +4,8 @@
  * @path src/pages/ScoreEntry.tsx
  */
 
-import AppIcon from "@/components/atomic/AppIcon"; // wrapper for all icons, per visual contract
+import ScoreEntryHero from "@/components/Score/ScoreEntryHero";
+import AppIcon from "@/components/atomic/AppIcon";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -24,123 +25,100 @@ import {
 } from "@/services/sessions";
 import type { SessionRow as DBSessionRow } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
-import { isAdminLike } from "@/utils/routeAccess";
+import { isAdminLike } from "@/router/routeAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
-type SessionRow = Pick<DBSessionRow, "id" | "date" | "period">;
+type SessaoRow = Pick<DBSessionRow, "id" | "date" | "period">;
 
-type AptStatus = "apto" | "inapto";
+type StatusAptidao = "apto" | "inapto";
 
-type ScoreEntryRow = {
+type LinhaLancamento = {
   bookingId: string;
   userId: string;
   fullName: string;
   warName: string | null;
   saram: string | null;
   rank: string | null;
-  aptStatus: AptStatus | null;
+  statusAptidao: StatusAptidao | null;
 };
 
-function PageHero({
-  selectedSession: _selectedSession,
-  launchedCount: _launchedCount,
-  totalRows: _totalRows,
-}: {
-  selectedSession: SessionRow | null;
-  launchedCount: number;
-  totalRows: number;
-}) {
-  return (
-    <section className="mb-8">
-      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
-        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-              Lançamento de Índices
-            </h1>
-            <p className="mt-2 text-sm text-white/85 md:text-base">
-              Painel administrativo de lançamento de nota final TACF Digital.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function ScoreEntry() {
-  const { profile, loading: authLoading } = useAuth();
-  const canManage = isAdminLike(profile?.role);
+  const { profile, loading: autenticacaoCarregando } = useAuth();
+  const podeGerenciar = isAdminLike(profile?.role);
 
   const location = useLocation();
   const stateSessionId = (location.state as { sessionId?: string } | null)
     ?.sessionId;
 
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(
+  const [sessoes, setSessoes] = useState<SessaoRow[]>([]);
+  const [sessaoSelecionadaId, setSessaoSelecionadaId] = useState<string>(
     stateSessionId ?? "",
   );
-  const [rows, setRows] = useState<ScoreEntryRow[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [aptStatus, setAptStatus] = useState<AptStatus | "">("apto");
-  const [query, setQuery] = useState<string>("");
-  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
-  const [loadingRows, setLoadingRows] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
+  const [linhas, setLinhas] = useState<LinhaLancamento[]>([]);
+  const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<string>("");
+  const [statusAptidao, setStatusAptidao] = useState<StatusAptidao | "">(
+    "apto",
+  );
+  const [termoBusca, setTermoBusca] = useState<string>("");
+  const [carregandoSessoes, setCarregandoSessoes] = useState<boolean>(true);
+  const [carregandoLinhas, setCarregandoLinhas] = useState<boolean>(false);
+  const [salvando, setSalvando] = useState<boolean>(false);
 
   useEffect(() => {
-    async function loadSessions() {
-      setLoadingSessions(true);
+    async function carregarSessoes() {
+      setCarregandoSessoes(true);
       try {
-        const typed = (await fetchRecentSessions(50)) as SessionRow[];
-        setSessions(typed);
+        const sessoesRecentes = (await fetchRecentSessions(50)) as SessaoRow[];
+        setSessoes(sessoesRecentes);
 
-        if (typed.length > 0) {
-          if (stateSessionId && typed.some((s) => s.id === stateSessionId)) {
-            setSelectedSessionId(stateSessionId);
+        if (sessoesRecentes.length > 0) {
+          if (
+            stateSessionId &&
+            sessoesRecentes.some((s) => s.id === stateSessionId)
+          ) {
+            setSessaoSelecionadaId(stateSessionId);
           } else {
-            setSelectedSessionId(typed[0].id);
+            setSessaoSelecionadaId(sessoesRecentes[0].id);
           }
         }
       } catch (error) {
         console.error(error);
-        setSessions([]);
+        setSessoes([]);
         toast.error("Não foi possível carregar as turmas.");
       } finally {
-        setLoadingSessions(false);
+        setCarregandoSessoes(false);
       }
     }
 
-    if (canManage) {
-      loadSessions();
+    if (podeGerenciar) {
+      carregarSessoes();
     }
-  }, [canManage, stateSessionId]);
+  }, [podeGerenciar, stateSessionId]);
 
   useEffect(() => {
-    async function loadSessionRows() {
-      if (!selectedSessionId) {
-        setRows([]);
-        setSelectedUserId("");
-        setAptStatus("apto");
+    async function carregarLinhasSessao() {
+      if (!sessaoSelecionadaId) {
+        setLinhas([]);
+        setUsuarioSelecionadoId("");
+        setStatusAptidao("apto");
         return;
       }
 
-      setLoadingRows(true);
+      setCarregandoLinhas(true);
       try {
         const { bookings, profilesById } =
-          await fetchSessionBookings(selectedSessionId);
+          await fetchSessionBookings(sessaoSelecionadaId);
 
         if (bookings.length === 0) {
-          setRows([]);
-          setSelectedUserId("");
-          setAptStatus("apto");
+          setLinhas([]);
+          setUsuarioSelecionadoId("");
+          setStatusAptidao("apto");
           return;
         }
 
-        const mapped = bookings.map((booking) => {
+        const linhasMapeadas = bookings.map((booking) => {
           const p = profilesById.get(booking.user_id);
           return {
             bookingId: booking.id,
@@ -149,135 +127,139 @@ export default function ScoreEntry() {
             warName: p?.war_name ?? null,
             saram: p?.saram ?? null,
             rank: p?.rank ?? null,
-            aptStatus:
+            statusAptidao:
               booking.result_details === "apto" ||
               booking.result_details === "inapto"
-                ? (booking.result_details as AptStatus)
+                ? (booking.result_details as StatusAptidao)
                 : null,
-          } satisfies ScoreEntryRow;
+          } satisfies LinhaLancamento;
         });
 
-        setRows(mapped);
+        setLinhas(linhasMapeadas);
 
-        const firstPending = mapped.find((item) => item.aptStatus === null);
-        const fallback = mapped[0];
-        const selected = firstPending ?? fallback;
+        const primeiroPendente = linhasMapeadas.find(
+          (item) => item.statusAptidao === null,
+        );
+        const primeiraLinha = linhasMapeadas[0];
+        const linhaSelecionada = primeiroPendente ?? primeiraLinha;
 
-        if (selected) {
-          setSelectedUserId(selected.userId);
-          setAptStatus(selected.aptStatus ?? "apto");
+        if (linhaSelecionada) {
+          setUsuarioSelecionadoId(linhaSelecionada.userId);
+          setStatusAptidao(linhaSelecionada.statusAptidao ?? "apto");
         } else {
-          setSelectedUserId("");
-          setAptStatus("apto");
+          setUsuarioSelecionadoId("");
+          setStatusAptidao("apto");
         }
       } catch (error) {
         console.error(error);
-        setRows([]);
-        setSelectedUserId("");
-        setAptStatus("apto");
+        setLinhas([]);
+        setUsuarioSelecionadoId("");
+        setStatusAptidao("apto");
         toast.error("Não foi possível carregar os militares da turma.");
       } finally {
-        setLoadingRows(false);
+        setCarregandoLinhas(false);
       }
     }
 
-    if (canManage) {
-      loadSessionRows();
+    if (podeGerenciar) {
+      carregarLinhasSessao();
     }
-  }, [selectedSessionId, canManage]);
+  }, [sessaoSelecionadaId, podeGerenciar]);
 
-  const filteredRows = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return rows;
+  const linhasFiltradas = useMemo(() => {
+    const buscaNormalizada = termoBusca.trim().toLowerCase();
+    if (!buscaNormalizada) return linhas;
 
-    return rows.filter((row) => {
+    return linhas.filter((row) => {
       return (
-        row.fullName.toLowerCase().includes(normalized) ||
-        (row.warName ?? "").toLowerCase().includes(normalized) ||
-        (row.saram ?? "").toLowerCase().includes(normalized)
+        row.fullName.toLowerCase().includes(buscaNormalizada) ||
+        (row.warName ?? "").toLowerCase().includes(buscaNormalizada) ||
+        (row.saram ?? "").toLowerCase().includes(buscaNormalizada)
       );
     });
-  }, [rows, query]);
+  }, [linhas, termoBusca]);
 
-  const selectedRow = useMemo(
-    () => rows.find((row) => row.userId === selectedUserId) ?? null,
-    [rows, selectedUserId],
+  const linhaSelecionada = useMemo(
+    () => linhas.find((row) => row.userId === usuarioSelecionadoId) ?? null,
+    [linhas, usuarioSelecionadoId],
   );
 
-  const selectedSession = useMemo(
-    () => sessions.find((session) => session.id === selectedSessionId) ?? null,
-    [sessions, selectedSessionId],
+  const sessaoSelecionada = useMemo(
+    () => sessoes.find((session) => session.id === sessaoSelecionadaId) ?? null,
+    [sessoes, sessaoSelecionadaId],
   );
 
-  const launchedCount = useMemo(
-    () => rows.filter((row) => row.aptStatus !== null).length,
-    [rows],
+  const totalLancados = useMemo(
+    () => linhas.filter((row) => row.statusAptidao !== null).length,
+    [linhas],
   );
 
-  async function saveStatus() {
-    if (!selectedRow) {
+  async function salvarStatus() {
+    if (!linhaSelecionada) {
       toast.error("Selecione um militar para lançar o resultado.");
       return;
     }
-    if (!aptStatus) {
+    if (!statusAptidao) {
       toast.error("Selecione Apto ou Inapto.");
       return;
     }
 
-    setSaving(true);
+    setSalvando(true);
     try {
-      await updateBookingResult(selectedRow.bookingId, aptStatus);
+      await updateBookingResult(linhaSelecionada.bookingId, statusAptidao);
 
-      const updatedRows = rows.map((row) =>
-        row.bookingId === selectedRow.bookingId
-          ? { ...row, aptStatus: aptStatus as AptStatus }
+      const linhasAtualizadas = linhas.map((row) =>
+        row.bookingId === linhaSelecionada.bookingId
+          ? { ...row, statusAptidao: statusAptidao as StatusAptidao }
           : row,
       );
 
-      setRows(updatedRows);
+      setLinhas(linhasAtualizadas);
       toast.success(
-        `${aptStatus === "apto" ? "Apto" : "Inapto"} salvo com sucesso.`,
+        `${statusAptidao === "apto" ? "Apto" : "Inapto"} salvo com sucesso.`,
       );
 
       // Avança automaticamente para o próximo pendente, se houver
-      const currentIndex = updatedRows.findIndex(
-        (row) => row.bookingId === selectedRow.bookingId,
+      const indiceAtual = linhasAtualizadas.findIndex(
+        (row) => row.bookingId === linhaSelecionada.bookingId,
       );
-      const next =
-        updatedRows
-          .slice(currentIndex + 1)
-          .find((row) => row.aptStatus === null) ??
-        updatedRows
-          .slice(0, currentIndex)
-          .find((row) => row.aptStatus === null);
+      const proximoPendente =
+        linhasAtualizadas
+          .slice(indiceAtual + 1)
+          .find((row) => row.statusAptidao === null) ??
+        linhasAtualizadas
+          .slice(0, indiceAtual)
+          .find((row) => row.statusAptidao === null);
 
-      if (next) {
-        setSelectedUserId(next.userId);
-        setAptStatus(next.aptStatus ?? "apto");
+      if (proximoPendente) {
+        setUsuarioSelecionadoId(proximoPendente.userId);
+        setStatusAptidao(proximoPendente.statusAptidao ?? "apto");
       }
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar resultado.");
     } finally {
-      setSaving(false);
+      setSalvando(false);
     }
   }
 
-  function cancelEdit() {
-    if (selectedRow) {
-      setAptStatus(selectedRow.aptStatus ?? "apto");
+  function cancelarEdicao() {
+    if (linhaSelecionada) {
+      setStatusAptidao(linhaSelecionada.statusAptidao ?? "apto");
     }
   }
 
-  // Mantém retorno de loading apenas após todas as chamadas de hooks/memos.
-  const pageLoading =
-    authLoading || loadingSessions || (canManage && loadingRows);
+  // Mantém o retorno de carregamento apenas após todas as chamadas de hooks/memos.
+  const carregandoPagina =
+    autenticacaoCarregando ||
+    carregandoSessoes ||
+    (podeGerenciar && carregandoLinhas);
 
-  if (pageLoading) {
+  if (carregandoPagina) {
     return <FullPageLoading message="Carregando dados" />;
   }
 
-  if (!canManage) {
+  if (!podeGerenciar) {
     return (
       <Layout>
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-alert/30 bg-alert/10 p-6 text-alert">
@@ -304,10 +286,10 @@ export default function ScoreEntry() {
   return (
     <Layout>
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
-        <PageHero
-          selectedSession={selectedSession}
-          launchedCount={launchedCount}
-          totalRows={rows.length}
+        <ScoreEntryHero
+          sessaoSelecionada={sessaoSelecionada}
+          totalLancados={totalLancados}
+          totalMilitares={linhas.length}
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -319,7 +301,7 @@ export default function ScoreEntry() {
                     Efetivo da Turma
                   </h2>
                   <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                    {launchedCount}/{rows.length}
+                    {totalLancados}/{linhas.length}
                   </span>
                 </div>
               </div>
@@ -336,15 +318,17 @@ export default function ScoreEntry() {
 
                 <select
                   id="session-select"
-                  value={selectedSessionId}
-                  onChange={(event) => setSelectedSessionId(event.target.value)}
+                  value={sessaoSelecionadaId}
+                  onChange={(event) =>
+                    setSessaoSelecionadaId(event.target.value)
+                  }
                   className="mb-4 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
                 >
-                  {loadingSessions && <option>Carregando turmas...</option>}
-                  {!loadingSessions && sessions.length === 0 && (
+                  {carregandoSessoes && <option>Carregando turmas...</option>}
+                  {!carregandoSessoes && sessoes.length === 0 && (
                     <option value="">Sem turmas disponíveis</option>
                   )}
-                  {sessions.map((session) => (
+                  {sessoes.map((session) => (
                     <option key={session.id} value={session.id}>
                       {session.date} • {formatSessionPeriod(session.period)}
                     </option>
@@ -359,40 +343,40 @@ export default function ScoreEntry() {
                     decorative
                   />
                   <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    value={termoBusca}
+                    onChange={(event) => setTermoBusca(event.target.value)}
                     placeholder="Buscar por nome ou SARAM..."
                     className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-9 pr-3 text-sm text-text-body"
                   />
                 </div>
 
                 <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-                  {loadingRows && (
+                  {carregandoLinhas && (
                     <p className="text-sm text-text-muted">
                       Carregando efetivo...
                     </p>
                   )}
 
-                  {!loadingRows && filteredRows.length === 0 && (
+                  {!carregandoLinhas && linhasFiltradas.length === 0 && (
                     <p className="text-sm text-text-muted">
                       Nenhum militar encontrado para a turma selecionada.
                     </p>
                   )}
 
-                  {filteredRows.map((row) => {
-                    const active = selectedUserId === row.userId;
-                    const launched = row.aptStatus !== null;
+                  {linhasFiltradas.map((row) => {
+                    const ativo = usuarioSelecionadoId === row.userId;
+                    const lancado = row.statusAptidao !== null;
 
                     return (
                       <button
                         key={row.bookingId}
                         type="button"
                         onClick={() => {
-                          setSelectedUserId(row.userId);
-                          setAptStatus(row.aptStatus ?? "apto");
+                          setUsuarioSelecionadoId(row.userId);
+                          setStatusAptidao(row.statusAptidao ?? "apto");
                         }}
                         className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                          active
+                          ativo
                             ? "border-primary bg-primary/10"
                             : "border-border-default bg-bg-card hover:bg-bg-default"
                         }`}
@@ -409,14 +393,14 @@ export default function ScoreEntry() {
                           <span
                             className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
                               launched
-                                ? row.aptStatus === "apto"
-                                  ? "bg-success/10 text-success"
-                                  : "bg-error/10 text-error"
-                                : "bg-alert/10 text-alert"
+                              ? row.statusAptidao === "apto"
+                                ? "bg-success/10 text-success"
+                                : "bg-error/10 text-error"
+                              : "bg-alert/10 text-alert"
                             }`}
                           >
-                            {launched
-                              ? row.aptStatus === "apto"
+                            {lancado
+                              ? row.statusAptidao === "apto"
                                 ? "Apto"
                                 : "Inapto"
                               : "Pendente"}
@@ -432,7 +416,7 @@ export default function ScoreEntry() {
 
           <section className="lg:col-span-8">
             <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
-              {!selectedRow ? (
+              {!linhaSelecionada ? (
                 <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-sm text-text-muted">
                   Selecione um militar para iniciar o lançamento.
                 </div>
@@ -443,11 +427,13 @@ export default function ScoreEntry() {
                       Militar selecionado
                     </p>
                     <h2 className="mt-2 text-3xl font-bold">
-                      {selectedRow.warName || selectedRow.fullName}
+                      {linhaSelecionada.warName || linhaSelecionada.fullName}
                     </h2>
                     <div className="mt-2 flex flex-wrap gap-4 text-sm text-text-body">
-                      <span>SARAM {selectedRow.saram ?? "--"}</span>
-                      <span>Posto/Graduação: {selectedRow.rank ?? "--"}</span>
+                      <span>SARAM {linhaSelecionada.saram ?? "--"}</span>
+                      <span>
+                        Posto/Graduação: {linhaSelecionada.rank ?? "--"}
+                      </span>
                     </div>
                   </header>
 
@@ -465,9 +451,9 @@ export default function ScoreEntry() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                         <button
                           type="button"
-                          onClick={() => setAptStatus("apto")}
+                          onClick={() => setStatusAptidao("apto")}
                           className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                            aptStatus === "apto"
+                            statusAptidao === "apto"
                               ? "border-success bg-success/10 text-success"
                               : "border-border-default text-text-muted hover:border-success/30"
                           }`}
@@ -481,9 +467,9 @@ export default function ScoreEntry() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setAptStatus("inapto")}
+                          onClick={() => setStatusAptidao("inapto")}
                           className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                            aptStatus === "inapto"
+                            statusAptidao === "inapto"
                               ? "border-error bg-error/10 text-error"
                               : "border-border-default text-text-muted hover:border-error/30"
                           }`}
@@ -500,9 +486,9 @@ export default function ScoreEntry() {
 
                     <aside
                       className={`rounded-xl border p-5 text-center transition-colors ${
-                        aptStatus === "apto"
+                        statusAptidao === "apto"
                           ? "border-success/20 bg-success/10"
-                          : aptStatus === "inapto"
+                          : statusAptidao === "inapto"
                             ? "border-error/20 bg-error/10"
                             : "border-primary/15 bg-primary/5"
                       }`}
@@ -511,14 +497,14 @@ export default function ScoreEntry() {
                         Resultado Atual
                       </p>
                       <div className="mt-4 flex items-center justify-center">
-                        {aptStatus === "apto" ? (
+                        {statusAptidao === "apto" ? (
                           <AppIcon
                             icon={CheckCircle2}
                             size={"lg"}
                             className="text-success"
                             ariaLabel="Apto"
                           />
-                        ) : aptStatus === "inapto" ? (
+                        ) : statusAptidao === "inapto" ? (
                           <AppIcon
                             icon={XCircle}
                             size={"lg"}
@@ -533,16 +519,16 @@ export default function ScoreEntry() {
                       </div>
                       <p
                         className={`mt-2 text-lg font-black ${
-                          aptStatus === "apto"
+                          statusAptidao === "apto"
                             ? "text-success"
-                            : aptStatus === "inapto"
+                            : statusAptidao === "inapto"
                               ? "text-error"
                               : "text-text-muted"
                         }`}
                       >
-                        {aptStatus === "apto"
+                        {statusAptidao === "apto"
                           ? "APTO"
-                          : aptStatus === "inapto"
+                          : statusAptidao === "inapto"
                             ? "INAPTO"
                             : "—"}
                       </p>
@@ -561,16 +547,16 @@ export default function ScoreEntry() {
                   <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
                     <button
                       type="button"
-                      disabled={saving}
-                      onClick={cancelEdit}
+                      disabled={salvando}
+                      onClick={cancelarEdicao}
                       className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:opacity-60"
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      disabled={saving || !aptStatus}
-                      onClick={saveStatus}
+                      disabled={salvando || !statusAptidao}
+                      onClick={salvarStatus}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
                     >
                       <AppIcon
@@ -578,7 +564,7 @@ export default function ScoreEntry() {
                         size="sm"
                         ariaLabel="Salvar"
                       />
-                      {saving ? "Salvando..." : "Salvar"}
+                      {salvando ? "Salvando..." : "Salvar"}
                     </button>
                   </div>
                 </>
@@ -593,7 +579,7 @@ export default function ScoreEntry() {
                   className="text-primary"
                   ariaLabel="Efetivo"
                 />
-                {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}
+                {linhas.length} militar(es) na turma selecionada • {totalLancados}{" "}
                 com resultado lançado
               </div>
             </div>
