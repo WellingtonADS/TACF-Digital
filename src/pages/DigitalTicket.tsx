@@ -4,6 +4,7 @@
  * @path src/pages/DigitalTicket.tsx
  */
 
+import RescheduleDialog from "@/components/Booking/RescheduleDialog";
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
 } from "@/icons";
 import { prefetchRoute } from "@/router/prefetchRoutes";
+import { isAfter, parseISO } from "date-fns";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { useCallback, useMemo, useState } from "react";
@@ -34,9 +36,26 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   const navigate = useNavigate();
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [codigoCopiado, setCodigoCopiado] = useState(false);
+  const [reagendamentoAberto, setReagendamentoAberto] = useState(false);
 
   // centralizamos o carregamento em um hook reaproveitável
-  const { ticket: ticketData, loading: carregando } = useTicket(ticket);
+  const {
+    ticket: ticketData,
+    loading: carregando,
+    bookingId,
+    sessionDateIso,
+    hasPendingSwap,
+  } = useTicket(ticket);
+
+  const reagendamentoDisponivel = useMemo(() => {
+    if (!bookingId || !sessionDateIso || !ticketData?.confirmed) return false;
+
+    try {
+      return isAfter(parseISO(sessionDateIso), new Date());
+    } catch {
+      return false;
+    }
+  }, [bookingId, sessionDateIso, ticketData?.confirmed]);
 
   const gerarPdf = useCallback(async () => {
     if (!ticketData) return;
@@ -341,6 +360,34 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           </button>
         </div>
 
+        {reagendamentoDisponivel && (
+          <div className="mt-4 rounded-2xl border border-primary/15 bg-primary/5 p-4 print:hidden">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-text-body">
+                  Precisa mudar sua sessão?
+                </p>
+                <p className="text-xs text-text-muted">
+                  Abra a janela de reagendamento e solicite uma nova sessão disponível.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {hasPendingSwap && (
+                  <span className="inline-flex items-center rounded-full bg-error/10 px-3 py-1 text-[11px] font-semibold text-error">
+                    Reagendamento pendente
+                  </span>
+                )}
+                <button
+                  onClick={() => setReagendamentoAberto(true)}
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary/90"
+                >
+                  Solicitar reagendamento
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 text-center text-sm text-text-muted print:hidden">
           Dúvidas sobre o agendamento?{" "}
           <button
@@ -353,6 +400,14 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           .
         </div>
       </div>
+
+      <RescheduleDialog
+        open={reagendamentoAberto}
+        bookingId={bookingId ?? ""}
+        currentDate={sessionDateIso ?? ""}
+        onClose={() => setReagendamentoAberto(false)}
+        onSuccess={() => setReagendamentoAberto(false)}
+      />
     </Layout>
   );
 }

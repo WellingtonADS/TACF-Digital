@@ -46,6 +46,11 @@ export default function useTicket(initial?: TicketData) {
 
   const [ticket, setTicket] = useState<TicketData | null>(initial ?? null);
   const [loading, setLoading] = useState(true);
+  const [bookingId, setBookingId] = useState<string | null>(
+    routeState?.bookingId ?? null,
+  );
+  const [sessionDateIso, setSessionDateIso] = useState<string | null>(null);
+  const [hasPendingSwap, setHasPendingSwap] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +98,8 @@ export default function useTicket(initial?: TicketData) {
 
         if (!bookingData || cancelled) return;
 
+        setBookingId(bookingData.id);
+
         const [sessionResp, profileResp] = await Promise.all([
           supabase
             .from("sessions")
@@ -110,6 +117,20 @@ export default function useTicket(initial?: TicketData) {
 
         const sessionData = sessionResp.data;
         const profileData = profileResp.data;
+
+        setSessionDateIso(sessionData?.date ?? null);
+
+        const { count: pendingSwapCount, error: pendingSwapError } =
+          await supabase
+            .from("swap_requests")
+            .select("id", { count: "exact", head: true })
+            .eq("booking_id", bookingData.id)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- enum inference mismatch
+            .eq("status", "solicitado" as any);
+
+        if (!pendingSwapError && !cancelled) {
+          setHasPendingSwap((pendingSwapCount ?? 0) > 0);
+        }
 
         const locRaw = sessionData?.location as
           | { name?: string | null }[]
@@ -153,5 +174,11 @@ export default function useTicket(initial?: TicketData) {
     };
   }, [routeState?.bookingId, routeState?.orderNumber, initial, user?.id]);
 
-  return { ticket, loading } as const;
+  return {
+    ticket,
+    loading,
+    bookingId,
+    sessionDateIso,
+    hasPendingSwap,
+  } as const;
 }
