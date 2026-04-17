@@ -13,8 +13,10 @@ export type SessionForEdit = {
   date: string | null;
   period: string | null;
   max_capacity: number | null;
+  capacity: number | null;
   location_id: string | null;
   applicators: string[] | null;
+  coordinator_id: string | null;
   status: string | null;
 };
 
@@ -23,7 +25,10 @@ export type SessionInfo = {
   date: string;
   period: string;
   max_capacity: number | null;
+  capacity: number | null;
   location_id: string | null;
+  location_name: string | null;
+  coordinator_id: string | null;
   status: Database["public"]["Tables"]["sessions"]["Row"]["status"];
 };
 
@@ -75,7 +80,7 @@ export async function fetchSessionForEdit(sessionId: string): Promise<{
     supabase
       .from("sessions")
       .select(
-        "id, date, period, max_capacity, location_id, applicators, status",
+        "id, date, period, max_capacity, capacity, location_id, applicators, coordinator_id, status",
       )
       .eq("id", sessionId)
       .single(),
@@ -106,11 +111,41 @@ export async function fetchSessionById(
 ): Promise<SessionInfo | null> {
   const { data, error } = await supabase
     .from("sessions")
-    .select("id,date,period,max_capacity,location_id,status")
+    .select(
+      "id,date,period,max_capacity,capacity,location_id,coordinator_id,status,location:locations(name)",
+    )
     .eq("id", sessionId)
     .single();
   if (error) throw error;
-  return data as SessionInfo | null;
+  if (!data) return null;
+
+  const sessionData = data as {
+    id: string;
+    date: string;
+    period: string;
+    max_capacity: number | null;
+    capacity?: number | null;
+    location_id?: string | null;
+    coordinator_id?: string | null;
+    status: Database["public"]["Tables"]["sessions"]["Row"]["status"];
+    location?: { name?: string | null } | Array<{ name?: string | null }> | null;
+  };
+
+  const locationRaw = Array.isArray(sessionData.location)
+    ? sessionData.location[0]
+    : sessionData.location;
+
+  return {
+    id: sessionData.id,
+    date: sessionData.date,
+    period: sessionData.period,
+    max_capacity: sessionData.max_capacity,
+    capacity: sessionData.capacity ?? null,
+    location_id: sessionData.location_id ?? null,
+    location_name: locationRaw?.name ?? null,
+    coordinator_id: sessionData.coordinator_id ?? null,
+    status: sessionData.status,
+  };
 }
 
 function getChecklistRpcRow(

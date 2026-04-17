@@ -5,6 +5,7 @@
  */
 
 import AppIcon from "@/components/atomic/AppIcon";
+import SessionFormDialog from "@/components/Booking/SessionFormDialog";
 import StatCard from "@/components/atomic/StatCard";
 import SessionHubDialog from "@/components/Booking/SessionHubDialog";
 import FullPageLoading from "@/components/FullPageLoading";
@@ -20,17 +21,22 @@ import {
   Filter,
   LayoutGrid,
   LayoutList,
+  Plus,
   Search,
 } from "@/icons";
 import { formatSessionPeriod } from "@/utils/booking";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { SessionStatus } from "@/types/database.types";
 
 type ViewMode = "table" | "cards";
 type StatusFilter = "all" | SessionStatus;
+type SessionFormState = {
+  mode: "create" | "edit";
+  sessionId: string | null;
+  reopenHubOnSave: boolean;
+};
 
 // Datas fixas para cobrir histórico e futuro no painel admin
 const ADMIN_START = new Date();
@@ -41,7 +47,6 @@ const ADMIN_START_STR = ADMIN_START.toISOString().split("T")[0];
 const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 
 export const SessionsManagement = () => {
-  const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
   const { sessions, loading, error, refresh } = useSessions(
     ADMIN_START_STR,
@@ -56,8 +61,48 @@ export const SessionsManagement = () => {
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [sessionFormState, setSessionFormState] =
+    useState<SessionFormState | null>(null);
   const pageSize = 10;
   const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
+
+  const openCreateDialog = useCallback(() => {
+    setSelectedSessionId(null);
+    setSessionFormState({
+      mode: "create",
+      sessionId: null,
+      reopenHubOnSave: false,
+    });
+  }, []);
+
+  const openEditDialog = useCallback(
+    (sessionId: string, reopenHubOnSave = false) => {
+      setSelectedSessionId(null);
+      setSessionFormState({
+        mode: "edit",
+        sessionId,
+        reopenHubOnSave,
+      });
+    },
+    [],
+  );
+
+  const closeSessionForm = useCallback(() => {
+    setSessionFormState(null);
+  }, []);
+
+  const handleSessionFormSaved = useCallback(async () => {
+    const reopenSessionId =
+      sessionFormState?.mode === "edit" && sessionFormState.reopenHubOnSave
+        ? sessionFormState.sessionId
+        : null;
+
+    await refresh();
+
+    if (reopenSessionId) {
+      setSelectedSessionId(reopenSessionId);
+    }
+  }, [refresh, sessionFormState]);
 
   const getSessionStatus = useCallback(
     (session: SessionAvailability): SessionStatus => session.status,
@@ -225,6 +270,15 @@ export const SessionsManagement = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+              <button
+                type="button"
+                onClick={openCreateDialog}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
+              >
+                <AppIcon icon={Plus} size="sm" decorative />
+                Nova sessão
+              </button>
+
               {/* status filter */}
               <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
                 {(["all", "open", "closed", "completed"] as const).map((f) => (
@@ -345,6 +399,7 @@ export const SessionsManagement = () => {
                   const status = getSessionStatus(s);
                   const isOpen = status === "open";
                   const isCompleted = status === "completed";
+                  const canEdit = isOpen;
                   return (
                     <tr
                       key={s.session_id}
@@ -414,17 +469,15 @@ export const SessionsManagement = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              navigate(`/app/turmas/${s.session_id}/editar`)
-                            }
-                            disabled={isCompleted}
+                            onClick={() => openEditDialog(s.session_id)}
+                            disabled={!canEdit}
                             className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
                             title={
-                              isCompleted
-                                ? "Turma concluída não pode ser editada"
-                                : "Editar turma"
+                              canEdit
+                                ? "Editar sessão"
+                                : "Somente sessoes abertas podem ser editadas"
                             }
-                            aria-label="Editar turma"
+                            aria-label="Editar sessão"
                           >
                             <AppIcon icon={Edit2} size="sm" decorative />
                           </button>
@@ -443,6 +496,7 @@ export const SessionsManagement = () => {
               const status = getSessionStatus(s);
               const isOpen = status === "open";
               const isCompleted = status === "completed";
+              const canEdit = isOpen;
               const occupied = s.occupied_count;
               const max = s.max_capacity;
               const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -521,14 +575,12 @@ export const SessionsManagement = () => {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          navigate(`/app/turmas/${s.session_id}/editar`)
-                        }
-                        disabled={isCompleted}
+                        onClick={() => openEditDialog(s.session_id)}
+                        disabled={!canEdit}
                         title={
-                          isCompleted
-                            ? "Turma concluída não pode ser editada"
-                            : "Editar turma"
+                          canEdit
+                            ? "Editar sessão"
+                            : "Somente sessoes abertas podem ser editadas"
                         }
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-text-body disabled:hover:border-border-default"
                       >
@@ -598,6 +650,14 @@ export const SessionsManagement = () => {
         sessionId={selectedSessionId}
         onClose={() => setSelectedSessionId(null)}
         onSessionUpdated={refresh}
+        onEditRequested={(sessionId) => openEditDialog(sessionId, true)}
+      />
+      <SessionFormDialog
+        open={sessionFormState !== null}
+        mode={sessionFormState?.mode ?? "create"}
+        sessionId={sessionFormState?.sessionId ?? null}
+        onClose={closeSessionForm}
+        onSaved={handleSessionFormSaved}
       />
     </Layout>
   );

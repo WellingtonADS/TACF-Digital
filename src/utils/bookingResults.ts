@@ -64,6 +64,7 @@ export function parseBookingResult(
   const result_status =
     normalizeStatus(record.result_status) ??
     normalizeStatus(record.result) ??
+    normalizeStatus(record.status) ??
     null;
 
   if (!result_status) {
