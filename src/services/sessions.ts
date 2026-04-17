@@ -5,6 +5,7 @@
  */
 
 import type { Database } from "@/types/database.types";
+import type { BookingResultPayload } from "@/utils/bookingResults";
 import supabase from "./supabase";
 
 export type SessionForEdit = {
@@ -63,7 +64,7 @@ export type SessionBookingBasic = {
   id: string;
   session_id: string;
   user_id: string;
-  result_details: string | null;
+  result_details: Database["public"]["Tables"]["bookings"]["Row"]["result_details"];
 };
 
 export async function fetchSessionForEdit(sessionId: string): Promise<{
@@ -266,11 +267,16 @@ export async function fetchSessionBookings(sessionId: string): Promise<{
 
 export async function updateBookingResult(
   bookingId: string,
-  resultDetails: string,
+  resultDetails: string | BookingResultPayload,
 ): Promise<void> {
   const { error } = await supabase.rpc("set_booking_result", {
     p_booking_id: bookingId,
-    p_result: resultDetails,
+    p_result:
+      typeof resultDetails === "string"
+        ? resultDetails
+        : resultDetails.result_status,
+    p_result_payload:
+      typeof resultDetails === "string" ? null : resultDetails,
   });
   if (error) throw error;
 }

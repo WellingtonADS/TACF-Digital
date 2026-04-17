@@ -4,66 +4,71 @@
  * @path src/pages/Register.tsx
  */
 
+
+
 import { Input } from "@/components/atomic/Input";
 import PasswordInput from "@/components/atomic/PasswordInput";
-import AuthLayout from "@/components/layout/AuthLayout";
+import AuthLayout from "@/components/AuthLayout";
 import { Loader2, Plane } from "@/icons";
 import { signIn, signUp } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { type FormEvent, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const [nomeCompleto, setNomeCompleto] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [cadastrando, setCadastrando] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Prevent browser-managed autofill from keeping stale credentials on first paint.
-    const temporizadorLimpeza = window.setTimeout(() => {
-      setNomeCompleto("");
+    const clearTimer = window.setTimeout(() => {
+      setFullName("");
       setEmail("");
-      setSenha("");
+      setPassword("");
     }, 0);
 
-    return () => window.clearTimeout(temporizadorLimpeza);
+    return () => window.clearTimeout(clearTimer);
   }, []);
 
-  const cadastrarConta = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const nomeNormalizado = nomeCompleto.trim();
-    const emailNormalizado = email.trim().toLowerCase();
+    const normalizedName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!nomeNormalizado || !emailNormalizado || !senha) {
+    if (!normalizedName || !normalizedEmail || !password) {
       toast.error("Preencha todos os campos.");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       toast.error("Informe um e-mail válido.");
       return;
     }
-    if (senha.length < 8) {
+    if (password.length < 8) {
       toast.error("A senha deve ter ao menos 8 caracteres.");
       return;
     }
 
-    setCadastrando(true);
+    setLoading(true);
     try {
-      const { error: erroCadastro } = await signUp(emailNormalizado, senha, {
-        full_name: nomeNormalizado,
+      const { error: signUpError } = await signUp(normalizedEmail, password, {
+        full_name: normalizedName,
       });
-      if (erroCadastro) {
+      if (signUpError) {
         // show friendly message immediately and stop the flow
-        toast.error(getAuthErrorMessage(erroCadastro, "Erro ao criar conta."));
-        setCadastrando(false);
+        toast.error(getAuthErrorMessage(signUpError, "Erro ao criar conta."));
+        setLoading(false);
         return;
       }
 
-      const { error: erroLogin, data } = await signIn(emailNormalizado, senha);
-      if (erroLogin) {
+      const { error: signInError, data } = await signIn(
+        normalizedEmail,
+        password,
+      );
+      if (signInError) {
         toast.success("Conta criada. Verifique seu e-mail para confirmar.");
         navigate("/login");
         return;
@@ -76,7 +81,7 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       toast.error(getAuthErrorMessage(err, "Erro ao criar conta."));
     } finally {
-      setCadastrando(false);
+      setLoading(false);
     }
   };
 
@@ -95,7 +100,7 @@ export default function RegisterPage() {
           </h1>
         </div>
 
-        <form onSubmit={cadastrarConta} className="space-y-5" autoComplete="off">
+        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           <p className="text-xs text-text-muted">
             Campos com <span className="font-bold">*</span> são obrigatórios.
           </p>
@@ -106,9 +111,9 @@ export default function RegisterPage() {
               type="text"
               required
               placeholder="Ex.: João da Silva"
-              value={nomeCompleto}
+              value={fullName}
               autoComplete="off"
-              onChange={(v: string) => setNomeCompleto(v)}
+              onChange={(v: string) => setFullName(v)}
             />
           </div>
 
@@ -132,18 +137,18 @@ export default function RegisterPage() {
               name="tacf-register-password"
               required
               placeholder="Ex.: senha com mínimo de 8 caracteres"
-              value={senha}
+              value={password}
               autoComplete="new-password"
-              onChange={(e) => setSenha(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           <button
             type="submit"
-            disabled={cadastrando}
+            disabled={loading}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
-            {cadastrando ? (
+            {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               "CADASTRAR"

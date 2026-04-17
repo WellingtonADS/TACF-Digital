@@ -4,15 +4,14 @@
  * @path src/pages/AdminDashboard.tsx
  */
 
-import QuickAccessCard, {
-  type AcaoRapidaAdmin,
-} from "@/components/Admin/QuickAccessCard";
 import AppIcon from "@/components/atomic/AppIcon";
+import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
+import type { LucideIcon } from "@/icons";
 import {
   AlertTriangle,
   BarChart2,
@@ -40,47 +39,82 @@ import { useNavigate } from "react-router-dom";
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const nomeExibicao = String(
+  const displayName = String(
     profile?.war_name || profile?.full_name || "Admin",
   );
 
-  // Métricas
+  // metrics
   const [totalInscritos, setTotalInscritos] = useState<number>(0);
-  const [aptosNoMes, setAptosNoMes] = useState<number>(0);
+  const [aptosMonth, setAptosMonth] = useState<number>(0);
   const [pendencias, setPendencias] = useState<number>(0);
-  const [carregandoMetricas, setCarregandoMetricas] =
-    useState<boolean>(true);
-  const [erroMetricas, setErroMetricas] = useState<string | null>(null);
-  const [panoramaGovernanca, setPanoramaGovernanca] =
-    useState<AdminGovernanceSnapshot | null>(
+  const [metricsLoading, setMetricsLoading] = useState<boolean>(true);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [governance, setGovernance] = useState<AdminGovernanceSnapshot | null>(
     null,
   );
 
-  // Sessões, usadas para capacidade restante e próximas turmas.
-  const { sessions, loading: carregandoSessoes } = useSessions();
+  // sessions (somente para capacidade restante e próximas turmas)
+  const { sessions, loading: sessionsLoading } = useSessions();
 
-  const carregandoPagina = carregandoMetricas || carregandoSessoes;
+  const isLoading = metricsLoading || sessionsLoading;
+
+  type LocalAction = {
+    icon: LucideIcon;
+    label: string;
+    description: string;
+    path: string;
+    accent?: string;
+  };
+
+  function QuickActionButton({ action }: { action: LocalAction }) {
+    const actionTestId = `admin-quick-action-${
+      action.path.replace(/^\/app\/?/, "").replace(/[:/]+/g, "-") || "dashboard"
+    }`;
+
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(action.path)}
+        data-testid={actionTestId}
+        className={`${CARD_INTERACTIVE_CLASS} group flex h-full min-h-[156px] w-full flex-col items-start justify-start gap-3 rounded-2xl p-4 text-left md:min-h-[168px] md:p-5`}
+      >
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}
+        >
+          <AppIcon icon={action.icon} size="sm" ariaLabel={action.label} />
+        </div>
+        <div className="flex w-full flex-1 flex-col text-left">
+          <p className="text-left text-base font-semibold leading-tight text-text-body line-clamp-2">
+            {action.label}
+          </p>
+          <p className="mt-1 text-left text-xs leading-snug text-text-muted line-clamp-2">
+            {action.description}
+          </p>
+        </div>
+      </button>
+    );
+  }
 
   useEffect(() => {
     async function loadMetrics() {
-      setCarregandoMetricas(true);
-      setErroMetricas(null);
+      setMetricsLoading(true);
+      setMetricsError(null);
       try {
         const { totalInscritos, aptosMonth, pendencias } =
           await fetchAdminMetrics();
-        const snapshotGovernanca = await fetchAdminGovernanceSnapshot();
+        const governanceSnapshot = await fetchAdminGovernanceSnapshot();
         setTotalInscritos(totalInscritos);
-        setAptosNoMes(aptosMonth);
+        setAptosMonth(aptosMonth);
         setPendencias(pendencias);
-        setPanoramaGovernanca(snapshotGovernanca);
+        setGovernance(governanceSnapshot);
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String(error.message)
             : "Erro ao carregar métricas.";
-        setErroMetricas(message);
+        setMetricsError(message);
       } finally {
-        setCarregandoMetricas(false);
+        setMetricsLoading(false);
       }
     }
 
@@ -92,17 +126,17 @@ const AdminDashboard = () => {
     return sessions.reduce((sum, s) => sum + (s.available_count ?? 0), 0);
   }, [sessions]);
 
-  const alertaGovernanca = useMemo(() => {
-    if (!panoramaGovernanca) return null;
+  const governanceAlert = useMemo(() => {
+    if (!governance) return null;
 
     if (
-      panoramaGovernanca.pendingSwapRequests > 0 &&
-      panoramaGovernanca.oldestPendingSwapCreatedAt
+      governance.pendingSwapRequests > 0 &&
+      governance.oldestPendingSwapCreatedAt
     ) {
       const ageHours = Math.max(
         differenceInHours(
           new Date(),
-          parseISO(panoramaGovernanca.oldestPendingSwapCreatedAt),
+          parseISO(governance.oldestPendingSwapCreatedAt),
         ),
         0,
       );
@@ -112,19 +146,19 @@ const AdminDashboard = () => {
       }
     }
 
-    if (panoramaGovernanca.overdueSessions > 0) {
-      return `${panoramaGovernanca.overdueSessions} turma(s) já passaram da data e ainda não foram encerradas.`;
+    if (governance.overdueSessions > 0) {
+      return `${governance.overdueSessions} turma(s) já passaram da data e ainda não foram encerradas.`;
     }
 
-    if (panoramaGovernanca.pendingResults > 0) {
-      return `${panoramaGovernanca.pendingResults} resultado(s) seguem pendentes em turmas vencidas.`;
+    if (governance.pendingResults > 0) {
+      return `${governance.pendingResults} resultado(s) seguem pendentes em turmas vencidas.`;
     }
 
     return null;
-  }, [panoramaGovernanca]);
+  }, [governance]);
 
-  // Próximas 3 turmas abertas.
-  const proximasTurmas = useMemo(() => {
+  // próximas 3 turmas abertas
+  const upcomingSessions = useMemo(() => {
     const now = new Date();
     return sessions
       .filter(
@@ -133,7 +167,7 @@ const AdminDashboard = () => {
       .slice(0, 3);
   }, [sessions]);
 
-  const acoesRapidas: AcaoRapidaAdmin[] = [
+  const quickActions = [
     {
       icon: LayoutGrid,
       label: "Gerenciar Turmas",
@@ -181,21 +215,19 @@ const AdminDashboard = () => {
   const sessionCardBaseClass =
     "h-full rounded-2xl border border-border-default bg-bg-card p-5";
 
-  if (carregandoPagina) {
-    return <FullPageLoading message="Carregando painel administrativo" />;
-  }
+  if (isLoading) return <FullPageLoading message="Carregando dashboard" />;
 
   return (
     <Layout>
       <div className="mx-auto w-full max-w-6xl" data-testid="admin-dashboard">
-        {/* Cabeçalho principal */}
+        {/* Greeting hero */}
         <section className="mb-8">
           <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
             <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
-                  Olá, {nomeExibicao}
+                  Olá, {displayName}
                 </h2>
                 <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                   Visão Geral — TACF‑Digital.
@@ -213,7 +245,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2 ml-2">
                     <div
                       role="img"
-                      aria-label={`Avatar de ${nomeExibicao}`}
+                      aria-label={`Avatar de ${displayName}`}
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/20"
                     >
                       <span
@@ -232,19 +264,19 @@ const AdminDashboard = () => {
           </div>
         </section>
 
-        {/* Grade de indicadores */}
+        {/* stats grid (DRY via StatCard) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <StatCard
             title="Total Inscritos"
             value={totalInscritos}
-            loading={carregandoMetricas}
+            loading={metricsLoading}
             icon={Users}
           />
 
           <StatCard
             title="Aptos (Mês)"
-            value={aptosNoMes}
-            loading={carregandoMetricas}
+            value={aptosMonth}
+            loading={metricsLoading}
             icon={CheckCircle}
             className="border-b-4 border-success/30"
             iconBg="bg-success/10"
@@ -254,7 +286,7 @@ const AdminDashboard = () => {
           <StatCard
             title="Pendências"
             value={pendencias}
-            loading={carregandoMetricas}
+            loading={metricsLoading}
             icon={AlertTriangle}
             className="border-b-4 border-error/30"
             iconBg="bg-error/10"
@@ -264,7 +296,7 @@ const AdminDashboard = () => {
           <StatCard
             title="Vagas Restante"
             value={capacidadeRestante}
-            loading={carregandoSessoes}
+            loading={sessionsLoading}
             icon={BarChart2}
           />
         </div>
@@ -274,7 +306,7 @@ const AdminDashboard = () => {
             <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
               Governança Operacional
             </h3>
-            {alertaGovernanca && (
+            {governanceAlert && (
               <span className="inline-flex items-center gap-2 rounded-full border border-alert/30 bg-alert/10 px-3 py-1 text-[11px] font-semibold text-alert">
                 <AlertTriangle size={12} />
                 Atenção SLA
@@ -282,17 +314,17 @@ const AdminDashboard = () => {
             )}
           </div>
 
-          {alertaGovernanca && (
+          {governanceAlert && (
             <div className="mb-4 rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
-              {alertaGovernanca}
+              {governanceAlert}
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Turmas em Atraso"
-              value={panoramaGovernanca?.overdueSessions ?? 0}
-              loading={carregandoMetricas}
+              value={governance?.overdueSessions ?? 0}
+              loading={metricsLoading}
               icon={Shield}
               className="border-b-4 border-alert/30"
               iconBg="bg-alert/10"
@@ -300,8 +332,8 @@ const AdminDashboard = () => {
             />
             <StatCard
               title="Resultados Pendentes"
-              value={panoramaGovernanca?.pendingResults ?? 0}
-              loading={carregandoMetricas}
+              value={governance?.pendingResults ?? 0}
+              loading={metricsLoading}
               icon={ClipboardList}
               className="border-b-4 border-error/30"
               iconBg="bg-error/10"
@@ -309,8 +341,8 @@ const AdminDashboard = () => {
             />
             <StatCard
               title="Reagendamentos Abertos"
-              value={panoramaGovernanca?.pendingSwapRequests ?? 0}
-              loading={carregandoMetricas}
+              value={governance?.pendingSwapRequests ?? 0}
+              loading={metricsLoading}
               icon={GitMerge}
               className="border-b-4 border-secondary/30"
               iconBg="bg-secondary/10"
@@ -318,8 +350,8 @@ const AdminDashboard = () => {
             />
             <StatCard
               title="Sessões Concluídas 7d"
-              value={panoramaGovernanca?.completedSessionsLast7Days ?? 0}
-              loading={carregandoMetricas}
+              value={governance?.completedSessionsLast7Days ?? 0}
+              loading={metricsLoading}
               icon={CheckCircle}
               className="border-b-4 border-success/30"
               iconBg="bg-success/10"
@@ -328,30 +360,26 @@ const AdminDashboard = () => {
           </div>
         </section>
 
-        {/* Mensagem de erro das métricas */}
-        {erroMetricas && (
+        {/* sessions table */}
+        {metricsError && (
           <div className="mb-6 rounded-2xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
-            {erroMetricas}
+            {metricsError}
           </div>
         )}
 
-        {/* Cartões de acesso rápido */}
+        {/* quick action cards */}
         <section className="mb-10">
           <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 px-1">
             Acesso Rápido
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
-            {acoesRapidas.map((action) => (
-              <QuickAccessCard
-                key={action.path}
-                action={action}
-                onClick={() => navigate(action.path)}
-              />
+            {quickActions.map((action) => (
+              <QuickActionButton key={action.path} action={action} />
             ))}
           </div>
         </section>
 
-        {/* Próximas turmas abertas */}
+        {/* upcoming sessions strip */}
         <section>
           <div className="flex items-center justify-between mb-4 px-1">
             <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
@@ -366,14 +394,14 @@ const AdminDashboard = () => {
             </button>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {carregandoSessoes ? (
+            {sessionsLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
                   className={`${sessionCardBaseClass} h-28 animate-pulse`}
                 />
               ))
-            ) : proximasTurmas.length === 0 ? (
+            ) : upcomingSessions.length === 0 ? (
               <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-border-default bg-bg-card p-8 text-center">
                 <AppIcon
                   icon={Shield}
@@ -386,7 +414,7 @@ const AdminDashboard = () => {
                 </p>
               </div>
             ) : (
-              proximasTurmas.map((s) => {
+              upcomingSessions.map((s) => {
                 const occupied = s.occupied_count;
                 const max = s.max_capacity;
                 const percent = max ? Math.round((occupied / max) * 100) : 0;

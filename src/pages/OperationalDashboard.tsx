@@ -8,8 +8,8 @@ import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
-import RescheduleDialog from "@/components/Booking/RescheduleDialog";
-import TicketsListDialog from "@/components/Booking/TicketsListDialog";
+import RescheduleDialog from "@/components/RescheduleDialog";
+import TicketsListModal from "@/components/TicketsListModal";
 import useDashboard from "@/hooks/useDashboard";
 import {
   Award,
@@ -32,39 +32,39 @@ export const OperationalDashboard = () => {
     user,
     profile,
     loading,
-    bookingsCount: totalAgendamentos,
-    resultsCount: totalResultados,
-    nextSession: proximaSessao,
-    nextSessionBookingId: idAgendamentoProximaSessao,
-    hasPendingSwap: temReagendamentoPendente,
+    bookingsCount,
+    resultsCount,
+    nextSession,
+    nextSessionBookingId,
+    hasPendingSwap,
     latestOrderNumber: _latestOrderNumber,
-    notifications: notificacoesDerivadas,
+    notifications: derivedNotifications,
     inspsauStatus: _inspsauStatus,
-    loading: carregandoPainel,
+    loading: dashboardLoading,
     refresh,
   } = useDashboard();
 
   const typedProfile = profile as DBProfile | null;
 
-  const nomeExibicao =
+  const displayName =
     typedProfile?.full_name ||
     typedProfile?.war_name ||
     user?.email ||
     "Usuário";
 
-  const [reagendamentoAberto, setReagendamentoAberto] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const navigate = useNavigate();
 
-  type ProximaSessaoComDetalhes = NonNullable<typeof proximaSessao> & {
+  type NextSessionWithOptionalDetails = NonNullable<typeof nextSession> & {
     time?: string | null;
     location?: string | null;
   };
 
-  const detalhesProximaSessao =
-    proximaSessao as ProximaSessaoComDetalhes | null;
+  const nextSessionDetails =
+    nextSession as NextSessionWithOptionalDetails | null;
 
-  const cartoesAcao = [
+  const actionCards = [
     {
       icon: CalendarPlus,
       label: "Novo Agendamento",
@@ -80,7 +80,7 @@ export const OperationalDashboard = () => {
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/resultados",
-      count: totalResultados,
+      count: resultsCount,
     },
     {
       icon: Award,
@@ -89,7 +89,7 @@ export const OperationalDashboard = () => {
       iconBg: "bg-primary/5",
       iconColor: "text-primary",
       to: "/app/ticket",
-      count: totalAgendamentos,
+      count: bookingsCount,
     },
     {
       icon: FileText,
@@ -101,21 +101,21 @@ export const OperationalDashboard = () => {
     },
   ];
 
-  const notificacoes = notificacoesDerivadas;
-  const [dialogoBilhetesAberto, setDialogoBilhetesAberto] = useState(false);
+  const notifications = derivedNotifications;
+  const [showTicketsModal, setShowTicketsModal] = useState(false);
 
-  return loading || carregandoPainel ? (
-    <FullPageLoading message="Carregando painel operacional" />
+  return loading || dashboardLoading ? (
+    <FullPageLoading message="Carregando dashboard" />
   ) : (
     <Layout>
-      {/* Cabeçalho principal */}
+      {/* Greeting Card */}
       <section className="mb-8" data-testid="operational-dashboard">
         <div className="relative overflow-hidden bg-primary rounded-3xl p-5 md:p-8 lg:p-10 text-white shadow-2xl shadow-primary/20">
           <div className="absolute inset-0 opacity-10 pointer-events-none dashboard-hero-texture" />
           <div className="relative z-10">
             <div>
               <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
-                Olá, {nomeExibicao}
+                Olá, {displayName}
               </h2>
               <p className="text-white/80 mt-2 text-sm md:text-lg font-normal">
                 Seja bem-vindo ao portal de agendamento do HACO
@@ -125,13 +125,13 @@ export const OperationalDashboard = () => {
         </div>
       </section>
 
-      {/* Grade de ações */}
+      {/* Action Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {cartoesAcao.map((card, index) => (
+        {actionCards.map((card, index) => (
           <button
             key={index}
             onClick={() => {
-              if (card.to === "/app/ticket") setDialogoBilhetesAberto(true);
+              if (card.to === "/app/ticket") setShowTicketsModal(true);
               else navigate(card.to ?? "/");
             }}
             onMouseEnter={() => {
@@ -173,22 +173,22 @@ export const OperationalDashboard = () => {
           </button>
         ))}
       </section>
-      <TicketsListDialog
-        open={dialogoBilhetesAberto}
-        onClose={() => setDialogoBilhetesAberto(false)}
+      <TicketsListModal
+        open={showTicketsModal}
+        onClose={() => setShowTicketsModal(false)}
       />
 
       <RescheduleDialog
-        open={reagendamentoAberto}
-        bookingId={idAgendamentoProximaSessao ?? ""}
-        currentDate={proximaSessao?.date ?? ""}
-        onClose={() => setReagendamentoAberto(false)}
+        open={dialogOpen}
+        bookingId={nextSessionBookingId ?? ""}
+        currentDate={nextSession?.date ?? ""}
+        onClose={() => setDialogOpen(false)}
         onSuccess={() => void refresh()}
       />
 
-      {/* Bloco inferior: status e avisos */}
+      {/* Bottom Section: Status & Notifications */}
       <section className="flex flex-col xl:flex-row gap-6">
-        {/* Cartão de status */}
+        {/* Status Card */}
         <div className="flex-1 bg-bg-card rounded-3xl p-4 md:p-6 lg:p-8 border border-border-default shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -212,25 +212,25 @@ export const OperationalDashboard = () => {
             />
           </div>
           <div className="flex flex-col items-center justify-center py-6 md:py-8 rounded-2xl">
-            {carregandoPainel ? (
+            {dashboardLoading ? (
               <div className="flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-bg-default flex items-center justify-center text-text-muted mb-4">
                   <AppIcon icon={Info} size="md" decorative={true} />
                 </div>
                 <p className="text-text-muted font-medium">Carregando...</p>
               </div>
-            ) : proximaSessao ? (
+            ) : nextSession ? (
               <div className="w-full">
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                   <div className="flex-shrink-0 w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border-default flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-2xl md:text-3xl font-extrabold text-primary">
-                        {format(parseISO(proximaSessao.date), "dd", {
+                        {format(parseISO(nextSession.date), "dd", {
                           locale: ptBR,
                         })}
                       </div>
                       <div className="text-xs md:text-sm uppercase text-text-muted">
-                        {format(parseISO(proximaSessao.date), "MMM", {
+                        {format(parseISO(nextSession.date), "MMM", {
                           locale: ptBR,
                         })}
                       </div>
@@ -240,18 +240,18 @@ export const OperationalDashboard = () => {
                   <div className="flex-1 text-center md:text-left">
                     <p className="text-lg md:text-xl font-extrabold text-text-body">
                       {format(
-                        parseISO(proximaSessao.date),
+                        parseISO(nextSession.date),
                         "EEEE, dd 'de' MMMM",
                         { locale: ptBR },
                       )}
                     </p>
                     <p className="text-sm text-text-muted mt-1">
-                        {detalhesProximaSessao?.time ??
-                        `Turno: ${formatSessionPeriod(proximaSessao.period)}`}
+                      {nextSessionDetails?.time ??
+                        `Turno: ${formatSessionPeriod(nextSession.period)}`}
                     </p>
-                    {detalhesProximaSessao?.location && (
+                    {nextSessionDetails?.location && (
                       <p className="text-sm text-text-muted mt-1">
-                        {detalhesProximaSessao.location}
+                        {nextSessionDetails.location}
                       </p>
                     )}
 
@@ -263,16 +263,16 @@ export const OperationalDashboard = () => {
                         Ver agendamento
                       </a>
 
-                      {idAgendamentoProximaSessao && (
+                      {nextSessionBookingId && (
                         <button
-                          onClick={() => setReagendamentoAberto(true)}
+                          onClick={() => setDialogOpen(true)}
                           className="inline-flex items-center rounded-lg border border-primary bg-primary/5 px-4 py-2 font-semibold text-primary transition-colors hover:bg-primary/10"
                         >
                           Solicitar Reagendamento
                         </button>
                       )}
 
-                      {temReagendamentoPendente && (
+                      {hasPendingSwap && (
                         <span className="inline-flex items-center rounded-full bg-error/10 px-3 py-1 text-xs font-semibold text-error">
                           Reagendamento Pendente
                         </span>
@@ -300,14 +300,14 @@ export const OperationalDashboard = () => {
           </div>
         </div>
 
-        {/* Bloco de avisos */}
+        {/* Info Section */}
         <div className="w-full xl:w-96 bg-primary/5 rounded-3xl p-4 md:p-6 lg:p-8 border border-primary/10">
           <h4 className="text-sm font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes
           </h4>
           <div className="space-y-4">
-            {notificacoes.map((n, idx) => (
+            {notifications.map((n, idx) => (
               <div
                 key={idx}
                 className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"

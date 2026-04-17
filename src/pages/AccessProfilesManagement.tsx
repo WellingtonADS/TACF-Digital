@@ -4,7 +4,6 @@
  * @path src/pages/AccessProfilesManagement.tsx
  */
 
-import AccessProfilesHero from "@/components/Admin/AccessProfilesHero";
 import FullPageLoading from "@/components/FullPageLoading";
 import AppIcon from "@/components/atomic/AppIcon";
 import Layout from "@/components/layout/Layout";
@@ -52,70 +51,91 @@ const ROLE_META: Record<
   },
 };
 
-export default function AccessProfilesManagement() {
-  const { profile, loading: autenticacaoCarregando } = useAuth();
-  const podeVisualizar = profile?.role === "admin";
-
-  const [perfis, setPerfis] = useState<UserProfile[]>([]);
-  const [papelSelecionado, setPapelSelecionado] =
-    useState<ProfileRole>("admin");
-  const [paginaAtual, setPaginaAtual] = useState<number>(1);
-  const [carregando, setCarregando] = useState<boolean>(true);
-  const [perfilSalvandoId, setPerfilSalvandoId] = useState<string | null>(
-    null,
+function PageHero({
+  selectedRole,
+  totalProfiles: _totalProfiles,
+  totalModules: _totalModules,
+}: {
+  selectedRole: string;
+  totalProfiles: number;
+  totalModules: number;
+}) {
+  return (
+    <section>
+      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+        <div className="relative z-10">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Gestão de Perfis de Acesso
+            </h1>
+            <p className="mt-2 text-sm text-white/85 md:text-base">
+              Perfil selecionado: {selectedRole}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
-  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+}
 
-  const carregarTodosDados = useCallback(async () => {
-    setCarregando(true);
-    setErroCarregamento(null);
+export default function AccessProfilesManagement() {
+  const { profile, loading: authLoading } = useAuth();
+  const canView = profile?.role === "admin";
+
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [selectedRole, setSelectedRole] = useState<ProfileRole>("admin");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadAllData = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
-      const proximosPerfis =
-        (await fetchAllProfilesForAccess()) as UserProfile[];
-      setPerfis(proximosPerfis);
-      setPapelSelecionado((papelAtual) => {
-        if (proximosPerfis.some((item) => item.role === papelAtual)) {
-          return papelAtual;
+      const nextProfiles = (await fetchAllProfilesForAccess()) as UserProfile[];
+      setProfiles(nextProfiles);
+      setSelectedRole((currentRole) => {
+        if (nextProfiles.some((item) => item.role === currentRole)) {
+          return currentRole;
         }
 
         return (
           ROLE_ORDER.find((roleOption) =>
-            proximosPerfis.some((item) => item.role === roleOption),
+            nextProfiles.some((item) => item.role === roleOption),
           ) || "user"
         );
       });
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Erro ao carregar.";
-      setErroCarregamento(message);
+      setLoadError(message);
       const authMessage = getAuthorizationErrorMessage(
         err,
         "visualizar perfis de acesso",
       );
       toast.error(authMessage ?? "Falha ao carregar perfis do banco.");
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (podeVisualizar) carregarTodosDados();
-  }, [podeVisualizar, carregarTodosDados]);
+    if (canView) loadAllData();
+  }, [canView, loadAllData]);
 
   useEffect(() => {
-    setPaginaAtual(1);
-  }, [papelSelecionado]);
+    setCurrentPage(1);
+  }, [selectedRole]);
 
-  async function atualizarPapelUsuario(
-    profileId: string,
-    nextRole: ProfileRole,
-  ) {
-    setPerfilSalvandoId(profileId);
+  async function updateUserRole(profileId: string, nextRole: ProfileRole) {
+    setSavingProfileId(profileId);
     try {
       await updateProfile(profileId, { role: nextRole });
 
-      setPerfis((perfisAtuais) =>
-        perfisAtuais.map((item) =>
+      setProfiles((currentProfiles) =>
+        currentProfiles.map((item) =>
           item.id === profileId
             ? {
                 ...item,
@@ -134,34 +154,34 @@ export default function AccessProfilesManagement() {
       );
       toast.error(authMessage ?? "Falha ao atualizar o perfil de acesso.");
     } finally {
-      setPerfilSalvandoId(null);
+      setSavingProfileId(null);
     }
   }
 
-  const carregandoPagina = autenticacaoCarregando || (podeVisualizar && carregando);
-  const metadadosPapelSelecionado = ROLE_META[papelSelecionado];
-  const perfisPapelSelecionado = perfis.filter(
-    (item) => item.role === papelSelecionado,
+  const isPageLoading = authLoading || (canView && loading);
+  const selectedRoleMeta = ROLE_META[selectedRole];
+  const selectedRoleProfiles = profiles.filter(
+    (item) => item.role === selectedRole,
   );
-  const totalPaginas = Math.max(
+  const totalPages = Math.max(
     1,
-    Math.ceil(perfisPapelSelecionado.length / PAGE_SIZE),
+    Math.ceil(selectedRoleProfiles.length / PAGE_SIZE),
   );
-  const paginaAtualSegura = Math.min(paginaAtual, totalPaginas);
-  const perfisPaginados = perfisPapelSelecionado.slice(
-    (paginaAtualSegura - 1) * PAGE_SIZE,
-    paginaAtualSegura * PAGE_SIZE,
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRoleProfiles = selectedRoleProfiles.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE,
   );
-  const intervaloInicial = perfisPapelSelecionado.length
-    ? (paginaAtualSegura - 1) * PAGE_SIZE + 1
+  const rangeStart = selectedRoleProfiles.length
+    ? (safeCurrentPage - 1) * PAGE_SIZE + 1
     : 0;
-  const intervaloFinal = Math.min(
-    paginaAtualSegura * PAGE_SIZE,
-    perfisPapelSelecionado.length,
+  const rangeEnd = Math.min(
+    safeCurrentPage * PAGE_SIZE,
+    selectedRoleProfiles.length,
   );
-  const modulosVisiveis = Array.from(
+  const visibleModules = Array.from(
     new Map(
-      getSidebarRoutesForRole(papelSelecionado)
+      getSidebarRoutesForRole(selectedRole)
         .filter((route) => route.sidebarLabel && route.sidebarIcon)
         .map((route) => [
           route.path,
@@ -173,11 +193,11 @@ export default function AccessProfilesManagement() {
     ).values(),
   );
 
-  if (carregandoPagina) {
+  if (isPageLoading) {
     return <FullPageLoading message="Carregando perfis de acesso" />;
   }
 
-  if (!podeVisualizar) {
+  if (!canView) {
     return (
       <Layout>
         <div className="p-6 text-alert">Acesso restrito a administradores.</div>
@@ -191,10 +211,10 @@ export default function AccessProfilesManagement() {
         className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-8 sm:px-6 lg:px-0"
         data-testid="access-profiles-page"
       >
-        <AccessProfilesHero
-          roleSelecionado={metadadosPapelSelecionado.label}
-          totalPerfis={perfisPapelSelecionado.length}
-          totalModulos={modulosVisiveis.length}
+        <PageHero
+          selectedRole={selectedRoleMeta.label}
+          totalProfiles={selectedRoleProfiles.length}
+          totalModules={visibleModules.length}
         />
 
         <div className="space-y-6">
@@ -205,23 +225,23 @@ export default function AccessProfilesManagement() {
                   Perfis do Sistema
                 </h2>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                  {perfis.length} usuários
+                  {profiles.length} usuários
                 </span>
               </div>
 
               <nav className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-3">
                 {ROLE_ORDER.map((roleOption) => {
                   const meta = ROLE_META[roleOption];
-                  const count = perfis.filter(
+                  const count = profiles.filter(
                     (item) => item.role === roleOption,
                   ).length;
-                  const active = roleOption === papelSelecionado;
+                  const active = roleOption === selectedRole;
 
                   return (
                     <button
                       key={roleOption}
                       type="button"
-                      onClick={() => setPapelSelecionado(roleOption)}
+                      onClick={() => setSelectedRole(roleOption)}
                       className={`min-w-[240px] flex-1 rounded-2xl border px-4 py-4 text-left transition-all sm:min-w-0 ${
                         active
                           ? "border-primary bg-primary/5 shadow-sm"
@@ -267,20 +287,20 @@ export default function AccessProfilesManagement() {
                     <h2 className="flex items-center gap-2 text-lg font-bold text-text-body sm:text-xl">
                       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                         <AppIcon
-                          icon={metadadosPapelSelecionado.icon}
+                          icon={selectedRoleMeta.icon}
                           size="sm"
                           decorative
                         />
                       </span>
-                      Perfil: {metadadosPapelSelecionado.label}
+                      Perfil: {selectedRoleMeta.label}
                     </h2>
                     <p className="mt-1 text-sm text-text-muted">
-                      {metadadosPapelSelecionado.description}
+                      {selectedRoleMeta.description}
                     </p>
                   </div>
                   <div className="rounded-xl bg-primary/5 px-4 py-2">
                     <span className="text-xs font-semibold text-primary">
-                      {perfisPapelSelecionado.length} usuários vinculados
+                      {selectedRoleProfiles.length} usuários vinculados
                     </span>
                   </div>
                 </div>
@@ -293,27 +313,25 @@ export default function AccessProfilesManagement() {
                       Usuários do perfil
                     </span>
                     <span className="text-[11px] font-semibold text-primary">
-                      {perfisPapelSelecionado.length} itens
+                      {selectedRoleProfiles.length} itens
                     </span>
                   </div>
 
-                  {erroCarregamento ? (
+                  {loadError ? (
                     <div className="space-y-3 px-4 py-6">
                       <p className="text-sm font-semibold text-error">
                         Não foi possível carregar os perfis do banco.
                       </p>
-                      <p className="text-sm text-text-muted">
-                        {erroCarregamento}
-                      </p>
+                      <p className="text-sm text-text-muted">{loadError}</p>
                       <button
                         type="button"
-                        onClick={carregarTodosDados}
+                        onClick={loadAllData}
                         className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                       >
                         Tentar novamente
                       </button>
                     </div>
-                  ) : perfisPapelSelecionado.length === 0 ? (
+                  ) : selectedRoleProfiles.length === 0 ? (
                     <div className="px-4 py-8 text-center">
                       <p className="text-sm font-semibold text-text-body">
                         Nenhum usuário com este perfil.
@@ -326,7 +344,7 @@ export default function AccessProfilesManagement() {
                   ) : (
                     <>
                       <div className="space-y-2 p-3 lg:hidden">
-                        {perfisPaginados.map((item) => {
+                        {paginatedRoleProfiles.map((item) => {
                           const fullName =
                             item.full_name || item.email || item.id;
 
@@ -363,9 +381,9 @@ export default function AccessProfilesManagement() {
                                   <span className="mb-1 block">Perfil</span>
                                   <select
                                     value={item.role}
-                                    disabled={perfilSalvandoId === item.id}
+                                    disabled={savingProfileId === item.id}
                                     onChange={(event) =>
-                                      atualizarPapelUsuario(
+                                      updateUserRole(
                                         item.id,
                                         event.target.value as ProfileRole,
                                       )
@@ -407,7 +425,7 @@ export default function AccessProfilesManagement() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border-default">
-                            {perfisPaginados.map((item) => {
+                            {paginatedRoleProfiles.map((item) => {
                               const fullName =
                                 item.full_name || item.email || item.id;
 
@@ -443,9 +461,9 @@ export default function AccessProfilesManagement() {
                                   <td className="px-4 py-4 lg:px-6">
                                     <select
                                       value={item.role}
-                                      disabled={perfilSalvandoId === item.id}
+                                      disabled={savingProfileId === item.id}
                                       onChange={(event) =>
-                                        atualizarPapelUsuario(
+                                        updateUserRole(
                                           item.id,
                                           event.target.value as ProfileRole,
                                         )
@@ -471,17 +489,17 @@ export default function AccessProfilesManagement() {
 
                       <div className="flex flex-col gap-3 border-t border-border-default bg-bg-default/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
                         <p className="text-sm text-text-muted">
-                          Mostrando {intervaloInicial}-{intervaloFinal} de{" "}
-                          {perfisPapelSelecionado.length} usuários
+                          Mostrando {rangeStart}-{rangeEnd} de{" "}
+                          {selectedRoleProfiles.length} usuários
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() =>
-                              setPaginaAtual((page) => Math.max(1, page - 1))
+                              setCurrentPage((page) => Math.max(1, page - 1))
                             }
-                            disabled={paginaAtualSegura === 1}
+                            disabled={safeCurrentPage === 1}
                             className="inline-flex h-9 items-center gap-2 rounded-xl border border-border-default bg-bg-card px-3 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <AppIcon icon={ArrowLeft} size="xs" decorative />
@@ -490,16 +508,16 @@ export default function AccessProfilesManagement() {
 
                           <div className="flex flex-wrap items-center gap-2">
                             {Array.from(
-                              { length: totalPaginas },
+                              { length: totalPages },
                               (_, index) => index + 1,
                             ).map((page) => {
-                              const active = page === paginaAtualSegura;
+                              const active = page === safeCurrentPage;
 
                               return (
                                 <button
                                   key={page}
                                   type="button"
-                                  onClick={() => setPaginaAtual(page)}
+                                  onClick={() => setCurrentPage(page)}
                                   className={`flex h-9 min-w-9 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition-colors ${
                                     active
                                       ? "border-primary bg-primary text-primary-foreground"
@@ -515,11 +533,11 @@ export default function AccessProfilesManagement() {
                           <button
                             type="button"
                             onClick={() =>
-                              setPaginaAtual((page) =>
-                                Math.min(totalPaginas, page + 1),
+                              setCurrentPage((page) =>
+                                Math.min(totalPages, page + 1),
                               )
                             }
-                            disabled={paginaAtualSegura === totalPaginas}
+                            disabled={safeCurrentPage === totalPages}
                             className="inline-flex h-9 items-center gap-2 rounded-xl border border-border-default bg-bg-card px-3 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Próxima
@@ -539,12 +557,12 @@ export default function AccessProfilesManagement() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {modulosVisiveis.length === 0 ? (
+                    {visibleModules.length === 0 ? (
                       <p className="text-sm text-text-muted">
                         Nenhum módulo de navegação disponível para este perfil.
                       </p>
                     ) : (
-                      modulosVisiveis.map((moduleItem) => (
+                      visibleModules.map((moduleItem) => (
                         <div
                           key={moduleItem.label}
                           className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-default px-3 py-2.5"

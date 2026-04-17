@@ -23,12 +23,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-function HeroPagina({
-  ehNovo,
+function PageHero({
+  isNew,
   title,
   onBack: _onBack,
 }: {
-  ehNovo: boolean;
+  isNew: boolean;
   title: string;
   onBack: () => void;
 }) {
@@ -39,7 +39,7 @@ function HeroPagina({
         <div className="relative z-10">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-              {ehNovo
+              {isNew
                 ? "Nova Organização Militar"
                 : "Editar Organização Militar"}
             </h1>
@@ -51,7 +51,7 @@ function HeroPagina({
   );
 }
 
-function CardResumo({
+function SummaryCard({
   name,
   address,
   capacity,
@@ -145,12 +145,12 @@ function CardResumo({
   );
 }
 
-function CardOrientacoes({ ehNovo }: { ehNovo: boolean }) {
+function GuidanceCard({ isNew }: { isNew: boolean }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
       <div className="border-b border-border-default px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
-          {ehNovo ? "Checklist de Cadastro" : "Boas Práticas"}
+          {isNew ? "Checklist de Cadastro" : "Boas Práticas"}
         </p>
       </div>
 
@@ -175,22 +175,15 @@ function CardOrientacoes({ ehNovo }: { ehNovo: boolean }) {
 export default function OmLocationEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const {
-    locations,
-    create,
-    update,
-    loading: carregando,
-    error: erro,
-    fetch,
-  } = useLocations();
+  const { locations, create, update, loading, error, fetch } = useLocations();
 
-  const ehNovo = id === "new";
+  const isNew = id === "new";
 
   // Garante que as locations estejam carregadas ao editar diretamente pela URL
   useEffect(() => {
-    if (!ehNovo) fetch({ limit: 100 });
-  }, [ehNovo, fetch]);
-  const [formulario, setFormulario] = useState<
+    if (!isNew) fetch({ limit: 100 });
+  }, [isNew, fetch]);
+  const [data, setData] = useState<
     Omit<Location, "id" | "created_at" | "updated_at">
   >({
     name: "",
@@ -201,74 +194,74 @@ export default function OmLocationEditor() {
     metadata: null,
     created_by: null,
   });
-  const [entradaInstalacao, setEntradaInstalacao] = useState("");
+  const [facilityInput, setFacilityInput] = useState("");
 
-  const localExistente = useMemo(() => {
-    if (ehNovo || !id) return null;
+  const existing = useMemo(() => {
+    if (isNew || !id) return null;
     return locations.find((l) => l.id === id) || null;
-  }, [ehNovo, id, locations]);
+  }, [isNew, id, locations]);
 
   useEffect(() => {
-    if (localExistente) {
+    if (existing) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormulario({
-        name: localExistente.name,
-        address: localExistente.address,
-        max_capacity: localExistente.max_capacity,
-        status: localExistente.status,
-        facilities: localExistente.facilities || [],
-        metadata: localExistente.metadata || null,
-        created_by: localExistente.created_by || null,
+      setData({
+        name: existing.name,
+        address: existing.address,
+        max_capacity: existing.max_capacity,
+        status: existing.status,
+        facilities: existing.facilities || [],
+        metadata: existing.metadata || null,
+        created_by: existing.created_by || null,
       });
     }
-  }, [localExistente]);
+  }, [existing]);
 
   useEffect(() => {
-    if (erro) toast.error(erro);
-  }, [erro]);
+    if (error) toast.error(error);
+  }, [error]);
 
-  function atualizarCampo<K extends keyof typeof formulario>(
-    campo: K,
-    valor: (typeof formulario)[K],
+  function handleChange<K extends keyof typeof data>(
+    key: K,
+    value: (typeof data)[K],
   ) {
-    setFormulario((estadoAtual) => ({ ...estadoAtual, [campo]: valor }));
+    setData((prev) => ({ ...prev, [key]: value }));
   }
 
-  function adicionarInstalacao() {
-    const tag = entradaInstalacao.trim();
+  function addFacility() {
+    const tag = facilityInput.trim();
     if (!tag) return;
-    if (!(formulario.facilities ?? []).includes(tag)) {
-      atualizarCampo("facilities", [...(formulario.facilities ?? []), tag]);
+    if (!(data.facilities ?? []).includes(tag)) {
+      handleChange("facilities", [...(data.facilities ?? []), tag]);
     }
-    setEntradaInstalacao("");
+    setFacilityInput("");
   }
 
-  function removerInstalacao(instalacao: string) {
-    atualizarCampo(
+  function removeFacility(f: string) {
+    handleChange(
       "facilities",
-      (formulario.facilities ?? []).filter((item) => item !== instalacao),
+      (data.facilities ?? []).filter((x) => x !== f),
     );
   }
 
-  async function salvarLocal(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!formulario.name.trim()) {
+    if (!data.name.trim()) {
       toast.error("Nome é obrigatório");
       return;
     }
-    if (formulario.max_capacity < 0) {
+    if (data.max_capacity < 0) {
       toast.error("Capacidade deve ser positiva");
       return;
     }
     try {
-      if (ehNovo) {
-        const loc = await create(formulario);
+      if (isNew) {
+        const loc = await create(data);
         if (loc) {
           toast.success("Unidade criada com sucesso");
           navigate("/app/om-locations");
         }
       } else if (id) {
-        const loc = await update(id, formulario);
+        const loc = await update(id, data);
         if (loc) {
           toast.success("Unidade atualizada com sucesso");
           navigate("/app/om-locations");
@@ -279,29 +272,29 @@ export default function OmLocationEditor() {
     }
   }
 
-  const carregamentoInicial = !ehNovo && carregando && locations.length === 0;
-  const listaInstalacoes = formulario.facilities ?? [];
+  const isInitialLoad = !isNew && loading && locations.length === 0;
+  const facilityList = data.facilities ?? [];
 
-  if (carregamentoInicial) {
+  if (isInitialLoad) {
     return <FullPageLoading message="Carregando unidade" />;
   }
 
   return (
     <Layout>
       <div className="mx-auto w-full max-w-5xl pb-16">
-        <HeroPagina
-          ehNovo={ehNovo}
+        <PageHero
+          isNew={isNew}
           title={
-            ehNovo
+            isNew
               ? "Preencha os dados para cadastrar uma nova OM."
-              : `Editando: ${localExistente?.name ?? "..."}`
+              : `Editando: ${existing?.name ?? "..."}`
           }
           onBack={() => navigate("/app/om-locations")}
         />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
           <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
-            <form className="flex flex-col" onSubmit={salvarLocal}>
+            <form className="flex flex-col" onSubmit={handleSubmit}>
               <div className="space-y-10 p-8 md:p-12">
                 <section className="space-y-5">
                   <div className="flex items-center gap-3 border-b border-border-default pb-3">
@@ -317,8 +310,8 @@ export default function OmLocationEditor() {
                     <input
                       type="text"
                       placeholder="Ex.: HACO – Hospital de Aeronáutica de Canoas"
-                      value={formulario.name}
-                      onChange={(e) => atualizarCampo("name", e.target.value)}
+                      value={data.name}
+                      onChange={(e) => handleChange("name", e.target.value)}
                       required
                       className="w-full rounded-xl border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all placeholder:text-text-muted focus-ring"
                     />
@@ -339,8 +332,8 @@ export default function OmLocationEditor() {
                     <input
                       type="text"
                       placeholder="Rua, número, bairro, cidade — UF"
-                      value={formulario.address}
-                      onChange={(e) => atualizarCampo("address", e.target.value)}
+                      value={data.address}
+                      onChange={(e) => handleChange("address", e.target.value)}
                       required
                       className="w-full rounded-xl border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all placeholder:text-text-muted focus-ring"
                     />
@@ -363,9 +356,9 @@ export default function OmLocationEditor() {
                         type="number"
                         min={0}
                         placeholder="0"
-                        value={formulario.max_capacity}
+                        value={data.max_capacity}
                         onChange={(e) =>
-                          atualizarCampo("max_capacity", Number(e.target.value))
+                          handleChange("max_capacity", Number(e.target.value))
                         }
                         className="w-full rounded-xl border border-border-default bg-bg-default px-4 py-3 font-mono text-text-body transition-all focus-ring"
                       />
@@ -383,12 +376,12 @@ export default function OmLocationEditor() {
                           Object.keys(OM_STATUS) as (keyof typeof OM_STATUS)[]
                         ).map((s) => {
                           const cfg = OM_STATUS[s];
-                          const isSelected = formulario.status === s;
+                          const isSelected = data.status === s;
                           return (
                             <button
                               key={s}
                               type="button"
-                              onClick={() => atualizarCampo("status", s)}
+                              onClick={() => handleChange("status", s)}
                               className={`flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all ${
                                 isSelected
                                   ? cfg.editorAccent
@@ -433,36 +426,36 @@ export default function OmLocationEditor() {
                     <input
                       type="text"
                       placeholder="Ex.: Pista de Atletismo"
-                      value={entradaInstalacao}
-                      onChange={(e) => setEntradaInstalacao(e.target.value)}
+                      value={facilityInput}
+                      onChange={(e) => setFacilityInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          adicionarInstalacao();
+                          addFacility();
                         }
                       }}
                       className="w-full flex-1 rounded-xl border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all placeholder:text-text-muted focus-ring"
                     />
                     <button
                       type="button"
-                      onClick={adicionarInstalacao}
+                      onClick={addFacility}
                       className="rounded-lg bg-primary/10 px-5 py-3 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
                     >
                       Adicionar
                     </button>
                   </div>
-                  {listaInstalacoes.length > 0 ? (
+                  {facilityList.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {listaInstalacoes.map((instalacao) => (
+                      {facilityList.map((f) => (
                         <span
-                          key={instalacao}
+                          key={f}
                           className="inline-flex items-center gap-1.5 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-medium text-primary"
                         >
-                          {instalacao}
+                          {f}
                           <button
                             type="button"
-                            onClick={() => removerInstalacao(instalacao)}
-                            aria-label={`Remover ${instalacao}`}
+                            onClick={() => removeFacility(f)}
+                            aria-label={`Remover ${f}`}
                             className="text-primary/60 transition-colors hover:text-error"
                           >
                             <X size={12} />
@@ -488,16 +481,16 @@ export default function OmLocationEditor() {
                 </button>
                 <button
                   type="submit"
-                  disabled={carregando}
+                  disabled={loading}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
                 >
-                  {carregando ? (
+                  {loading ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : (
                     <CheckCircle size={16} />
                   )}
                   <span className="text-xs font-bold uppercase tracking-widest">
-                    {ehNovo ? "Cadastrar Unidade" : "Salvar Alterações"}
+                    {isNew ? "Cadastrar Unidade" : "Salvar Alterações"}
                   </span>
                 </button>
               </div>
@@ -505,14 +498,14 @@ export default function OmLocationEditor() {
           </div>
 
           <div className="space-y-6">
-            <CardResumo
-              name={formulario.name.trim()}
-              address={formulario.address.trim()}
-              capacity={formulario.max_capacity}
-              status={formulario.status}
-              facilities={listaInstalacoes}
+            <SummaryCard
+              name={data.name.trim()}
+              address={data.address.trim()}
+              capacity={data.max_capacity}
+              status={data.status}
+              facilities={facilityList}
             />
-            <CardOrientacoes ehNovo={ehNovo} />
+            <GuidanceCard isNew={isNew} />
           </div>
         </div>
       </div>

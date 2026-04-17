@@ -1,6 +1,6 @@
 /**
  * ARCHIVED: TicketsListModal
- * Reason: substituído por `src/components/Booking/TicketsListDialog.tsx` durante a
+ * Reason: substituído por `src/components/TicketsListDialog.tsx` durante a
  * padronização dos overlays para o shell canônico de dialog.
  * Original path: src/components/TicketsListModal.tsx
  */

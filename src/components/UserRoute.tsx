@@ -19,13 +19,9 @@ export default function UserRoute({
 }: {
   children: JSX.Element | null;
 }) {
-  const {
-    user,
-    profile,
-    loading: autenticacaoCarregando,
-  } = useAuth();
+  const { user, profile, loading } = useAuth();
 
-  if (autenticacaoCarregando) {
+  if (loading) {
     return <FullPageLoading />;
   }
 

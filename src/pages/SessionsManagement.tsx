@@ -6,6 +6,7 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
+import SessionHubDialog from "@/components/Booking/SessionHubDialog";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -15,22 +16,21 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  ClipboardPen,
   Edit2,
   Filter,
   LayoutGrid,
   LayoutList,
   Search,
-  Settings,
 } from "@/icons";
 import { formatSessionPeriod } from "@/utils/booking";
-import { format, parseISO, startOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { SessionStatus } from "@/types/database.types";
 
-type ModoVisualizacao = "table" | "cards";
-type FiltroStatus = "all" | "open" | "closed" | "concluded";
+type ViewMode = "table" | "cards";
+type StatusFilter = "all" | SessionStatus;
 
 // Datas fixas para cobrir histórico e futuro no painel admin
 const ADMIN_START = new Date();
@@ -43,82 +43,64 @@ const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 export const SessionsManagement = () => {
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
-  const {
-    sessions: sessoes,
-    loading: carregandoSessoes,
-    error: erroSessoes,
-    refresh: recarregarSessoes,
-  } = useSessions(
+  const { sessions, loading, error, refresh } = useSessions(
     ADMIN_START_STR,
     ADMIN_END_STR,
   );
 
-  const [termoBusca, setTermoBusca] = useState("");
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const viewportCompacto = isMobile || isTablet;
-  const [modoVisualizacao, setModoVisualizacao] =
-    useState<ModoVisualizacao>(() =>
-      viewportCompacto ? "cards" : "table",
-    );
-  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("all");
-  const itensPorPagina = 10;
-  const modoVisualizacaoAtivo: ModoVisualizacao = viewportCompacto
-    ? "cards"
-    : modoVisualizacao;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const isCompactViewport = isMobile || isTablet;
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    isCompactViewport ? "cards" : "table",
+  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const pageSize = 10;
+  const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
 
-  // timestamp do início do dia atual — primitivo estável como dep
-  const inicioHojeTs = useMemo(() => startOfDay(new Date()).getTime(), []);
-
-  const obterStatusSessao = useCallback(
-    (session: SessionAvailability): "open" | "closed" | "concluded" => {
-      const sessionDate = startOfDay(parseISO(session.date)).getTime();
-      if (sessionDate <= inicioHojeTs) return "concluded";
-      return (session.available_count ?? 0) > 0 ? "open" : "closed";
-    },
-    [inicioHojeTs],
+  const getSessionStatus = useCallback(
+    (session: SessionAvailability): SessionStatus => session.status,
+    [],
   );
 
-  const sessoesFiltradas = useMemo(() => {
-    const termoNormalizado = termoBusca.trim().toLowerCase();
-    return sessoes.filter((session) => {
+  const filteredSessions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return sessions.filter((session) => {
       const dateLabel = format(
         parseISO(session.date),
         "dd MMM yyyy",
       ).toLowerCase();
       const matchSearch =
-        !termoNormalizado ||
-        session.session_id.toLowerCase().includes(termoNormalizado) ||
-        session.period.toLowerCase().includes(termoNormalizado) ||
-        formatSessionPeriod(session.period)
-          .toLowerCase()
-          .includes(termoNormalizado) ||
-        dateLabel.includes(termoNormalizado);
-      const status = obterStatusSessao(session);
-      const matchStatus = filtroStatus === "all" || status === filtroStatus;
+        !term ||
+        session.session_id.toLowerCase().includes(term) ||
+        session.period.toLowerCase().includes(term) ||
+        formatSessionPeriod(session.period).toLowerCase().includes(term) ||
+        dateLabel.includes(term) ||
+        (session.location_name ?? "").toLowerCase().includes(term);
+      const status = getSessionStatus(session);
+      const matchStatus = statusFilter === "all" || status === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [sessoes, termoBusca, filtroStatus, obterStatusSessao]);
+  }, [sessions, searchTerm, statusFilter, getSessionStatus]);
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(sessoesFiltradas.length / itensPorPagina),
-  );
-  const sessoesPaginadas = useMemo(() => {
-    const inicio = (paginaAtual - 1) * itensPorPagina;
-    return sessoesFiltradas.slice(inicio, inicio + itensPorPagina);
-  }, [sessoesFiltradas, paginaAtual, itensPorPagina]);
+  const pageCount = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
+  const paginatedSessions = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredSessions.slice(start, start + pageSize);
+  }, [filteredSessions, page, pageSize]);
 
-  const totalAbertas = sessoes.filter(
-    (s) => obterStatusSessao(s) === "open",
+  const openCount = sessions.filter(
+    (s) => getSessionStatus(s) === "open",
   ).length;
-  const totalFechadas = sessoes.filter(
-    (s) => obterStatusSessao(s) === "closed",
+  const closedCount = sessions.filter(
+    (s) => getSessionStatus(s) === "closed",
   ).length;
-  const totalConcluidas = sessoes.filter(
-    (s) => obterStatusSessao(s) === "concluded",
+  const concludedCount = sessions.filter(
+    (s) => getSessionStatus(s) === "completed",
   ).length;
 
-  if (carregandoSessoes) {
+  if (loading) {
     return (
       <FullPageLoading
         message="Carregando turmas"
@@ -127,7 +109,7 @@ export const SessionsManagement = () => {
     );
   }
 
-  const renderizarBarraOcupacao = (session: SessionAvailability) => {
+  const renderOccupancyBar = (session: SessionAvailability) => {
     const occupied = session.occupied_count;
     const max = session.max_capacity;
     const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -169,7 +151,7 @@ export const SessionsManagement = () => {
         className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6"
         data-testid="sessions-management-page"
       >
-        {/* Cabeçalho principal */}
+        {/* hero */}
         <section>
           <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
@@ -179,10 +161,10 @@ export const SessionsManagement = () => {
                   className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
                   data-testid="sessions-management-title"
                 >
-                  Gerenciar Turmas
+                  Hub de Sessões
                 </h2>
                 <p className="mt-2 text-sm text-white/85 md:text-base">
-                  Controle operacional das sessões de avaliação física.
+                  Hub de sessões para operação, consulta histórica e fechamento.
                 </p>
               </div>
               <div />
@@ -190,20 +172,20 @@ export const SessionsManagement = () => {
           </div>
         </section>
 
-        {/* Resumo de indicadores */}
+        {/* summary stats */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total" value={sessoes.length} icon={Calendar} />
+          <StatCard title="Total" value={sessions.length} icon={Calendar} />
           <StatCard
             title="Abertas"
-            value={totalAbertas}
+            value={openCount}
             icon={Calendar}
             className="border-b-4 border-primary/30"
             iconBg="bg-primary/10"
             iconColor="text-primary"
           />
           <StatCard
-            title="Canceladas"
-            value={totalFechadas}
+            title="Fechadas"
+            value={closedCount}
             icon={Calendar}
             className="border-b-4 border-error/30"
             iconBg="bg-error/10"
@@ -211,7 +193,7 @@ export const SessionsManagement = () => {
           />
           <StatCard
             title="Concluídas"
-            value={totalConcluidas}
+            value={concludedCount}
             icon={Calendar}
             className="border-b-4 border-success/30"
             iconBg="bg-success/10"
@@ -219,19 +201,19 @@ export const SessionsManagement = () => {
           />
         </div>
 
-        {/* Barra de ferramentas */}
+        {/* toolbar */}
         <div className="bg-bg-card rounded-2xl shadow-sm border border-border-default overflow-hidden">
           <div className="p-3 md:p-5 border-b border-border-default flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-            {/* Busca */}
+            {/* search */}
             <div className="relative w-full sm:flex-1 sm:min-w-0">
               <input
                 className="pl-10 pr-4 py-2 bg-bg-default border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
-                placeholder="Buscar turma, data ou turno..."
+                placeholder="Buscar sessão, data, turno ou local..."
                 type="text"
-                value={termoBusca}
+                value={searchTerm}
                 onChange={(e) => {
-                  setTermoBusca(e.target.value);
-                  setPaginaAtual(1);
+                  setSearchTerm(e.target.value);
+                  setPage(1);
                 }}
               />
               <AppIcon
@@ -243,18 +225,18 @@ export const SessionsManagement = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-              {/* Filtro de status */}
+              {/* status filter */}
               <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
-                {(["all", "open", "closed", "concluded"] as const).map((f) => (
+                {(["all", "open", "closed", "completed"] as const).map((f) => (
                   <button
                     key={f}
                     type="button"
                     onClick={() => {
-                      setFiltroStatus(f);
-                      setPaginaAtual(1);
+                      setStatusFilter(f);
+                      setPage(1);
                     }}
                     className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                      filtroStatus === f
+                      statusFilter === f
                         ? "bg-primary/10 text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -264,21 +246,21 @@ export const SessionsManagement = () => {
                       : f === "open"
                         ? "Abertas"
                         : f === "closed"
-                          ? "Canceladas"
+                          ? "Fechadas"
                           : "Concluídas"}
                   </button>
                 ))}
               </div>
 
-              {/* Alternância de visualização */}
-              {!viewportCompacto && (
+              {/* view toggle */}
+              {!isCompactViewport && (
                 <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1">
                   <button
                     type="button"
-                    onClick={() => setModoVisualizacao("table")}
+                    onClick={() => setViewMode("table")}
                     aria-label="Modo tabela"
                     className={`p-1.5 rounded-lg transition-colors ${
-                      modoVisualizacao === "table"
+                      viewMode === "table"
                         ? "bg-bg-card text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -287,10 +269,10 @@ export const SessionsManagement = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setModoVisualizacao("cards")}
+                    onClick={() => setViewMode("cards")}
                     aria-label="Modo cards"
                     className={`p-1.5 rounded-lg transition-colors ${
-                      modoVisualizacao === "cards"
+                      viewMode === "cards"
                         ? "bg-bg-card text-primary shadow-sm"
                         : "text-text-muted hover:text-text-body"
                     }`}
@@ -311,19 +293,19 @@ export const SessionsManagement = () => {
             </div>
           </div>
         </div>
-        {/* Conteúdo */}
-        {erroSessoes ? (
+        {/* content */}
+        {error ? (
           <div className="p-5 md:p-10 text-center text-sm text-error">
-                {erroSessoes}
+            {error}
             <button
               type="button"
               className="ml-3 text-primary font-semibold hover:underline"
-                  onClick={recarregarSessoes}
+              onClick={refresh}
             >
               Tentar novamente
             </button>
           </div>
-        ) : sessoesPaginadas.length === 0 ? (
+        ) : paginatedSessions.length === 0 ? (
           <div className="p-16 text-center">
             <AppIcon
               icon={Calendar}
@@ -333,7 +315,7 @@ export const SessionsManagement = () => {
             />
             <p className="text-sm text-text-muted">Nenhuma turma encontrada.</p>
           </div>
-        ) : modoVisualizacaoAtivo === "table" ? (
+        ) : activeViewMode === "table" ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left">
               <thead className="bg-bg-default">
@@ -359,10 +341,10 @@ export const SessionsManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-default">
-                {sessoesPaginadas.map((s) => {
-                  const status = obterStatusSessao(s);
+                {paginatedSessions.map((s) => {
+                  const status = getSessionStatus(s);
                   const isOpen = status === "open";
-                  const isConcluded = status === "concluded";
+                  const isCompleted = status === "completed";
                   return (
                     <tr
                       key={s.session_id}
@@ -388,81 +370,63 @@ export const SessionsManagement = () => {
                           {formatSessionPeriod(s.period)}
                         </span>
                       </td>
-                      <td className="px-6 py-5">{renderizarBarraOcupacao(s)}</td>
+                      <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
                       <td className="px-6 py-5">
                         <span
                           className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
                             isOpen
                               ? "bg-primary/10 text-primary border-primary/30"
-                              : isConcluded
+                              : isCompleted
                                 ? "bg-success/10 text-success border-success/30"
                                 : "bg-error/10 text-error border-error/30"
                           }`}
                         >
                           {isOpen
                             ? "ABERTA"
-                            : isConcluded
+                            : isCompleted
                               ? "CONCLUÍDA"
-                              : "CANCELADA"}
+                              : "FECHADA"}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex justify-end gap-1">
                           <button
                             type="button"
-                            onClick={() =>
-                              navigate(
-                                `/app/turmas/${s.session_id}/agendamentos`,
-                              )
-                            }
+                            onClick={() => setSelectedSessionId(s.session_id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
-                            title="Ver agendamentos"
-                            aria-label="Ver agendamentos"
+                            title={
+                              status === "open"
+                                ? "Abrir sessao"
+                                : "Consultar sessao"
+                            }
+                            aria-label={
+                              status === "open"
+                                ? "Abrir sessao"
+                                : "Consultar sessao"
+                            }
                           >
                             <AppIcon
                               icon={ClipboardList}
                               size="sm"
                               decorative
                             />
-                            Agendamentos
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate("/app/lancamento-indices", {
-                                state: { sessionId: s.session_id },
-                              })
-                            }
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Lançar índices"
-                            aria-label="Lançar índices"
-                          >
-                            <AppIcon icon={ClipboardPen} size="sm" decorative />
+                            {status === "open" ? "Abrir sessão" : "Consultar"}
                           </button>
                           <button
                             type="button"
                             onClick={() =>
                               navigate(`/app/turmas/${s.session_id}/editar`)
                             }
-                            disabled={isConcluded}
+                            disabled={isCompleted}
                             className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
                             title={
-                              isConcluded
+                              isCompleted
                                 ? "Turma concluída não pode ser editada"
                                 : "Editar turma"
                             }
                             aria-label="Editar turma"
                           >
                             <AppIcon icon={Edit2} size="sm" decorative />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => navigate("/app/configuracoes")}
-                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            title="Configurar turma"
-                            aria-label="Configurar turma"
-                          >
-                            <AppIcon icon={Settings} size="sm" decorative />
                           </button>
                         </div>
                       </td>
@@ -473,12 +437,12 @@ export const SessionsManagement = () => {
             </table>
           </div>
         ) : (
-          /* Visualização em cards */
+          /* cards view */
           <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {sessoesPaginadas.map((s) => {
-              const status = obterStatusSessao(s);
+            {paginatedSessions.map((s) => {
+              const status = getSessionStatus(s);
               const isOpen = status === "open";
-              const isConcluded = status === "concluded";
+              const isCompleted = status === "completed";
               const occupied = s.occupied_count;
               const max = s.max_capacity;
               const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -488,7 +452,7 @@ export const SessionsManagement = () => {
                   className={`bg-bg-default rounded-xl p-5 border border-border-default border-l-4 ${
                     isOpen
                       ? "border-l-primary"
-                      : isConcluded
+                      : isCompleted
                         ? "border-l-success"
                         : "border-l-error"
                   } flex flex-col gap-4`}
@@ -511,16 +475,16 @@ export const SessionsManagement = () => {
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                         isOpen
                           ? "bg-primary/10 text-primary border-primary/30"
-                          : isConcluded
+                          : isCompleted
                             ? "bg-success/10 text-success border-success/30"
                             : "bg-error/10 text-error border-error/30"
                       }`}
                     >
                       {isOpen
                         ? "ABERTA"
-                        : isConcluded
+                        : isCompleted
                           ? "CONCLUÍDA"
-                          : "CANCELADA"}
+                          : "FECHADA"}
                     </span>
                   </div>
 
@@ -548,35 +512,21 @@ export const SessionsManagement = () => {
                   <div className="flex flex-col gap-2 pt-1 border-t border-border-default">
                     <button
                       type="button"
-                      onClick={() =>
-                        navigate(`/app/turmas/${s.session_id}/agendamentos`)
-                      }
+                      onClick={() => setSelectedSessionId(s.session_id)}
                       className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors"
                     >
                       <AppIcon icon={ClipboardList} size="sm" decorative />
-                      Ver Agendamentos
+                      {status === "open" ? "Abrir Sessão" : "Consultar Sessão"}
                     </button>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() =>
-                          navigate("/app/lancamento-indices", {
-                            state: { sessionId: s.session_id },
-                          })
-                        }
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
-                      >
-                        <AppIcon icon={ClipboardPen} size="sm" decorative />{" "}
-                        Índices
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
                           navigate(`/app/turmas/${s.session_id}/editar`)
                         }
-                        disabled={isConcluded}
+                        disabled={isCompleted}
                         title={
-                          isConcluded
+                          isCompleted
                             ? "Turma concluída não pode ser editada"
                             : "Editar turma"
                         }
@@ -592,19 +542,19 @@ export const SessionsManagement = () => {
           </div>
         )}
 
-        {/* Paginação */}
-        {!carregandoSessoes && !erroSessoes && sessoesFiltradas.length > itensPorPagina && (
+        {/* pagination */}
+        {!loading && !error && filteredSessions.length > pageSize && (
           <div className="px-6 py-4 bg-bg-default border-t border-border-default flex justify-between items-center text-sm">
             <p className="text-text-muted text-xs">
-              {sessoesPaginadas.length} de {sessoesFiltradas.length} turmas
+              {paginatedSessions.length} de {filteredSessions.length} turmas
             </p>
             <div className="flex gap-1">
               <button
                 type="button"
-                disabled={paginaAtual <= 1}
-                onClick={() => setPaginaAtual((c) => Math.max(1, c - 1))}
+                disabled={page <= 1}
+                onClick={() => setPage((c) => Math.max(1, c - 1))}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  paginaAtual <= 1
+                  page <= 1
                     ? "bg-bg-default text-text-muted opacity-60 border-border-default"
                     : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}
@@ -612,13 +562,13 @@ export const SessionsManagement = () => {
               >
                 <AppIcon icon={ChevronLeft} size="sm" decorative />
               </button>
-              {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((v) => (
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((v) => (
                 <button
                   key={v}
                   type="button"
-                  onClick={() => setPaginaAtual(v)}
+                  onClick={() => setPage(v)}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
-                    v === paginaAtual
+                    v === page
                       ? "bg-primary text-white border-primary"
                       : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                   }`}
@@ -628,12 +578,10 @@ export const SessionsManagement = () => {
               ))}
               <button
                 type="button"
-                disabled={paginaAtual >= totalPaginas}
-                onClick={() =>
-                  setPaginaAtual((c) => Math.min(totalPaginas, c + 1))
-                }
+                disabled={page >= pageCount}
+                onClick={() => setPage((c) => Math.min(pageCount, c + 1))}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                  paginaAtual >= totalPaginas
+                  page >= pageCount
                     ? "bg-bg-default text-text-muted opacity-60 border-border-default"
                     : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
                 }`}
@@ -645,6 +593,12 @@ export const SessionsManagement = () => {
           </div>
         )}
       </div>
+      <SessionHubDialog
+        open={selectedSessionId !== null}
+        sessionId={selectedSessionId}
+        onClose={() => setSelectedSessionId(null)}
+        onSessionUpdated={refresh}
+      />
     </Layout>
   );
 };

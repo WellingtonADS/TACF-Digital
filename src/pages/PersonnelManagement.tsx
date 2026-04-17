@@ -13,6 +13,7 @@ import {
   getProfileWithHistory,
   updateProfile,
 } from "@/services/personnel";
+import { getBookingResultStatus } from "@/utils/bookingResults";
 import {
   Award,
   Calendar,
@@ -36,7 +37,7 @@ import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type LinhaMilitar = {
+type PersonnelRow = {
   id: string;
   fullName: string;
   warName: string | null;
@@ -68,29 +69,29 @@ const RANK_OPTIONS = [
 
 const STATUS_OPTIONS = ["Todos", "APTO", "INAPTO", "VENCIDO"] as const;
 
-const STATUS_BADGE_CLASS: Record<LinhaMilitar["status"], string> = {
+const STATUS_BADGE_CLASS: Record<PersonnelRow["status"], string> = {
   APTO: "bg-success/10 text-success",
   VENCIDO: "bg-alert/10 text-alert",
   INAPTO: "bg-error/10 text-error",
 };
 
-const DETAIL_STATUS_BADGE_CLASS: Record<LinhaMilitar["status"], string> = {
+const DETAIL_STATUS_BADGE_CLASS: Record<PersonnelRow["status"], string> = {
   APTO: "bg-success/10 text-success",
   INAPTO: "bg-error/10 text-error",
   VENCIDO: "bg-alert/10 text-alert",
 };
 
-function derivarStatus(
+function deriveStatus(
   active: boolean,
   lastTestDate: string | null,
   lastScore: number | null,
   resultDetails: unknown,
-): LinhaMilitar["status"] {
+): PersonnelRow["status"] {
   if (!active) return "INAPTO";
   if (!lastTestDate) return "INAPTO";
 
-  const explicitResult = normalizarResultadoAptidao(resultDetails);
-  const testDate = parsearData(lastTestDate);
+  const explicitResult = getBookingResultStatus(resultDetails);
+  const testDate = parseDateValue(lastTestDate);
   if (!testDate) return "INAPTO";
   const daysSinceTest =
     (Date.now() - testDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -103,7 +104,7 @@ function derivarStatus(
   return "APTO";
 }
 
-function parsearData(value: string | null): Date | null {
+function parseDateValue(value: string | null): Date | null {
   if (!value) return null;
 
   const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -114,66 +115,27 @@ function parsearData(value: string | null): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function normalizarResultadoAptidao(raw: unknown): "apto" | "inapto" | null {
-  if (raw == null) return null;
-
-  if (raw === "apto" || raw === "inapto") return raw;
-
-  if (typeof raw === "string") {
-    const normalized = raw.trim().toLowerCase();
-    if (normalized === "apto" || normalized === "inapto") return normalized;
-
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (parsed === "apto" || parsed === "inapto") return parsed;
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        "result_status" in parsed &&
-        ((parsed as { result_status?: unknown }).result_status === "apto" ||
-          (parsed as { result_status?: unknown }).result_status === "inapto")
-      ) {
-        return (parsed as { result_status: "apto" | "inapto" }).result_status;
-      }
-    } catch {
-      return null;
-    }
-  }
-
-  if (
-    typeof raw === "object" &&
-    raw !== null &&
-    "result_status" in raw &&
-    ((raw as { result_status?: unknown }).result_status === "apto" ||
-      (raw as { result_status?: unknown }).result_status === "inapto")
-  ) {
-    return (raw as { result_status: "apto" | "inapto" }).result_status;
-  }
-
-  return null;
-}
-
-function iniciaisNome(name: string) {
+function initialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "--";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-function rotuloData(value: string | null) {
-  const parsed = parsearData(value);
+function dateLabel(value: string | null) {
+  const parsed = parseDateValue(value);
   if (!parsed) return "--";
   return format(parsed, "dd/MM/yyyy");
 }
 
-type RegistroTeste = {
+type TestRecord = {
   id: string;
   date: string | null;
   score: number | null;
   status: string;
 };
 
-type DetalheMilitar = {
+type UserDetail = {
   id: string;
   full_name: string | null;
   war_name: string | null;
@@ -191,121 +153,114 @@ type DetalheMilitar = {
   created_at: string | null;
   lastTestDate: string | null;
   lastScore: number | null;
-  status: LinhaMilitar["status"];
-  testHistory: RegistroTeste[];
+  status: PersonnelRow["status"];
+  testHistory: TestRecord[];
 };
 
 export default function PersonnelManagement() {
-  const [linhas, setLinhas] = useState<LinhaMilitar[]>([]);
-  const [carregando, setCarregando] = useState<boolean>(true);
-  const [busca, setBusca] = useState<string>("");
-  const [filtroPosto, setFiltroPosto] =
+  const [rows, setRows] = useState<PersonnelRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [query, setQuery] = useState<string>("");
+  const [rankFilter, setRankFilter] =
     useState<(typeof RANK_OPTIONS)[number]>("Todos");
-  const [filtroStatus, setFiltroStatus] =
+  const [statusFilter, setStatusFilter] =
     useState<(typeof STATUS_OPTIONS)[number]>("Todos");
 
   // Drawer de detalhe
-  const [militarSelecionado, setMilitarSelecionado] =
-    useState<LinhaMilitar | null>(null);
-  const [detalheMilitar, setDetalheMilitar] = useState<DetalheMilitar | null>(
-    null,
-  );
-  const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
-  const [salvandoAtivacao, setSalvandoAtivacao] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<PersonnelRow | null>(null);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [savingActive, setSavingActive] = useState(false);
 
-  async function alternarAtivacao(novoAtivo: boolean) {
-    if (!detalheMilitar || !militarSelecionado) return;
-    setSalvandoAtivacao(true);
+  async function handleToggleActive(newActive: boolean) {
+    if (!userDetail || !selectedUser) return;
+    setSavingActive(true);
     try {
-      await updateProfile(militarSelecionado.id, { active: novoAtivo });
-      setDetalheMilitar((estadoAtual) =>
-        estadoAtual ? { ...estadoAtual, active: novoAtivo } : estadoAtual,
-      );
-      setLinhas((estadoAtual) =>
-        estadoAtual.map((linha) =>
-          linha.id === militarSelecionado.id
-            ? { ...linha, active: novoAtivo }
-            : linha,
+      await updateProfile(selectedUser.id, { active: newActive });
+      setUserDetail((prev) => (prev ? { ...prev, active: newActive } : prev));
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === selectedUser.id ? { ...r, active: newActive } : r,
         ),
       );
-      toast.success(novoAtivo ? "Militar ativado." : "Militar inativado.");
+      toast.success(newActive ? "Militar ativado." : "Militar inativado.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Erro ao salvar: ${msg}`);
     } finally {
-      setSalvandoAtivacao(false);
+      setSavingActive(false);
     }
   }
 
-  async function abrirPerfil(linha: LinhaMilitar) {
-    setMilitarSelecionado(linha);
+  async function openProfile(row: PersonnelRow) {
+    setSelectedUser(row);
     // Popula imediatamente com os dados que já temos; o drawer não fica vazio
-    setDetalheMilitar({
-      id: linha.id,
-      full_name: linha.fullName,
-      war_name: linha.warName,
-      rank: linha.rank,
-      sector: linha.sector,
-      saram: linha.saram,
+    setUserDetail({
+      id: row.id,
+      full_name: row.fullName,
+      war_name: row.warName,
+      rank: row.rank,
+      sector: row.sector,
+      saram: row.saram,
       email: null,
       phone_number: null,
       role: null,
-      active: linha.active,
+      active: row.active,
       birth_date: null,
       physical_group: null,
       inspsau_valid_until: null,
       inspsau_last_inspection: null,
       created_at: null,
-      lastTestDate: linha.lastTestDate,
-      lastScore: linha.lastScore,
-      status: linha.status,
+      lastTestDate: row.lastTestDate,
+      lastScore: row.lastScore,
+      status: row.status,
       testHistory: [],
     });
-    setCarregandoDetalhe(true);
+    setLoadingDetail(true);
     try {
-      const detail = await getProfileWithHistory(linha.id);
-      setDetalheMilitar((estadoAtual) => ({
-        ...(estadoAtual ?? {}),
-        id: linha.id,
-        full_name: detail?.full_name ?? linha.fullName,
-        war_name: detail?.war_name ?? linha.warName,
-        rank: detail?.rank ?? linha.rank,
-        sector: detail?.sector ?? linha.sector,
-        saram: detail?.saram ?? linha.saram,
+      const detail = await getProfileWithHistory(row.id);
+      setUserDetail((prev) => ({
+        ...(prev ?? {}),
+        id: row.id,
+        full_name: detail?.full_name ?? row.fullName,
+        war_name: detail?.war_name ?? row.warName,
+        rank: detail?.rank ?? row.rank,
+        sector: detail?.sector ?? row.sector,
+        saram: detail?.saram ?? row.saram,
         email: detail?.email ?? null,
         phone_number: detail?.phone_number ?? null,
         role: detail?.role ?? null,
-        active: detail != null ? detail.active : linha.active,
+        active: detail != null ? detail.active : row.active,
         birth_date: detail?.birth_date ?? null,
         physical_group: detail?.physical_group ?? null,
         inspsau_valid_until: detail?.inspsau_valid_until ?? null,
         inspsau_last_inspection: detail?.inspsau_last_inspection ?? null,
         created_at: detail?.created_at ?? null,
-        lastTestDate: linha.lastTestDate,
-        lastScore: linha.lastScore,
-        status: linha.status,
+        lastTestDate: row.lastTestDate,
+        lastScore: row.lastScore,
+        status: row.status,
         testHistory: detail?.testHistory ?? [],
       }));
     } catch (err) {
-      console.error("[abrirPerfil] unexpected error:", err);
+      console.error("[openProfile] unexpected error:", err);
     } finally {
-      setCarregandoDetalhe(false);
+      setLoadingDetail(false);
     }
   }
 
-  function fecharPainel() {
-    setMilitarSelecionado(null);
-    setDetalheMilitar(null);
+  function closeDrawer() {
+    setSelectedUser(null);
+    setUserDetail(null);
   }
 
   useEffect(() => {
-    setCarregando(true);
+    setLoading(true);
     fetchPersonnelList()
       .then(({ profiles, latestBookings }) => {
-        const linhasMapeadas: LinhaMilitar[] = profiles.map((profile) => {
+        const mapped: PersonnelRow[] = profiles.map((profile) => {
           const latest = latestBookings.get(profile.id);
           const lastDate = latest?.test_date ?? latest?.created_at ?? null;
-          const status = derivarStatus(
+          const status = deriveStatus(
             Boolean(profile.active),
             lastDate,
             latest?.score ?? null,
@@ -324,48 +279,47 @@ export default function PersonnelManagement() {
             status,
           };
         });
-        setLinhas(linhasMapeadas);
+        setRows(mapped);
       })
       .catch(console.error)
-      .finally(() => setCarregando(false));
+      .finally(() => setLoading(false));
   }, []);
 
-  const linhasFiltradas = useMemo(() => {
-    const buscaNormalizada = busca.trim().toLowerCase();
-    return linhas.filter((linha) => {
-      const correspondeBusca =
-        buscaNormalizada.length === 0 ||
-        linha.fullName.toLowerCase().includes(buscaNormalizada) ||
-        (linha.warName ?? "").toLowerCase().includes(buscaNormalizada) ||
-        (linha.saram ?? "").includes(buscaNormalizada);
-      const correspondePosto =
-        filtroPosto === "Todos" || linha.rank === filtroPosto;
-      const correspondeStatus =
-        filtroStatus === "Todos" || linha.status === filtroStatus;
-      return correspondeBusca && correspondePosto && correspondeStatus;
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        row.fullName.toLowerCase().includes(normalizedQuery) ||
+        (row.warName ?? "").toLowerCase().includes(normalizedQuery) ||
+        (row.saram ?? "").includes(normalizedQuery);
+      const matchesRank = rankFilter === "Todos" || row.rank === rankFilter;
+      const matchesStatus =
+        statusFilter === "Todos" || row.status === statusFilter;
+      return matchesQuery && matchesRank && matchesStatus;
     });
-  }, [linhas, busca, filtroPosto, filtroStatus]);
+  }, [rows, query, rankFilter, statusFilter]);
 
-  const resumo = useMemo(() => {
-    const apto = linhas.filter((linha) => linha.status === "APTO").length;
-    const vencido = linhas.filter((linha) => linha.status === "VENCIDO").length;
-    const inapto = linhas.filter((linha) => linha.status === "INAPTO").length;
-    const agora = new Date();
-    const testesNoMes = linhas.filter((linha) => {
-      if (!linha.lastTestDate) return false;
-      const date = parsearData(linha.lastTestDate);
+  const summary = useMemo(() => {
+    const apto = rows.filter((row) => row.status === "APTO").length;
+    const vencido = rows.filter((row) => row.status === "VENCIDO").length;
+    const inapto = rows.filter((row) => row.status === "INAPTO").length;
+    const now = new Date();
+    const testsThisMonth = rows.filter((row) => {
+      if (!row.lastTestDate) return false;
+      const date = parseDateValue(row.lastTestDate);
       if (!date) return false;
       return (
-        date.getMonth() === agora.getMonth() &&
-        date.getFullYear() === agora.getFullYear()
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
       );
     }).length;
-    const percentualApto =
-      linhas.length > 0 ? Math.round((apto / linhas.length) * 100) : 0;
-    return { apto, vencido, inapto, testesNoMes, percentualApto };
-  }, [linhas]);
+    const aptoPercent =
+      rows.length > 0 ? Math.round((apto / rows.length) * 100) : 0;
+    return { apto, vencido, inapto, testsThisMonth, aptoPercent };
+  }, [rows]);
 
-  if (carregando) {
+  if (loading) {
     return <FullPageLoading message="Carregando efetivo" />;
   }
 
@@ -402,16 +356,16 @@ export default function PersonnelManagement() {
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
               />
               <input
-                value={busca}
-                onChange={(event) => setBusca(event.target.value)}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
                 className="h-12 w-full rounded-2xl border border-border-default bg-bg-default pl-11 pr-11 text-sm text-text-body placeholder:text-text-muted focus-ring"
                 placeholder="Buscar por nome, nome de guerra ou SARAM"
                 type="text"
               />
-              {busca.trim().length > 0 && (
+              {query.trim().length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setBusca("")}
+                  onClick={() => setQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-body"
                   title="Limpar busca"
                   aria-label="Limpar busca"
@@ -422,9 +376,9 @@ export default function PersonnelManagement() {
             </div>
 
             <select
-              value={filtroPosto}
+              value={rankFilter}
               onChange={(event) =>
-                setFiltroPosto(
+                setRankFilter(
                   event.target.value as (typeof RANK_OPTIONS)[number],
                 )
               }
@@ -440,9 +394,9 @@ export default function PersonnelManagement() {
             </select>
 
             <select
-              value={filtroStatus}
+              value={statusFilter}
               onChange={(event) =>
-                setFiltroStatus(
+                setStatusFilter(
                   event.target.value as (typeof STATUS_OPTIONS)[number],
                 )
               }
@@ -462,21 +416,21 @@ export default function PersonnelManagement() {
         <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Aptidão Geral"
-            value={`${resumo.percentualApto}%`}
+            value={`${summary.aptoPercent}%`}
             icon={Shield}
           />
 
-          <StatCard title="Total do Efetivo" value={linhas.length} icon={Users} />
+          <StatCard title="Total do Efetivo" value={rows.length} icon={Users} />
 
           <StatCard
             title="Testes no Mês"
-            value={resumo.testesNoMes}
+            value={summary.testsThisMonth}
             icon={TrendingUp}
           />
 
           <StatCard
             title="Militares Aptos"
-            value={resumo.apto}
+            value={summary.apto}
             icon={CheckCircle2}
             className="border-b-4 border-success/30"
             iconBg="bg-success/10"
@@ -486,33 +440,33 @@ export default function PersonnelManagement() {
 
         <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
           <div className="space-y-2 p-3 md:hidden">
-            {linhasFiltradas.length === 0 ? (
+            {filteredRows.length === 0 ? (
               <p className="px-3 py-6 text-sm text-text-muted">
                 Nenhum militar encontrado para os filtros selecionados.
               </p>
             ) : (
-              linhasFiltradas.map((linha) => {
-                const statusClass = STATUS_BADGE_CLASS[linha.status];
+              filteredRows.map((row) => {
+                const statusClass = STATUS_BADGE_CLASS[row.status];
 
                 return (
                   <article
-                    key={linha.id}
+                    key={row.id}
                     className="rounded-xl border border-border-default bg-bg-card p-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-bold text-text-body">
-                          {linha.rank
-                            ? `${linha.rank} ${linha.warName || linha.fullName}`
-                            : linha.fullName}
+                          {row.rank
+                            ? `${row.rank} ${row.warName || row.fullName}`
+                            : row.fullName}
                         </p>
                         <p className="text-xs text-text-muted">
-                          {linha.sector || "Sem setor"}
+                          {row.sector || "Sem setor"}
                         </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => abrirPerfil(linha)}
+                        onClick={() => openProfile(row)}
                         className="p-2 text-text-muted transition-colors hover:text-primary"
                         title="Ver perfil"
                       >
@@ -521,10 +475,10 @@ export default function PersonnelManagement() {
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <p className="text-text-muted">
-                        SARAM: {linha.saram || "--"}
+                        SARAM: {row.saram || "--"}
                       </p>
                       <p className="text-text-muted">
-                        Último Teste: {rotuloData(linha.lastTestDate)}
+                        Último Teste: {dateLabel(row.lastTestDate)}
                       </p>
                     </div>
                     <div className="mt-3">
@@ -532,7 +486,7 @@ export default function PersonnelManagement() {
                         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {linha.status}
+                        {row.status}
                       </span>
                     </div>
                   </article>
@@ -564,7 +518,7 @@ export default function PersonnelManagement() {
               </thead>
 
               <tbody className="divide-y divide-border-default">
-                {linhasFiltradas.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td
                       className="px-6 py-8 text-sm text-text-muted"
@@ -574,38 +528,38 @@ export default function PersonnelManagement() {
                     </td>
                   </tr>
                 ) : (
-                  linhasFiltradas.map((linha) => {
-                    const statusClass = STATUS_BADGE_CLASS[linha.status];
+                  filteredRows.map((row) => {
+                    const statusClass = STATUS_BADGE_CLASS[row.status];
 
                     return (
                       <tr
-                        key={linha.id}
+                        key={row.id}
                         className="transition-colors hover:bg-bg-default/70"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {iniciaisNome(linha.warName || linha.fullName)}
+                              {initialsFromName(row.warName || row.fullName)}
                             </div>
                             <div>
                               <div className="font-bold text-text-body">
-                                {linha.rank
-                                  ? `${linha.rank} ${linha.warName || linha.fullName}`
-                                  : linha.fullName}
+                                {row.rank
+                                  ? `${row.rank} ${row.warName || row.fullName}`
+                                  : row.fullName}
                               </div>
                               <div className="text-xs text-text-muted">
-                                {linha.sector || "Sem setor"}
+                                {row.sector || "Sem setor"}
                               </div>
                             </div>
                           </div>
                         </td>
 
                         <td className="px-6 py-4 text-center font-mono text-sm text-text-muted">
-                          {linha.saram || "--"}
+                          {row.saram || "--"}
                         </td>
 
                         <td className="px-6 py-4 text-center text-sm text-text-muted">
-                          {rotuloData(linha.lastTestDate)}
+                          {dateLabel(row.lastTestDate)}
                         </td>
 
                         <td className="px-6 py-4 text-center">
@@ -613,14 +567,14 @@ export default function PersonnelManagement() {
                             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                            {linha.status}
+                            {row.status}
                           </span>
                         </td>
 
                         <td className="px-6 py-4 text-right">
                           <button
                             type="button"
-                            onClick={() => abrirPerfil(linha)}
+                            onClick={() => openProfile(row)}
                             className="p-2 text-text-muted transition-colors hover:text-primary"
                             title="Ver perfil"
                           >
@@ -637,7 +591,7 @@ export default function PersonnelManagement() {
 
           <div className="flex items-center justify-between bg-bg-default p-6">
             <span className="text-sm font-medium text-text-muted">
-              Mostrando {linhasFiltradas.length} de {linhas.length} militares
+              Mostrando {filteredRows.length} de {rows.length} militares
             </span>
             <div className="flex items-center gap-2">
               <button className="h-8 w-8 rounded-full border border-border-default bg-bg-card text-xs font-bold text-text-muted">
@@ -649,12 +603,12 @@ export default function PersonnelManagement() {
       </div>
 
       {/* ── Drawer de perfil ───────────────────────────────────────── */}
-      {militarSelecionado && (
+      {selectedUser && (
         <>
           {/* Overlay — acima da sidebar (z-50) */}
           <div
             className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-            onClick={fecharPainel}
+            onClick={closeDrawer}
           />
 
           {/* Painel */}
@@ -663,21 +617,21 @@ export default function PersonnelManagement() {
             <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                  {iniciaisNome(militarSelecionado.fullName)}
+                  {initialsFromName(selectedUser.fullName)}
                 </div>
                 <div>
                   <p className="font-bold text-text-body">
-                    {militarSelecionado.fullName}
+                    {selectedUser.fullName}
                   </p>
                   <p className="text-xs text-text-muted">
-                    {militarSelecionado.rank ?? "Sem posto"} ·{" "}
-                    {militarSelecionado.warName ?? "--"}
+                    {selectedUser.rank ?? "Sem posto"} ·{" "}
+                    {selectedUser.warName ?? "--"}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={fecharPainel}
+                onClick={closeDrawer}
                 className="rounded-lg p-2 text-text-muted hover:bg-bg-default hover:text-text-body"
               >
                 <AppIcon icon={X} size="sm" decorative />
@@ -686,7 +640,7 @@ export default function PersonnelManagement() {
 
             {/* Conteúdo */}
             <div className="flex-1 overflow-y-auto p-6">
-              {detalheMilitar ? (
+              {userDetail ? (
                 <div className="space-y-6">
                   {/* Status badge + toggle ativo/inativo */}
                   <div className="space-y-3">
@@ -694,9 +648,9 @@ export default function PersonnelManagement() {
                       {(
                         Object.keys(
                           DETAIL_STATUS_BADGE_CLASS,
-                        ) as LinhaMilitar["status"][]
+                        ) as PersonnelRow["status"][]
                       ).map((s) =>
-                        detalheMilitar.status === s ? (
+                        userDetail.status === s ? (
                           <span
                             key={s}
                             className={`rounded-full px-3 py-1 text-xs font-bold ${DETAIL_STATUS_BADGE_CLASS[s]}`}
@@ -711,15 +665,15 @@ export default function PersonnelManagement() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        disabled={salvandoAtivacao || detalheMilitar.active}
-                        onClick={() => alternarAtivacao(true)}
+                        disabled={savingActive || userDetail.active}
+                        onClick={() => handleToggleActive(true)}
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
-                          detalheMilitar.active
+                          userDetail.active
                             ? "border-success bg-success/10 text-success"
                             : "border-border-default text-text-muted hover:border-success/40 disabled:opacity-100"
                         }`}
                       >
-                        {salvandoAtivacao && !detalheMilitar.active ? (
+                        {savingActive && !userDetail.active ? (
                           <AppIcon
                             icon={Loader2}
                             size="xs"
@@ -733,15 +687,15 @@ export default function PersonnelManagement() {
                       </button>
                       <button
                         type="button"
-                        disabled={salvandoAtivacao || !detalheMilitar.active}
-                        onClick={() => alternarAtivacao(false)}
+                        disabled={savingActive || !userDetail.active}
+                        onClick={() => handleToggleActive(false)}
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
-                          !detalheMilitar.active
+                          !userDetail.active
                             ? "border-error bg-error/10 text-error"
                             : "border-border-default text-text-muted hover:border-error/40 disabled:opacity-100"
                         }`}
                       >
-                        {salvandoAtivacao && detalheMilitar.active ? (
+                        {savingActive && userDetail.active ? (
                           <AppIcon
                             icon={Loader2}
                             size="xs"
@@ -766,37 +720,37 @@ export default function PersonnelManagement() {
                       <div className="flex justify-between">
                         <dt className="text-text-muted">SARAM</dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.saram ?? "--"}
+                          {userDetail.saram ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Posto/Graduação</dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.rank ?? "--"}
+                          {userDetail.rank ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Nome de Guerra</dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.war_name ?? "--"}
+                          {userDetail.war_name ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Setor</dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.sector ?? "--"}
+                          {userDetail.sector ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Grupo Físico</dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.physical_group ?? "--"}
+                          {userDetail.physical_group ?? "--"}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Data de Nascimento</dt>
                         <dd className="font-semibold text-text-body">
-                          {rotuloData(detalheMilitar.birth_date)}
+                          {dateLabel(userDetail.birth_date)}
                         </dd>
                       </div>
                     </dl>
@@ -813,7 +767,7 @@ export default function PersonnelManagement() {
                           <AppIcon icon={Mail} size="xs" decorative /> E-mail
                         </dt>
                         <dd className="truncate font-semibold text-text-body">
-                          {detalheMilitar.email ?? "--"}
+                          {userDetail.email ?? "--"}
                         </dd>
                       </div>
                       <div className="flex items-center justify-between">
@@ -821,7 +775,7 @@ export default function PersonnelManagement() {
                           <AppIcon icon={Phone} size="xs" decorative /> Telefone
                         </dt>
                         <dd className="font-semibold text-text-body">
-                          {detalheMilitar.phone_number ?? "--"}
+                          {userDetail.phone_number ?? "--"}
                         </dd>
                       </div>
                     </dl>
@@ -837,13 +791,13 @@ export default function PersonnelManagement() {
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Última Inspeção</dt>
                         <dd className="font-semibold text-text-body">
-                          {rotuloData(detalheMilitar.inspsau_last_inspection)}
+                          {dateLabel(userDetail.inspsau_last_inspection)}
                         </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-text-muted">Válida até</dt>
                         <dd className="font-semibold text-text-body">
-                          {rotuloData(detalheMilitar.inspsau_valid_until)}
+                          {dateLabel(userDetail.inspsau_valid_until)}
                         </dd>
                       </div>
                     </dl>
@@ -856,13 +810,13 @@ export default function PersonnelManagement() {
                       Histórico TACF
                     </h3>
 
-                    {detalheMilitar.testHistory.length === 0 ? (
+                    {userDetail.testHistory.length === 0 ? (
                       <p className="text-xs text-text-muted py-1">
                         Nenhum teste registrado.
                       </p>
                     ) : (
                       <ul className="space-y-2">
-                        {detalheMilitar.testHistory.map((t, idx) => {
+                        {userDetail.testHistory.map((t, idx) => {
                           const isFirst = idx === 0;
                           const hasScore = t.score !== null;
                           const scoreColor =
@@ -906,7 +860,7 @@ export default function PersonnelManagement() {
                                   />
                                 )}
                                 <span className="text-text-muted">
-                                  {rotuloData(t.date)}
+                                  {dateLabel(t.date)}
                                 </span>
                                 {isFirst && (
                                   <span className="text-[10px] font-bold text-primary uppercase">
@@ -929,11 +883,11 @@ export default function PersonnelManagement() {
                   {/* Cadastro */}
                   <p className="flex items-center gap-1.5 text-xs text-text-muted">
                     <AppIcon icon={Calendar} size="xs" decorative />
-                    Cadastrado em {rotuloData(detalheMilitar.created_at)}
+                    Cadastrado em {dateLabel(userDetail.created_at)}
                   </p>
 
                   {/* Indicador de carregamento de dados extras */}
-                  {carregandoDetalhe && (
+                  {loadingDetail && (
                     <div className="flex items-center gap-2 text-xs text-text-muted pt-1">
                       <AppIcon
                         icon={Loader2}

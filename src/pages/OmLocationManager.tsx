@@ -26,9 +26,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-const TAMANHO_PAGINA = 12;
+const PAGE_SIZE = 12;
 
-function HeroPagina({
+function PageHero({
   onNavigate,
 }: {
   loading: boolean;
@@ -62,16 +62,16 @@ function HeroPagina({
   );
 }
 
-function BarraFerramentas({
-  busca,
-  setBusca,
-  setFiltroStatus,
-  filtroStatus,
+function Toolbar({
+  search,
+  setSearch,
+  setStatusFilter,
+  statusFilter,
 }: {
-  busca: string;
-  setBusca: (v: string) => void;
-  filtroStatus: (typeof STATUS_OPTIONS)[number];
-  setFiltroStatus: (s: (typeof STATUS_OPTIONS)[number]) => void;
+  search: string;
+  setSearch: (v: string) => void;
+  statusFilter: (typeof STATUS_OPTIONS)[number];
+  setStatusFilter: (s: (typeof STATUS_OPTIONS)[number]) => void;
 }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-border-default bg-bg-card shadow-sm">
@@ -80,8 +80,8 @@ function BarraFerramentas({
           <input
             type="text"
             placeholder="Buscar organização militar ou localidade..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-xl border-none bg-bg-default py-2 pl-10 pr-4 text-sm text-text-body placeholder:text-text-muted focus:ring-2 focus:ring-primary/20"
           />
           <Search
@@ -99,9 +99,9 @@ function BarraFerramentas({
             <button
               key={opt}
               type="button"
-              onClick={() => setFiltroStatus(opt)}
+              onClick={() => setStatusFilter(opt)}
               className={`whitespace-nowrap rounded-lg px-2 md:px-3 py-1.5 text-xs font-semibold transition-colors ${
-                filtroStatus === opt
+                statusFilter === opt
                   ? "bg-primary/10 text-primary shadow-sm"
                   : "text-text-muted hover:text-text-body"
               }`}
@@ -117,15 +117,15 @@ function BarraFerramentas({
   );
 }
 
-function CardLocal({
-  local,
+function LocationCard({
+  loc,
   onNavigate,
 }: {
-  local: Location;
+  loc: Location;
   onNavigate: (path: string) => void;
 }) {
   const meta =
-    OM_STATUS[local.status as keyof typeof OM_STATUS] ?? OM_STATUS.inactive;
+    OM_STATUS[loc.status as keyof typeof OM_STATUS] ?? OM_STATUS.inactive;
 
   return (
     <article
@@ -145,11 +145,11 @@ function CardLocal({
 
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-text-body line-clamp-2">
-            {local.name}
+            {loc.name}
           </h3>
           <p className="flex items-center gap-1.5 text-xs text-text-muted">
             <MapPin size={11} />
-            {local.address || "Endereço não informado"}
+            {loc.address || "Endereço não informado"}
           </p>
         </div>
 
@@ -157,13 +157,13 @@ function CardLocal({
           <Users size={12} />
           <span>
             Capacidade:{" "}
-            <strong className="text-text-body">{local.max_capacity} vagas</strong>
+            <strong className="text-text-body">{loc.max_capacity} vagas</strong>
           </span>
         </div>
 
-        {local.facilities && local.facilities.length > 0 && (
+        {loc.facilities && loc.facilities.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {local.facilities.slice(0, 3).map((f) => (
+            {loc.facilities.slice(0, 3).map((f) => (
               <span
                 key={f}
                 className="text-[10px] bg-primary/5 text-primary px-2 py-0.5 rounded-full font-medium border border-primary/10"
@@ -171,9 +171,9 @@ function CardLocal({
                 {f}
               </span>
             ))}
-            {local.facilities.length > 3 && (
+            {loc.facilities.length > 3 && (
               <span className="text-[10px] text-text-muted px-1">
-                +{local.facilities.length - 3}
+                +{loc.facilities.length - 3}
               </span>
             )}
           </div>
@@ -183,14 +183,14 @@ function CardLocal({
       <div className="flex border-t border-border-default divide-x divide-border-default">
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${local.id}`)}
+          onClick={() => onNavigate(`/app/om/${loc.id}`)}
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Edit size={13} /> Editar
         </button>
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${local.id}/schedules`)}
+          onClick={() => onNavigate(`/app/om/${loc.id}/schedules`)}
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Clock size={13} /> Horários
@@ -200,18 +200,18 @@ function CardLocal({
   );
 }
 
-function EstadoVazio({
-  busca,
+function EmptyState({
+  search,
   onNavigate,
 }: {
-  busca: string;
+  search: string;
   onNavigate: (p: string) => void;
 }) {
   return (
     <div className="bg-bg-card rounded-2xl p-16 text-center border border-border-default">
       <Building2 size={40} className="mx-auto text-text-muted mb-3" />
       <p className="text-text-muted text-sm">
-        Nenhuma OM encontrada{busca ? ` para "${busca}"` : ""}.
+        Nenhuma OM encontrada{search ? ` para "${search}"` : ""}.
       </p>
       <button
         type="button"
@@ -224,44 +224,44 @@ function EstadoVazio({
   );
 }
 
-function ControlesPaginacao({
+function PaginationControls({
   loading,
   total,
-  totalExibido,
-  pagina,
-  setPagina,
-  tamanhoPagina,
+  displayedCount,
+  page,
+  setPage,
+  pageSize,
 }: {
   loading: boolean;
   total: number;
-  totalExibido: number;
-  pagina: number;
-  setPagina: Dispatch<SetStateAction<number>>;
-  tamanhoPagina: number;
+  displayedCount: number;
+  page: number;
+  setPage: Dispatch<SetStateAction<number>>;
+  pageSize: number;
 }) {
-  if (loading || total <= tamanhoPagina) return null;
+  if (loading || total <= pageSize) return null;
   return (
     <div className="mt-6 flex justify-between items-center">
       <p className="text-xs text-text-muted">
-        Exibindo {totalExibido} de {total} OMs
+        Exibindo {displayedCount} de {total} OMs
       </p>
       <div className="flex gap-1">
         <button
           type="button"
-          disabled={pagina === 1}
-          onClick={() => setPagina((paginaAtual) => Math.max(1, paginaAtual - 1))}
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-border-default bg-bg-card text-text-muted hover:bg-bg-default disabled:opacity-40 disabled:pointer-events-none"
           aria-label="Página anterior"
         >
           <ChevronLeft size={16} />
         </button>
         <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-          {pagina}
+          {page}
         </span>
         <button
           type="button"
-          disabled={pagina * tamanhoPagina >= total}
-          onClick={() => setPagina((paginaAtual) => paginaAtual + 1)}
+          disabled={page * pageSize >= total}
+          onClick={() => setPage((p) => p + 1)}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-border-default bg-bg-card text-text-muted hover:bg-bg-default disabled:opacity-40 disabled:pointer-events-none"
           aria-label="Próxima página"
         >
@@ -274,61 +274,55 @@ function ControlesPaginacao({
 
 export default function OmLocationManager() {
   const navigate = useNavigate();
-  const {
-    locations,
-    total,
-    loading: carregando,
-    error: erro,
-    fetch,
-  } = useLocations();
+  const { locations, total, loading, error, fetch } = useLocations();
 
-  const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] =
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] =
     useState<(typeof STATUS_OPTIONS)[number]>("all");
-  const [pagina, setPagina] = useState(1);
-  const tamanhoPagina = TAMANHO_PAGINA;
+  const [page, setPage] = useState(1);
+  const pageSize = PAGE_SIZE;
 
   useEffect(() => {
     fetch({
-      search: busca,
-      status: filtroStatus === "all" ? undefined : filtroStatus,
-      page: pagina,
-      limit: tamanhoPagina,
+      search,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      page,
+      limit: pageSize,
     });
-  }, [busca, filtroStatus, pagina, fetch, tamanhoPagina]);
+  }, [search, statusFilter, page, fetch, pageSize]);
 
   useEffect(() => {
-    if (erro) toast.error(erro);
-  }, [erro]);
+    if (error) toast.error(error);
+  }, [error]);
 
-  const carregamentoInicial = carregando && (!locations || locations.length === 0);
+  const isInitialLoad = loading && (!locations || locations.length === 0);
 
-  if (carregamentoInicial) return <FullPageLoading />;
+  if (isInitialLoad) return <FullPageLoading />;
 
   return (
     <Layout>
       <div data-testid="om-location-manager-page">
-        <HeroPagina loading={carregando} total={total} onNavigate={navigate} />
+        <PageHero loading={loading} total={total} onNavigate={navigate} />
 
-        <BarraFerramentas
-          busca={busca}
-          setBusca={(valor) => {
-            setBusca(valor);
-            setPagina(1);
+        <Toolbar
+          search={search}
+          setSearch={(v) => {
+            setSearch(v);
+            setPage(1);
           }}
-          filtroStatus={filtroStatus}
-          setFiltroStatus={(status) => {
-            setFiltroStatus(status);
-            setPagina(1);
+          statusFilter={statusFilter}
+          setStatusFilter={(s) => {
+            setStatusFilter(s);
+            setPage(1);
           }}
         />
 
         {locations.length === 0 ? (
-          <EstadoVazio busca={busca} onNavigate={navigate} />
+          <EmptyState search={search} onNavigate={navigate} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {locations.map((local) => (
-              <CardLocal key={local.id} local={local} onNavigate={navigate} />
+            {locations.map((loc) => (
+              <LocationCard key={loc.id} loc={loc} onNavigate={navigate} />
             ))}
 
             <button
@@ -346,13 +340,13 @@ export default function OmLocationManager() {
           </div>
         )}
 
-        <ControlesPaginacao
-          loading={carregando}
+        <PaginationControls
+          loading={loading}
           total={total}
-          totalExibido={locations.length}
-          pagina={pagina}
-          setPagina={setPagina}
-          tamanhoPagina={tamanhoPagina}
+          displayedCount={locations.length}
+          page={page}
+          setPage={setPage}
+          pageSize={pageSize}
         />
       </div>
     </Layout>

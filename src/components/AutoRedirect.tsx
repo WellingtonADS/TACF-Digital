@@ -10,13 +10,9 @@ import { Navigate } from "react-router-dom";
 import FullPageLoading from "./FullPageLoading";
 
 export default function AutoRedirect() {
-  const {
-    user,
-    profile,
-    loading: autenticacaoCarregando,
-  } = useAuth();
+  const { user, profile, loading } = useAuth();
 
-  if (autenticacaoCarregando) {
+  if (loading) {
     return <FullPageLoading />;
   }
 

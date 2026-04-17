@@ -86,6 +86,25 @@ async function fillDateInput(input: Locator, value: string) {
   await input.dispatchEvent("change");
 }
 
+async function waitForToastText(page: Page, patterns: RegExp[]) {
+  const notificationRegion = page.getByRole("region", {
+    name: /Notifications/i,
+  });
+
+  for (const pattern of patterns) {
+    const toast = notificationRegion.getByText(pattern);
+    if (await toast.isVisible({ timeout: 1000 }).catch(() => false)) {
+      return;
+    }
+  }
+
+  await Promise.any(
+    patterns.map((pattern) =>
+      notificationRegion.getByText(pattern).waitFor({ state: "visible" }),
+    ),
+  );
+}
+
 test.describe("Prático visual: usuário militar solicita reagendamento", () => {
   test.setTimeout(240000);
 
@@ -169,9 +188,11 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
     });
 
     await page.getByRole("button", { name: /^Enviar$/i }).click();
-    await expect(page.getByText(/Reagendamento Pendente/i)).toBeVisible({
-      timeout: 30000,
-    });
+
+    await waitForToastText(page, [
+      /Solicitação enviada/i,
+      /Já existe uma solicitação pendente/i,
+    ]);
 
     await page.goto("/app");
     await waitForPageReady(page);

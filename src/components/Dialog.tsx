@@ -33,20 +33,20 @@ export default function Dialog({
   useEffect(() => {
     if (!open || typeof document === "undefined") return;
 
-    const overflowAnterior = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const tratarEscape = (event: KeyboardEvent) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !closeDisabled) {
         onClose();
       }
     };
 
-    window.addEventListener("keydown", tratarEscape);
+    window.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.body.style.overflow = overflowAnterior;
-      window.removeEventListener("keydown", tratarEscape);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
     };
   }, [open, onClose, closeDisabled]);
 
@@ -57,9 +57,7 @@ export default function Dialog({
       <div
         className="absolute inset-0 bg-text-body/50 backdrop-blur-[2px]"
         onClick={() => {
-          if (!closeDisabled) {
-            onClose();
-          }
+          if (!closeDisabled) onClose();
         }}
       />
 

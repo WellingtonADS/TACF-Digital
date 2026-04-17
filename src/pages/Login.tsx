@@ -4,50 +4,49 @@
  * @path src/pages/Login.tsx
  */
 
-import AuthLayout from "@/components/layout/AuthLayout";
+import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/atomic/Button";
 import { Input } from "@/components/atomic/Input";
 import PasswordInput from "@/components/atomic/PasswordInput";
 import { Loader2, Plane } from "@/icons";
 import { supabase } from "@/services/supabase";
 import { getAuthErrorMessage } from "@/utils/getAuthErrorMessage";
-import { type FormEvent, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [carregando, setCarregando] = useState(false);
-  const [modoCadastro, setModoCadastro] = useState(false);
-  const [formulario, setFormulario] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
-    confirmacaoSenha: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
     // Force a post-mount reset to prevent browser-managed autofill from persisting.
-    const temporizadorLimpeza = window.setTimeout(() => {
-      setFormulario({ email: "", password: "", confirmacaoSenha: "" });
+    const clearTimer = window.setTimeout(() => {
+      setFormData({ email: "", password: "", confirmPassword: "" });
     }, 0);
 
-    return () => window.clearTimeout(temporizadorLimpeza);
+    return () => window.clearTimeout(clearTimer);
   }, []);
 
-  const [falhaLoginAutomatico, setFalhaLoginAutomatico] = useState(false);
-  const [tentandoLoginAutomatico, setTentandoLoginAutomatico] =
-    useState(false);
+  const [autoLoginFailed, setAutoLoginFailed] = useState(false);
+  const [retryingAutoLogin, setRetryingAutoLogin] = useState(false);
 
-  async function tentarLoginAutomatico() {
-    if (!formulario.email || !formulario.password) return;
-    setTentandoLoginAutomatico(true);
+  async function retryAutoLogin() {
+    if (!formData.email || !formData.password) return;
+    setRetryingAutoLogin(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: formulario.email,
-        password: formulario.password,
+        email: formData.email,
+        password: formData.password,
       });
       if (error) throw error;
-      setFalhaLoginAutomatico(false);
+      setAutoLoginFailed(false);
       toast.success("Login automático realizado com sucesso.");
     } catch (err: unknown) {
       toast.error(
@@ -57,11 +56,11 @@ export default function Login() {
         ),
       );
     } finally {
-      setTentandoLoginAutomatico(false);
+      setRetryingAutoLogin(false);
     }
   }
 
-  async function cadastrarComEmail(email: string, password: string) {
+  async function signUp(email: string, password: string) {
     try {
       const { error } = await supabase.auth.signUp({ email, password });
       return { error };
@@ -70,36 +69,33 @@ export default function Login() {
     }
   }
 
-  const enviarFormulario = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCarregando(true);
+    setIsLoading(true);
 
     try {
-      if (modoCadastro) {
-        if (formulario.password !== formulario.confirmacaoSenha) {
+      if (isSignUp) {
+        if (formData.password !== formData.confirmPassword) {
           toast.error("As senhas não coincidem.");
-          setCarregando(false);
+          setIsLoading(false);
           return;
         }
 
-        const res = await cadastrarComEmail(
-          formulario.email,
-          formulario.password,
-        );
+        const res = await signUp(formData.email, formData.password);
         if (res?.error) throw res.error;
 
         try {
           const { error: signinErr } = await supabase.auth.signInWithPassword({
-            email: formulario.email,
-            password: formulario.password,
+            email: formData.email,
+            password: formData.password,
           });
 
           if (signinErr) {
             toast.error(
               "Conta criada, mas falha no login automático. Faça login manualmente ou tente novamente.",
             );
-            setModoCadastro(false);
-            setFalhaLoginAutomatico(true);
+            setIsSignUp(false);
+            setAutoLoginFailed(true);
             return;
           }
           toast.success("Conta criada e autenticada. Redirecionando...");
@@ -109,19 +105,19 @@ export default function Login() {
           toast.error(
             "Conta criada, mas não foi possível efetuar login automático. Tente novamente.",
           );
-          setModoCadastro(false);
-          setFalhaLoginAutomatico(true);
+          setIsSignUp(false);
+          setAutoLoginFailed(true);
           return;
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email: formulario.email,
-          password: formulario.password,
+          email: formData.email,
+          password: formData.password,
         });
         if (error) {
           // show friendly message immediately instead of relying on outer catch
           toast.error(getAuthErrorMessage(error, "Erro na autenticação."));
-          setCarregando(false);
+          setIsLoading(false);
           return;
         }
         navigate("/app");
@@ -130,7 +126,7 @@ export default function Login() {
       if (import.meta.env.DEV) console.error(err);
       toast.error(getAuthErrorMessage(err, "Erro na autenticação."));
     } finally {
-      setCarregando(false);
+      setIsLoading(false);
     }
   };
 
@@ -152,7 +148,7 @@ export default function Login() {
         </div>
 
         <form
-          onSubmit={enviarFormulario}
+          onSubmit={handleSubmit}
           className="space-y-5"
           autoComplete="off"
           data-testid="login-form"
@@ -164,12 +160,10 @@ export default function Login() {
               type="email"
               required
               placeholder="Ex.: joao.silva@fab.mil.br"
-              value={formulario.email}
+              value={formData.email}
               autoComplete="off"
               data-testid="login-email-input"
-              onChange={(v: string) =>
-                setFormulario({ ...formulario, email: v })
-              }
+              onChange={(v: string) => setFormData({ ...formData, email: v })}
             />
           </div>
 
@@ -179,29 +173,26 @@ export default function Login() {
               name="tacf-auth-password"
               required
               placeholder="Digite sua senha"
-              value={formulario.password}
+              value={formData.password}
               autoComplete="new-password"
               data-testid="login-password-input"
               onChange={(e) =>
-                setFormulario({ ...formulario, password: e.target.value })
+                setFormData({ ...formData, password: e.target.value })
               }
             />
           </div>
 
-          {modoCadastro && (
+          {isSignUp && (
             <div className="space-y-1">
               <PasswordInput
                 id="confirmPassword"
                 name="tacf-auth-confirm-password"
                 required
                 placeholder="Confirme sua senha"
-                value={formulario.confirmacaoSenha}
+                value={formData.confirmPassword}
                 autoComplete="new-password"
                 onChange={(e) =>
-                  setFormulario({
-                    ...formulario,
-                    confirmacaoSenha: e.target.value,
-                  })
+                  setFormData({ ...formData, confirmPassword: e.target.value })
                 }
               />
             </div>
@@ -209,11 +200,11 @@ export default function Login() {
 
           <Button
             type="submit"
-            disabled={carregando}
+            disabled={isLoading}
             data-testid="login-submit-button"
             className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg hover:shadow-xl transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
           >
-            {carregando ? (
+            {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               "ENTRAR"
@@ -239,21 +230,19 @@ export default function Login() {
             Cadastre-se aqui
           </Link>
 
-          {falhaLoginAutomatico && (
+          {autoLoginFailed && (
             <div className="mt-4 flex items-center justify-between rounded-xl border border-alert/20 bg-alert/10 p-3 text-sm">
               <div className="text-sm">
                 Conta criada, mas falha no login automático.
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={tentarLoginAutomatico}
-                  disabled={tentandoLoginAutomatico}
+                  onClick={retryAutoLogin}
+                  disabled={retryingAutoLogin}
                   className="btn btn-sm bg-primary text-primary-foreground px-3 py-1 rounded"
                   type="button"
                 >
-                  {tentandoLoginAutomatico
-                    ? "Tentando..."
-                    : "Tentar login novamente"}
+                  {retryingAutoLogin ? "Tentando..." : "Tentar login novamente"}
                 </button>
                 <Link
                   to="/login"

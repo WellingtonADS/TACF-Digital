@@ -5,9 +5,18 @@
  */
 
 import AppIcon from "@/components/atomic/AppIcon";
+import Dialog from "@/components/Dialog";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import useLocations from "@/hooks/useLocations";
+import {
+  fetchEvaluationIndexRows,
+  removeEvaluationIndexRow,
+  saveEvaluationIndexRow,
+  type EvaluationIndexCategory,
+  type EvaluationIndexRow,
+} from "@/services/evaluationTables";
 import {
   fetchAuditLogs,
   fetchSystemSettings,
@@ -16,11 +25,13 @@ import {
 import {
   BarChart2,
   Clock3,
-  Download,
   Edit2,
   MapPin,
+  Plus,
+  Save,
   Settings,
   ShieldCheck,
+  Trash2,
   UserCircle2,
   type LucideIcon,
 } from "@/icons";
@@ -30,14 +41,16 @@ import type {
 } from "@/types";
 import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
+import { OM_STATUS } from "@/utils/omStatus";
+import type { Location } from "@/types/database.types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type ConfiguracaoSistemaRow = DBSystemSettingsRow;
-type RegistroAuditoriaRow = DBAuditLogRow;
+type SystemSettingsRow = DBSystemSettingsRow;
+type AuditLogRow = DBAuditLogRow;
 
-const SECOES_CONFIGURACAO = [
+const TABS = [
   { key: "general", label: "Geral", icon: Settings },
   { key: "evaluation", label: "Tabelas de Avaliação", icon: BarChart2 },
   { key: "locations", label: "Locais / OM", icon: MapPin },
@@ -45,52 +58,76 @@ const SECOES_CONFIGURACAO = [
   { key: "audit", label: "Logs de Auditoria", icon: Clock3 },
 ] as const;
 
-type ChaveSecao = (typeof SECOES_CONFIGURACAO)[number]["key"];
-type ItemSecao = { key: ChaveSecao; label: string; icon: LucideIcon };
+type TabKey = (typeof TABS)[number]["key"];
+type TabItem = { key: TabKey; label: string; icon: LucideIcon };
 
 export default function SystemSettings() {
   const navigate = useNavigate();
-  const { profile, loading: autenticacaoCarregando } = useAuth();
-  const podeVisualizar = profile?.role === "admin";
-  const [secaoAtiva, setSecaoAtiva] = useState<ChaveSecao>("evaluation");
-  const [configuracoes, setConfiguracoes] =
-    useState<ConfiguracaoSistemaRow | null>(null);
-  const [carregando, setCarregando] = useState(false);
-  const [carregandoConfiguracoes, setCarregandoConfiguracoes] = useState(true);
+  const { profile, loading: authLoading } = useAuth();
+  const canView = profile?.role === "admin";
+  const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
+  const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
-  const [registrosAuditoria, setRegistrosAuditoria] = useState<
-    RegistroAuditoriaRow[]
-  >([]);
-  const [carregandoAuditoria, setCarregandoAuditoria] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
-  // Estado da edição das tabelas de avaliação
-  const [padraoEditandoId, setPadraoEditandoId] = useState<string | null>(
+  const {
+    locations,
+    loading: locationsLoading,
+    error: locationsError,
+    fetch: fetchLocations,
+    create: createLocation,
+    update: updateLocation,
+  } = useLocations();
+
+  const [evaluationCategory, setEvaluationCategory] =
+    useState<EvaluationIndexCategory>("masculino");
+  const [evaluationRows, setEvaluationRows] = useState<EvaluationIndexRow[]>([]);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [savingEvaluation, setSavingEvaluation] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+
+  const [editingStandardId, setEditingStandardId] = useState<string | null>(
     null,
   );
-  const [formularioEdicao, setFormularioEdicao] = useState({
+  const [editFormData, setEditFormData] = useState({
+    faixa: "",
     corrida: "",
     flexao: "",
     abdominal: "",
+    conceito: "",
+    sort_order: "0",
   });
 
-  // Estado local do formulário da aba "Geral"
-  const [formularioGeral, setFormularioGeral] = useState<
-    Partial<ConfiguracaoSistemaRow>
-  >({});
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(
+    null,
+  );
+  const [locationFormOpen, setLocationFormOpen] = useState(false);
+  const [locationFormData, setLocationFormData] = useState({
+    name: "",
+    address: "",
+    max_capacity: "8",
+    status: "active" as Location["status"],
+  });
+
+  // local form state for "general" tab
+  const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
 
   useEffect(() => {
-    if (!podeVisualizar) {
-      setCarregandoConfiguracoes(false);
+    if (!canView) {
+      setSettingsLoading(false);
       return;
     }
 
-    async function carregarConfiguracoes() {
-      setCarregandoConfiguracoes(true);
-      setCarregando(true);
+    async function load() {
+      setSettingsLoading(true);
+      setLoading(true);
       try {
         const data = await fetchSystemSettings();
-        setConfiguracoes(data);
-        setFormularioGeral(data ?? {});
+        setSettings(data);
+        setFormState(data ?? {});
       } catch (err) {
         console.error(err);
         const authMessage = getAuthorizationErrorMessage(
@@ -99,20 +136,20 @@ export default function SystemSettings() {
         );
         toast.error(authMessage ?? "Falha ao carregar configurações");
       } finally {
-        setCarregando(false);
-        setCarregandoConfiguracoes(false);
+        setLoading(false);
+        setSettingsLoading(false);
       }
     }
-    carregarConfiguracoes();
-  }, [podeVisualizar]);
+    load();
+  }, [canView]);
 
   useEffect(() => {
-    if (secaoAtiva === "audit" && podeVisualizar) {
-      const carregarLogs = async () => {
-        setCarregandoAuditoria(true);
+    if (activeTab === "audit" && canView) {
+      const loadLogs = async () => {
+        setAuditLoading(true);
         try {
           const data = await fetchAuditLogs();
-          setRegistrosAuditoria(data);
+          setAuditLogs(data);
         } catch (err) {
           console.error(err);
           const authMessage = getAuthorizationErrorMessage(
@@ -121,25 +158,55 @@ export default function SystemSettings() {
           );
           toast.error(authMessage ?? "Erro ao carregar logs de auditoria");
         } finally {
-          setCarregandoAuditoria(false);
+          setAuditLoading(false);
         }
       };
 
-      carregarLogs();
+      loadLogs();
     }
-  }, [secaoAtiva, podeVisualizar]);
+  }, [activeTab, canView]);
 
-  async function salvarConfiguracoesGerais() {
-    if (!configuracoes) return;
-    setCarregando(true);
+  useEffect(() => {
+    if (activeTab === "locations" && canView) {
+      void fetchLocations({ limit: 200 });
+    }
+  }, [activeTab, canView, fetchLocations]);
+
+  useEffect(() => {
+    if (activeTab !== "evaluation" || !canView) {
+      return;
+    }
+
+    async function loadEvaluationRows() {
+      setEvaluationLoading(true);
+      try {
+        const rows = await fetchEvaluationIndexRows(evaluationCategory);
+        setEvaluationRows(rows);
+      } catch (err) {
+        console.error(err);
+        toast.error("Falha ao carregar tabelas de indices.");
+      } finally {
+        setEvaluationLoading(false);
+      }
+    }
+
+    void loadEvaluationRows();
+  }, [activeTab, canView, evaluationCategory]);
+
+  useEffect(() => {
+    if (locationsError) {
+      toast.error(locationsError);
+    }
+  }, [locationsError]);
+
+  async function saveGeneral() {
+    if (!settings) return;
+    setLoading(true);
     try {
-      const updated = await saveSystemSettings(
-        configuracoes.id,
-        formularioGeral,
-      );
+      const updated = await saveSystemSettings(settings.id, formState);
       toast.success("Configurações salvas");
-      setConfiguracoes(updated);
-      setFormularioGeral(updated ?? {});
+      setSettings(updated);
+      setFormState(updated ?? {});
     } catch (err) {
       console.error(err);
       const authMessage = getAuthorizationErrorMessage(
@@ -148,12 +215,138 @@ export default function SystemSettings() {
       );
       toast.error(authMessage ?? "Falha ao salvar configurações");
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   }
 
-  function renderizarConteudo() {
-    if (carregando && secaoAtiva === "general") {
+  function openNewEvaluationRow() {
+    setEditingStandardId("new");
+    setEditFormData({
+      faixa: "",
+      corrida: "",
+      flexao: "",
+      abdominal: "",
+      conceito: "",
+      sort_order: String(evaluationRows.length + 1),
+    });
+  }
+
+  function openEditEvaluationRow(row: EvaluationIndexRow) {
+    setEditingStandardId(row.id);
+    setEditFormData({
+      faixa: row.faixa,
+      corrida: row.corrida,
+      flexao: row.flexao,
+      abdominal: row.abdominal,
+      conceito: row.conceito,
+      sort_order: String(row.sort_order),
+    });
+  }
+
+  async function handleSaveEvaluationRow() {
+    setSavingEvaluation(true);
+    try {
+      await saveEvaluationIndexRow({
+        id: editingStandardId === "new" ? undefined : editingStandardId ?? undefined,
+        category: evaluationCategory,
+        faixa: editFormData.faixa,
+        corrida: editFormData.corrida,
+        flexao: editFormData.flexao,
+        abdominal: editFormData.abdominal,
+        conceito: editFormData.conceito,
+        sort_order: Number(editFormData.sort_order || 0),
+      });
+      toast.success("Linha da tabela salva.");
+      setEditingStandardId(null);
+      const rows = await fetchEvaluationIndexRows(evaluationCategory);
+      setEvaluationRows(rows);
+    } catch (err) {
+      console.error(err);
+      toast.error("Nao foi possivel salvar a linha.");
+    } finally {
+      setSavingEvaluation(false);
+    }
+  }
+
+  async function handleDeleteEvaluationRow(id: string) {
+    try {
+      await removeEvaluationIndexRow(id);
+      setEvaluationRows((current) => current.filter((row) => row.id !== id));
+      toast.success("Linha removida.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Nao foi possivel remover a linha.");
+    }
+  }
+
+  function openNewLocationForm() {
+    setEditingLocationId(null);
+    setLocationFormData({
+      name: "",
+      address: "",
+      max_capacity: "8",
+      status: "active",
+    });
+    setLocationFormOpen(true);
+  }
+
+  function openEditLocationForm(location: Location) {
+    setEditingLocationId(location.id);
+    setLocationFormData({
+      name: location.name,
+      address: location.address,
+      max_capacity: String(location.max_capacity),
+      status: location.status,
+    });
+    setLocationFormOpen(true);
+  }
+
+  async function handleSaveLocation() {
+    setSavingLocation(true);
+    try {
+      const existingLocation = editingLocationId
+        ? locations.find((location) => location.id === editingLocationId) ?? null
+        : null;
+      const payload = {
+        name: locationFormData.name,
+        address: locationFormData.address,
+        max_capacity: Number(locationFormData.max_capacity || 0),
+        status: locationFormData.status,
+        facilities: existingLocation?.facilities ?? [],
+        metadata: existingLocation?.metadata ?? null,
+        created_by: existingLocation?.created_by ?? null,
+      };
+
+      if (editingLocationId) {
+        await updateLocation(editingLocationId, payload);
+      } else {
+        await createLocation(payload);
+      }
+
+      toast.success("Local salvo.");
+      setLocationFormOpen(false);
+      await fetchLocations({ limit: 200 });
+    } catch (err) {
+      console.error(err);
+      toast.error("Nao foi possivel salvar o local.");
+    } finally {
+      setSavingLocation(false);
+    }
+  }
+
+  async function handleInactivateLocation(locationId: string) {
+    try {
+      await updateLocation(locationId, { status: "inactive" });
+      toast.success("Local inativado.");
+      await fetchLocations({ limit: 200 });
+    } catch (err) {
+      console.error(err);
+      toast.error("Nao foi possivel inativar o local.");
+    }
+  }
+
+  function renderContent() {
+    if (loading && activeTab === "general") {
       return (
         <div className="space-y-3">
           <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
@@ -164,7 +357,7 @@ export default function SystemSettings() {
       );
     }
 
-    switch (secaoAtiva) {
+    switch (activeTab) {
       case "general":
         return (
           <div>
@@ -179,12 +372,9 @@ export default function SystemSettings() {
                 <input
                   type="text"
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
-                  value={formularioGeral.system_name ?? ""}
+                  value={formState.system_name ?? ""}
                   onChange={(e) =>
-                    setFormularioGeral((estadoAtual) => ({
-                      ...estadoAtual,
-                      system_name: e.target.value,
-                    }))
+                    setFormState((s) => ({ ...s, system_name: e.target.value }))
                   }
                 />
               </div>
@@ -195,10 +385,10 @@ export default function SystemSettings() {
                 <input
                   type="text"
                   className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus-ring"
-                  value={formularioGeral.organization_name ?? ""}
+                  value={formState.organization_name ?? ""}
                   onChange={(e) =>
-                    setFormularioGeral((estadoAtual) => ({
-                      ...estadoAtual,
+                    setFormState((s) => ({
+                      ...s,
                       organization_name: e.target.value,
                     }))
                   }
@@ -212,10 +402,10 @@ export default function SystemSettings() {
                   <input
                     type="number"
                     className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formularioGeral.min_capacity ?? 0}
+                    value={formState.min_capacity ?? 0}
                     onChange={(e) =>
-                      setFormularioGeral((estadoAtual) => ({
-                        ...estadoAtual,
+                      setFormState((s) => ({
+                        ...s,
                         min_capacity: Number(e.target.value),
                       }))
                     }
@@ -228,10 +418,10 @@ export default function SystemSettings() {
                   <input
                     type="number"
                     className="h-11 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"
-                    value={formularioGeral.max_capacity ?? 0}
+                    value={formState.max_capacity ?? 0}
                     onChange={(e) =>
-                      setFormularioGeral((estadoAtual) => ({
-                        ...estadoAtual,
+                      setFormState((s) => ({
+                        ...s,
                         max_capacity: Number(e.target.value),
                       }))
                     }
@@ -243,10 +433,10 @@ export default function SystemSettings() {
                   id="allow_swaps"
                   type="checkbox"
                   className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formularioGeral.allow_swaps)}
+                  checked={Boolean(formState.allow_swaps)}
                   onChange={(e) =>
-                    setFormularioGeral((estadoAtual) => ({
-                      ...estadoAtual,
+                    setFormState((s) => ({
+                      ...s,
                       allow_swaps: e.target.checked,
                     }))
                   }
@@ -260,10 +450,10 @@ export default function SystemSettings() {
                   id="require_quorum"
                   type="checkbox"
                   className="h-4 w-4 rounded border-border-default text-primary focus-ring"
-                  checked={Boolean(formularioGeral.require_quorum)}
+                  checked={Boolean(formState.require_quorum)}
                   onChange={(e) =>
-                    setFormularioGeral((estadoAtual) => ({
-                      ...estadoAtual,
+                    setFormState((s) => ({
+                      ...s,
                       require_quorum: e.target.checked,
                     }))
                   }
@@ -277,9 +467,9 @@ export default function SystemSettings() {
               </div>
               <div>
                 <button
-                  onClick={salvarConfiguracoesGerais}
+                  onClick={saveGeneral}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded"
-                  disabled={carregando}
+                  disabled={loading}
                   type="button"
                 >
                   Salvar
@@ -291,129 +481,221 @@ export default function SystemSettings() {
       case "evaluation":
         return (
           <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-6 border-b border-border-default">
+            <div className="mb-6 flex flex-col gap-3 border-b border-border-default sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-wrap gap-4 sm:gap-8">
-                <button className="border-b-2 border-primary pb-4 text-sm font-bold text-primary">
-                  Masculino
-                </button>
-                <button className="pb-4 text-sm font-medium text-text-muted hover:text-primary transition-colors">
-                  Feminino
-                </button>
+                {(["masculino", "feminino"] as const).map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setEvaluationCategory(category)}
+                    className={`pb-4 text-sm font-semibold transition-colors ${
+                      evaluationCategory === category
+                        ? "border-b-2 border-primary text-primary"
+                        : "text-text-muted hover:text-primary"
+                    }`}
+                  >
+                    {category === "masculino" ? "Masculino" : "Feminino"}
+                  </button>
+                ))}
               </div>
-              <div className="pb-4">
-                <button className="flex items-center text-primary text-sm font-semibold hover:underline">
-                  <AppIcon
-                    icon={Download}
-                    size="sm"
-                    className="mr-1"
-                    decorative
-                  />
-                  Exportar PDF
+              <div className="flex items-center gap-2 pb-4">
+                <button
+                  type="button"
+                  onClick={openNewEvaluationRow}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  <AppIcon icon={Plus} size="sm" decorative />
+                  Nova linha
                 </button>
               </div>
             </div>
-            <p className="text-text-muted text-sm mb-6">
-              Defina os requisitos mínimos de desempenho para cada categoria
-              etária.
+            <p className="mb-6 text-sm text-text-muted">
+              Edite as tabelas persistidas de índices por faixa e conceito.
             </p>
-            <div className="border border-border-default rounded-xl mb-10">
-              <div className="space-y-2 p-3 md:hidden">
-                <article className="rounded-lg border border-border-default bg-bg-card p-3">
-                  <p className="text-sm font-semibold text-text-body">
-                    Até 24 anos
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-text-muted">
-                    <p>Corrida: 12:00</p>
-                    <p>Flexão: 30</p>
-                    <p>Abdominal: 35</p>
-                    <p>Conceito: EXCELENTE</p>
-                  </div>
-                </article>
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[480px] text-left border-collapse">
+            <div className="overflow-hidden rounded-xl border border-border-default">
+              {evaluationLoading ? (
+                <div className="p-6 text-sm text-text-muted">
+                  Carregando tabelas...
+                </div>
+              ) : evaluationRows.length === 0 ? (
+                <div className="p-6 text-sm text-text-muted">
+                  Nenhuma linha cadastrada para esta categoria.
+                </div>
+              ) : (
+                <table className="w-full min-w-[640px] text-left border-collapse">
                   <thead>
                     <tr className="bg-primary text-primary-foreground">
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
-                        Idade
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">
+                        Faixa
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Corrida (Min)
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-center">
+                        Corrida
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Flexão (Rep)
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-center">
+                        Flexão
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-center">
-                        Abdominal (Rep)
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-center">
+                        Abdominal
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider">
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">
                         Conceito
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-xs font-bold uppercase tracking-wider text-right">
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-right">
                         Ações
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-default">
-                    {/* linhas de exemplo; em produção os dados virão da API */}
-                    <tr className="hover:bg-bg-card transition-colors">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-text-body">
-                        Até 24 anos
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        12:00
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        30
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
-                        35
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className="rounded px-2 py-1 text-xs font-bold bg-success/10 text-success">
-                          EXCELENTE
-                        </span>
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPadraoEditandoId("24");
-                            setFormularioEdicao({
-                              corrida: "12:00",
-                              flexao: "30",
-                              abdominal: "35",
-                            });
-                          }}
-                          className="p-2 text-text-muted hover:text-primary transition-colors"
-                          title="Editar"
-                        >
-                          <AppIcon icon={Edit2} size="sm" decorative />
-                        </button>
-                      </td>
-                    </tr>
+                    {evaluationRows.map((row) => (
+                      <tr key={row.id} className="hover:bg-bg-card transition-colors">
+                        <td className="px-4 py-3 font-semibold text-text-body">
+                          {row.faixa}
+                        </td>
+                        <td className="px-4 py-3 text-center">{row.corrida}</td>
+                        <td className="px-4 py-3 text-center">{row.flexao}</td>
+                        <td className="px-4 py-3 text-center">{row.abdominal}</td>
+                        <td className="px-4 py-3">
+                          <span className="rounded px-2 py-1 text-xs font-bold bg-success/10 text-success">
+                            {row.conceito}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditEvaluationRow(row)}
+                              className="p-2 text-text-muted hover:text-primary transition-colors"
+                              title="Editar linha"
+                            >
+                              <AppIcon icon={Edit2} size="sm" decorative />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteEvaluationRow(row.id)}
+                              className="p-2 text-text-muted hover:text-error transition-colors"
+                              title="Remover linha"
+                            >
+                              <AppIcon icon={Trash2} size="sm" decorative />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-              </div>
+              )}
             </div>
           </div>
         );
       case "locations":
         return (
-          <div className="py-6">
-            <p className="mb-4">
-              A gestão de Locais / Organizações Militares foi movida para uma
-              página dedicada. Utilize o botão abaixo para acessar a ferramenta
-              completa.
-            </p>
-            <button
-              type="button"
-              onClick={() => window.location.assign("/app/om-locations")}
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
-            >
-              Ir para Gestão de Locais e OMs
-            </button>
+          <div className="space-y-6 py-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-text-body">
+                  Locais de aplicação
+                </h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  CRUD oficial dos locais persistidos consumidos pelo Hub de
+                  sessões.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openNewLocationForm}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                <AppIcon icon={Plus} size="sm" decorative />
+                Novo local
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-border-default">
+              {locationsLoading ? (
+                <div className="p-6 text-sm text-text-muted">
+                  Carregando locais...
+                </div>
+              ) : locations.length === 0 ? (
+                <div className="p-6 text-sm text-text-muted">
+                  Nenhum local cadastrado.
+                </div>
+              ) : (
+                <table className="w-full min-w-[720px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-primary text-primary-foreground">
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">
+                        Local
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">
+                        Endereço
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-center">
+                        Capacidade
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-center">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-right">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-default">
+                    {locations.map((location) => {
+                      const meta =
+                        OM_STATUS[location.status as keyof typeof OM_STATUS] ??
+                        OM_STATUS.inactive;
+                      return (
+                        <tr
+                          key={location.id}
+                          className="hover:bg-bg-card transition-colors"
+                        >
+                          <td className="px-4 py-3 font-semibold text-text-body">
+                            {location.name}
+                          </td>
+                          <td className="px-4 py-3 text-text-body">
+                            {location.address}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {location.max_capacity}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-bold ${meta.badge}`}
+                            >
+                              {meta.labelLong}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditLocationForm(location)}
+                                className="p-2 text-text-muted hover:text-primary transition-colors"
+                                title="Editar local"
+                              >
+                                <AppIcon icon={Edit2} size="sm" decorative />
+                              </button>
+                              {location.status !== "inactive" ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleInactivateLocation(location.id)
+                                  }
+                                  className="p-2 text-text-muted hover:text-error transition-colors"
+                                  title="Inativar local"
+                                >
+                                  <AppIcon icon={Trash2} size="sm" decorative />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         );
       case "profiles":
@@ -437,7 +719,7 @@ export default function SystemSettings() {
             <h2 className="mb-4 text-lg font-bold text-text-body">
               Logs de Auditoria
             </h2>
-            {carregandoAuditoria ? (
+            {auditLoading ? (
               <div className="space-y-3">
                 <div className="h-4 w-40 animate-pulse rounded bg-border-default" />
                 <div className="h-12 w-full animate-pulse rounded-lg bg-border-default" />
@@ -447,7 +729,7 @@ export default function SystemSettings() {
             ) : (
               <div className="max-h-[400px] overflow-auto">
                 <div className="space-y-2 p-3 md:hidden">
-                  {registrosAuditoria.map((log) => (
+                  {auditLogs.map((log) => (
                     <article
                       key={log.id}
                       className="rounded-lg border border-border-default bg-bg-card p-3"
@@ -487,7 +769,7 @@ export default function SystemSettings() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-default">
-                      {registrosAuditoria.map((log) => (
+                      {auditLogs.map((log) => (
                         <tr
                           key={log.id}
                           className="hover:bg-bg-card transition-colors"
@@ -512,14 +794,13 @@ export default function SystemSettings() {
     }
   }
 
-  const paginaCarregando =
-    autenticacaoCarregando || carregandoConfiguracoes;
+  const pageLoading = authLoading || settingsLoading;
 
-  if (paginaCarregando) {
+  if (pageLoading) {
     return <FullPageLoading message="Carregando configuracoes" />;
   }
 
-  if (!podeVisualizar) {
+  if (!canView) {
     return (
       <Layout>
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
@@ -578,13 +859,13 @@ export default function SystemSettings() {
                 </span>
               </div>
               <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                {(SECOES_CONFIGURACAO as ReadonlyArray<ItemSecao>).map((tab) => {
-                  const active = tab.key === secaoAtiva;
+                {(TABS as ReadonlyArray<TabItem>).map((tab) => {
+                  const active = tab.key === activeTab;
                   return (
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setSecaoAtiva(tab.key)}
+                      onClick={() => setActiveTab(tab.key)}
                       aria-current={active ? "page" : undefined}
                       className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
                         active
@@ -606,109 +887,224 @@ export default function SystemSettings() {
           </aside>
 
           <section className="bg-bg-card rounded-3xl border border-border-default shadow-sm min-h-[480px]">
-            <div className="p-4 sm:p-6 lg:p-8">{renderizarConteudo()}</div>
+            <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
           </section>
         </div>
 
-        {/* Janela de edição das tabelas de avaliação */}
-        {padraoEditandoId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-bg-card border border-border-default shadow-2xl">
-              {/* Cabeçalho */}
-              <div className="border-b border-border-default bg-bg-default/50 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-text-body">
-                  Editar Requisitos - Até 24 anos
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setPadraoEditandoId(null)}
-                  className="text-text-muted hover:text-text-body transition-colors"
-                  aria-label="Fechar"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Conteúdo */}
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Corrida (minutos)
-                  </label>
-                  <input
-                    type="text"
-                    value={formularioEdicao.corrida}
-                    onChange={(e) =>
-                      setFormularioEdicao({
-                        ...formularioEdicao,
-                        corrida: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 12:00"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Flexão (repetições)
-                  </label>
-                  <input
-                    type="text"
-                    value={formularioEdicao.flexao}
-                    onChange={(e) =>
-                      setFormularioEdicao({
-                        ...formularioEdicao,
-                        flexao: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 30"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
-                    Abdominal (repetições)
-                  </label>
-                  <input
-                    type="text"
-                    value={formularioEdicao.abdominal}
-                    onChange={(e) =>
-                      setFormularioEdicao({
-                        ...formularioEdicao,
-                        abdominal: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 35"
-                    className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Rodapé */}
-              <div className="border-t border-border-default bg-bg-default/50 px-6 py-4 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setPadraoEditandoId(null)}
-                  className="px-4 py-2 text-sm font-semibold text-text-muted border border-border-default rounded-lg hover:bg-bg-card transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.success("Requisitos de desempenho atualizados!");
-                    setPadraoEditandoId(null);
-                  }}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:brightness-110 transition-all"
-                >
-                  Salvar
-                </button>
-              </div>
+        <Dialog
+          open={editingStandardId !== null}
+          onClose={() => setEditingStandardId(null)}
+          title={
+            editingStandardId === "new"
+              ? "Nova linha de indice"
+              : "Editar linha de indice"
+          }
+          widthClassName="max-w-lg"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingStandardId(null)}
+                className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveEvaluationRow()}
+                disabled={savingEvaluation}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <AppIcon icon={Save} size="sm" decorative />
+                Salvar
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-4">
+            <label className="text-sm font-medium text-text-body">
+              Faixa
+              <input
+                type="text"
+                value={editFormData.faixa}
+                onChange={(event) =>
+                  setEditFormData((current) => ({
+                    ...current,
+                    faixa: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="text-sm font-medium text-text-body">
+                Corrida
+                <input
+                  type="text"
+                  value={editFormData.corrida}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({
+                      ...current,
+                      corrida: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-text-body">
+                Flexão
+                <input
+                  type="text"
+                  value={editFormData.flexao}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({
+                      ...current,
+                      flexao: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-text-body">
+                Abdominal
+                <input
+                  type="text"
+                  value={editFormData.abdominal}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({
+                      ...current,
+                      abdominal: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-medium text-text-body">
+                Conceito
+                <input
+                  type="text"
+                  value={editFormData.conceito}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({
+                      ...current,
+                      conceito: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-text-body">
+                Ordem
+                <input
+                  type="number"
+                  min={0}
+                  value={editFormData.sort_order}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({
+                      ...current,
+                      sort_order: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
             </div>
           </div>
-        )}
+        </Dialog>
+
+        <Dialog
+          open={locationFormOpen}
+          onClose={() => setLocationFormOpen(false)}
+          title={editingLocationId ? "Editar local" : "Novo local"}
+          widthClassName="max-w-xl"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setLocationFormOpen(false)}
+                className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveLocation()}
+                disabled={savingLocation}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <AppIcon icon={Save} size="sm" decorative />
+                Salvar local
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-4">
+            <label className="text-sm font-medium text-text-body">
+              Nome do local
+              <input
+                type="text"
+                value={locationFormData.name}
+                onChange={(event) =>
+                  setLocationFormData((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm font-medium text-text-body">
+              Endereço
+              <input
+                type="text"
+                value={locationFormData.address}
+                onChange={(event) =>
+                  setLocationFormData((current) => ({
+                    ...current,
+                    address: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-medium text-text-body">
+                Capacidade
+                <input
+                  type="number"
+                  min={0}
+                  value={locationFormData.max_capacity}
+                  onChange={(event) =>
+                    setLocationFormData((current) => ({
+                      ...current,
+                      max_capacity: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-text-body">
+                Status
+                <select
+                  value={locationFormData.status}
+                  onChange={(event) =>
+                    setLocationFormData((current) => ({
+                      ...current,
+                      status: event.target.value as Location["status"],
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm"
+                >
+                  <option value="active">Ativo</option>
+                  <option value="maintenance">Manutenção</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </Dialog>
       </div>
     </Layout>
   );

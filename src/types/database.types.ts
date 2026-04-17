@@ -14,6 +14,7 @@ export type SessionStatus = "open" | "closed" | "completed";
 export type BookingStatus = "agendado" | "cancelado" | "remarcado";
 export type SwapStatus = "solicitado" | "aprovado" | "cancelado";
 export type LocationStatus = "active" | "maintenance" | "inactive";
+export type EvaluationIndexCategory = "masculino" | "feminino";
 
 export interface Database {
   public: {
@@ -318,6 +319,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      evaluation_index_rows: {
+        Row: {
+          id: string;
+          category: EvaluationIndexCategory;
+          faixa: string;
+          corrida: string;
+          flexao: string;
+          abdominal: string;
+          conceito: string;
+          sort_order: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Insert: {
+          id?: string;
+          category?: EvaluationIndexCategory;
+          faixa: string;
+          corrida: string;
+          flexao: string;
+          abdominal: string;
+          conceito: string;
+          sort_order?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          category?: EvaluationIndexCategory;
+          faixa?: string;
+          corrida?: string;
+          flexao?: string;
+          abdominal?: string;
+          conceito?: string;
+          sort_order?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       swap_requests: {
         Row: {
           id: string;
@@ -421,6 +461,27 @@ export interface Database {
         Args: { p_id: string };
         Returns: undefined;
       };
+      get_evaluation_index_rows: {
+        Args: { p_category?: string | null };
+        Returns: Database["public"]["Tables"]["evaluation_index_rows"]["Row"][];
+      };
+      upsert_evaluation_index_row: {
+        Args: {
+          p_id?: string | null;
+          p_category?: string | null;
+          p_faixa?: string | null;
+          p_corrida?: string | null;
+          p_flexao?: string | null;
+          p_abdominal?: string | null;
+          p_conceito?: string | null;
+          p_sort_order?: number | null;
+        };
+        Returns: Database["public"]["Tables"]["evaluation_index_rows"]["Row"];
+      };
+      delete_evaluation_index_row: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
       get_user_dashboard_summary: {
         Args: Record<string, never>;
         Returns: Json;
@@ -495,7 +556,11 @@ export interface Database {
         Returns: Json;
       };
       set_booking_result: {
-        Args: { p_booking_id: string; p_result: string };
+        Args: {
+          p_booking_id: string;
+          p_result?: string | null;
+          p_result_payload?: Json | null;
+        };
         Returns: undefined;
       };
       set_booking_attendance: {

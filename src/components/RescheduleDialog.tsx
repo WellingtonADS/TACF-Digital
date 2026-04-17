@@ -1,7 +1,7 @@
 /**
  * @page RescheduleDialog
  * @description Dialog para solicitar ou visualizar trocas de sessão.
- * @path src/components/Booking/RescheduleDialog.tsx
+ * @path src/components/RescheduleDialog.tsx
  */
 
 import type { SessionAvailability } from "@/hooks/useSessions";
@@ -10,7 +10,7 @@ import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import Dialog from "@/components/Dialog";
+import Dialog from "./Dialog";
 
 function getSwapErrorMessage(error: unknown): string {
   const raw =

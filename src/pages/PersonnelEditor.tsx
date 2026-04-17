@@ -19,35 +19,35 @@ export default function PersonnelEditor() {
   const { profile: authProfile } = useAuth();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const [perfilMilitar, setPerfilMilitar] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [active, setActive] = useState(true);
   const [sector, setSector] = useState("");
-  const [carregando, setCarregando] = useState(true);
-  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
-  const [salvando, setSalvando] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const canMutate = authProfile?.role === "admin";
   useEffect(() => {
     if (!userId) return;
-    setCarregando(true);
+    setLoading(true);
     getProfileById(userId)
-      .then((perfil) => {
-        if (!perfil) {
-          setErroCarregamento("Militar nao encontrado.");
-          setCarregando(false);
+      .then((p) => {
+        if (!p) {
+          setLoadError("Militar nao encontrado.");
+          setLoading(false);
           return;
         }
-        setPerfilMilitar(perfil);
-        setActive(perfil.active !== false);
-        setSector(perfil.sector ?? "");
-        setCarregando(false);
+        setProfile(p);
+        setActive(p.active !== false);
+        setSector(p.sector ?? "");
+        setLoading(false);
       })
       .catch((err) => {
         console.error("[PersonnelEditor] query error:", err);
-        setErroCarregamento(err.message ?? "Erro ao carregar dados do militar.");
-        setCarregando(false);
+        setLoadError(err.message ?? "Erro ao carregar dados do militar.");
+        setLoading(false);
       });
   }, [userId]);
-  async function salvarAlteracoes() {
+  async function handleSave() {
     if (!userId) return;
     if (!canMutate) {
       toast.error(
@@ -56,7 +56,7 @@ export default function PersonnelEditor() {
       return;
     }
 
-    setSalvando(true);
+    setSaving(true);
     try {
       await updateProfile(userId, { active, sector: sector.trim() || null });
       toast.success(active ? "Militar ativado." : "Militar inativado.");
@@ -69,10 +69,10 @@ export default function PersonnelEditor() {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(authMessage ?? `Erro ao salvar: ${msg}`);
     } finally {
-      setSalvando(false);
+      setSaving(false);
     }
   }
-  if (carregando) {
+  if (loading) {
     return (
       <Layout>
         {" "}
@@ -84,7 +84,7 @@ export default function PersonnelEditor() {
       </Layout>
     );
   }
-  if (erroCarregamento || !perfilMilitar) {
+  if (loadError || !profile) {
     return (
       <Layout>
         {" "}
@@ -92,7 +92,7 @@ export default function PersonnelEditor() {
           {" "}
           <p className="text-error font-semibold">
             {" "}
-            {erroCarregamento ?? "Militar nao encontrado."}{" "}
+            {loadError ?? "Militar nao encontrado."}{" "}
           </p>{" "}
           <Button
             type="button"
@@ -108,7 +108,7 @@ export default function PersonnelEditor() {
     );
   }
   const displayName =
-    [perfilMilitar.rank, perfilMilitar.war_name ?? perfilMilitar.full_name]
+    [profile.rank, profile.war_name ?? profile.full_name]
       .filter(Boolean)
       .join(" ") || "desconhecido";
   return (
@@ -191,8 +191,8 @@ export default function PersonnelEditor() {
           </Button>{" "}
           <Button
             type="button"
-            disabled={salvando || !canMutate}
-            onClick={salvarAlteracoes}
+            disabled={saving || !canMutate}
+            onClick={handleSave}
             title={
               canMutate
                 ? "Salvar alterações"
@@ -201,7 +201,7 @@ export default function PersonnelEditor() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
             {" "}
-            {salvando ? (
+            {saving ? (
               <Loader2 size={15} className="animate-spin" />
             ) : (
               <Save size={15} />

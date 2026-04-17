@@ -27,7 +27,7 @@ import { useCallback, useMemo, useState } from "react";
 import QR from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import Breadcrumbs from "../components/Breadcrumbs";
 import FullPageLoading from "../components/FullPageLoading";
 
 // no longer need formatTicketDate or route state types; they live in the hook

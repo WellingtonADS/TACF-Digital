@@ -30,97 +30,97 @@ const MOTIVOS = [
   "Outro motivo",
 ] as const;
 
-type EstadoFormulario = {
+type FormState = {
   motivo: string;
   justificativa: string;
-  arquivo: File | null;
+  file: File | null;
 };
 
 export default function AppealRequest() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const resultadoId = searchParams.get("result");
+  const resultId = searchParams.get("result");
 
-  const [carregandoContexto, setCarregandoContexto] = useState(true);
-  const [resultado, setResultado] = useState<ResultSummary | null>(null);
-  const [formulario, setFormulario] = useState<EstadoFormulario>({
+  const [loadingContext, setLoadingContext] = useState(true);
+  const [result, setResult] = useState<ResultSummary | null>(null);
+  const [form, setForm] = useState<FormState>({
     motivo: "",
     justificativa: "",
-    arquivo: null,
+    file: null,
   });
-  const [enviando, setEnviando] = useState(false);
-  const [enviado, setEnviado] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     let active = true;
 
-    async function carregarContexto() {
-      if (!resultadoId) {
-        setResultado(null);
-        setCarregandoContexto(false);
+    async function loadContext() {
+      if (!resultId) {
+        setResult(null);
+        setLoadingContext(false);
         return;
       }
 
-      setCarregandoContexto(true);
+      setLoadingContext(true);
 
       try {
-        const data = await fetchResultById(resultadoId);
+        const data = await fetchResultById(resultId);
         if (active) {
-          setResultado(data);
+          setResult(data);
         }
       } catch (error) {
         console.error(error);
         if (active) {
-          setResultado(null);
+          setResult(null);
           toast.error("Não foi possível carregar o contexto do resultado.");
         }
       } finally {
         if (active) {
-          setCarregandoContexto(false);
+          setLoadingContext(false);
         }
       }
     }
 
-    void carregarContexto();
+    void loadContext();
 
     return () => {
       active = false;
     };
-  }, [resultadoId]);
+  }, [resultId]);
 
-  const caminhoDetalhe = resultadoId
-    ? `/app/resultados/${resultadoId}`
+  const detailPath = resultId
+    ? `/app/resultados/${resultId}`
     : "/app/resultados";
-  const recursoDisponivel = resultado ? canOpenAppeal(resultado) : false;
+  const appealAllowed = result ? canOpenAppeal(result) : false;
 
-  async function enviarSolicitacao(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!formulario.motivo) {
+    if (!form.motivo) {
       toast.error("Selecione o motivo do recurso.");
       return;
     }
-    if (formulario.justificativa.trim().length < 30) {
+    if (form.justificativa.trim().length < 30) {
       toast.error("A justificativa deve ter pelo menos 30 caracteres.");
       return;
     }
 
-    setEnviando(true);
+    setSubmitting(true);
     try {
       // RPC appeals ainda não implementada — informar usuário
       toast.info(
         "Funcionalidade em desenvolvimento. Sua solicitação será registrada em breve.",
       );
-      setEnviado(true);
+      setSubmitted(true);
     } finally {
-      setEnviando(false);
+      setSubmitting(false);
     }
   }
 
-  if (carregandoContexto) {
+  if (loadingContext) {
     return <FullPageLoading message="Carregando contexto do recurso" />;
   }
 
-  if (enviado) {
+  if (submitted) {
     return (
       <Layout>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
@@ -174,7 +174,7 @@ export default function AppealRequest() {
           </p>
         </header>
 
-        {!resultado ? (
+        {!result ? (
           <section className="rounded-3xl border border-border-default bg-bg-card p-8 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
               Contexto indisponível
@@ -201,7 +201,7 @@ export default function AppealRequest() {
         ) : (
           <div className="space-y-6">
             <ResultSummaryCard
-              result={resultado}
+              result={result}
               eyebrow="Resultado em análise"
               title="Confirme os dados antes de recorrer"
               description="O recurso deve ser aberto com base no resultado final já disponibilizado no sistema."
@@ -212,7 +212,7 @@ export default function AppealRequest() {
                     onMouseEnter={() =>
                       prefetchRoute("/app/resultados/:resultId")
                     }
-                    onClick={() => navigate(caminhoDetalhe)}
+                    onClick={() => navigate(detailPath)}
                     className="inline-flex items-center gap-2 rounded-xl border border-border-default px-5 py-3 text-sm font-bold uppercase tracking-wider text-text-body transition-colors hover:bg-bg-default"
                   >
                     <ArrowLeft size={16} />
@@ -225,7 +225,7 @@ export default function AppealRequest() {
               }
             />
 
-            {!recursoDisponivel ? (
+            {!appealAllowed ? (
               <section className="rounded-3xl border border-border-default bg-bg-card p-6 shadow-sm">
                 <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 p-4">
                   <Info
@@ -245,7 +245,7 @@ export default function AppealRequest() {
               </section>
             ) : (
               <form
-                onSubmit={enviarSolicitacao}
+                onSubmit={handleSubmit}
                 className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm"
               >
                 <div className="border-b border-border-default bg-bg-default/50 p-6">
@@ -263,12 +263,9 @@ export default function AppealRequest() {
                       Motivo do Recurso *
                     </label>
                     <select
-                      value={formulario.motivo}
+                      value={form.motivo}
                       onChange={(e) =>
-                        setFormulario((estadoAtual) => ({
-                          ...estadoAtual,
-                          motivo: e.target.value,
-                        }))
+                        setForm((f) => ({ ...f, motivo: e.target.value }))
                       }
                       required
                       title="Motivo do Recurso"
@@ -289,10 +286,10 @@ export default function AppealRequest() {
                       Justificativa *
                     </label>
                     <textarea
-                      value={formulario.justificativa}
+                      value={form.justificativa}
                       onChange={(e) =>
-                        setFormulario((estadoAtual) => ({
-                          ...estadoAtual,
+                        setForm((f) => ({
+                          ...f,
                           justificativa: e.target.value.slice(0, 2000),
                         }))
                       }
@@ -302,7 +299,7 @@ export default function AppealRequest() {
                       className="w-full resize-none rounded-xl border border-border-default bg-bg-default p-3.5 text-text-body transition focus:border-primary focus:ring-2 focus:ring-primary"
                     />
                     <p className="text-right text-[10px] font-medium text-text-muted">
-                      {formulario.justificativa.length}/2000
+                      {form.justificativa.length}/2000
                     </p>
                   </div>
 
@@ -316,8 +313,8 @@ export default function AppealRequest() {
                     >
                       <Paperclip className="text-text-muted" size={20} />
                       <span className="text-sm font-medium text-text-muted">
-                        {formulario.arquivo
-                          ? formulario.arquivo.name
+                        {form.file
+                          ? form.file.name
                           : "Clique para anexar (PDF, JPG, PNG — máx 5MB)"}
                       </span>
                     </label>
@@ -327,9 +324,9 @@ export default function AppealRequest() {
                       accept=".pdf,.jpg,.jpeg,.png"
                       className="sr-only"
                       onChange={(e) =>
-                        setFormulario((estadoAtual) => ({
-                          ...estadoAtual,
-                          arquivo: e.target.files?.[0] ?? null,
+                        setForm((f) => ({
+                          ...f,
+                          file: e.target.files?.[0] ?? null,
                         }))
                       }
                     />
@@ -356,22 +353,22 @@ export default function AppealRequest() {
                     onMouseEnter={() =>
                       prefetchRoute("/app/resultados/:resultId")
                     }
-                    onClick={() => navigate(caminhoDetalhe)}
+                    onClick={() => navigate(detailPath)}
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-text-muted transition-colors hover:text-text-body"
                   >
                     <ArrowLeft size={16} /> Voltar ao Resultado
                   </button>
                   <button
                     type="submit"
-                    disabled={enviando}
+                    disabled={submitting}
                     className="inline-flex items-center gap-3 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {enviando ? (
+                    {submitting ? (
                       <Loader2 size={18} className="animate-spin" />
                     ) : (
                       <FileText size={18} />
                     )}
-                    {enviando ? "Enviando..." : "Enviar Solicitação"}
+                    {submitting ? "Enviando..." : "Enviar Solicitação"}
                   </button>
                 </div>
               </form>

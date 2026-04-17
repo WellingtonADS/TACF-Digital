@@ -1,6 +1,6 @@
 /**
  * ARCHIVED: RescheduleDrawer
- * Reason: substituído por `src/components/Booking/RescheduleDialog.tsx` para seguir o
+ * Reason: substituído por `src/components/RescheduleDialog.tsx` para seguir o
  * padrão canônico de dialogs do sistema.
  * Original path: src/components/RescheduleDrawer.tsx
  */

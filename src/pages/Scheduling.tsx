@@ -6,8 +6,8 @@
 
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import TicketModal from "@/components/TicketModal";
 import SessionMonthCalendar from "@/components/Calendar/SessionMonthCalendar";
-import TicketDialog from "@/components/Booking/TicketDialog";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import { Calendar, Check, ChevronRight, Clock, Hash, MapPin } from "@/icons";
 import { fetchSessionLocationBySessionId } from "@/services/locations";
@@ -25,7 +25,7 @@ type SessionLocation = {
   address: string | null;
 };
 
-function formatarChaveData(date: Date): string {
+function toDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -34,142 +34,133 @@ function formatarChaveData(date: Date): string {
 
 export const Scheduling = () => {
   const navigate = useNavigate();
-  // `useDashboard` era chamado aqui, mas seu retorno não era consumido.
-  // A chamada foi removida para evitar trabalho desnecessário.
-  const [dialogoTicketAberto, setDialogoTicketAberto] = useState(false);
+  // useDashboard was previously called here but its return value was unused.
+  // Removed to avoid unnecessary work (hook runs only where its data is consumed).
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
-  const [dataVisualizacao, setDataVisualizacao] = useState(() => new Date());
-  const inicioMes = new Date(
-    dataVisualizacao.getFullYear(),
-    dataVisualizacao.getMonth(),
-    1,
-  );
-  const fimMes = new Date(
-    dataVisualizacao.getFullYear(),
-    dataVisualizacao.getMonth() + 1,
+  const [viewDate, setViewDate] = useState(() => new Date());
+  const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+  const endOfMonth = new Date(
+    viewDate.getFullYear(),
+    viewDate.getMonth() + 1,
     0,
   );
-  const inicioMesStr = formatarChaveData(inicioMes);
-  const fimMesStr = formatarChaveData(fimMes);
+  const startStr = toDateKey(startOfMonth);
+  const endStr = toDateKey(endOfMonth);
 
-  const { sessions, loading: carregandoSessoes } = useSessions(
-    inicioMesStr,
-    fimMesStr,
-  );
+  const { sessions, loading } = useSessions(startStr, endStr);
 
-  const [dataSelecionada, setDataSelecionada] = useState<string | null>(null);
-  const [sessaoSelecionadaId, setSessaoSelecionadaId] = useState<string | null>(
-    null,
-  );
-  const [localSessao, setLocalSessao] =
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [sessionLocation, setSessionLocation] =
     useState<SessionLocation | null>(null);
-  const [carregandoLocal, setCarregandoLocal] = useState(false);
-  const [datasAgendadas, setDatasAgendadas] = useState<Set<string>>(new Set());
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
 
-  const sessoesElegiveis = useMemo(
+  const eligibleSessions = useMemo(
     () => (sessions ?? []).filter((session) => canMilitaryBookDate(session.date)),
     [sessions],
   );
 
-  const sessoesPorData = useMemo(() => {
+  const sessionsByDate = useMemo(() => {
     const map: Record<string, SessionAvailability[]> = {};
-    sessoesElegiveis.forEach((s) => {
+    eligibleSessions.forEach((s) => {
       const key = s.date as string;
       map[key] = map[key] ?? [];
       map[key].push(s);
     });
     return map;
-  }, [sessoesElegiveis]);
+  }, [eligibleSessions]);
 
-  // Seleciona a primeira data futura disponível e mantém a seleção sincronizada.
+  // pick first FUTURE available date (and keep selection in sync when sessions change)
   useEffect(() => {
-    const hojeStr = formatarChaveData(new Date());
-    // Considera apenas sessões de hoje em diante.
-    const sessoesFuturas = sessoesElegiveis.filter(
-      (s) => (s.date as string) >= hojeStr,
+    const todayStr = toDateKey(new Date());
+    // only consider sessions from today forward
+    const futureSessions = eligibleSessions.filter(
+      (s) => (s.date as string) >= todayStr,
     );
 
-    if (sessoesFuturas.length > 0) {
-      // Limpa a seleção se não houver data válida, se a data sumiu ou já passou.
+    if (futureSessions.length > 0) {
+      // reset selection if: nothing selected, current selection is gone, or it's in the past
       if (
-        !dataSelecionada ||
-        !sessoesPorData[dataSelecionada] ||
-        dataSelecionada < hojeStr
+        !selectedDate ||
+        !sessionsByDate[selectedDate] ||
+        selectedDate < todayStr
       ) {
-        setDataSelecionada(sessoesFuturas[0].date as string);
-        setSessaoSelecionadaId(null);
+        setSelectedDate(futureSessions[0].date as string);
+        setSelectedSession(null);
       }
     } else {
-      // Sem sessões futuras no mês visível: limpa a seleção.
-      setDataSelecionada(null);
-      setSessaoSelecionadaId(null);
+      // no future sessions this month, clear selection
+      setSelectedDate(null);
+      setSelectedSession(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessoesElegiveis, sessoesPorData]);
+  }, [eligibleSessions, sessionsByDate]);
 
-  function selecionarSessao(sessionId: string) {
-    setSessaoSelecionadaId(sessionId);
+  function handleSelectSession(sessionId: string) {
+    setSelectedSession(sessionId);
   }
 
-  function continuarAgendamento() {
-    if (!sessaoSelecionadaId) {
+  function handleBook() {
+    if (!selectedSession) {
       toast.error("Selecione um horário antes de continuar.");
       return;
     }
 
     navigate("/app/agendamentos/confirmacao", {
-      state: { sessionId: sessaoSelecionadaId },
+      state: { sessionId: selectedSession },
     });
   }
 
-  // Sessões disponíveis para a data selecionada.
-  const sessoesDataSelecionada: SessionAvailability[] =
-    dataSelecionada && sessoesPorData[dataSelecionada]
-      ? sessoesPorData[dataSelecionada]
+  // sessions available for the currently selected date (empty array if none)
+  const sessionsForSelected: SessionAvailability[] =
+    selectedDate && sessionsByDate[selectedDate]
+      ? sessionsByDate[selectedDate]
       : [];
 
-  const sessaoIdParaLocal =
-    sessaoSelecionadaId ?? sessoesDataSelecionada[0]?.session_id ?? null;
+  const sessionIdForLocation =
+    selectedSession ?? sessionsForSelected[0]?.session_id ?? null;
 
   useEffect(() => {
-    async function carregarLocalSessao(sessionId: string) {
-      setCarregandoLocal(true);
+    async function fetchSessionLocation(sessionId: string) {
+      setLocationLoading(true);
 
       try {
         const location = await fetchSessionLocationBySessionId(sessionId);
-        setLocalSessao(location);
+        setSessionLocation(location);
       } catch {
-        setLocalSessao(null);
+        setSessionLocation(null);
       } finally {
-        setCarregandoLocal(false);
+        setLocationLoading(false);
       }
     }
 
-    if (!sessaoIdParaLocal) {
-      setLocalSessao(null);
-      setCarregandoLocal(false);
+    if (!sessionIdForLocation) {
+      setSessionLocation(null);
+      setLocationLoading(false);
       return;
     }
 
-    carregarLocalSessao(sessaoIdParaLocal);
-  }, [sessaoIdParaLocal]);
+    fetchSessionLocation(sessionIdForLocation);
+  }, [sessionIdForLocation]);
 
-  // Busca os agendamentos do usuário no mês visível e marca as datas ocupadas.
+  // fetch user's bookings on the visible month range and mark dates as booked
   useEffect(() => {
     let mounted = true;
 
-    async function carregarDatasAgendadas() {
-      const datas = await fetchBookedDatesForUser(inicioMesStr, fimMesStr);
-      if (mounted) setDatasAgendadas(datas);
+    async function load() {
+      const set = await fetchBookedDatesForUser(startStr, endStr);
+      if (mounted) setBookedDates(set);
     }
 
-    carregarDatasAgendadas();
+    load();
     return () => {
       mounted = false;
     };
-  }, [inicioMesStr, fimMesStr]);
+  }, [startStr, endStr]);
 
-  if (carregandoSessoes) return <FullPageLoading message="Carregando sessões" />;
+  if (loading) return <FullPageLoading message="Carregando sessões" />;
 
   return (
     <Layout>
@@ -186,7 +177,7 @@ export const Scheduling = () => {
             </p>
           </header>
 
-          {/* Etapas do fluxo */}
+          {/* Stepper */}
           <div className="mb-8 sm:mb-10">
             <div className="max-w-4xl mx-auto rounded-2xl border border-border-default bg-bg-card shadow-sm px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex items-center justify-between relative">
@@ -222,37 +213,29 @@ export const Scheduling = () => {
             </div>
           </div>
 
-          {/* Grade principal */}
+          {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-            {/* Coluna esquerda: calendário */}
+            {/* Left: Calendar */}
             <div className="lg:col-span-8 bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
               <SessionMonthCalendar
-                viewDate={dataVisualizacao}
-                sessionsByDate={sessoesPorData}
-                bookedDates={datasAgendadas}
-                selectedDate={dataSelecionada}
-                loading={carregandoSessoes}
+                viewDate={viewDate}
+                sessionsByDate={sessionsByDate}
+                bookedDates={bookedDates}
+                selectedDate={selectedDate}
+                loading={loading}
                 onPrevMonth={() =>
-                  setDataVisualizacao(
-                    new Date(
-                      dataVisualizacao.getFullYear(),
-                      dataVisualizacao.getMonth() - 1,
-                      1,
-                    ),
+                  setViewDate(
+                    new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1),
                   )
                 }
                 onNextMonth={() =>
-                  setDataVisualizacao(
-                    new Date(
-                      dataVisualizacao.getFullYear(),
-                      dataVisualizacao.getMonth() + 1,
-                      1,
-                    ),
+                  setViewDate(
+                    new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1),
                   )
                 }
                 onSelectDate={(dateKey) => {
-                  setDataSelecionada(dateKey);
-                  setSessaoSelecionadaId(null);
+                  setSelectedDate(dateKey);
+                  setSelectedSession(null);
                 }}
               />
 
@@ -274,7 +257,7 @@ export const Scheduling = () => {
               </div>
             </div>
 
-            {/* Coluna direita: detalhes */}
+            {/* Right: Details */}
             <div className="lg:col-span-4 space-y-6">
               <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default overflow-hidden">
                 <div className="p-6 bg-primary text-primary-foreground">
@@ -282,8 +265,8 @@ export const Scheduling = () => {
                     Detalhes da Sessão
                   </p>
                   <h3 className="text-xl font-bold">
-                    {dataSelecionada
-                      ? formatDatePtBr(dataSelecionada)
+                    {selectedDate
+                      ? formatDatePtBr(selectedDate)
                       : "Selecione uma data"}
                   </h3>
                 </div>
@@ -298,13 +281,13 @@ export const Scheduling = () => {
                         Localização
                       </p>
                       <p className="text-text-body font-semibold">
-                        {carregandoLocal
+                        {locationLoading
                           ? "Carregando local..."
-                          : (localSessao?.name ?? "Local não informado")}
+                          : (sessionLocation?.name ?? "Local não informado")}
                       </p>
-                      {localSessao?.address && (
+                      {sessionLocation?.address && (
                         <p className="text-xs text-text-muted">
-                          {localSessao.address}
+                          {sessionLocation.address}
                         </p>
                       )}
                     </div>
@@ -314,25 +297,25 @@ export const Scheduling = () => {
                     <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">
                       Horários Disponíveis
                     </p>
-                    {carregandoSessoes ? (
+                    {loading ? (
                       <PageSkeleton rows={3} />
-                    ) : !dataSelecionada ? (
+                    ) : !selectedDate ? (
                       <div className="text-sm text-text-muted">
                         Selecione uma data no calendário.
                       </div>
-                    ) : sessoesDataSelecionada.length === 0 ? (
+                    ) : sessionsForSelected.length === 0 ? (
                       <div className="text-sm text-text-muted">
                         Nenhuma sessão disponível nesta data.
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-3">
-                        {sessoesDataSelecionada.map((s) => (
+                        {sessionsForSelected.map((s) => (
                           <button
                             key={s.session_id}
-                            onClick={() => selecionarSessao(s.session_id)}
+                            onClick={() => handleSelectSession(s.session_id)}
                             disabled={s.available_count <= 0}
                             className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 ${
-                              sessaoSelecionadaId === s.session_id
+                              selectedSession === s.session_id
                                 ? "border-primary bg-primary/5"
                                 : "border-border-default hover:bg-bg-default"
                             }`}
@@ -365,11 +348,11 @@ export const Scheduling = () => {
               </div>
 
               <button
-                onClick={continuarAgendamento}
+                onClick={handleBook}
                 onMouseEnter={() =>
                   prefetchRoute("/app/agendamentos/confirmacao")
                 }
-                disabled={!sessaoSelecionadaId}
+                disabled={!selectedSession}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 CONTINUAR PARA CONFIRMAÇÃO
@@ -384,9 +367,9 @@ export const Scheduling = () => {
           </div>
         </div>
       </main>
-      <TicketDialog
-        open={dialogoTicketAberto}
-        onClose={() => setDialogoTicketAberto(false)}
+      <TicketModal
+        open={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
       />
     </Layout>
   );

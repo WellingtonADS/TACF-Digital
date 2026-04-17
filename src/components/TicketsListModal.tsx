@@ -1,7 +1,7 @@
 /**
- * @page TicketsListDialog
- * @description Dialog com lista de tickets vinculados ao usuário.
- * @path src/components/Booking/TicketsListDialog.tsx
+ * @page TicketsListModal
+ * @description Modal com lista de tickets vinculados ao usuário.
+ * @path src/components/TicketsListModal.tsx
  */
 
 import useAuth from "@/hooks/useAuth";
@@ -9,9 +9,9 @@ import { fetchUserTickets, type TicketRow } from "@/services/bookings";
 import { formatSessionPeriod } from "@/utils/booking";
 import { useEffect, useState } from "react";
 import QR from "react-qr-code";
-import Dialog from "@/components/Dialog";
+import Dialog from "./Dialog";
 
-export default function TicketsListDialog({
+export default function TicketsListModal({
   open,
   onClose,
 }: {

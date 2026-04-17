@@ -7,11 +7,11 @@ canônicas.
 Arquivados:
 
 - `src/archived/components/RescheduleDrawer.tsx` — substituído por
-  `src/components/Booking/RescheduleDialog.tsx`.
+  `src/components/RescheduleDialog.tsx`.
 - `src/archived/components/TicketModal.tsx` — substituído por
-  `src/components/Booking/TicketDialog.tsx`.
+  `src/components/TicketDialog.tsx`.
 - `src/archived/components/TicketsListModal.tsx` — substituído por
-  `src/components/Booking/TicketsListDialog.tsx`.
+  `src/components/TicketsListDialog.tsx`.
 - `src/archived/components/atomic/SidebarItem.tsx` — sem imports ativos.
 - `src/archived/components/atomic/QuickActionCard.tsx` — sem imports ativos.
 

@@ -4,13 +4,6 @@
  * @path src/pages/AnalyticsDashboard.tsx
  */
 
-import {
-  CardExportacao,
-  CardIndicador,
-  Esqueleto,
-  EstadoVazio,
-  SeletorFiltro,
-} from "@/components/Analytics/DashboardWidgets";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -31,6 +24,7 @@ import {
   type AnalyticsBookingRow,
   type AnalyticsProfileRow,
 } from "@/services/bookings";
+import { getBookingResultStatus } from "@/utils/bookingResults";
 import { downloadCSV } from "@/utils/csv";
 import { isAdminLike } from "@/router/routeAccess";
 import {
@@ -47,13 +41,13 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type PerfilAnaliticoRow = AnalyticsProfileRow;
+type ProfileRow = AnalyticsProfileRow;
 
-type AgendamentoAnaliticoRow = AnalyticsBookingRow;
+type BookingRow = AnalyticsBookingRow;
 
-type MetricaUnidade = {
+type UnitMetric = {
   unit: string;
   total: number;
   apt: number;
@@ -62,7 +56,7 @@ type MetricaUnidade = {
   percent: number;
 };
 
-type PontoTendencia = {
+type TrendPoint = {
   key: string;
   label: string;
   apt: number;
@@ -71,7 +65,7 @@ type PontoTendencia = {
   percent: number;
 };
 
-type LinhaPendente = {
+type PendingRow = {
   id: string;
   priority: "ALTA" | "MEDIA" | "BAIXA";
   militaryName: string;
@@ -84,13 +78,13 @@ type LinhaPendente = {
   lastResult: "apto" | "inapto" | null;
 };
 
-type AbaRelatorio = "overview" | "pending" | "units" | "export";
-type PeriodoPredefinido = "month" | "quarter" | "year" | "custom";
+type ReportTab = "overview" | "pending" | "units" | "export";
+type DatePreset = "month" | "quarter" | "year" | "custom";
 
-// ─── Auxiliares ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function obterDataReferencia(agendamento: AgendamentoAnaliticoRow) {
-  return agendamento.test_date ?? agendamento.created_at ?? null;
+function getReferenceDate(booking: BookingRow) {
+  return booking.test_date ?? booking.created_at ?? null;
 }
 
 function clampPercent(value: number) {
@@ -98,13 +92,11 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value));
 }
 
-function ordemPrioridade(p: LinhaPendente["priority"]) {
+function priorityOrder(p: PendingRow["priority"]) {
   return p === "ALTA" ? 0 : p === "MEDIA" ? 1 : 2;
 }
 
-function obterIntervaloPredefinido(
-  preset: PeriodoPredefinido,
-): { from: string; to: string } {
+function presetRange(preset: DatePreset): { from: string; to: string } {
   const now = new Date();
   switch (preset) {
     case "month":
@@ -132,142 +124,131 @@ function obterIntervaloPredefinido(
   }
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsDashboard() {
-  const { profile, loading: autenticacaoCarregando } = useAuth();
-  const podeGerenciar = isAdminLike(profile?.role);
+  const { profile, loading: authLoading } = useAuth();
+  const canManage = isAdminLike(profile?.role);
 
-  // Estado do período
-  const [periodoPredefinido, setPeriodoPredefinido] =
-    useState<PeriodoPredefinido>("year");
-  const intervaloInicial = obterIntervaloPredefinido("year");
-  const [dataInicial, setDataInicial] = useState<string>(intervaloInicial.from);
-  const [dataFinal, setDataFinal] = useState<string>(intervaloInicial.to);
+  // Date state
+  const [datePreset, setDatePreset] = useState<DatePreset>("year");
+  const initialRange = presetRange("year");
+  const [fromDate, setFromDate] = useState<string>(initialRange.from);
+  const [toDate, setToDate] = useState<string>(initialRange.to);
 
-  function aplicarPreset(preset: PeriodoPredefinido) {
-    setPeriodoPredefinido(preset);
+  function applyPreset(preset: DatePreset) {
+    setDatePreset(preset);
     if (preset !== "custom") {
-      const intervalo = obterIntervaloPredefinido(preset);
-      setDataInicial(intervalo.from);
-      setDataFinal(intervalo.to);
+      const r = presetRange(preset);
+      setFromDate(r.from);
+      setToDate(r.to);
     }
   }
 
-  // Estado da interface
-  const [abaSelecionada, setAbaSelecionada] = useState<AbaRelatorio>("overview");
-  const [buscaPendencias, setBuscaPendencias] = useState<string>("");
-  const [filtroUnidade, setFiltroUnidade] = useState<string>("");
-  const [filtroPostoGraduacao, setFiltroPostoGraduacao] =
-    useState<string>("");
-  const [filtroStatus, setFiltroStatus] = useState<string>("");
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  // UI state
+  const [activeTab, setActiveTab] = useState<ReportTab>("overview");
+  const [pendingQuery, setPendingQuery] = useState<string>("");
+  const [filterUnit, setFilterUnit] = useState<string>("");
+  const [filterRank, setFilterRank] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Estado dos dados
-  const [perfisAnaliticos, setPerfisAnaliticos] = useState<PerfilAnaliticoRow[]>(
-    [],
-  );
-  const [agendamentosPeriodo, setAgendamentosPeriodo] = useState<
-    AgendamentoAnaliticoRow[]
-  >([]);
-  const [todosAgendamentos, setTodosAgendamentos] = useState<
-    AgendamentoAnaliticoRow[]
-  >([]);
-  const [carregandoDados, setCarregandoDados] = useState<boolean>(true);
+  // Data state
+  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    async function carregarDadosAnaliticos() {
-      if (!podeGerenciar) return;
-      setCarregandoDados(true);
+    async function loadData() {
+      if (!canManage) return;
+      setLoading(true);
       try {
-        const fromTs = `${dataInicial}T00:00:00`;
-        const toTs = `${dataFinal}T23:59:59`;
+        const fromTs = `${fromDate}T00:00:00`;
+        const toTs = `${toDate}T23:59:59`;
 
         const data = await fetchAnalyticsData(fromTs, toTs);
 
-        setPerfisAnaliticos(data.profiles as PerfilAnaliticoRow[]);
-        setAgendamentosPeriodo(data.bookings as AgendamentoAnaliticoRow[]);
-        setTodosAgendamentos(data.allBookings as AgendamentoAnaliticoRow[]);
+        setProfiles(data.profiles as ProfileRow[]);
+        setBookings(data.bookings as BookingRow[]);
+        setAllBookings(data.allBookings as BookingRow[]);
       } catch (error) {
         console.error(error);
-        setPerfisAnaliticos([]);
-        setAgendamentosPeriodo([]);
-        setTodosAgendamentos([]);
+        setProfiles([]);
+        setBookings([]);
+        setAllBookings([]);
         toast.error("Nao foi possivel carregar os dados analiticos.");
       } finally {
-        setCarregandoDados(false);
+        setLoading(false);
       }
     }
-    carregarDadosAnaliticos();
-  }, [dataInicial, dataFinal, podeGerenciar]);
+    loadData();
+  }, [fromDate, toDate, canManage]);
 
-  // Último agendamento por usuário (histórico completo)
-  const ultimoAgendamentoPorUsuario = useMemo(() => {
-    const mapaAgendamentos = new Map<string, AgendamentoAnaliticoRow>();
-    for (const booking of todosAgendamentos) {
+  // Latest booking per user (all time)
+  const latestByUser = useMemo(() => {
+    const map = new Map<string, BookingRow>();
+    for (const booking of allBookings) {
       if (!booking.user_id) continue;
-      const agendamentoAtual = mapaAgendamentos.get(booking.user_id);
-      const dataAgendamento = obterDataReferencia(booking);
-      const dataAtual = agendamentoAtual
-        ? obterDataReferencia(agendamentoAtual)
-        : null;
+      const current = map.get(booking.user_id);
+      const bookingDate = getReferenceDate(booking);
+      const currentDate = current ? getReferenceDate(current) : null;
       if (
-        !agendamentoAtual ||
-        (dataAgendamento && (!dataAtual || dataAgendamento > dataAtual))
+        !current ||
+        (bookingDate && (!currentDate || bookingDate > currentDate))
       ) {
-        mapaAgendamentos.set(booking.user_id, booking);
+        map.set(booking.user_id, booking);
       }
     }
-    return mapaAgendamentos;
-  }, [todosAgendamentos]);
+    return map;
+  }, [allBookings]);
 
-  const perfisAtivos = useMemo(
+  const activeProfiles = useMemo(
     () =>
-      perfisAnaliticos.filter(
+      profiles.filter(
         (p) => p.active && p.full_name?.trim() && p.saram?.trim(),
       ),
-    [perfisAnaliticos],
+    [profiles],
   );
 
-  // Indicadores com base no resultado mais recente por militar
+  // KPIs based on result_details (latest per military)
   const kpiApt = useMemo(
     () =>
-      perfisAtivos.filter(
-        (p) => ultimoAgendamentoPorUsuario.get(p.id)?.result_details === "apto",
+      activeProfiles.filter(
+        (p) => getBookingResultStatus(latestByUser.get(p.id)?.result_details) === "apto",
       ).length,
-    [perfisAtivos, ultimoAgendamentoPorUsuario],
+    [activeProfiles, latestByUser],
   );
   const kpiInapt = useMemo(
     () =>
-      perfisAtivos.filter(
-        (p) =>
-          ultimoAgendamentoPorUsuario.get(p.id)?.result_details === "inapto",
+      activeProfiles.filter(
+        (p) => getBookingResultStatus(latestByUser.get(p.id)?.result_details) === "inapto",
       ).length,
-    [perfisAtivos, ultimoAgendamentoPorUsuario],
+    [activeProfiles, latestByUser],
   );
   const kpiEvaluated = useMemo(
-    () => perfisAtivos.filter((p) => ultimoAgendamentoPorUsuario.has(p.id)).length,
-    [perfisAtivos, ultimoAgendamentoPorUsuario],
+    () => activeProfiles.filter((p) => latestByUser.has(p.id)).length,
+    [activeProfiles, latestByUser],
   );
   const kpiNotEvaluated = useMemo(
-    () => perfisAtivos.filter((p) => !ultimoAgendamentoPorUsuario.has(p.id)).length,
-    [perfisAtivos, ultimoAgendamentoPorUsuario],
+    () => activeProfiles.filter((p) => !latestByUser.has(p.id)).length,
+    [activeProfiles, latestByUser],
   );
-  const percentualAptidao = useMemo(
+  const fitnessPercent = useMemo(
     () => clampPercent(kpiEvaluated > 0 ? (kpiApt / kpiEvaluated) * 100 : 0),
     [kpiApt, kpiEvaluated],
   );
 
-  // Avaliações do período para a série de tendência
-  const avaliacoesNoPeriodo = useMemo(
-    () => agendamentosPeriodo.filter((b) => b.result_details !== null),
-    [agendamentosPeriodo],
+  // Period evaluations for trend
+  const periodEvals = useMemo(
+    () => bookings.filter((b) => b.result_details !== null),
+    [bookings],
   );
 
-  // Série de tendência
-  const serieTendencia = useMemo<PontoTendencia[]>(() => {
-    const start = new Date(`${dataInicial}T00:00:00`);
-    const end = new Date(`${dataFinal}T23:59:59`);
+  // Trend chart
+  const trend = useMemo<TrendPoint[]>(() => {
+    const start = new Date(`${fromDate}T00:00:00`);
+    const end = new Date(`${toDate}T23:59:59`);
     const monthKeys: string[] = [];
     const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
     while (isBefore(cursor, addDays(end, 1))) {
@@ -279,15 +260,16 @@ export default function AnalyticsDashboard() {
       { apt: number; inapt: number; total: number }
     >();
     monthKeys.forEach((k) => bucket.set(k, { apt: 0, inapt: 0, total: 0 }));
-    avaliacoesNoPeriodo.forEach((b) => {
-      const ref = obterDataReferencia(b);
+    periodEvals.forEach((b) => {
+      const ref = getReferenceDate(b);
       if (!ref) return;
       const key = format(new Date(ref), "yyyy-MM");
       const cur = bucket.get(key);
       if (!cur) return;
+      const resultStatus = getBookingResultStatus(b.result_details);
       cur.total += 1;
-      if (b.result_details === "apto") cur.apt += 1;
-      if (b.result_details === "inapto") cur.inapt += 1;
+      if (resultStatus === "apto") cur.apt += 1;
+      if (resultStatus === "inapto") cur.inapt += 1;
       bucket.set(key, cur);
     });
     return monthKeys.map((key) => {
@@ -297,34 +279,32 @@ export default function AnalyticsDashboard() {
       const date = new Date(Number(year), Number(month) - 1, 1);
       return { key, label: format(date, "MMM"), percent, ...m };
     });
-  }, [dataInicial, dataFinal, avaliacoesNoPeriodo]);
+  }, [fromDate, toDate, periodEvals]);
 
-  const pontosLinha = useMemo(() => {
-    if (serieTendencia.length === 0) return "";
-    if (serieTendencia.length === 1) {
-      return `0,${200 - serieTendencia[0].percent * 2}`;
-    }
-    return serieTendencia
+  const linePoints = useMemo(() => {
+    if (trend.length === 0) return "";
+    if (trend.length === 1) return `0,${200 - trend[0].percent * 2}`;
+    return trend
       .map(
-        (pt, i) =>
-          `${(i / (serieTendencia.length - 1)) * 500},${200 - pt.percent * 2}`,
+        (pt, i) => `${(i / (trend.length - 1)) * 500},${200 - pt.percent * 2}`,
       )
       .join(" ");
-  }, [serieTendencia]);
+  }, [trend]);
 
-  // Métricas por unidade
-  const metricasPorUnidade = useMemo<MetricaUnidade[]>(() => {
+  // Unit metrics
+  const units = useMemo<UnitMetric[]>(() => {
     const map = new Map<
       string,
       { total: number; apt: number; inapt: number }
     >();
-    perfisAtivos.forEach((item) => {
-      const booking = ultimoAgendamentoPorUsuario.get(item.id);
+    activeProfiles.forEach((item) => {
+      const booking = latestByUser.get(item.id);
       const unit = item.sector?.trim() || "--";
       const cur = map.get(unit) ?? { total: 0, apt: 0, inapt: 0 };
+      const resultStatus = getBookingResultStatus(booking?.result_details);
       cur.total += 1;
-      if (booking?.result_details === "apto") cur.apt += 1;
-      if (booking?.result_details === "inapto") cur.inapt += 1;
+      if (resultStatus === "apto") cur.apt += 1;
+      if (resultStatus === "inapto") cur.inapt += 1;
       map.set(unit, cur);
     });
     return Array.from(map.entries())
@@ -337,23 +317,23 @@ export default function AnalyticsDashboard() {
         percent: clampPercent(m.total > 0 ? (m.apt / m.total) * 100 : 0),
       }))
       .sort((a, b) => b.total - a.total);
-  }, [perfisAtivos, ultimoAgendamentoPorUsuario]);
+  }, [activeProfiles, latestByUser]);
 
-  // Linhas com revalidação pendente
-  const linhasPendentes = useMemo<LinhaPendente[]>(() => {
+  // Pending rows
+  const pendingRows = useMemo<PendingRow[]>(() => {
     const now = new Date();
-    const q = buscaPendencias.trim().toLowerCase();
+    const q = pendingQuery.trim().toLowerCase();
 
-    return perfisAtivos
+    return activeProfiles
       .map((item) => {
-        const latest = ultimoAgendamentoPorUsuario.get(item.id);
+        const latest = latestByUser.get(item.id);
         const latestDateRaw = latest
           ? (latest.test_date ?? latest.created_at ?? null)
           : null;
         const latestDate = latestDateRaw ? new Date(latestDateRaw) : null;
         const expirationDate = latestDate ? addYears(latestDate, 1) : null;
 
-        const status: LinhaPendente["status"] = !expirationDate
+        const status: PendingRow["status"] = !expirationDate
           ? "Pendente"
           : isBefore(expirationDate, now)
             ? "Expirado"
@@ -361,7 +341,7 @@ export default function AnalyticsDashboard() {
               ? "Pendente"
               : "Agendado";
 
-        const priority: LinhaPendente["priority"] =
+        const priority: PendingRow["priority"] =
           status === "Expirado"
             ? "ALTA"
             : status === "Pendente"
@@ -381,26 +361,24 @@ export default function AnalyticsDashboard() {
             : "--",
           status,
           lastResult:
-            latest?.result_details === "apto" ||
-            latest?.result_details === "inapto"
-              ? (latest.result_details as "apto" | "inapto")
+            getBookingResultStatus(latest?.result_details) === "apto" ||
+            getBookingResultStatus(latest?.result_details) === "inapto"
+              ? (getBookingResultStatus(latest?.result_details) as "apto" | "inapto")
               : null,
-        } satisfies LinhaPendente;
+        } satisfies PendingRow;
       })
       .filter((row) => row.status !== "Agendado")
       .filter(
         (row) =>
-          !filtroUnidade ||
-          row.unit.toLowerCase().includes(filtroUnidade.toLowerCase()),
+          !filterUnit ||
+          row.unit.toLowerCase().includes(filterUnit.toLowerCase()),
       )
       .filter(
         (row) =>
-          !filtroPostoGraduacao ||
-          (row.rank ?? "")
-            .toLowerCase()
-            .includes(filtroPostoGraduacao.toLowerCase()),
+          !filterRank ||
+          (row.rank ?? "").toLowerCase().includes(filterRank.toLowerCase()),
       )
-      .filter((row) => !filtroStatus || row.status === filtroStatus)
+      .filter((row) => !filterStatus || row.status === filterStatus)
       .filter((row) => {
         if (!q) return true;
         return (
@@ -410,36 +388,36 @@ export default function AnalyticsDashboard() {
         );
       })
       .sort((a, b) => {
-        const diff = ordemPrioridade(a.priority) - ordemPrioridade(b.priority);
+        const diff = priorityOrder(a.priority) - priorityOrder(b.priority);
         return diff !== 0 ? diff : a.militaryName.localeCompare(b.militaryName);
       });
   }, [
-    perfisAtivos,
-    ultimoAgendamentoPorUsuario,
-    buscaPendencias,
-    filtroUnidade,
-    filtroPostoGraduacao,
-    filtroStatus,
+    activeProfiles,
+    latestByUser,
+    pendingQuery,
+    filterUnit,
+    filterRank,
+    filterStatus,
   ]);
 
-  const opcoesUnidade = useMemo(
+  const unitOptions = useMemo(
     () =>
       [
         ...new Set(
-          perfisAtivos.map((p) => p.sector?.trim() || "--").filter(Boolean),
+          activeProfiles.map((p) => p.sector?.trim() || "--").filter(Boolean),
         ),
       ].sort(),
-    [perfisAtivos],
+    [activeProfiles],
   );
-  const opcoesPostoGraduacao = useMemo(
+  const rankOptions = useMemo(
     () =>
       [
-        ...new Set(perfisAtivos.map((p) => p.rank).filter(Boolean)),
+        ...new Set(activeProfiles.map((p) => p.rank).filter(Boolean)),
       ].sort() as string[],
-    [perfisAtivos],
+    [activeProfiles],
   );
 
-  // Exportações CSV
+  // CSV exports
   function exportPendingCSV() {
     const headers = [
       "Prioridade",
@@ -452,7 +430,7 @@ export default function AnalyticsDashboard() {
       "Validade",
       "Status",
     ];
-    const rows = linhasPendentes.map((r) => [
+    const rows = pendingRows.map((r) => [
       r.priority,
       r.warName ?? r.militaryName,
       r.militaryName,
@@ -480,7 +458,7 @@ export default function AnalyticsDashboard() {
       "Pendentes",
       "% Aptidao",
     ];
-    const rows = metricasPorUnidade.map((u) => [
+    const rows = units.map((u) => [
       u.unit,
       String(u.total),
       String(u.apt),
@@ -508,8 +486,8 @@ export default function AnalyticsDashboard() {
       "Validade",
       "Status",
     ];
-    const rows = perfisAtivos.map((p) => {
-      const latest = ultimoAgendamentoPorUsuario.get(p.id);
+    const rows = activeProfiles.map((p) => {
+      const latest = latestByUser.get(p.id);
       const latestDateRaw = latest
         ? (latest.test_date ?? latest.created_at ?? null)
         : null;
@@ -528,7 +506,7 @@ export default function AnalyticsDashboard() {
         p.saram ?? "--",
         p.rank ?? "--",
         p.sector?.trim() || "--",
-        latest?.result_details ?? "sem avaliacao",
+        getBookingResultStatus(latest?.result_details) ?? "sem avaliacao",
         expiration ? format(expiration, "dd/MM/yyyy") : "--",
         status,
       ];
@@ -541,14 +519,12 @@ export default function AnalyticsDashboard() {
     toast.success("Relatorio completo exportado.");
   }
 
-  // Mantém o loader após os hooks para preservar a ordem de execução.
-  const carregandoPagina = autenticacaoCarregando || carregandoDados;
+  // move loader after hooks to preserve hook order
+  const pageLoading = authLoading || loading;
 
-  if (carregandoPagina) {
-    return <FullPageLoading message="Carregando painéis analíticos" />;
-  }
+  if (pageLoading) return <FullPageLoading message="Carregando analytics" />;
 
-  if (!podeGerenciar) {
+  if (!canManage) {
     return (
       <Layout>
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
@@ -593,7 +569,7 @@ export default function AnalyticsDashboard() {
           </div>
         </section>
 
-        {/* Cabeçalho de filtros */}
+        {/* Page header */}
         <header className="mb-6 rounded-3xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
@@ -605,16 +581,14 @@ export default function AnalyticsDashboard() {
               </p>
             </div>
             <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-              {(
-                ["month", "quarter", "year", "custom"] as PeriodoPredefinido[]
-              ).map(
+              {(["month", "quarter", "year", "custom"] as DatePreset[]).map(
                 (p) => (
                   <button
                     key={p}
                     type="button"
-                    onClick={() => aplicarPreset(p)}
+                    onClick={() => applyPreset(p)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors text-center ${
-                      periodoPredefinido === p
+                      datePreset === p
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border-default bg-bg-default text-text-muted hover:border-primary/40 hover:text-text-body"
                     }`}
@@ -629,20 +603,20 @@ export default function AnalyticsDashboard() {
                   </button>
                 ),
               )}
-              {periodoPredefinido === "custom" && (
+              {datePreset === "custom" && (
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border-default bg-bg-default px-3 py-1.5 text-xs">
                   <CalendarDays size={12} className="text-text-muted" />
                   <input
                     type="date"
-                    value={dataInicial}
-                    onChange={(e) => setDataInicial(e.target.value)}
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
                     className="bg-transparent text-text-body outline-none"
                   />
                   <span className="text-text-muted">—</span>
                   <input
                     type="date"
-                    value={dataFinal}
-                    onChange={(e) => setDataFinal(e.target.value)}
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
                     className="bg-transparent text-text-body outline-none"
                   />
                 </div>
@@ -650,29 +624,29 @@ export default function AnalyticsDashboard() {
             </div>
           </div>
 
-          {/* Abas */}
+          {/* Tabs */}
           <div className="mt-4 flex items-center gap-2 overflow-x-auto border-t border-border-default pt-4 pb-1">
             {[
               {
-                id: "overview" as AbaRelatorio,
+                id: "overview" as ReportTab,
                 label: "Visao Geral",
                 icon: BarChart2,
                 badge: undefined as number | undefined,
               },
               {
-                id: "pending" as AbaRelatorio,
+                id: "pending" as ReportTab,
                 label: "Revalidacao Pendente",
                 icon: ShieldAlert,
-                badge: linhasPendentes.length,
+                badge: pendingRows.length,
               },
               {
-                id: "units" as AbaRelatorio,
+                id: "units" as ReportTab,
                 label: "Por Unidade",
                 icon: Users,
                 badge: undefined as number | undefined,
               },
               {
-                id: "export" as AbaRelatorio,
+                id: "export" as ReportTab,
                 label: "Exportar",
                 icon: Download,
                 badge: undefined as number | undefined,
@@ -681,9 +655,9 @@ export default function AnalyticsDashboard() {
               <button
                 key={id}
                 type="button"
-                onClick={() => setAbaSelecionada(id)}
+                onClick={() => setActiveTab(id)}
                 className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
-                  abaSelecionada === id
+                  activeTab === id
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border-default text-text-muted hover:border-primary/40 hover:text-text-body"
                 }`}
@@ -700,45 +674,37 @@ export default function AnalyticsDashboard() {
           </div>
         </header>
 
-        {/* Aba: Visão geral */}
-        {abaSelecionada === "overview" && (
+        {/* Tab: Visao Geral */}
+        {activeTab === "overview" && (
           <>
             <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-              <CardIndicador
+              <KpiCard
                 label="Índice de Aptidão"
-                value={carregandoDados ? null : `${percentualAptidao.toFixed(1)}%`}
+                value={loading ? null : `${fitnessPercent.toFixed(1)}%`}
                 sub={
-                  carregandoDados
-                    ? ""
-                    : `${kpiApt} aptos de ${kpiEvaluated} avaliados`
+                  loading ? "" : `${kpiApt} aptos de ${kpiEvaluated} avaliados`
                 }
                 icon={<TrendingUp size={22} />}
                 accent="success"
               />
-              <CardIndicador
+              <KpiCard
                 label="Inaptidões Atuais"
-                value={carregandoDados ? null : String(kpiInapt)}
+                value={loading ? null : String(kpiInapt)}
                 sub="última verificação registrada"
                 icon={<AlertTriangle size={22} />}
                 accent="error"
               />
-              <CardIndicador
+              <KpiCard
                 label="Efetivo Ativo"
-                value={carregandoDados ? null : String(perfisAtivos.length)}
-                sub={
-                  carregandoDados ? "" : `${kpiNotEvaluated} sem avaliação`
-                }
+                value={loading ? null : String(activeProfiles.length)}
+                sub={loading ? "" : `${kpiNotEvaluated} sem avaliação`}
                 icon={<Users size={22} />}
                 accent="primary"
               />
-              <CardIndicador
+              <KpiCard
                 label="Avaliações no Período"
-                value={carregandoDados ? null : String(avaliacoesNoPeriodo.length)}
-                sub={
-                  carregandoDados
-                    ? ""
-                    : `${agendamentosPeriodo.length} confirmadas`
-                }
+                value={loading ? null : String(periodEvals.length)}
+                sub={loading ? "" : `${bookings.length} confirmadas`}
                 icon={<TrendingUp size={22} />}
                 accent="secondary"
               />
@@ -750,12 +716,12 @@ export default function AnalyticsDashboard() {
                   Aptidão por Unidade
                 </h3>
                 <div className="mt-4 space-y-5">
-                  {carregandoDados ? (
-                    <Esqueleto rows={4} />
-                  ) : metricasPorUnidade.length === 0 ? (
-                    <EstadoVazio text="Sem dados de unidade." />
+                  {loading ? (
+                    <Skeleton rows={4} />
+                  ) : units.length === 0 ? (
+                    <Empty text="Sem dados de unidade." />
                   ) : (
-                    metricasPorUnidade.slice(0, 6).map((u) => (
+                    units.slice(0, 6).map((u) => (
                       <div key={u.unit} className="space-y-1.5">
                         <div className="flex justify-between items-baseline gap-3">
                           <span className="font-medium text-text-body">
@@ -785,10 +751,10 @@ export default function AnalyticsDashboard() {
                   Evolução de Aptidão
                 </h3>
                 <div className="mt-4 h-[220px] w-full">
-                  {carregandoDados ? (
+                  {loading ? (
                     <div className="h-full w-full animate-pulse rounded-xl bg-border-default" />
-                  ) : serieTendencia.length === 0 ? (
-                    <EstadoVazio text="Sem dados no período." />
+                  ) : trend.length === 0 ? (
+                    <Empty text="Sem dados no período." />
                   ) : (
                     <svg
                       className="h-full w-full"
@@ -808,9 +774,9 @@ export default function AnalyticsDashboard() {
                           strokeDasharray="4,6"
                         />
                       ))}
-                      {pontosLinha && (
+                      {linePoints && (
                         <polygon
-                          points={`0,200 ${pontosLinha} 500,200`}
+                          points={`0,200 ${linePoints} 500,200`}
                           fill="currentColor"
                           className="text-primary/5"
                         />
@@ -821,13 +787,13 @@ export default function AnalyticsDashboard() {
                         strokeWidth="2.5"
                         strokeLinejoin="round"
                         className="text-primary"
-                        points={pontosLinha}
+                        points={linePoints}
                       />
-                      {serieTendencia.map((pt, i) => {
+                      {trend.map((pt, i) => {
                         const x =
-                          serieTendencia.length === 1
+                          trend.length === 1
                             ? 250
-                            : (i / (serieTendencia.length - 1)) * 500;
+                            : (i / (trend.length - 1)) * 500;
                         return (
                           <circle
                             key={pt.key}
@@ -843,7 +809,7 @@ export default function AnalyticsDashboard() {
                   )}
                 </div>
                 <div className="mt-4 flex justify-between text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                  {serieTendencia.map((pt) => (
+                  {trend.map((pt) => (
                     <span key={pt.key}>{pt.label}</span>
                   ))}
                 </div>
@@ -852,8 +818,8 @@ export default function AnalyticsDashboard() {
           </>
         )}
 
-        {/* Aba: Revalidação pendente */}
-        {abaSelecionada === "pending" && (
+        {/* Tab: Revalidacao Pendente */}
+        {activeTab === "pending" && (
           <section className="rounded-lg border border-border-default bg-bg-card shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default px-6 py-4">
               <div className="flex items-center gap-3">
@@ -862,7 +828,7 @@ export default function AnalyticsDashboard() {
                   Revalidação Pendente
                 </h3>
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-                  {linhasPendentes.length} avaliando
+                  {pendingRows.length} avaliando
                 </span>
               </div>
               <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start md:w-auto md:justify-end">
@@ -872,25 +838,24 @@ export default function AnalyticsDashboard() {
                     size={13}
                   />
                   <input
-                    value={buscaPendencias}
-                    onChange={(e) => setBuscaPendencias(e.target.value)}
+                    value={pendingQuery}
+                    onChange={(e) => setPendingQuery(e.target.value)}
                     placeholder="Buscar nome ou SARAM..."
                     className="w-full rounded-lg border border-border-default bg-bg-card py-1.5 pl-7 pr-3 text-xs"
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={() => setMostrarFiltros((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${mostrarFiltros || filtroUnidade || filtroPostoGraduacao || filtroStatus ? "border-primary bg-primary/5 text-primary" : "border-border-default text-text-muted hover:border-text-body"}`}
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || filterUnit || filterRank || filterStatus ? "border-primary bg-primary/5 text-primary" : "border-border-default text-text-muted hover:border-text-body"}`}
                 >
                   <Filter size={12} />
                   Filtros
-                  {(filtroUnidade || filtroPostoGraduacao || filtroStatus) && (
+                  {(filterUnit || filterRank || filterStatus) && (
                     <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
                       {
-                        [filtroUnidade, filtroPostoGraduacao, filtroStatus].filter(
-                          Boolean,
-                        ).length
+                        [filterUnit, filterRank, filterStatus].filter(Boolean)
+                          .length
                       }
                     </span>
                   )}
@@ -906,36 +871,36 @@ export default function AnalyticsDashboard() {
               </div>
             </div>
 
-            {mostrarFiltros && (
+            {showFilters && (
               <div className="flex flex-col items-stretch gap-3 border-b border-border-default bg-bg-card px-5 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
-                <SeletorFiltro
+                <FilterSelect
                   label="Unidade"
-                  value={filtroUnidade}
-                  onChange={setFiltroUnidade}
-                  options={opcoesUnidade}
+                  value={filterUnit}
+                  onChange={setFilterUnit}
+                  options={unitOptions}
                   placeholder="Todas"
                 />
-                <SeletorFiltro
+                <FilterSelect
                   label="Graduacao"
-                  value={filtroPostoGraduacao}
-                  onChange={setFiltroPostoGraduacao}
-                  options={opcoesPostoGraduacao}
+                  value={filterRank}
+                  onChange={setFilterRank}
+                  options={rankOptions}
                   placeholder="Todas"
                 />
-                <SeletorFiltro
+                <FilterSelect
                   label="Status"
-                  value={filtroStatus}
-                  onChange={setFiltroStatus}
+                  value={filterStatus}
+                  onChange={setFilterStatus}
                   options={["Expirado", "Pendente"]}
                   placeholder="Todos"
                 />
-                {(filtroUnidade || filtroPostoGraduacao || filtroStatus) && (
+                {(filterUnit || filterRank || filterStatus) && (
                   <button
                     type="button"
                     onClick={() => {
-                      setFiltroUnidade("");
-                      setFiltroPostoGraduacao("");
-                      setFiltroStatus("");
+                      setFilterUnit("");
+                      setFilterRank("");
+                      setFilterStatus("");
                     }}
                     className="mb-0.5 text-xs font-semibold text-error hover:underline"
                   >
@@ -946,16 +911,16 @@ export default function AnalyticsDashboard() {
             )}
 
             <div className="space-y-2 px-4 py-3 md:hidden">
-              {carregandoDados ? (
+              {loading ? (
                 <p className="py-6 text-center text-sm text-text-muted">
                   Carregando dados...
                 </p>
-              ) : linhasPendentes.length === 0 ? (
+              ) : pendingRows.length === 0 ? (
                 <p className="py-6 text-center text-sm text-text-muted">
                   Nenhuma revalidação pendente.
                 </p>
               ) : (
-                linhasPendentes.map((row) => {
+                pendingRows.map((row) => {
                   const priorityColor =
                     row.priority === "ALTA"
                       ? "bg-error/10 text-error"
@@ -1040,7 +1005,7 @@ export default function AnalyticsDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {carregandoDados ? (
+                  {loading ? (
                     <tr>
                       <td
                         colSpan={7}
@@ -1049,7 +1014,7 @@ export default function AnalyticsDashboard() {
                         Carregando dados...
                       </td>
                     </tr>
-                  ) : linhasPendentes.length === 0 ? (
+                  ) : pendingRows.length === 0 ? (
                     <tr>
                       <td
                         colSpan={7}
@@ -1059,7 +1024,7 @@ export default function AnalyticsDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    linhasPendentes.map((row) => {
+                    pendingRows.map((row) => {
                       const priorityColor =
                         row.priority === "ALTA"
                           ? "bg-error/10 text-error"
@@ -1127,13 +1092,13 @@ export default function AnalyticsDashboard() {
               </table>
             </div>
             <div className="border-t border-border-default px-6 py-3 text-xs text-text-muted">
-              {linhasPendentes.length} registro(s) exibido(s)
+              {pendingRows.length} registro(s) exibido(s)
             </div>
           </section>
         )}
 
-        {/* Aba: Por unidade */}
-        {abaSelecionada === "units" && (
+        {/* Tab: Por Unidade */}
+        {activeTab === "units" && (
           <section className="rounded-lg border border-border-default bg-bg-card shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1152,16 +1117,16 @@ export default function AnalyticsDashboard() {
               </button>
             </div>
             <div className="space-y-3 px-4 py-4 md:hidden">
-              {carregandoDados ? (
+              {loading ? (
                 <p className="py-6 text-center text-sm text-text-muted">
                   Carregando...
                 </p>
-              ) : metricasPorUnidade.length === 0 ? (
+              ) : units.length === 0 ? (
                 <p className="py-6 text-center text-sm text-text-muted">
                   Sem dados.
                 </p>
               ) : (
-                metricasPorUnidade.map((u) => (
+                units.map((u) => (
                   <article
                     key={u.unit}
                     className="rounded-lg border border-border-default bg-bg-card p-4 space-y-3"
@@ -1227,7 +1192,7 @@ export default function AnalyticsDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {carregandoDados ? (
+                  {loading ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -1236,7 +1201,7 @@ export default function AnalyticsDashboard() {
                         Carregando...
                       </td>
                     </tr>
-                  ) : metricasPorUnidade.length === 0 ? (
+                  ) : units.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -1246,7 +1211,7 @@ export default function AnalyticsDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    metricasPorUnidade.map((u) => (
+                    units.map((u) => (
                       <tr
                         key={u.unit}
                         className="hover:bg-bg-card transition-colors"
@@ -1288,26 +1253,26 @@ export default function AnalyticsDashboard() {
           </section>
         )}
 
-        {/* Aba: Exportar */}
-        {abaSelecionada === "export" && (
+        {/* Tab: Exportar */}
+        {activeTab === "export" && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <CardExportacao
+            <ExportCard
               title="Revalidação Pendente"
-              description={`${linhasPendentes.length} militares com expiração próxima ou vencida para priorização de revalidação.`}
+              description={`${pendingRows.length} militares com expiração próxima ou vencida para priorização de revalidação.`}
               format="CSV"
               icon={<ShieldAlert size={20} className="text-secondary" />}
               onExport={exportPendingCSV}
             />
-            <CardExportacao
+            <ExportCard
               title="Desempenho por Unidade"
-              description={`${metricasPorUnidade.length} unidades com resumo de aptidão, inaptos, pendentes e métricas operacionais.`}
+              description={`${units.length} unidades com resumo de aptidão, inaptos, pendentes e métricas operacionais.`}
               format="CSV"
               icon={<BarChart2 size={20} className="text-primary" />}
               onExport={exportUnitsCSV}
             />
-            <CardExportacao
+            <ExportCard
               title="Efetivo Completo"
-              description={`${perfisAtivos.length} militares ativos com status de avaliação e validade total registrada.`}
+              description={`${activeProfiles.length} militares ativos com status de avaliação e validade total registrada.`}
               format="CSV"
               icon={<FileText size={20} className="text-success" />}
               onExport={exportFullCSV}
@@ -1316,5 +1281,152 @@ export default function AnalyticsDashboard() {
         )}
       </div>
     </Layout>
+  );
+}
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
+
+function Empty({ text }: { text: string }) {
+  return <p className="py-8 text-center text-sm text-text-muted">{text}</p>;
+}
+
+function Skeleton({ rows }: { rows: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="animate-pulse space-y-1.5">
+          <div className="h-3 w-32 rounded bg-border-default" />
+          <div className="h-2 w-full rounded-full bg-border-default" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+type AccentColor = "primary" | "secondary" | "success" | "error";
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+  className,
+}: {
+  label: string;
+  value: string | null;
+  sub: string;
+  icon: React.ReactNode;
+  accent: AccentColor;
+  className?: string;
+}) {
+  const borderMap: Record<AccentColor, string> = {
+    primary: "border-primary/30",
+    secondary: "border-secondary/30",
+    success: "border-success/30",
+    error: "border-error/30",
+  };
+  const bgMap: Record<AccentColor, string> = {
+    primary: "bg-primary/10 text-primary",
+    secondary: "bg-secondary/10 text-secondary",
+    success: "bg-success/10 text-success",
+    error: "bg-error/10 text-error",
+  };
+  return (
+    <div
+      className={`flex w-full flex-col gap-3 overflow-hidden rounded-2xl border-b-4 bg-bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5 ${borderMap[accent]} ${className || ""}`}
+    >
+      <div className="min-w-0 flex-1 pr-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+          {label}
+        </p>
+        <p
+          className={`mt-2 text-2xl sm:text-3xl font-bold text-text-body ${value === null ? "animate-pulse text-text-muted" : ""}`}
+        >
+          {value ?? "—"}
+        </p>
+        <p className="mt-1 text-xs text-text-muted">{sub}</p>
+      </div>
+      <div
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${bgMap[accent]}`}
+      >
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-bold uppercase tracking-widest text-text-muted">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none rounded-lg border border-border-default bg-bg-card py-2 pl-3 pr-3 text-sm text-text-body cursor-pointer"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ExportCard({
+  title,
+  description,
+  format,
+  icon,
+  onExport,
+}: {
+  title: string;
+  description: string;
+  format: string;
+  icon: React.ReactNode;
+  onExport: () => void;
+}) {
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border border-border-default bg-bg-card p-5 shadow-sm sm:p-6">
+      <div>
+        <div className="mb-4 flex items-start gap-4">
+          <div className="flex-shrink-0">{icon}</div>
+          <div>
+            <h3 className="font-bold text-text-body text-lg">{title}</h3>
+            <p className="mt-1 text-sm text-text-muted">{description}</p>
+          </div>
+        </div>
+      </div>
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <span className="rounded-md bg-border-default px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+          {format}
+        </span>
+        <button
+          type="button"
+          onClick={onExport}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Download size={13} />
+          Baixar
+        </button>
+      </div>
+    </div>
   );
 }

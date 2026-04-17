@@ -14,9 +14,9 @@
 | 2026-04-01 | /app/sessoes/nova                    | rota legada | padronização do fluxo de criação de turma                | /app/turmas/nova                    | após 2 releases             |
 | 2026-04-01 | /app/sessoes/:sessionId/agendamentos | rota legada | consolidação da gestão operacional em rota canônica      | /app/turmas/:sessionId/agendamentos | após 2 releases             |
 | 2026-04-01 | /app/sessoes/:sessionId/editar       | rota legada | consolidação da edição de turma em rota canônica         | /app/turmas/:sessionId/editar       | após 2 releases             |
-| 2026-04-12 | src/components/RescheduleDrawer.tsx  | componente  | substituído pelo shell canônico de dialog                | src/components/Booking/RescheduleDialog.tsx | n/d                  |
-| 2026-04-12 | src/components/TicketModal.tsx       | componente  | substituído pelo shell canônico de dialog                | src/components/Booking/TicketDialog.tsx     | n/d                  |
-| 2026-04-12 | src/components/TicketsListModal.tsx  | componente  | substituído pelo shell canônico de dialog                | src/components/Booking/TicketsListDialog.tsx| n/d                  |
+| 2026-04-12 | src/components/RescheduleDrawer.tsx  | componente  | substituído pelo shell canônico de dialog                | src/components/RescheduleDialog.tsx | n/d                         |
+| 2026-04-12 | src/components/TicketModal.tsx       | componente  | substituído pelo shell canônico de dialog                | src/components/TicketDialog.tsx     | n/d                         |
+| 2026-04-12 | src/components/TicketsListModal.tsx  | componente  | substituído pelo shell canônico de dialog                | src/components/TicketsListDialog.tsx| n/d                         |
 | 2026-04-12 | src/components/atomic/SidebarItem.tsx| componente  | código morto sem imports ativos                          | n/a                                 | n/d                         |
 | 2026-04-12 | src/components/atomic/QuickActionCard.tsx | componente | código morto sem imports ativos                     | n/a                                 | n/d                         |
 | 2026-04-12 | src/hooks/useBooking.ts              | hook        | código morto sem imports ativos                          | src/archived/hooks/useBooking.ts    | n/d                         |

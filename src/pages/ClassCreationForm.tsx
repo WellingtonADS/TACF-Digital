@@ -17,51 +17,51 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type ModoData = "single" | "week" | "month";
+type DateMode = "single" | "week" | "month";
 
-type EstadoFormulario = {
-  nomeTurma: string;
+type FormState = {
+  className: string;
   location_id: string;
   instructor_id: string;
-  modoData: ModoData;
+  dateMode: DateMode;
   date: string;
-  semanaSelecionada: string;
-  mesSelecionado: string;
-  horarioInicio: string;
-  capacidadeMaxima: number;
-  permiteListaEspera: boolean;
-  observacoes: string;
+  weekValue: string;
+  monthValue: string;
+  startTime: string;
+  maxCapacity: number;
+  allowWaitlist: boolean;
+  notes: string;
 };
 
-const ESTADO_INICIAL: EstadoFormulario = {
-  nomeTurma: "",
+const INITIAL_STATE: FormState = {
+  className: "",
   location_id: "",
   instructor_id: "",
-  modoData: "single",
+  dateMode: "single",
   date: "",
-  semanaSelecionada: "",
-  mesSelecionado: "",
-  horarioInicio: "",
-  capacidadeMaxima: 8,
-  permiteListaEspera: false,
-  observacoes: "",
+  weekValue: "",
+  monthValue: "",
+  startTime: "",
+  maxCapacity: 8,
+  allowWaitlist: false,
+  notes: "",
 };
 
 // ─── Helpers de calendário ───────────────────────────────────────────────────
-function formatarDataIso(d: Date): string {
+function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
-function ehFimDeSemana(dateStr: string): boolean {
+function isWeekend(dateStr: string): boolean {
   const dow = new Date(dateStr + "T12:00:00").getDay();
   return dow === 0 || dow === 6;
 }
 
-function obterDatasSemana(semanaSelecionada: string): string[] {
-  const match = semanaSelecionada.match(/^(\d{4})-W(\d{2})$/);
+function getWeekDates(weekValue: string): string[] {
+  const match = weekValue.match(/^(\d{4})-W(\d{2})$/);
   if (!match) return [];
   const year = Number(match[1]);
   const week = Number(match[2]);
@@ -72,13 +72,13 @@ function obterDatasSemana(semanaSelecionada: string): string[] {
   return Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return formatarDataIso(d);
+    return toDateStr(d);
   });
 }
 
 /** Retorna todos os dias úteis (seg–sex) de um mês no formato YYYY-MM. */
-function obterDiasUteisMes(mesSelecionado: string): string[] {
-  const match = mesSelecionado.match(/^(\d{4})-(\d{2})$/);
+function getMonthWeekdays(monthValue: string): string[] {
+  const match = monthValue.match(/^(\d{4})-(\d{2})$/);
   if (!match) return [];
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;
@@ -87,12 +87,12 @@ function obterDiasUteisMes(mesSelecionado: string): string[] {
   for (let d = 1; d <= lastDay; d++) {
     const date = new Date(year, month, d);
     const dow = date.getDay();
-    if (dow !== 0 && dow !== 6) result.push(formatarDataIso(date));
+    if (dow !== 0 && dow !== 6) result.push(toDateStr(date));
   }
   return result;
 }
 
-function formatarChipData(dateStr: string): string {
+function fmtDateChip(dateStr: string): string {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", {
     weekday: "short",
     day: "2-digit",
@@ -100,8 +100,8 @@ function formatarChipData(dateStr: string): string {
   });
 }
 
-function derivarTurno(horarioInicio: string): "manha" | "tarde" {
-  const [hoursRaw] = horarioInicio.split(":");
+function derivePeriod(startTime: string): "manha" | "tarde" {
+  const [hoursRaw] = startTime.split(":");
   const hours = Number(hoursRaw || 0);
   return hours < 12 ? "manha" : "tarde";
 }
@@ -109,14 +109,14 @@ function derivarTurno(horarioInicio: string): "manha" | "tarde" {
 export default function ClassCreationForm() {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [formulario, setFormulario] = useState<EstadoFormulario>(ESTADO_INICIAL);
-  const [salvando, setSalvando] = useState(false);
-  const [instrutores, setInstrutores] = useState<Coordinator[]>([]);
-  const [carregandoInstrutores, setCarregandoInstrutores] = useState(false);
+  const [form, setForm] = useState<FormState>(INITIAL_STATE);
+  const [saving, setSaving] = useState(false);
+  const [instructors, setInstructors] = useState<Coordinator[]>([]);
+  const [loadingInstructors, setLoadingInstructors] = useState(false);
   const {
     locations,
     fetch: fetchLocations,
-    loading: carregandoLocais,
+    loading: loadingLocations,
   } = useLocations();
 
   useEffect(() => {
@@ -124,108 +124,104 @@ export default function ClassCreationForm() {
   }, [fetchLocations]);
 
   useEffect(() => {
-    async function carregarInstrutores() {
-      setCarregandoInstrutores(true);
+    async function loadInstructors() {
+      setLoadingInstructors(true);
       try {
         const data = await fetchCoordinators();
-        setInstrutores(data);
+        setInstructors(data);
       } catch (err) {
         console.error(err);
       } finally {
-        setCarregandoInstrutores(false);
+        setLoadingInstructors(false);
       }
     }
 
-    carregarInstrutores();
+    loadInstructors();
   }, []);
 
-  const capacidadeValida = useMemo(
-    () =>
-      formulario.capacidadeMaxima >= 8 && formulario.capacidadeMaxima <= 21,
-    [formulario.capacidadeMaxima],
+  const isValidCapacity = useMemo(
+    () => form.maxCapacity >= 8 && form.maxCapacity <= 21,
+    [form.maxCapacity],
   );
-  const podeAlterar = profile?.role === "admin";
+  const canMutate = profile?.role === "admin";
 
-  function atualizarCampo<K extends keyof EstadoFormulario>(
-    campo: K,
-    valor: EstadoFormulario[K],
-  ) {
-    setFormulario((estadoAtual) => ({ ...estadoAtual, [campo]: valor }));
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function publicarTurmas(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!podeAlterar) {
+    if (!canMutate) {
       toast.error("Acesso negado: você não tem permissão para criar turmas.");
       return;
     }
 
-    let datasParaCriar: string[];
+    let datesToCreate: string[];
 
-    if (formulario.modoData === "single") {
-      if (!formulario.date) {
+    if (form.dateMode === "single") {
+      if (!form.date) {
         toast.error("Informe a data do teste.");
         return;
       }
-      if (ehFimDeSemana(formulario.date)) {
+      if (isWeekend(form.date)) {
         toast.error("Sábados e domingos não estão disponíveis.");
         return;
       }
-      datasParaCriar = [formulario.date];
-    } else if (formulario.modoData === "week") {
-      if (!formulario.semanaSelecionada) {
+      datesToCreate = [form.date];
+    } else if (form.dateMode === "week") {
+      if (!form.weekValue) {
         toast.error("Selecione uma semana.");
         return;
       }
-      datasParaCriar = obterDatasSemana(formulario.semanaSelecionada);
+      datesToCreate = getWeekDates(form.weekValue);
     } else {
-      const dias = obterDiasUteisMes(formulario.mesSelecionado);
-      if (dias.length === 0) {
+      const days = getMonthWeekdays(form.monthValue);
+      if (days.length === 0) {
         toast.error("Selecione um mês válido.");
         return;
       }
-      datasParaCriar = dias;
+      datesToCreate = days;
     }
 
-    if (!formulario.horarioInicio) {
+    if (!form.startTime) {
       toast.error("Informe o horário de início.");
       return;
     }
 
-    if (!formulario.location_id) {
+    if (!form.location_id) {
       toast.error("Selecione o local do teste.");
       return;
     }
 
-    if (!formulario.instructor_id) {
-      toast.error("Selecione quem vai aplicar o teste.");
+    if (!form.instructor_id) {
+      toast.error("Selecione o coordenador aplicador.");
       return;
     }
 
-    if (!capacidadeValida) {
+    if (!isValidCapacity) {
       toast.error("A capacidade deve estar entre 8 e 21 vagas.");
       return;
     }
 
-    setSalvando(true);
+    setSaving(true);
     try {
-      const turno = derivarTurno(formulario.horarioInicio);
-      const rows = datasParaCriar.map((date) => ({
+      const period = derivePeriod(form.startTime);
+      const rows = datesToCreate.map((date) => ({
         date,
-        period: turno,
-        max_capacity: formulario.capacidadeMaxima,
-        location_id: formulario.location_id,
-        applicators: [formulario.instructor_id],
+        period,
+        max_capacity: form.maxCapacity,
+        location_id: form.location_id,
+        applicators: [form.instructor_id],
       }));
 
       await createSessions(rows);
 
-      const quantidadeTurmas = datasParaCriar.length;
+      const count = datesToCreate.length;
       toast.success(
-        quantidadeTurmas === 1
+        count === 1
           ? "Turma publicada com sucesso."
-          : `${quantidadeTurmas} turmas publicadas com sucesso.`,
+          : `${count} turmas publicadas com sucesso.`,
       );
       navigate("/app/agendamentos");
     } catch (error: unknown) {
@@ -240,7 +236,7 @@ export default function ClassCreationForm() {
         );
       }
     } finally {
-      setSalvando(false);
+      setSaving(false);
     }
   }
 
@@ -264,7 +260,7 @@ export default function ClassCreationForm() {
           </div>
         </header>
 
-        {!podeAlterar && (
+        {!canMutate && (
           <div className="mb-4 rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-xs font-semibold text-alert">
             Seu perfil está em modo somente leitura. Apenas administradores
             podem publicar novas turmas.
@@ -272,7 +268,7 @@ export default function ClassCreationForm() {
         )}
 
         <div className="overflow-hidden rounded-3xl border border-border-default/50 bg-bg-card shadow-2xl">
-          <form className="flex flex-col" onSubmit={publicarTurmas}>
+          <form className="flex flex-col" onSubmit={handleSubmit}>
             <div className="space-y-8 sm:space-y-10 p-5 sm:p-8 md:p-12">
               <section className="space-y-6">
                 <div className="flex items-center gap-3 border-b border-border-default pb-3">
@@ -288,9 +284,9 @@ export default function ClassCreationForm() {
                       Nome da Turma
                     </label>
                     <input
-                      value={formulario.nomeTurma}
+                      value={form.className}
                       onChange={(event) =>
-                        atualizarCampo("nomeTurma", event.target.value)
+                        updateField("className", event.target.value)
                       }
                       className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Ex: TAF 2º Semestre"
@@ -304,15 +300,15 @@ export default function ClassCreationForm() {
                     </label>
                     <select
                       required
-                      value={formulario.location_id}
+                      value={form.location_id}
                       onChange={(event) =>
-                        atualizarCampo("location_id", event.target.value)
+                        updateField("location_id", event.target.value)
                       }
-                      disabled={carregandoLocais}
+                      disabled={loadingLocations}
                       className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                     >
                       <option value="">
-                        {carregandoLocais
+                        {loadingLocations
                           ? "Carregando locais..."
                           : "Selecione um local"}
                       </option>
@@ -327,23 +323,26 @@ export default function ClassCreationForm() {
 
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
-                      Quem vai aplicar
+                      Coordenador aplicador
                     </label>
+                    <p className="text-xs text-text-muted">
+                      Selecione quem coordenara a aplicacao do teste no dia.
+                    </p>
                     <select
                       required
-                      value={formulario.instructor_id}
+                      value={form.instructor_id}
                       onChange={(e) =>
-                        atualizarCampo("instructor_id", e.target.value)
+                        updateField("instructor_id", e.target.value)
                       }
-                      disabled={carregandoInstrutores}
+                      disabled={loadingInstructors}
                       className="w-full cursor-pointer appearance-none rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                     >
-                      <option value="">
-                        {carregandoInstrutores
-                          ? "Carregando instrutores..."
-                          : "Selecione um instrutor"}
-                      </option>
-                      {instrutores.map((ins) => (
+                        <option value="">
+                          {loadingInstructors
+                            ? "Carregando instrutores..."
+                            : "Selecione um coordenador"}
+                        </option>
+                      {instructors.map((ins) => (
                         <option key={ins.id} value={ins.id}>
                           {ins.full_name ?? ins.war_name ?? ins.id}
                         </option>
@@ -372,14 +371,14 @@ export default function ClassCreationForm() {
                         { mode: "single", label: "Um dia" },
                         { mode: "week", label: "Uma semana" },
                         { mode: "month", label: "Um mês" },
-                      ] as { mode: ModoData; label: string }[]
+                      ] as { mode: DateMode; label: string }[]
                     ).map(({ mode, label }) => (
                       <button
                         key={mode}
                         type="button"
-                        onClick={() => atualizarCampo("modoData", mode)}
+                        onClick={() => updateField("dateMode", mode)}
                         className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-                          formulario.modoData === mode
+                          form.dateMode === mode
                             ? "bg-bg-default text-primary shadow-sm"
                             : "text-text-muted hover:text-text-body"
                         }`}
@@ -391,20 +390,20 @@ export default function ClassCreationForm() {
                 </div>
 
                 {/* Um dia */}
-                {formulario.modoData === "single" && (
+                {form.dateMode === "single" && (
                   <div className="space-y-1.5">
                     <input
                       type="date"
-                      value={formulario.date}
+                      value={form.date}
                       onChange={(e) => {
                         const v = e.target.value;
-                        if (v && ehFimDeSemana(v)) {
+                        if (v && isWeekend(v)) {
                           toast.error(
                             "Sábados e domingos não estão disponíveis.",
                           );
-                          atualizarCampo("date", "");
+                          updateField("date", "");
                         } else {
-                          atualizarCampo("date", v);
+                          updateField("date", v);
                         }
                       }}
                       className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -416,24 +415,22 @@ export default function ClassCreationForm() {
                 )}
 
                 {/* Uma semana */}
-                {formulario.modoData === "week" && (
+                {form.dateMode === "week" && (
                   <div className="space-y-3">
                     <input
                       type="week"
-                      value={formulario.semanaSelecionada}
-                      onChange={(e) =>
-                        atualizarCampo("semanaSelecionada", e.target.value)
-                      }
+                      value={form.weekValue}
+                      onChange={(e) => updateField("weekValue", e.target.value)}
                       className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
-                    {formulario.semanaSelecionada && (
+                    {form.weekValue && (
                       <div className="flex flex-wrap gap-2">
-                        {obterDatasSemana(formulario.semanaSelecionada).map((d) => (
+                        {getWeekDates(form.weekValue).map((d) => (
                           <span
                             key={d}
                             className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary"
                           >
-                            {formatarChipData(d)}
+                            {fmtDateChip(d)}
                           </span>
                         ))}
                       </div>
@@ -446,36 +443,36 @@ export default function ClassCreationForm() {
                 )}
 
                 {/* Um mês inteiro */}
-                {formulario.modoData === "month" &&
+                {form.dateMode === "month" &&
                   (() => {
-                    const dias = obterDiasUteisMes(formulario.mesSelecionado);
+                    const days = getMonthWeekdays(form.monthValue);
                     return (
                       <div className="space-y-3">
                         <input
                           type="month"
-                          value={formulario.mesSelecionado}
+                          value={form.monthValue}
                           onChange={(e) =>
-                            atualizarCampo("mesSelecionado", e.target.value)
+                            updateField("monthValue", e.target.value)
                           }
                           className="w-full max-w-xs rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
-                        {formulario.mesSelecionado && (
+                        {form.monthValue && (
                           <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                             <CalendarDays
                               size={18}
                               className="shrink-0 text-primary"
                             />
                             <p className="text-sm text-text-body">
-                                <span className="font-bold text-primary">
-                                {dias.length} turmas
+                              <span className="font-bold text-primary">
+                                {days.length} turmas
                               </span>{" "}
                               serão criadas (
                               {
                                 PT_MONTHS[
-                                  Number(formulario.mesSelecionado.split("-")[1]) - 1
+                                  Number(form.monthValue.split("-")[1]) - 1
                                 ]
                               }{" "}
-                              {formulario.mesSelecionado.split("-")[0]}), seg–sex, sem
+                              {form.monthValue.split("-")[0]}), seg–sex, sem
                               fins de semana.
                             </p>
                           </div>
@@ -500,9 +497,9 @@ export default function ClassCreationForm() {
                     />
                     <input
                       required
-                      value={formulario.horarioInicio}
+                      value={form.startTime}
                       onChange={(event) =>
-                        atualizarCampo("horarioInicio", event.target.value)
+                        updateField("startTime", event.target.value)
                       }
                       className="w-full rounded-lg border border-border-default bg-bg-default py-3 pl-10 pr-4 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       type="time"
@@ -528,17 +525,17 @@ export default function ClassCreationForm() {
                       required
                       min={8}
                       max={21}
-                      value={formulario.capacidadeMaxima}
+                      value={form.maxCapacity}
                       onChange={(event) =>
-                        atualizarCampo(
-                          "capacidadeMaxima",
+                        updateField(
+                          "maxCapacity",
                           Number(event.target.value || 0),
                         )
                       }
                       className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       type="number"
                     />
-                    {!capacidadeValida && (
+                    {!isValidCapacity && (
                       <p className="text-xs text-error">
                         Capacidade fora do intervalo permitido.
                       </p>
@@ -558,9 +555,9 @@ export default function ClassCreationForm() {
                       <input
                         type="checkbox"
                         className="peer sr-only"
-                        checked={formulario.permiteListaEspera}
+                        checked={form.allowWaitlist}
                         onChange={(event) =>
-                          atualizarCampo("permiteListaEspera", event.target.checked)
+                          updateField("allowWaitlist", event.target.checked)
                         }
                       />
                       <div className="h-6 w-12 rounded-full bg-border-default transition peer-checked:bg-primary" />
@@ -575,10 +572,8 @@ export default function ClassCreationForm() {
                   Instruções Adicionais
                 </label>
                 <textarea
-                  value={formulario.observacoes}
-                  onChange={(event) =>
-                    atualizarCampo("observacoes", event.target.value)
-                  }
+                  value={form.notes}
+                  onChange={(event) => updateField("notes", event.target.value)}
                   className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Ex: Traje específico, documento oficial com foto e garrafa de água."
                   rows={4}
@@ -596,21 +591,17 @@ export default function ClassCreationForm() {
               </button>
               <button
                 type="submit"
-                disabled={
-                  salvando ||
-                  !formulario.location_id ||
-                  !formulario.instructor_id
-                }
+                disabled={saving || !form.location_id || !form.instructor_id}
                 title={
-                  podeAlterar
+                  canMutate
                     ? "Publicar turma"
                     : "Apenas administradores podem publicar turmas"
                 }
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-60 md:w-auto"
               >
-                {salvando ? <Save size={18} /> : <XCircle size={18} />}
+                {saving ? <Save size={18} /> : <XCircle size={18} />}
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  {salvando ? "Publicando..." : "Publicar Turma"}
+                  {saving ? "Publicando..." : "Publicar Turma"}
                 </span>
               </button>
             </div>

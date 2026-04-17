@@ -83,7 +83,6 @@ begin
 
   v_can_close :=
     v_bookings_total > 0
-    and v_results_pending = 0
     and v_pending_swap_requests = 0;
 
   v_checklist := jsonb_build_object(
@@ -115,6 +114,21 @@ begin
     return query
     select false, 'checklist incompleto para encerramento'::text, v_checklist, v_session_status;
     return;
+  end if;
+
+  if v_results_pending > 0 then
+    update public.bookings b
+    set result_details = jsonb_build_object(
+          'result_status', 'inapto',
+          'result', 'inapto',
+          'auto_assigned', true,
+          'notes', 'Resultado definido no encerramento da sessao por ausencia de lancamento.',
+          'updated_at', now()
+        ),
+        updated_at = now()
+    where b.session_id = p_session_id
+      and b.status <> 'cancelado'
+      and b.result_details is null;
   end if;
 
   update public.sessions s

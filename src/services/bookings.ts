@@ -11,7 +11,7 @@ export async function createSessions(
 
     if (!row.applicators || row.applicators.length === 0) {
       throw new Error(
-        "Instrutor aplicador é obrigatório para criar agendamento.",
+        "Coordenador aplicador é obrigatório para criar a sessao.",
       );
     }
   });
@@ -74,7 +74,7 @@ interface SwapRequestParams {
   attachment?: File;
 }
 
-// `createSwapRequest` é consumido por `RescheduleDialog` (src/components/Booking/RescheduleDialog.tsx)
+// `createSwapRequest` é consumido por `RescheduleDrawer` (src/components/RescheduleDrawer.tsx)
 export async function createSwapRequest(params: SwapRequestParams) {
   let attachmentUrl: string | null = null;
 
@@ -148,7 +148,7 @@ export type AnalyticsBookingRow = {
   test_date: string | null;
   created_at: string | null;
   status: string | null;
-  result_details: string | null;
+  result_details: unknown;
 };
 
 export async function fetchAnalyticsData(

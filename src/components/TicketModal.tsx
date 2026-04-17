@@ -1,30 +1,30 @@
 /**
- * @page TicketDialog
- * @description Dialog para visualizar ou baixar bilhetes.
- * @path src/components/Booking/TicketDialog.tsx
+ * @page TicketModal
+ * @description Modal para visualizar ou baixar bilhetes.
+ * @path src/components/TicketModal.tsx
  */
 
 import useTicket from "@/hooks/useTicket";
 import { useCallback } from "react";
 import QR from "react-qr-code";
-import Dialog from "@/components/Dialog";
+import Dialog from "./Dialog";
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
 
-export default function TicketDialog({ open, onClose }: Props) {
-  const { ticket: dadosBilhete, loading: carregando } = useTicket();
+export default function TicketModal({ open, onClose }: Props) {
+  const { ticket: ticketData, loading } = useTicket();
 
-  const copiarCodigoValidacao = useCallback(async () => {
-    if (!dadosBilhete?.code) return;
+  const copyValidationCode = useCallback(async () => {
+    if (!ticketData?.code) return;
     try {
-      await navigator.clipboard.writeText(dadosBilhete.code);
+      await navigator.clipboard.writeText(ticketData.code);
     } catch {
       // ignore
     }
-  }, [dadosBilhete]);
+  }, [ticketData]);
 
   if (!open) return null;
 
@@ -35,11 +35,11 @@ export default function TicketDialog({ open, onClose }: Props) {
       title="Bilhete Digital"
       widthClassName="max-w-[900px]"
     >
-      {carregando ? (
+      {loading ? (
         <div className="py-20 text-center text-text-body">
           Carregando bilhete...
         </div>
-      ) : !dadosBilhete ? (
+      ) : !ticketData ? (
         <div className="py-10 text-center text-text-muted">
           Nenhum agendamento encontrado.
         </div>
@@ -53,11 +53,11 @@ export default function TicketDialog({ open, onClose }: Props) {
                     Comprovante de Agendamento
                   </p>
                   <h1 className="mt-1 text-xl font-black tracking-tight">
-                    {dadosBilhete.location}
+                    {ticketData.location}
                   </h1>
                 </div>
                 <div className="text-sm font-semibold">
-                  {dadosBilhete.confirmed ? "Confirmado" : "Agendado"}
+                  {ticketData.confirmed ? "Confirmado" : "Agendado"}
                 </div>
               </div>
             </header>
@@ -67,27 +67,27 @@ export default function TicketDialog({ open, onClose }: Props) {
                 <p className="text-xs font-bold uppercase text-text-muted">
                   Militar
                 </p>
-                <p className="text-xl font-black">{dadosBilhete.name}</p>
+                <p className="text-xl font-black">{ticketData.name}</p>
 
                 <p className="mt-3 text-xs font-bold uppercase text-text-muted">
                   SARAM
                 </p>
                 <p className="font-mono text-lg font-bold">
-                  {dadosBilhete.saram}
+                  {ticketData.saram}
                 </p>
 
                 <p className="mt-3 text-xs font-bold uppercase text-text-muted">
                   Data e Horário
                 </p>
                 <p className="font-semibold">
-                  {dadosBilhete.date} | {dadosBilhete.time}
+                  {ticketData.date} | {ticketData.time}
                 </p>
               </div>
 
               <div className="flex flex-col items-center gap-4">
                 <div className="w-44">
                   <QR
-                    value={dadosBilhete.code}
+                    value={ticketData.code}
                     size={256}
                     style={{ width: "100%", height: "auto" }}
                   />
@@ -98,13 +98,13 @@ export default function TicketDialog({ open, onClose }: Props) {
                       Código de Validação
                     </p>
                     <p className="mt-2 font-mono text-lg font-bold text-primary">
-                      {dadosBilhete.code}
+                      {ticketData.code}
                     </p>
                   </div>
 
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={copiarCodigoValidacao}
+                      onClick={copyValidationCode}
                       className="flex-1 rounded-xl border border-border-default px-3 py-2 text-sm text-text-body"
                     >
                       Copiar Código

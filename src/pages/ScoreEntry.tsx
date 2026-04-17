@@ -4,8 +4,7 @@
  * @path src/pages/ScoreEntry.tsx
  */
 
-import ScoreEntryHero from "@/components/Score/ScoreEntryHero";
-import AppIcon from "@/components/atomic/AppIcon";
+import AppIcon from "@/components/atomic/AppIcon"; // wrapper for all icons, per visual contract
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -24,102 +23,136 @@ import {
   updateBookingResult,
 } from "@/services/sessions";
 import type { SessionRow as DBSessionRow } from "@/types";
+import {
+  buildBookingResultPayload,
+  parseBookingResult,
+} from "@/utils/bookingResults";
 import { formatSessionPeriod } from "@/utils/booking";
 import { isAdminLike } from "@/router/routeAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
-type SessaoRow = Pick<DBSessionRow, "id" | "date" | "period">;
+type SessionRow = Pick<DBSessionRow, "id" | "date" | "period">;
 
-type StatusAptidao = "apto" | "inapto";
+type AptStatus = "apto" | "inapto";
 
-type LinhaLancamento = {
+type ScoreEntryRow = {
   bookingId: string;
   userId: string;
   fullName: string;
   warName: string | null;
   saram: string | null;
   rank: string | null;
-  statusAptidao: StatusAptidao | null;
+  aptStatus: AptStatus | null;
+  corrida: string | null;
+  flexao: string | null;
+  abdominal: string | null;
 };
 
+function PageHero({
+  selectedSession: _selectedSession,
+  launchedCount: _launchedCount,
+  totalRows: _totalRows,
+}: {
+  selectedSession: SessionRow | null;
+  launchedCount: number;
+  totalRows: number;
+}) {
+  return (
+    <section className="mb-8">
+      <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+              Lançamento de Índices
+            </h1>
+            <p className="mt-2 text-sm text-white/85 md:text-base">
+              Painel administrativo de lançamento de nota final TACF Digital.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function ScoreEntry() {
-  const { profile, loading: autenticacaoCarregando } = useAuth();
-  const podeGerenciar = isAdminLike(profile?.role);
+  const { profile, loading: authLoading } = useAuth();
+  const canManage = isAdminLike(profile?.role);
 
   const location = useLocation();
   const stateSessionId = (location.state as { sessionId?: string } | null)
     ?.sessionId;
 
-  const [sessoes, setSessoes] = useState<SessaoRow[]>([]);
-  const [sessaoSelecionadaId, setSessaoSelecionadaId] = useState<string>(
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(
     stateSessionId ?? "",
   );
-  const [linhas, setLinhas] = useState<LinhaLancamento[]>([]);
-  const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<string>("");
-  const [statusAptidao, setStatusAptidao] = useState<StatusAptidao | "">(
-    "apto",
-  );
-  const [termoBusca, setTermoBusca] = useState<string>("");
-  const [carregandoSessoes, setCarregandoSessoes] = useState<boolean>(true);
-  const [carregandoLinhas, setCarregandoLinhas] = useState<boolean>(false);
-  const [salvando, setSalvando] = useState<boolean>(false);
+  const [rows, setRows] = useState<ScoreEntryRow[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [aptStatus, setAptStatus] = useState<AptStatus | "">("apto");
+  const [corrida, setCorrida] = useState("");
+  const [flexao, setFlexao] = useState("");
+  const [abdominal, setAbdominal] = useState("");
+  const [query, setQuery] = useState<string>("");
+  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
+  const [loadingRows, setLoadingRows] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
 
   useEffect(() => {
-    async function carregarSessoes() {
-      setCarregandoSessoes(true);
+    async function loadSessions() {
+      setLoadingSessions(true);
       try {
-        const sessoesRecentes = (await fetchRecentSessions(50)) as SessaoRow[];
-        setSessoes(sessoesRecentes);
+        const typed = (await fetchRecentSessions(50)) as SessionRow[];
+        setSessions(typed);
 
-        if (sessoesRecentes.length > 0) {
-          if (
-            stateSessionId &&
-            sessoesRecentes.some((s) => s.id === stateSessionId)
-          ) {
-            setSessaoSelecionadaId(stateSessionId);
+        if (typed.length > 0) {
+          if (stateSessionId && typed.some((s) => s.id === stateSessionId)) {
+            setSelectedSessionId(stateSessionId);
           } else {
-            setSessaoSelecionadaId(sessoesRecentes[0].id);
+            setSelectedSessionId(typed[0].id);
           }
         }
       } catch (error) {
         console.error(error);
-        setSessoes([]);
+        setSessions([]);
         toast.error("Não foi possível carregar as turmas.");
       } finally {
-        setCarregandoSessoes(false);
+        setLoadingSessions(false);
       }
     }
 
-    if (podeGerenciar) {
-      carregarSessoes();
+    if (canManage) {
+      loadSessions();
     }
-  }, [podeGerenciar, stateSessionId]);
+  }, [canManage, stateSessionId]);
 
   useEffect(() => {
-    async function carregarLinhasSessao() {
-      if (!sessaoSelecionadaId) {
-        setLinhas([]);
-        setUsuarioSelecionadoId("");
-        setStatusAptidao("apto");
+    async function loadSessionRows() {
+      if (!selectedSessionId) {
+        setRows([]);
+        setSelectedUserId("");
+        setAptStatus("apto");
         return;
       }
 
-      setCarregandoLinhas(true);
+      setLoadingRows(true);
       try {
         const { bookings, profilesById } =
-          await fetchSessionBookings(sessaoSelecionadaId);
+          await fetchSessionBookings(selectedSessionId);
 
         if (bookings.length === 0) {
-          setLinhas([]);
-          setUsuarioSelecionadoId("");
-          setStatusAptidao("apto");
+          setRows([]);
+          setSelectedUserId("");
+          setAptStatus("apto");
           return;
         }
 
-        const linhasMapeadas = bookings.map((booking) => {
+        const mapped = bookings.map((booking) => {
           const p = profilesById.get(booking.user_id);
+          const parsed = parseBookingResult(booking.result_details);
           return {
             bookingId: booking.id,
             userId: booking.user_id,
@@ -127,139 +160,167 @@ export default function ScoreEntry() {
             warName: p?.war_name ?? null,
             saram: p?.saram ?? null,
             rank: p?.rank ?? null,
-            statusAptidao:
-              booking.result_details === "apto" ||
-              booking.result_details === "inapto"
-                ? (booking.result_details as StatusAptidao)
+            aptStatus:
+              parsed?.result_status === "apto" ||
+              parsed?.result_status === "inapto"
+                ? (parsed.result_status as AptStatus)
                 : null,
-          } satisfies LinhaLancamento;
+            corrida: parsed?.corrida ?? null,
+            flexao: parsed?.flexao ?? null,
+            abdominal: parsed?.abdominal ?? null,
+          } satisfies ScoreEntryRow;
         });
 
-        setLinhas(linhasMapeadas);
+        setRows(mapped);
 
-        const primeiroPendente = linhasMapeadas.find(
-          (item) => item.statusAptidao === null,
-        );
-        const primeiraLinha = linhasMapeadas[0];
-        const linhaSelecionada = primeiroPendente ?? primeiraLinha;
+        const firstPending = mapped.find((item) => item.aptStatus === null);
+        const fallback = mapped[0];
+        const selected = firstPending ?? fallback;
 
-        if (linhaSelecionada) {
-          setUsuarioSelecionadoId(linhaSelecionada.userId);
-          setStatusAptidao(linhaSelecionada.statusAptidao ?? "apto");
+        if (selected) {
+          setSelectedUserId(selected.userId);
+          setAptStatus(selected.aptStatus ?? "apto");
+          setCorrida(selected.corrida ?? "");
+          setFlexao(selected.flexao ?? "");
+          setAbdominal(selected.abdominal ?? "");
         } else {
-          setUsuarioSelecionadoId("");
-          setStatusAptidao("apto");
+          setSelectedUserId("");
+          setAptStatus("apto");
+          setCorrida("");
+          setFlexao("");
+          setAbdominal("");
         }
       } catch (error) {
         console.error(error);
-        setLinhas([]);
-        setUsuarioSelecionadoId("");
-        setStatusAptidao("apto");
-        toast.error("Não foi possível carregar os militares da turma.");
+      setRows([]);
+      setSelectedUserId("");
+      setAptStatus("apto");
+      setCorrida("");
+      setFlexao("");
+      setAbdominal("");
+      toast.error("Não foi possível carregar os militares da turma.");
       } finally {
-        setCarregandoLinhas(false);
+        setLoadingRows(false);
       }
     }
 
-    if (podeGerenciar) {
-      carregarLinhasSessao();
+    if (canManage) {
+      loadSessionRows();
     }
-  }, [sessaoSelecionadaId, podeGerenciar]);
+  }, [selectedSessionId, canManage]);
 
-  const linhasFiltradas = useMemo(() => {
-    const buscaNormalizada = termoBusca.trim().toLowerCase();
-    if (!buscaNormalizada) return linhas;
+  const filteredRows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return rows;
 
-    return linhas.filter((row) => {
+    return rows.filter((row) => {
       return (
-        row.fullName.toLowerCase().includes(buscaNormalizada) ||
-        (row.warName ?? "").toLowerCase().includes(buscaNormalizada) ||
-        (row.saram ?? "").toLowerCase().includes(buscaNormalizada)
+        row.fullName.toLowerCase().includes(normalized) ||
+        (row.warName ?? "").toLowerCase().includes(normalized) ||
+        (row.saram ?? "").toLowerCase().includes(normalized)
       );
     });
-  }, [linhas, termoBusca]);
+  }, [rows, query]);
 
-  const linhaSelecionada = useMemo(
-    () => linhas.find((row) => row.userId === usuarioSelecionadoId) ?? null,
-    [linhas, usuarioSelecionadoId],
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.userId === selectedUserId) ?? null,
+    [rows, selectedUserId],
   );
 
-  const sessaoSelecionada = useMemo(
-    () => sessoes.find((session) => session.id === sessaoSelecionadaId) ?? null,
-    [sessoes, sessaoSelecionadaId],
+  const selectedSession = useMemo(
+    () => sessions.find((session) => session.id === selectedSessionId) ?? null,
+    [sessions, selectedSessionId],
   );
 
-  const totalLancados = useMemo(
-    () => linhas.filter((row) => row.statusAptidao !== null).length,
-    [linhas],
+  const launchedCount = useMemo(
+    () => rows.filter((row) => row.aptStatus !== null).length,
+    [rows],
   );
 
-  async function salvarStatus() {
-    if (!linhaSelecionada) {
+  async function saveStatus() {
+    if (!selectedRow) {
       toast.error("Selecione um militar para lançar o resultado.");
       return;
     }
-    if (!statusAptidao) {
+    if (!aptStatus) {
       toast.error("Selecione Apto ou Inapto.");
       return;
     }
 
-    setSalvando(true);
+    setSaving(true);
     try {
-      await updateBookingResult(linhaSelecionada.bookingId, statusAptidao);
+      await updateBookingResult(
+        selectedRow.bookingId,
+        buildBookingResultPayload({
+          result_status: aptStatus,
+          corrida,
+          flexao,
+          abdominal,
+        }),
+      );
 
-      const linhasAtualizadas = linhas.map((row) =>
-        row.bookingId === linhaSelecionada.bookingId
-          ? { ...row, statusAptidao: statusAptidao as StatusAptidao }
+      const updatedRows = rows.map((row) =>
+        row.bookingId === selectedRow.bookingId
+          ? {
+              ...row,
+              aptStatus: aptStatus as AptStatus,
+              corrida: corrida || null,
+              flexao: flexao || null,
+              abdominal: abdominal || null,
+            }
           : row,
       );
 
-      setLinhas(linhasAtualizadas);
+      setRows(updatedRows);
       toast.success(
-        `${statusAptidao === "apto" ? "Apto" : "Inapto"} salvo com sucesso.`,
+        `${aptStatus === "apto" ? "Apto" : "Inapto"} salvo com sucesso.`,
       );
 
       // Avança automaticamente para o próximo pendente, se houver
-      const indiceAtual = linhasAtualizadas.findIndex(
-        (row) => row.bookingId === linhaSelecionada.bookingId,
+      const currentIndex = updatedRows.findIndex(
+        (row) => row.bookingId === selectedRow.bookingId,
       );
-      const proximoPendente =
-        linhasAtualizadas
-          .slice(indiceAtual + 1)
-          .find((row) => row.statusAptidao === null) ??
-        linhasAtualizadas
-          .slice(0, indiceAtual)
-          .find((row) => row.statusAptidao === null);
+      const next =
+        updatedRows
+          .slice(currentIndex + 1)
+          .find((row) => row.aptStatus === null) ??
+        updatedRows
+          .slice(0, currentIndex)
+          .find((row) => row.aptStatus === null);
 
-      if (proximoPendente) {
-        setUsuarioSelecionadoId(proximoPendente.userId);
-        setStatusAptidao(proximoPendente.statusAptidao ?? "apto");
+      if (next) {
+        setSelectedUserId(next.userId);
+        setAptStatus(next.aptStatus ?? "apto");
+        setCorrida(next.corrida ?? "");
+        setFlexao(next.flexao ?? "");
+        setAbdominal(next.abdominal ?? "");
       }
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar resultado.");
     } finally {
-      setSalvando(false);
+      setSaving(false);
     }
   }
 
-  function cancelarEdicao() {
-    if (linhaSelecionada) {
-      setStatusAptidao(linhaSelecionada.statusAptidao ?? "apto");
+  function cancelEdit() {
+    if (selectedRow) {
+      setAptStatus(selectedRow.aptStatus ?? "apto");
+      setCorrida(selectedRow.corrida ?? "");
+      setFlexao(selectedRow.flexao ?? "");
+      setAbdominal(selectedRow.abdominal ?? "");
     }
   }
 
-  // Mantém o retorno de carregamento apenas após todas as chamadas de hooks/memos.
-  const carregandoPagina =
-    autenticacaoCarregando ||
-    carregandoSessoes ||
-    (podeGerenciar && carregandoLinhas);
+  // Mantém retorno de loading apenas após todas as chamadas de hooks/memos.
+  const pageLoading =
+    authLoading || loadingSessions || (canManage && loadingRows);
 
-  if (carregandoPagina) {
+  if (pageLoading) {
     return <FullPageLoading message="Carregando dados" />;
   }
 
-  if (!podeGerenciar) {
+  if (!canManage) {
     return (
       <Layout>
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-alert/30 bg-alert/10 p-6 text-alert">
@@ -286,10 +347,10 @@ export default function ScoreEntry() {
   return (
     <Layout>
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
-        <ScoreEntryHero
-          sessaoSelecionada={sessaoSelecionada}
-          totalLancados={totalLancados}
-          totalMilitares={linhas.length}
+        <PageHero
+          selectedSession={selectedSession}
+          launchedCount={launchedCount}
+          totalRows={rows.length}
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -301,7 +362,7 @@ export default function ScoreEntry() {
                     Efetivo da Turma
                   </h2>
                   <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                    {totalLancados}/{linhas.length}
+                    {launchedCount}/{rows.length}
                   </span>
                 </div>
               </div>
@@ -318,17 +379,15 @@ export default function ScoreEntry() {
 
                 <select
                   id="session-select"
-                  value={sessaoSelecionadaId}
-                  onChange={(event) =>
-                    setSessaoSelecionadaId(event.target.value)
-                  }
+                  value={selectedSessionId}
+                  onChange={(event) => setSelectedSessionId(event.target.value)}
                   className="mb-4 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
                 >
-                  {carregandoSessoes && <option>Carregando turmas...</option>}
-                  {!carregandoSessoes && sessoes.length === 0 && (
+                  {loadingSessions && <option>Carregando turmas...</option>}
+                  {!loadingSessions && sessions.length === 0 && (
                     <option value="">Sem turmas disponíveis</option>
                   )}
-                  {sessoes.map((session) => (
+                  {sessions.map((session) => (
                     <option key={session.id} value={session.id}>
                       {session.date} • {formatSessionPeriod(session.period)}
                     </option>
@@ -343,40 +402,43 @@ export default function ScoreEntry() {
                     decorative
                   />
                   <input
-                    value={termoBusca}
-                    onChange={(event) => setTermoBusca(event.target.value)}
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
                     placeholder="Buscar por nome ou SARAM..."
                     className="w-full rounded-lg border border-border-default bg-bg-default py-2 pl-9 pr-3 text-sm text-text-body"
                   />
                 </div>
 
                 <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-                  {carregandoLinhas && (
+                  {loadingRows && (
                     <p className="text-sm text-text-muted">
                       Carregando efetivo...
                     </p>
                   )}
 
-                  {!carregandoLinhas && linhasFiltradas.length === 0 && (
+                  {!loadingRows && filteredRows.length === 0 && (
                     <p className="text-sm text-text-muted">
                       Nenhum militar encontrado para a turma selecionada.
                     </p>
                   )}
 
-                  {linhasFiltradas.map((row) => {
-                    const ativo = usuarioSelecionadoId === row.userId;
-                    const lancado = row.statusAptidao !== null;
+                  {filteredRows.map((row) => {
+                    const active = selectedUserId === row.userId;
+                    const launched = row.aptStatus !== null;
 
                     return (
                       <button
                         key={row.bookingId}
                         type="button"
                         onClick={() => {
-                          setUsuarioSelecionadoId(row.userId);
-                          setStatusAptidao(row.statusAptidao ?? "apto");
+                          setSelectedUserId(row.userId);
+                          setAptStatus(row.aptStatus ?? "apto");
+                          setCorrida(row.corrida ?? "");
+                          setFlexao(row.flexao ?? "");
+                          setAbdominal(row.abdominal ?? "");
                         }}
                         className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                          ativo
+                          active
                             ? "border-primary bg-primary/10"
                             : "border-border-default bg-bg-card hover:bg-bg-default"
                         }`}
@@ -393,14 +455,14 @@ export default function ScoreEntry() {
                           <span
                             className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
                               launched
-                              ? row.statusAptidao === "apto"
-                                ? "bg-success/10 text-success"
-                                : "bg-error/10 text-error"
-                              : "bg-alert/10 text-alert"
+                                ? row.aptStatus === "apto"
+                                  ? "bg-success/10 text-success"
+                                  : "bg-error/10 text-error"
+                                : "bg-alert/10 text-alert"
                             }`}
                           >
-                            {lancado
-                              ? row.statusAptidao === "apto"
+                            {launched
+                              ? row.aptStatus === "apto"
                                 ? "Apto"
                                 : "Inapto"
                               : "Pendente"}
@@ -416,7 +478,7 @@ export default function ScoreEntry() {
 
           <section className="lg:col-span-8">
             <div className="rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
-              {!linhaSelecionada ? (
+              {!selectedRow ? (
                 <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-sm text-text-muted">
                   Selecione um militar para iniciar o lançamento.
                 </div>
@@ -427,18 +489,50 @@ export default function ScoreEntry() {
                       Militar selecionado
                     </p>
                     <h2 className="mt-2 text-3xl font-bold">
-                      {linhaSelecionada.warName || linhaSelecionada.fullName}
+                      {selectedRow.warName || selectedRow.fullName}
                     </h2>
                     <div className="mt-2 flex flex-wrap gap-4 text-sm text-text-body">
-                      <span>SARAM {linhaSelecionada.saram ?? "--"}</span>
-                      <span>
-                        Posto/Graduação: {linhaSelecionada.rank ?? "--"}
-                      </span>
+                      <span>SARAM {selectedRow.saram ?? "--"}</span>
+                      <span>Posto/Graduação: {selectedRow.rank ?? "--"}</span>
                     </div>
                   </header>
 
                   <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
                     <div>
+                      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+                        <label className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                          Corrida
+                          <input
+                            type="text"
+                            value={corrida}
+                            onChange={(event) => setCorrida(event.target.value)}
+                            className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm font-medium text-text-body"
+                            placeholder="Ex: 12:00"
+                          />
+                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                          Flexão
+                          <input
+                            type="text"
+                            value={flexao}
+                            onChange={(event) => setFlexao(event.target.value)}
+                            className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm font-medium text-text-body"
+                            placeholder="Ex: 30"
+                          />
+                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                          Abdominal
+                          <input
+                            type="text"
+                            value={abdominal}
+                            onChange={(event) =>
+                              setAbdominal(event.target.value)
+                            }
+                            className="mt-2 w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm font-medium text-text-body"
+                            placeholder="Ex: 35"
+                          />
+                        </label>
+                      </div>
                       <label className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
                         <AppIcon
                           icon={UserCheck}
@@ -451,9 +545,9 @@ export default function ScoreEntry() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                         <button
                           type="button"
-                          onClick={() => setStatusAptidao("apto")}
+                          onClick={() => setAptStatus("apto")}
                           className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                            statusAptidao === "apto"
+                            aptStatus === "apto"
                               ? "border-success bg-success/10 text-success"
                               : "border-border-default text-text-muted hover:border-success/30"
                           }`}
@@ -467,9 +561,9 @@ export default function ScoreEntry() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setStatusAptidao("inapto")}
+                          onClick={() => setAptStatus("inapto")}
                           className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-5 text-base font-bold transition-all ${
-                            statusAptidao === "inapto"
+                            aptStatus === "inapto"
                               ? "border-error bg-error/10 text-error"
                               : "border-border-default text-text-muted hover:border-error/30"
                           }`}
@@ -486,9 +580,9 @@ export default function ScoreEntry() {
 
                     <aside
                       className={`rounded-xl border p-5 text-center transition-colors ${
-                        statusAptidao === "apto"
+                        aptStatus === "apto"
                           ? "border-success/20 bg-success/10"
-                          : statusAptidao === "inapto"
+                          : aptStatus === "inapto"
                             ? "border-error/20 bg-error/10"
                             : "border-primary/15 bg-primary/5"
                       }`}
@@ -497,14 +591,14 @@ export default function ScoreEntry() {
                         Resultado Atual
                       </p>
                       <div className="mt-4 flex items-center justify-center">
-                        {statusAptidao === "apto" ? (
+                        {aptStatus === "apto" ? (
                           <AppIcon
                             icon={CheckCircle2}
                             size={"lg"}
                             className="text-success"
                             ariaLabel="Apto"
                           />
-                        ) : statusAptidao === "inapto" ? (
+                        ) : aptStatus === "inapto" ? (
                           <AppIcon
                             icon={XCircle}
                             size={"lg"}
@@ -519,16 +613,16 @@ export default function ScoreEntry() {
                       </div>
                       <p
                         className={`mt-2 text-lg font-black ${
-                          statusAptidao === "apto"
+                          aptStatus === "apto"
                             ? "text-success"
-                            : statusAptidao === "inapto"
+                            : aptStatus === "inapto"
                               ? "text-error"
                               : "text-text-muted"
                         }`}
                       >
-                        {statusAptidao === "apto"
+                        {aptStatus === "apto"
                           ? "APTO"
-                          : statusAptidao === "inapto"
+                          : aptStatus === "inapto"
                             ? "INAPTO"
                             : "—"}
                       </p>
@@ -547,16 +641,16 @@ export default function ScoreEntry() {
                   <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-default pt-6 sm:flex-row sm:items-center sm:justify-end">
                     <button
                       type="button"
-                      disabled={salvando}
-                      onClick={cancelarEdicao}
+                      disabled={saving}
+                      onClick={cancelEdit}
                       className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-semibold text-text-body transition-colors hover:bg-bg-default disabled:opacity-60"
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
-                      disabled={salvando || !statusAptidao}
-                      onClick={salvarStatus}
+                      disabled={saving || !aptStatus}
+                      onClick={saveStatus}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
                     >
                       <AppIcon
@@ -564,7 +658,7 @@ export default function ScoreEntry() {
                         size="sm"
                         ariaLabel="Salvar"
                       />
-                      {salvando ? "Salvando..." : "Salvar"}
+                      {saving ? "Salvando..." : "Salvar"}
                     </button>
                   </div>
                 </>
@@ -579,7 +673,7 @@ export default function ScoreEntry() {
                   className="text-primary"
                   ariaLabel="Efetivo"
                 />
-                {linhas.length} militar(es) na turma selecionada • {totalLancados}{" "}
+                {rows.length} militar(es) na turma selecionada • {launchedCount}{" "}
                 com resultado lançado
               </div>
             </div>

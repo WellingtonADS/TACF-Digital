@@ -1,3 +1,8 @@
+import {
+  getBookingResultStatus,
+  parseBookingResult,
+} from "@/utils/bookingResults";
+
 export type ResultStatus = "apto" | "inapto" | "pendente" | null;
 
 export type ResultSummary = {
@@ -31,23 +36,6 @@ const NOTE_KEYS = [
   "motivo",
 ] as const;
 
-function parseResultDetails(raw: unknown): Record<string, unknown> | null {
-  if (!raw) return null;
-
-  if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return parsed && typeof parsed === "object"
-        ? (parsed as Record<string, unknown>)
-        : null;
-    } catch {
-      return null;
-    }
-  }
-
-  return typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-}
-
 function getStringField(
   source: Record<string, unknown> | null,
   key: string,
@@ -71,8 +59,9 @@ export function canOpenAppeal(result: Pick<ResultSummary, "result_status">) {
 export function normalizeResultSummary(
   input: ResultSummaryInput,
 ): ResultSummary {
-  const detail = parseResultDetails(input.result_details);
-  const rawStatus = normalizeResultStatus(input.result_details);
+  const parsed = parseBookingResult(input.result_details);
+  const detail = parsed ? (parsed as unknown as Record<string, unknown>) : null;
+  const rawStatus = getBookingResultStatus(input.result_details);
 
   let notes: string | null = null;
 
@@ -92,8 +81,9 @@ export function normalizeResultSummary(
     created_at: input.created_at ?? null,
     location: getStringField(detail, "location") ?? input.location ?? null,
     location_address: input.location_address ?? null,
-    concept: getStringField(detail, "concept") ?? input.concept ?? null,
+    concept: parsed?.concept ?? getStringField(detail, "concept") ?? input.concept ?? null,
     result_status:
+      normalizeResultStatus(parsed?.result_status) ??
       normalizeResultStatus(getStringField(detail, "result_status")) ??
       normalizeResultStatus(input.result_status) ??
       rawStatus,

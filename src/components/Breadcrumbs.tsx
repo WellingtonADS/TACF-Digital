@@ -1,7 +1,7 @@
 /**
  * @page Breadcrumbs
  * @description Componente de breadcrumbs para navegação.
- * @path src/components/layout/Breadcrumbs.tsx
+ * @path src/components/Breadcrumbs.tsx
  */
 
 export default function Breadcrumbs({ items }: { items: string[] }) {

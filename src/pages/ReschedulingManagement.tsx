@@ -67,13 +67,13 @@ function PageHero({ total: _total }: { total: number }) {
 }
 
 function Toolbar({
-  busca,
-  definirBusca,
+  query,
+  setQuery,
   statusFilter,
   setStatusFilter,
 }: {
-  busca: string;
-  definirBusca: (value: string) => void;
+  query: string;
+  setQuery: (value: string) => void;
   statusFilter: SwapStatus;
   setStatusFilter: (value: SwapStatus) => void;
 }) {
@@ -85,8 +85,8 @@ function Toolbar({
             className="w-full rounded-xl border-none bg-bg-default py-2 pl-10 pr-4 text-sm text-text-body placeholder:text-text-muted focus:ring-2 focus:ring-primary/20"
             placeholder="Buscar por SARAM, nome ou nome de guerra..."
             type="text"
-            value={busca}
-            onChange={(event) => definirBusca(event.target.value)}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
           <Search
             size={16}
@@ -207,30 +207,30 @@ function ActionButtons({
 }
 
 export default function ReschedulingManagement() {
-  const { profile: perfil } = useAuth();
+  const { profile } = useAuth();
   const {
     rows,
-    loading: carregando,
+    loading,
     statusFilter,
     setStatusFilter,
-    query: busca,
-    setQuery: definirBusca,
-    selected: solicitacaoSelecionada,
-    setSelected: definirSolicitacaoSelecionada,
+    query,
+    setQuery,
+    selected,
+    setSelected,
     counts,
     visibleRows,
     changeStatus,
   } = useReschedulingManagement();
 
-  const canMutate = perfil?.role === "admin";
+  const canMutate = profile?.role === "admin";
 
-  function tratarAcaoNaoAutorizada(action: "aprovar" | "indeferir") {
+  function handleUnauthorizedAction(action: "aprovar" | "indeferir") {
     toast.error(
       `Acesso negado: você não tem permissão para ${action} solicitações de reagendamento.`,
     );
   }
 
-  if (carregando) {
+  if (loading) {
     return (
       <FullPageLoading
         message="Carregando reagendamentos"
@@ -276,8 +276,8 @@ export default function ReschedulingManagement() {
         </div>
 
         <Toolbar
-          busca={busca}
-          definirBusca={definirBusca}
+          query={query}
+          setQuery={setQuery}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
         />
@@ -320,9 +320,7 @@ export default function ReschedulingManagement() {
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <StatusBadge status={row.status} />
-                    <ReasonButton
-                      onClick={() => definirSolicitacaoSelecionada(row)}
-                    />
+                    <ReasonButton onClick={() => setSelected(row)} />
                   </div>
                   <div className="mt-3">
                     <ActionButtons
@@ -330,14 +328,14 @@ export default function ReschedulingManagement() {
                       canMutate={canMutate}
                       onApprove={() => {
                         if (!canMutate) {
-                          tratarAcaoNaoAutorizada("aprovar");
+                          handleUnauthorizedAction("aprovar");
                           return;
                         }
                         changeStatus(row.id, row.bookingId, "aprovado");
                       }}
                       onReject={() => {
                         if (!canMutate) {
-                          tratarAcaoNaoAutorizada("indeferir");
+                          handleUnauthorizedAction("indeferir");
                           return;
                         }
                         changeStatus(row.id, row.bookingId, "cancelado");
@@ -412,9 +410,7 @@ export default function ReschedulingManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <ReasonButton
-                          onClick={() => definirSolicitacaoSelecionada(row)}
-                        />
+                        <ReasonButton onClick={() => setSelected(row)} />
                       </td>
                       <td className="px-6 py-5">
                         <StatusBadge status={row.status} />
@@ -426,14 +422,14 @@ export default function ReschedulingManagement() {
                           canMutate={canMutate}
                           onApprove={() => {
                             if (!canMutate) {
-                              tratarAcaoNaoAutorizada("aprovar");
+                              handleUnauthorizedAction("aprovar");
                               return;
                             }
                             changeStatus(row.id, row.bookingId, "aprovado");
                           }}
                           onReject={() => {
                             if (!canMutate) {
-                              tratarAcaoNaoAutorizada("indeferir");
+                              handleUnauthorizedAction("indeferir");
                               return;
                             }
                             changeStatus(row.id, row.bookingId, "cancelado");
@@ -448,7 +444,7 @@ export default function ReschedulingManagement() {
           </div>
         </section>
 
-        {solicitacaoSelecionada && (
+        {selected && (
           <div className="animate-in fade-in slide-in-from-bottom-4 fixed bottom-4 left-4 right-4 z-40 rounded-xl border-2 border-primary bg-bg-card p-5 shadow-2xl ring-4 ring-primary/5 sm:bottom-8 sm:left-auto sm:right-8 sm:w-80">
             <div className="mb-3 flex items-center justify-between border-b border-border-default pb-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-primary">
@@ -457,7 +453,7 @@ export default function ReschedulingManagement() {
               <button
                 type="button"
                 className="text-text-muted transition-colors hover:text-text-body"
-                onClick={() => definirSolicitacaoSelecionada(null)}
+                onClick={() => setSelected(null)}
               >
                 <X size={14} />
               </button>
@@ -468,7 +464,7 @@ export default function ReschedulingManagement() {
                   Militar
                 </span>
                 <span className="text-xs font-bold uppercase text-text-body">
-                  {solicitacaoSelecionada.fullName || "(desconhecido)"}
+                  {selected.fullName || "(desconhecido)"}
                 </span>
               </div>
               <div className="flex flex-col">
@@ -476,17 +472,17 @@ export default function ReschedulingManagement() {
                   Motivo
                 </span>
                 <span className="text-xs italic font-semibold text-text-body">
-                  {solicitacaoSelecionada.reasonText}
+                  {selected.reasonText}
                 </span>
               </div>
-              {solicitacaoSelecionada.attachmentUrl && (
+              {selected.attachmentUrl && (
                 <div className="pt-2">
                   <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-text-muted">
                     Anexo
                   </span>
                   <a
                     className="text-xs font-semibold text-primary hover:underline"
-                    href={solicitacaoSelecionada.attachmentUrl}
+                    href={selected.attachmentUrl}
                     target="_blank"
                     rel="noreferrer"
                   >

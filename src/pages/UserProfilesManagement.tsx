@@ -1,6 +1,6 @@
 /**
  * @page UserProfilesManagement
- * @description Gestão de perfis de usuário e papéis.
+ * @description Gestão de perfis de usuário e papéis/roles.
  * @path src/pages/UserProfilesManagement.tsx
  */
 
@@ -33,7 +33,7 @@ function formatPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-type PerfilUsuarioView = Profile & {
+type UserProfileView = Profile & {
   inspsau_valid_until?: string | null;
   inspsau_last_inspection?: string | null;
   birth_date?: string | null;
@@ -41,75 +41,69 @@ type PerfilUsuarioView = Profile & {
 };
 
 export default function UserProfilesManagement() {
-  const {
-    user,
-    profile: perfilAutenticado,
-    loading: autenticacaoCarregando,
-  } = useAuth();
-  const [perfil, setPerfil] = useState<PerfilUsuarioView | null>(null);
-  const [carregando, setCarregando] = useState(false);
-  const [salvando, setSalvando] = useState(false);
-  const [mostrarAlterarSenha, setMostrarAlterarSenha] = useState(false);
-  const [novaSenha, setNovaSenha] = useState("");
-  const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
-  const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<UserProfileView | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
-    if (autenticacaoCarregando) return;
-    // Prefere o perfil já carregado por `useAuth` para evitar nova busca.
-    if (perfilAutenticado) {
-      setPerfil(perfilAutenticado);
+    if (authLoading) return;
+    // prefer profile already loaded by useAuth to avoid duplicate fetches
+    if (authProfile) {
+      setProfile(authProfile);
       return;
     }
-    carregarPerfil();
+    loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autenticacaoCarregando, user?.id, perfilAutenticado]);
+  }, [authLoading, user?.id, authProfile]);
 
-  async function carregarPerfil() {
+  async function loadProfile() {
     if (!user?.id) {
-      setPerfil(null);
+      setProfile(null);
       return;
     }
 
-    setCarregando(true);
+    setLoading(true);
     try {
-      const data = (await getProfileById(user.id)) as PerfilUsuarioView | null;
-      setPerfil(data ?? null);
+      const data = (await getProfileById(user.id)) as UserProfileView | null;
+      setProfile(data ?? null);
     } catch (err) {
       console.error(err);
-      setPerfil(null);
+      setProfile(null);
       toast.error("Não foi possível carregar seu perfil.");
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   }
 
-  function atualizarCampo<K extends keyof PerfilUsuarioView>(
-    campo: K,
-    valor: PerfilUsuarioView[K],
+  function handleChange<K extends keyof UserProfileView>(
+    key: K,
+    value: UserProfileView[K],
   ) {
-    setPerfil((estadoAtual) =>
-      estadoAtual ? { ...estadoAtual, [campo]: valor } : estadoAtual,
-    );
+    setProfile((p) => (p ? { ...p, [key]: value } : p));
   }
 
-  async function salvarPerfil(e?: FormEvent) {
+  async function handleSave(e?: FormEvent) {
     if (e) e.preventDefault();
-    if (!perfil) return;
+    if (!profile) return;
     if (!user?.id) {
       toast.error("Usuário não autenticado.");
       return;
     }
 
     // validações obrigatórias para conclusão do cadastro militar
-    const nomeGuerra = perfil.war_name?.trim() ?? "";
-    const saram = onlyDigits(perfil.saram ?? "");
-    const rank = perfil.rank?.trim() ?? "";
-    const setor = perfil.sector?.trim() ?? "";
-    const email = perfil.email?.trim().toLowerCase() ?? "";
-    const phone = formatPhone(perfil.phone_number ?? "");
+    const nomeGuerra = profile.war_name?.trim() ?? "";
+    const saram = onlyDigits(profile.saram ?? "");
+    const rank = profile.rank?.trim() ?? "";
+    const setor = profile.sector?.trim() ?? "";
+    const email = profile.email?.trim().toLowerCase() ?? "";
+    const phone = formatPhone(profile.phone_number ?? "");
 
-    if (!perfil.full_name || !email) {
+    if (!profile.full_name || !email) {
       toast.error("Preencha nome e e-mail antes de salvar.");
       return;
     }
@@ -131,11 +125,11 @@ export default function UserProfilesManagement() {
       return;
     }
 
-    setSalvando(true);
+    setSaving(true);
     try {
       const { data, error } = await upsertProfile({
         id: user.id,
-        full_name: perfil.full_name?.trim(),
+        full_name: profile.full_name?.trim(),
         email,
         rank,
         saram,
@@ -149,68 +143,68 @@ export default function UserProfilesManagement() {
       } else {
         toast.success("Alterações salvas com sucesso.");
         const saved = (Array.isArray(data) ? data[0] : data) as
-          | PerfilUsuarioView
+          | UserProfileView
           | null
           | undefined;
-        setPerfil(saved ?? perfil);
+        setProfile(saved ?? profile);
       }
     } catch (err: unknown) {
       console.error(err);
       toast.error("Erro ao salvar o perfil.");
     } finally {
-      setSalvando(false);
+      setSaving(false);
     }
   }
 
-  async function alterarSenha(e?: FormEvent) {
+  async function handleChangePassword(e?: FormEvent) {
     if (e) e.preventDefault();
     if (!user) {
       toast.error("Usuário não autenticado.");
       return;
     }
 
-    if (!novaSenha) {
+    if (!newPassword) {
       toast.error("Informe a nova senha.");
       return;
     }
 
-    if (novaSenha.length < 8) {
+    if (newPassword.length < 8) {
       toast.error("Senha deve ter ao menos 8 caracteres.");
       return;
     }
 
-    if (novaSenha !== confirmacaoSenha) {
+    if (newPassword !== confirmPassword) {
       toast.error("Senhas não conferem.");
       return;
     }
 
-    setAlterandoSenha(true);
+    setChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: novaSenha,
+        password: newPassword,
       });
       if (error) {
         toast.error(getAuthErrorMessage(error, "Erro ao alterar senha."));
       } else {
         toast.success("Senha alterada com sucesso.");
-        setMostrarAlterarSenha(false);
-        setNovaSenha("");
-        setConfirmacaoSenha("");
+        setShowChangePassword(false);
+        setNewPassword("");
+        setConfirmPassword("");
       }
     } catch (err) {
       console.error(err);
       toast.error(getAuthErrorMessage(err, "Erro ao alterar senha."));
     } finally {
-      setAlterandoSenha(false);
+      setChangingPassword(false);
     }
   }
 
-  const ultimoAcesso = user?.last_sign_in_at
+  const lastAccess = user?.last_sign_in_at
     ? formatDateTimePtBr(user.last_sign_in_at)
     : "--";
 
-  // Evita cintilação: se já existe perfil em memória, renderiza direto.
-  if ((autenticacaoCarregando || carregando) && !perfil) {
+  // avoid flicker: if we already have a profile to show, render it
+  if ((authLoading || loading) && !profile) {
     return <FullPageLoading message="Carregando perfil" />;
   }
 
@@ -227,17 +221,17 @@ export default function UserProfilesManagement() {
         </header>
 
         <div className="w-full text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default mb-6">
-          Último acesso: {ultimoAcesso}
+          Último acesso: {lastAccess}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Coluna esquerda: resumo do perfil */}
+          {/* Left column: profile summary */}
           <div className="lg:w-72 flex-shrink-0">
             <div className="bg-bg-card rounded-3xl shadow-sm border border-border-default p-4 md:p-8 flex flex-col items-center text-center">
               {/* Avatar */}
               <div className="w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20 flex items-center justify-center mb-4">
                 <span className="text-xl md:text-3xl font-black text-primary tracking-tight">
-                  {(perfil?.war_name ?? perfil?.full_name ?? "?")
+                  {(profile?.war_name ?? profile?.full_name ?? "?")
                     .split(" ")
                     .slice(0, 2)
                     .map((n) => n[0])
@@ -245,19 +239,19 @@ export default function UserProfilesManagement() {
                 </span>
               </div>
               <h3 className="text-lg font-black text-primary uppercase tracking-tight">
-                {perfil?.war_name ?? perfil?.full_name ?? "--"}
+                {profile?.war_name ?? profile?.full_name ?? "--"}
               </h3>
               <p className="text-sm text-text-muted font-medium">
-                {perfil?.rank ?? "--"}
+                {profile?.rank ?? "--"}
               </p>
 
-              {/* Indicador de status */}
+              {/* Status chip */}
               <div className="mt-5 w-full">
                 <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
                   Status de Aptidão
                 </p>
-                {perfil?.inspsau_valid_until ? (
-                  isAfter(parseISO(perfil.inspsau_valid_until), new Date()) ? (
+                {profile?.inspsau_valid_until ? (
+                  isAfter(parseISO(profile.inspsau_valid_until), new Date()) ? (
                     <div className="flex items-center justify-center gap-2 rounded-2xl border border-success/20 bg-success/10 px-4 py-3">
                       <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
                       <span className="text-xs font-bold uppercase tracking-wide text-success">
@@ -281,17 +275,17 @@ export default function UserProfilesManagement() {
                 )}
               </div>
 
-              {/* Idade e grupo */}
+              {/* Age & group */}
               <div className="mt-6 grid grid-cols-2 gap-4 w-full pt-6 border-t border-border-default">
                 <div className="text-center">
                   <p className="text-[10px] font-bold text-text-muted uppercase">
                     Idade
                   </p>
                   <p className="font-bold text-text-body text-lg">
-                    {perfil?.birth_date
+                    {profile?.birth_date
                       ? differenceInYears(
                           new Date(),
-                          parseISO(perfil.birth_date),
+                          parseISO(profile.birth_date),
                         )
                       : "--"}
                   </p>
@@ -301,17 +295,17 @@ export default function UserProfilesManagement() {
                     Grupo
                   </p>
                   <p className="font-bold text-text-body text-lg">
-                    {perfil?.physical_group ?? "--"}
+                    {profile?.physical_group ?? "--"}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Coluna direita: formulário */}
+          {/* Right column: form */}
           <div className="flex-1">
             <div className="bg-bg-card rounded-3xl shadow-2xl border border-border-default/50 p-4 md:p-8 lg:p-10">
-              <form className="space-y-10" onSubmit={salvarPerfil}>
+              <form className="space-y-10" onSubmit={handleSave}>
                 <p className="text-xs text-text-muted">
                   Campos com <span className="font-bold">*</span> são
                   obrigatórios para concluir o cadastro.
@@ -330,9 +324,9 @@ export default function UserProfilesManagement() {
                         Nome Completo *
                       </label>
                       <input
-                        value={perfil?.full_name ?? ""}
+                        value={profile?.full_name ?? ""}
                         onChange={(e) =>
-                          atualizarCampo("full_name", e.target.value)
+                          handleChange("full_name", e.target.value)
                         }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
@@ -346,10 +340,8 @@ export default function UserProfilesManagement() {
                         E-mail Institucional *
                       </label>
                       <input
-                        value={perfil?.email ?? ""}
-                        onChange={(e) =>
-                          atualizarCampo("email", e.target.value)
-                        }
+                        value={profile?.email ?? ""}
+                        onChange={(e) => handleChange("email", e.target.value)}
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="email"
                         placeholder="Ex.: joao.silva@fab.mil.br"
@@ -361,9 +353,9 @@ export default function UserProfilesManagement() {
                         Telefone / WhatsApp
                       </label>
                       <input
-                        value={perfil?.phone_number ?? ""}
+                        value={profile?.phone_number ?? ""}
                         onChange={(e) =>
-                          atualizarCampo(
+                          handleChange(
                             "phone_number",
                             formatPhone(e.target.value),
                           )
@@ -390,9 +382,9 @@ export default function UserProfilesManagement() {
                         Nome de Guerra *
                       </label>
                       <input
-                        value={perfil?.war_name ?? ""}
+                        value={profile?.war_name ?? ""}
                         onChange={(e) =>
-                          atualizarCampo("war_name", e.target.value)
+                          handleChange("war_name", e.target.value)
                         }
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
@@ -405,9 +397,9 @@ export default function UserProfilesManagement() {
                         SARAM *
                       </label>
                       <input
-                        value={perfil?.saram ?? ""}
+                        value={profile?.saram ?? ""}
                         onChange={(e) =>
-                          atualizarCampo(
+                          handleChange(
                             "saram",
                             onlyDigits(e.target.value).slice(0, 7),
                           )
@@ -426,10 +418,8 @@ export default function UserProfilesManagement() {
                         Posto/Graduação *
                       </label>
                       <select
-                        value={perfil?.rank ?? ""}
-                        onChange={(e) =>
-                          atualizarCampo("rank", e.target.value)
-                        }
+                        value={profile?.rank ?? ""}
+                        onChange={(e) => handleChange("rank", e.target.value)}
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         required
                         title="Posto/Graduação"
@@ -456,10 +446,8 @@ export default function UserProfilesManagement() {
                         OM / Setor *
                       </label>
                       <input
-                        value={perfil?.sector ?? ""}
-                        onChange={(e) =>
-                          atualizarCampo("sector", e.target.value)
-                        }
+                        value={profile?.sector ?? ""}
+                        onChange={(e) => handleChange("sector", e.target.value)}
                         className="w-full bg-bg-card border-border-default rounded-lg p-3 text-text-body focus-ring transition-all"
                         type="text"
                         placeholder="Ex.: 2º/10º GAV"
@@ -489,9 +477,9 @@ export default function UserProfilesManagement() {
                           Última Inspeção
                         </p>
                         <p className="font-semibold text-text-body">
-                          {perfil?.inspsau_last_inspection
+                          {profile?.inspsau_last_inspection
                             ? formatDateShortPtBr(
-                                perfil.inspsau_last_inspection,
+                                profile.inspsau_last_inspection,
                               )
                             : "--"}
                         </p>
@@ -506,8 +494,8 @@ export default function UserProfilesManagement() {
                           Validade da INSPSAU
                         </p>
                         <p className="font-semibold text-text-body">
-                          {perfil?.inspsau_valid_until
-                            ? formatDateShortPtBr(perfil.inspsau_valid_until)
+                          {profile?.inspsau_valid_until
+                            ? formatDateShortPtBr(profile.inspsau_valid_until)
                             : "--"}
                         </p>
                       </div>
@@ -530,10 +518,10 @@ export default function UserProfilesManagement() {
                         </p>
                       </div>
                     </div>
-                    {!mostrarAlterarSenha ? (
+                    {!showChangePassword ? (
                       <button
                         type="button"
-                        onClick={() => setMostrarAlterarSenha(true)}
+                        onClick={() => setShowChangePassword(true)}
                         className="w-full md:w-auto px-6 py-2 border border-border-default rounded-lg text-sm font-bold text-primary hover:bg-bg-card transition-colors uppercase tracking-widest"
                       >
                         Alterar Senha
@@ -541,7 +529,7 @@ export default function UserProfilesManagement() {
                     ) : (
                       <div className="w-full md:w-auto mt-4 bg-bg-card p-4 rounded-2xl border border-border-default">
                         <form
-                          onSubmit={alterarSenha}
+                          onSubmit={handleChangePassword}
                           className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
                         >
                           <div className="flex flex-col">
@@ -549,8 +537,8 @@ export default function UserProfilesManagement() {
                               Nova senha
                             </label>
                             <PasswordInput
-                              value={novaSenha}
-                              onChange={(e) => setNovaSenha(e.target.value)}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
                             />
                           </div>
 
@@ -559,9 +547,9 @@ export default function UserProfilesManagement() {
                               Confirme a nova senha
                             </label>
                             <PasswordInput
-                              value={confirmacaoSenha}
+                              value={confirmPassword}
                               onChange={(e) =>
-                                setConfirmacaoSenha(e.target.value)
+                                setConfirmPassword(e.target.value)
                               }
                             />
                           </div>
@@ -570,9 +558,9 @@ export default function UserProfilesManagement() {
                             <button
                               type="button"
                               onClick={() => {
-                                setMostrarAlterarSenha(false);
-                                setNovaSenha("");
-                                setConfirmacaoSenha("");
+                                setShowChangePassword(false);
+                                setNewPassword("");
+                                setConfirmPassword("");
                               }}
                               className="px-4 py-2 text-sm font-bold text-text-muted rounded-lg border border-border-default"
                             >
@@ -580,10 +568,10 @@ export default function UserProfilesManagement() {
                             </button>
                             <button
                               type="submit"
-                              disabled={alterandoSenha}
+                              disabled={changingPassword}
                               className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-bold"
                             >
-                              {alterandoSenha
+                              {changingPassword
                                 ? "SALVANDO..."
                                 : "SALVAR SENHA"}
                             </button>
@@ -597,18 +585,18 @@ export default function UserProfilesManagement() {
                 <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-8">
                   <button
                     type="button"
-                    onClick={() => carregarPerfil()}
+                    onClick={() => loadProfile()}
                     className="w-full sm:w-auto px-8 py-4 text-text-muted font-bold uppercase tracking-widest text-sm hover:text-text-body transition-colors"
                   >
                     CANCELAR
                   </button>
                   <button
                     type="submit"
-                    disabled={salvando}
+                    disabled={saving}
                     className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl shadow-primary/20 flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    {salvando ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
+                    {saving ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
                   </button>
                 </div>
               </form>
