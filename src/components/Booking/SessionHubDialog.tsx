@@ -34,7 +34,6 @@ import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 type ProfileLookup = Pick<
@@ -95,13 +94,14 @@ export default function SessionHubDialog({
   sessionId,
   onClose,
   onSessionUpdated,
+  onEditRequested,
 }: {
   open: boolean;
   sessionId: string | null;
   onClose: () => void;
   onSessionUpdated: () => Promise<void> | void;
+  onEditRequested: (sessionId: string) => void;
 }) {
-  const navigate = useNavigate();
   const { profile } = useAuth();
   const canManage = profile?.role === "admin" || profile?.role === "coordinator";
 
@@ -327,7 +327,7 @@ export default function SessionHubDialog({
           </div>
         ) : (
           <div className="space-y-6">
-            <section className="grid gap-3 md:grid-cols-4">
+            <section className="grid gap-3 md:grid-cols-5">
               <article className="rounded-xl border border-border-default bg-bg-default p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
                   Data
@@ -360,10 +360,18 @@ export default function SessionHubDialog({
               </article>
               <article className="rounded-xl border border-border-default bg-bg-default p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Capacidade
+                  Local
                 </p>
                 <p className="mt-1 text-sm font-semibold text-text-body">
-                  {session.max_capacity ?? 0} vagas
+                  {session.location_name ?? "Nao informado"}
+                </p>
+              </article>
+              <article className="rounded-xl border border-border-default bg-bg-default p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                  Capacidades
+                </p>
+                <p className="mt-1 text-sm font-semibold text-text-body">
+                  {session.capacity ?? 0} min / {session.max_capacity ?? 0} max
                 </p>
               </article>
             </section>
@@ -542,7 +550,7 @@ export default function SessionHubDialog({
                   <>
                     <button
                       type="button"
-                      onClick={() => navigate(`/app/turmas/${session.id}/editar`)}
+                      onClick={() => onEditRequested(session.id)}
                       className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
                     >
                       <Edit2 size={16} />

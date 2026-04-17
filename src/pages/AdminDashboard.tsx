@@ -197,13 +197,6 @@ const AdminDashboard = () => {
       accent: "bg-primary/5 text-primary",
     },
     {
-      icon: ClipboardList,
-      label: "Lançar Índices",
-      description: "Inserir resultados de avaliação",
-      path: "/app/lancamento-indices",
-      accent: "bg-primary/5 text-primary",
-    },
-    {
       icon: Settings,
       label: "Configurações",
       description: "Parâmetros globais e segurança",

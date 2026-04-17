@@ -47,9 +47,7 @@ function withAccessGuard(access: RouteAccess, element: React.ReactElement) {
   return <ProtectedRoute>{element}</ProtectedRoute>;
 }
 
-function LegacySessionRouteRedirect(props: {
-  suffix: "agendamentos" | "editar";
-}) {
+function LegacySessionRouteRedirect(props: { suffix: "agendamentos" }) {
   const { sessionId } = useParams<{ sessionId: string }>();
 
   if (!sessionId) {
@@ -142,7 +140,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/sessoes/nova"
           element={
             <AdminRoute>
-              <Navigate to="/app/turmas/nova" replace />
+              <Navigate to="/app/turmas" replace />
             </AdminRoute>
           }
         />
@@ -158,7 +156,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/sessoes/:sessionId/editar"
           element={
             <AdminRoute>
-              <LegacySessionRouteRedirect suffix="editar" />
+              <Navigate to="/app/turmas" replace />
             </AdminRoute>
           }
         />

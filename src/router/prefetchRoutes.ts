@@ -24,10 +24,6 @@ function resolveLoader(path: string): PrefetchLoader | null {
     return () => import("../pages/SessionBookingsManagement");
   }
 
-  if (path.startsWith("/app/turmas/") && path.endsWith("/editar")) {
-    return () => import("../pages/SessionEditor");
-  }
-
   return null;
 }
 

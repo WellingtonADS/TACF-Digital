@@ -121,25 +121,6 @@ export const appRouteRegistry: AppRouteMeta[] = [
     sidebarOrder: 20,
   },
   {
-    path: "/app/turmas/nova",
-    access: "admin",
-    section: "turmas",
-    showInSidebar: false,
-    prefetch: true,
-    lazyLoader: () => import("../pages/ClassCreationForm"),
-  },
-  {
-    path: "/app/lancamento-indices",
-    access: "admin",
-    section: "turmas",
-    showInSidebar: false,
-    prefetch: true,
-    lazyLoader: () => import("../pages/ScoreEntry"),
-    sidebarLabel: "Lançar Índices",
-    sidebarIcon: "clipboard-pen",
-    sidebarOrder: 50,
-  },
-  {
     path: "/app/efetivo",
     access: "admin",
     section: "efetivo",
@@ -252,14 +233,6 @@ export const appRouteRegistry: AppRouteMeta[] = [
     showInSidebar: false,
     prefetch: false,
     lazyLoader: () => import("../pages/SessionBookingsManagement"),
-  },
-  {
-    path: "/app/turmas/:sessionId/editar",
-    access: "admin",
-    section: "turmas",
-    showInSidebar: false,
-    prefetch: false,
-    lazyLoader: () => import("../pages/SessionEditor"),
   },
 ];
 
