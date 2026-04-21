@@ -13,12 +13,13 @@ export default function ProtectedRoute({
 }: {
   children: JSX.Element | null;
 }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const hasCachedProfile = Boolean(profile);
 
-  if (loading) {
+  if (loading && !hasCachedProfile) {
     return <FullPageLoading />;
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user && !hasCachedProfile) return <Navigate to="/login" replace />;
   return children;
 }

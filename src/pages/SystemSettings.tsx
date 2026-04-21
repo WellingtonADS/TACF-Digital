@@ -11,18 +11,6 @@ import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
 import {
-  fetchEvaluationIndexRows,
-  removeEvaluationIndexRow,
-  saveEvaluationIndexRow,
-  type EvaluationIndexCategory,
-  type EvaluationIndexRow,
-} from "@/services/evaluationTables";
-import {
-  fetchAuditLogs,
-  fetchSystemSettings,
-  saveSystemSettings,
-} from "@/services/systemSettings";
-import {
   BarChart2,
   Clock3,
   Edit2,
@@ -35,20 +23,52 @@ import {
   UserCircle2,
   type LucideIcon,
 } from "@/icons";
+import {
+  fetchEvaluationIndexRows,
+  removeEvaluationIndexRow,
+  saveEvaluationIndexRow,
+  type EvaluationIndexCategory,
+  type EvaluationIndexRow,
+} from "@/services/evaluationTables";
+import { fetchAllProfilesForAccess, updateProfile } from "@/services/personnel";
+import {
+  fetchAuditLogs,
+  fetchSystemSettings,
+  saveSystemSettings,
+} from "@/services/systemSettings";
 import type {
+  AdministrativeProfileRole,
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
+  Profile as UserProfile,
 } from "@/types";
+import type { Location } from "@/types/database.types";
 import { formatDateTimePtBr } from "@/utils/date";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { OM_STATUS } from "@/utils/omStatus";
-import type { Location } from "@/types/database.types";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
+const SETTINGS_REQUEST_TIMEOUT_MS = 8000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Settings request timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 const TABS = [
   { key: "general", label: "Geral", icon: Settings },
@@ -60,12 +80,28 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 type TabItem = { key: TabKey; label: string; icon: LucideIcon };
+const ACCESS_ROLE_OPTIONS: AdministrativeProfileRole[] = [
+  "admin",
+  "coordinator",
+];
+const ACCESS_ROLE_LABEL: Record<AdministrativeProfileRole, string> = {
+  admin: "Administrador",
+  coordinator: "Coordenador",
+};
+
+function isTabKey(value: string | null): value is TabKey {
+  if (!value) return false;
+  return TABS.some((tab) => tab.key === value);
+}
 
 export default function SystemSettings() {
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, loading: authLoading } = useAuth();
   const canView = profile?.role === "admin";
-  const [activeTab, setActiveTab] = useState<TabKey>("evaluation");
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    const tab = searchParams.get("tab");
+    return isTabKey(tab) ? tab : "evaluation";
+  });
   const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -84,10 +120,17 @@ export default function SystemSettings() {
 
   const [evaluationCategory, setEvaluationCategory] =
     useState<EvaluationIndexCategory>("masculino");
-  const [evaluationRows, setEvaluationRows] = useState<EvaluationIndexRow[]>([]);
+  const [evaluationRows, setEvaluationRows] = useState<EvaluationIndexRow[]>(
+    [],
+  );
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [savingEvaluation, setSavingEvaluation] = useState(false);
   const [savingLocation, setSavingLocation] = useState(false);
+  const [accessProfiles, setAccessProfiles] = useState<UserProfile[]>([]);
+  const [accessProfilesLoading, setAccessProfilesLoading] = useState(false);
+  const [savingAccessProfileId, setSavingAccessProfileId] = useState<
+    string | null
+  >(null);
 
   const [editingStandardId, setEditingStandardId] = useState<string | null>(
     null,
@@ -116,6 +159,24 @@ export default function SystemSettings() {
   const [formState, setFormState] = useState<Partial<SystemSettingsRow>>({});
 
   useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (isTabKey(tab) && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [activeTab, searchParams]);
+
+  function handleSelectTab(tab: TabKey) {
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === "evaluation") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tab);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  useEffect(() => {
     if (!canView) {
       setSettingsLoading(false);
       return;
@@ -125,7 +186,10 @@ export default function SystemSettings() {
       setSettingsLoading(true);
       setLoading(true);
       try {
-        const data = await fetchSystemSettings();
+        const data = await withTimeout(
+          fetchSystemSettings(),
+          SETTINGS_REQUEST_TIMEOUT_MS,
+        );
         setSettings(data);
         setFormState(data ?? {});
       } catch (err) {
@@ -171,6 +235,31 @@ export default function SystemSettings() {
       void fetchLocations({ limit: 200 });
     }
   }, [activeTab, canView, fetchLocations]);
+
+  useEffect(() => {
+    if (activeTab !== "profiles" || !canView) {
+      return;
+    }
+
+    async function loadAccessProfiles() {
+      setAccessProfilesLoading(true);
+      try {
+        const profiles = await fetchAllProfilesForAccess();
+        setAccessProfiles(profiles);
+      } catch (err) {
+        console.error(err);
+        const authMessage = getAuthorizationErrorMessage(
+          err,
+          "visualizar perfis de acesso",
+        );
+        toast.error(authMessage ?? "Falha ao carregar perfis de acesso.");
+      } finally {
+        setAccessProfilesLoading(false);
+      }
+    }
+
+    void loadAccessProfiles();
+  }, [activeTab, canView]);
 
   useEffect(() => {
     if (activeTab !== "evaluation" || !canView) {
@@ -247,7 +336,10 @@ export default function SystemSettings() {
     setSavingEvaluation(true);
     try {
       await saveEvaluationIndexRow({
-        id: editingStandardId === "new" ? undefined : editingStandardId ?? undefined,
+        id:
+          editingStandardId === "new"
+            ? undefined
+            : (editingStandardId ?? undefined),
         category: evaluationCategory,
         faixa: editFormData.faixa,
         corrida: editFormData.corrida,
@@ -305,7 +397,8 @@ export default function SystemSettings() {
     setSavingLocation(true);
     try {
       const existingLocation = editingLocationId
-        ? locations.find((location) => location.id === editingLocationId) ?? null
+        ? (locations.find((location) => location.id === editingLocationId) ??
+          null)
         : null;
       const payload = {
         name: locationFormData.name,
@@ -342,6 +435,31 @@ export default function SystemSettings() {
     } catch (err) {
       console.error(err);
       toast.error("Nao foi possivel inativar o local.");
+    }
+  }
+
+  async function handleUpdateAdministrativeRole(
+    profileId: string,
+    role: AdministrativeProfileRole,
+  ) {
+    setSavingAccessProfileId(profileId);
+    try {
+      await updateProfile(profileId, { role });
+      setAccessProfiles((current) =>
+        current.map((item) =>
+          item.id === profileId ? { ...item, role } : item,
+        ),
+      );
+      toast.success("Perfil administrativo atualizado.");
+    } catch (err) {
+      console.error(err);
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "atualizar perfis administrativos",
+      );
+      toast.error(authMessage ?? "Falha ao atualizar o perfil administrativo.");
+    } finally {
+      setSavingAccessProfileId(null);
     }
   }
 
@@ -547,13 +665,18 @@ export default function SystemSettings() {
                   </thead>
                   <tbody className="divide-y divide-border-default">
                     {evaluationRows.map((row) => (
-                      <tr key={row.id} className="hover:bg-bg-card transition-colors">
+                      <tr
+                        key={row.id}
+                        className="hover:bg-bg-card transition-colors"
+                      >
                         <td className="px-4 py-3 font-semibold text-text-body">
                           {row.faixa}
                         </td>
                         <td className="px-4 py-3 text-center">{row.corrida}</td>
                         <td className="px-4 py-3 text-center">{row.flexao}</td>
-                        <td className="px-4 py-3 text-center">{row.abdominal}</td>
+                        <td className="px-4 py-3 text-center">
+                          {row.abdominal}
+                        </td>
                         <td className="px-4 py-3">
                           <span className="rounded px-2 py-1 text-xs font-bold bg-success/10 text-success">
                             {row.conceito}
@@ -571,7 +694,9 @@ export default function SystemSettings() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => void handleDeleteEvaluationRow(row.id)}
+                              onClick={() =>
+                                void handleDeleteEvaluationRow(row.id)
+                              }
                               className="p-2 text-text-muted hover:text-error transition-colors"
                               title="Remover linha"
                             >
@@ -698,21 +823,114 @@ export default function SystemSettings() {
             </div>
           </div>
         );
-      case "profiles":
+      case "profiles": {
+        const administrativeProfiles = accessProfiles.filter(
+          (item) => item.role === "admin" || item.role === "coordinator",
+        );
+        const adminCount = administrativeProfiles.filter(
+          (item) => item.role === "admin",
+        ).length;
+        const coordinatorCount = administrativeProfiles.filter(
+          (item) => item.role === "coordinator",
+        ).length;
+
         return (
-          <div className="py-6">
-            <p className="mb-4">
-              A gestão de Perfis de Acesso agora possui tela dedicada.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/app/configuracoes/perfis")}
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110"
-            >
-              Ir para Gestão de Perfis de Acesso
-            </button>
+          <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border border-border-default bg-bg-default p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                  Administradores
+                </p>
+                <p className="mt-1 text-lg font-bold text-text-body">
+                  {adminCount}
+                </p>
+              </article>
+              <article className="rounded-xl border border-border-default bg-bg-default p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                  Coordenadores
+                </p>
+                <p className="mt-1 text-lg font-bold text-text-body">
+                  {coordinatorCount}
+                </p>
+              </article>
+            </div>
+
+            {accessProfilesLoading ? (
+              <div className="rounded-xl border border-border-default bg-bg-default p-6 text-sm text-text-muted">
+                Carregando perfis administrativos...
+              </div>
+            ) : administrativeProfiles.length === 0 ? (
+              <div className="rounded-xl border border-border-default bg-bg-default p-6 text-sm text-text-muted">
+                Nenhum usuário administrativo encontrado.
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-border-default">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-bg-default">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                        Usuário
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                        Situação
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                        Perfil
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-default">
+                    {administrativeProfiles.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-text-body">
+                            {item.full_name ?? item.email ?? item.id}
+                          </p>
+                          <p className="text-xs text-text-muted">
+                            {item.email ?? "Sem e-mail"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                              item.active
+                                ? "bg-success/10 text-success"
+                                : "bg-error/10 text-error"
+                            }`}
+                          >
+                            {item.active ? "Ativo" : "Inativo"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={
+                              item.role === "admin" ? "admin" : "coordinator"
+                            }
+                            onChange={(event) =>
+                              void handleUpdateAdministrativeRole(
+                                item.id,
+                                event.target.value as AdministrativeProfileRole,
+                              )
+                            }
+                            disabled={savingAccessProfileId === item.id}
+                            className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
+                          >
+                            {ACCESS_ROLE_OPTIONS.map((roleOption) => (
+                              <option key={roleOption} value={roleOption}>
+                                {ACCESS_ROLE_LABEL[roleOption]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         );
+      }
       case "audit":
         return (
           <div>
@@ -847,49 +1065,51 @@ export default function SystemSettings() {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-6">
-          <aside className="bg-bg-card rounded-3xl border border-border-default shadow-sm">
-            <div className="p-4 sm:p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
-                  Seções
+        <section className="relative isolate min-h-[640px] overflow-hidden rounded-3xl border border-border-default/60">
+          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]" />
+
+          <div className="relative z-10 flex min-h-[640px] items-center justify-center p-4 sm:p-6 md:p-8">
+            <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-border-default bg-bg-card shadow-2xl shadow-slate-900/20">
+              <header className="bg-primary px-5 py-4 text-primary-foreground sm:px-7 sm:py-5">
+                <p className="text-lg font-bold tracking-tight sm:text-xl">
+                  Configurações do Sistema
                 </p>
-                <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  ADMIN
-                </span>
-              </div>
-              <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                {(TABS as ReadonlyArray<TabItem>).map((tab) => {
-                  const active = tab.key === activeTab;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      aria-current={active ? "page" : undefined}
-                      className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold focus-ring ${
-                        active
-                          ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
-                          : "bg-bg-default border-transparent text-text-muted hover:bg-primary/5"
-                      }`}
-                    >
-                      <AppIcon icon={tab.icon} size="sm" decorative />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
+                <p className="mt-1 text-xs font-medium text-primary-foreground/80 sm:text-sm">
+                  Governança administrativa centralizada com comportamento
+                  modal.
+                </p>
+              </header>
+
+              <nav className="border-b border-border-default bg-bg-card px-3 py-3 sm:px-5">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {(TABS as ReadonlyArray<TabItem>).map((tab) => {
+                    const active = tab.key === activeTab;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => handleSelectTab(tab.key)}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-ring ${
+                          active
+                            ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                            : "border-transparent bg-bg-default text-text-muted hover:border-border-default hover:text-text-body"
+                        }`}
+                      >
+                        <AppIcon icon={tab.icon} size="sm" decorative />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </nav>
-              <div className="hidden md:flex items-center gap-3 text-xs text-text-muted border-t border-border-default pt-4">
-                <span className="h-2 w-2 rounded-full bg-success"></span>
-                Sistema Operacional
+
+              <div className="max-h-[70vh] min-h-[480px] overflow-y-auto p-4 sm:p-6 lg:p-8">
+                {renderContent()}
               </div>
             </div>
-          </aside>
-
-          <section className="bg-bg-card rounded-3xl border border-border-default shadow-sm min-h-[480px]">
-            <div className="p-4 sm:p-6 lg:p-8">{renderContent()}</div>
-          </section>
-        </div>
+          </div>
+        </section>
 
         <Dialog
           open={editingStandardId !== null}

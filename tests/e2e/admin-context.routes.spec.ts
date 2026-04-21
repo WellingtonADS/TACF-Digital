@@ -53,11 +53,14 @@ test.describe("Contexto administrativo", () => {
     });
     await expect(page.getByTestId("sessions-management-title")).toBeVisible();
 
-    await page.goto("/app/reagendamentos");
-    await expect(page).toHaveURL(/\/app\/reagendamentos$/);
+    await page.goto("/app/turmas?tab=reagendamentos");
+    await expect(page).toHaveURL(/\/app\/turmas\?tab=reagendamentos$/);
     await waitForPageReady(page);
-    await expect(page.getByTestId("rescheduling-management-page")).toBeVisible({
+    await expect(page.getByTestId("sessions-management-page")).toBeVisible({
       timeout: 15000,
     });
+    await expect(
+      page.getByRole("button", { name: "Reagendamentos" }),
+    ).toBeVisible();
   });
 });

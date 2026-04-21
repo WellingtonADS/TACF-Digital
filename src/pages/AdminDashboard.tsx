@@ -7,7 +7,6 @@
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import StatCard from "@/components/atomic/StatCard";
-import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
@@ -55,8 +54,6 @@ const AdminDashboard = () => {
 
   // sessions (somente para capacidade restante e próximas turmas)
   const { sessions, loading: sessionsLoading } = useSessions();
-
-  const isLoading = metricsLoading || sessionsLoading;
 
   type LocalAction = {
     icon: LucideIcon;
@@ -193,7 +190,7 @@ const AdminDashboard = () => {
       icon: GitMerge,
       label: "Reagendamentos",
       description: "Deferir ou indeferir solicitações",
-      path: "/app/reagendamentos",
+      path: "/app/turmas?tab=reagendamentos",
       accent: "bg-primary/5 text-primary",
     },
     {
@@ -207,8 +204,6 @@ const AdminDashboard = () => {
 
   const sessionCardBaseClass =
     "h-full rounded-2xl border border-border-default bg-bg-card p-5";
-
-  if (isLoading) return <FullPageLoading message="Carregando dashboard" />;
 
   return (
     <Layout>

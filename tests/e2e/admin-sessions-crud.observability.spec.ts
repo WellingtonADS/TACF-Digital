@@ -50,10 +50,16 @@ test.describe("Observabilidade: Gestão de Turmas", () => {
     const loginPage = new LoginPage(page);
     await loginAsAdmin(loginPage);
 
-    await page.goto("/app/turmas/nova");
+    await page.goto("/app/turmas");
     await waitForPageReady(page);
 
-    // Página de criação deve ter um formulário
-    await expect(page.locator("form")).toBeVisible({ timeout: 15000 });
+    await page.getByRole("button", { name: /nova sessão/i }).click();
+
+    await expect(
+      page.getByRole("heading", { name: /nova sessao/i }),
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("#session-form-dialog")).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

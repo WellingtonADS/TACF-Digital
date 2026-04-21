@@ -21,12 +21,13 @@ export default function AdminRoute({
   children: JSX.Element | null;
 }) {
   const { user, profile, loading } = useAuth();
+  const hasCachedProfile = Boolean(profile);
 
-  if (loading) {
+  if (loading && !hasCachedProfile) {
     return <FullPageLoading />;
   }
 
-  if (!user) {
+  if (!user && !hasCachedProfile) {
     return <Navigate to="/login" replace />;
   }
 

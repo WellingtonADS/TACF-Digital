@@ -20,12 +20,15 @@ test.describe("Observabilidade: Gestão de Reagendamentos", () => {
     const loginPage = new LoginPage(page);
     await loginAsAdmin(loginPage);
 
-    await page.goto("/app/reagendamentos");
+    await page.goto("/app/turmas?tab=reagendamentos");
     await waitForPageReady(page);
 
-    await expect(page.getByTestId("rescheduling-management-page")).toBeVisible({
+    await expect(page.getByTestId("sessions-management-page")).toBeVisible({
       timeout: 15000,
     });
+    await expect(
+      page.getByRole("button", { name: "Reagendamentos" }),
+    ).toBeVisible();
   });
 
   test("admin vê filtros de status na página de reagendamentos", async ({
@@ -34,10 +37,10 @@ test.describe("Observabilidade: Gestão de Reagendamentos", () => {
     const loginPage = new LoginPage(page);
     await loginAsAdmin(loginPage);
 
-    await page.goto("/app/reagendamentos");
+    await page.goto("/app/turmas?tab=reagendamentos");
     await waitForPageReady(page);
 
-    await expect(page.getByTestId("rescheduling-management-page")).toBeVisible({
+    await expect(page.getByTestId("sessions-management-page")).toBeVisible({
       timeout: 15000,
     });
 

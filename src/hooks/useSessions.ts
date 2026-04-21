@@ -28,14 +28,12 @@ export function useSessions(startDate?: string, endDate?: string) {
   const [error, setError] = useState<string | null>(null);
   // número de dias padrão para range quando não informado (reutilizável localmente)
   const DEFAULT_RANGE_DAYS = 60;
+  const EMPTY_RESULT_RETRY_DELAY_MS = 1000;
   const mountedRef = useRef(true);
 
   const fetchSessions = useCallback(async () => {
-    if (mountedRef.current) setLoading(true);
-    if (mountedRef.current) setError(null);
-    try {
-      const resolvedStart =
-        startDate ?? new Date().toISOString().split("T")[0];
+    async function loadSessions(attempt = 0): Promise<SessionAvailability[]> {
+      const resolvedStart = startDate ?? new Date().toISOString().split("T")[0];
       const resolvedEnd =
         endDate ??
         new Date(Date.now() + DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000)
@@ -44,7 +42,9 @@ export function useSessions(startDate?: string, endDate?: string) {
 
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
-        .select("id, date, period, max_capacity, location_id, status, location:locations(name)")
+        .select(
+          "id, date, period, max_capacity, location_id, status, location:locations(name)",
+        )
         .gte("date", resolvedStart)
         .lte("date", resolvedEnd)
         .order("date", { ascending: true })
@@ -80,40 +80,51 @@ export function useSessions(startDate?: string, endDate?: string) {
           throw bookingsError;
         }
 
-        bookingsBySessionId = (bookingsData ?? []).reduce(
-          (acc, booking) => {
-            if (booking.status === "cancelado") {
-              return acc;
-            }
-
-            acc.set(
-              booking.session_id,
-              (acc.get(booking.session_id) ?? 0) + 1,
-            );
+        bookingsBySessionId = (bookingsData ?? []).reduce((acc, booking) => {
+          if (booking.status === "cancelado") {
             return acc;
-          },
-          new Map<string, number>(),
-        );
+          }
+
+          acc.set(booking.session_id, (acc.get(booking.session_id) ?? 0) + 1);
+          return acc;
+        }, new Map<string, number>());
       }
 
-      const nextSessions: SessionAvailability[] = baseSessions.map((session) => {
-        const occupied_count = bookingsBySessionId.get(session.id) ?? 0;
-        const locationRaw = Array.isArray(session.location)
-          ? session.location[0]
-          : session.location;
+      const nextSessions: SessionAvailability[] = baseSessions.map(
+        (session) => {
+          const occupied_count = bookingsBySessionId.get(session.id) ?? 0;
+          const locationRaw = Array.isArray(session.location)
+            ? session.location[0]
+            : session.location;
 
-        return {
-          session_id: session.id,
-          date: session.date,
-          period: session.period,
-          max_capacity: session.max_capacity,
-          location_id: session.location_id,
-          location_name: locationRaw?.name ?? null,
-          status: session.status,
-          occupied_count,
-          available_count: Math.max(session.max_capacity - occupied_count, 0),
-        };
-      });
+          return {
+            session_id: session.id,
+            date: session.date,
+            period: session.period,
+            max_capacity: session.max_capacity,
+            location_id: session.location_id,
+            location_name: locationRaw?.name ?? null,
+            status: session.status,
+            occupied_count,
+            available_count: Math.max(session.max_capacity - occupied_count, 0),
+          };
+        },
+      );
+
+      if (nextSessions.length === 0 && attempt === 0) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, EMPTY_RESULT_RETRY_DELAY_MS);
+        });
+        return loadSessions(attempt + 1);
+      }
+
+      return nextSessions;
+    }
+
+    if (mountedRef.current) setLoading(true);
+    if (mountedRef.current) setError(null);
+    try {
+      const nextSessions = await loadSessions();
 
       if (mountedRef.current) {
         setSessions(nextSessions);

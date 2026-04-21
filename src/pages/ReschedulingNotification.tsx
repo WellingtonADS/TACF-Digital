@@ -42,7 +42,7 @@ export default function ReschedulingNotification() {
 
   function markAsRead(id: string) {
     // Descarta a notificação da UI — a gestão do status do reagendamento
-    // é feita pela página /app/reagendamentos via useReschedulingManagement.
+    // é feita pela aba de reagendamentos dentro do Hub.
     setItems((prev) => prev.filter((p) => p.id !== id));
     toast.success("Notificação descartada");
   }
@@ -104,7 +104,7 @@ export default function ReschedulingNotification() {
                 <div className="mt-6 flex gap-3 justify-end">
                   <a
                     className="inline-flex items-center gap-2 rounded-lg border-2 border-primary px-4 py-2 font-semibold text-primary transition-all hover:bg-primary hover:text-primary-foreground"
-                    href={`/app/reagendamentos?bookingId=${first.id}`}
+                    href={`/app/turmas?tab=reagendamentos&bookingId=${first.id}`}
                   >
                     Ir para Gestão
                     <ArrowRight size={16} />
@@ -151,7 +151,7 @@ export default function ReschedulingNotification() {
                 </button>
                 <a
                   className="text-xs text-primary"
-                  href={`/app/reagendamentos?bookingId=${it.id}`}
+                  href={`/app/turmas?tab=reagendamentos&bookingId=${it.id}`}
                 >
                   Abrir
                 </a>

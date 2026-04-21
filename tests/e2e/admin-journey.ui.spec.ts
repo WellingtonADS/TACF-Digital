@@ -26,7 +26,7 @@ test.describe("Jornada visual do administrador", () => {
     await expect(page.getByText("Total Inscritos")).toBeVisible();
     await expect(page.getByTestId("admin-quick-action-turmas")).toBeVisible();
     await expect(
-      page.getByTestId("admin-quick-action-reagendamentos"),
+      page.getByTestId("admin-quick-action-turmas?tab=reagendamentos"),
     ).toBeVisible();
   });
 

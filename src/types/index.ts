@@ -10,9 +10,12 @@ export type AuditLogRow =
   import("./database.types").Database["public"]["Tables"]["audit_logs"]["Row"];
 export type SystemSettingsRow =
   import("./database.types").Database["public"]["Tables"]["system_settings"]["Row"];
+export type UserNotification =
+  import("./database.types").Database["public"]["Tables"]["user_notifications"]["Row"];
 
 export type ProfileRole =
   import("./database.types").Database["public"]["Tables"]["profiles"]["Row"]["role"];
+export type AdministrativeProfileRole = Extract<ProfileRole, "admin" | "coordinator">;
 
 export type RouteAccess = "authenticated" | "user" | "admin";
 

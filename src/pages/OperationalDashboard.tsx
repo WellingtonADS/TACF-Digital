@@ -6,7 +6,6 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
-import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import RescheduleDialog from "@/components/RescheduleDialog";
 import TicketsListModal from "@/components/TicketsListModal";
@@ -31,7 +30,6 @@ export const OperationalDashboard = () => {
   const {
     user,
     profile,
-    loading,
     bookingsCount,
     resultsCount,
     nextSession,
@@ -39,6 +37,9 @@ export const OperationalDashboard = () => {
     hasPendingSwap,
     latestOrderNumber: _latestOrderNumber,
     notifications: derivedNotifications,
+    unreadNotificationsCount,
+    markingNotificationId,
+    markNotificationAsRead,
     inspsauStatus: _inspsauStatus,
     loading: dashboardLoading,
     refresh,
@@ -104,9 +105,7 @@ export const OperationalDashboard = () => {
   const notifications = derivedNotifications;
   const [showTicketsModal, setShowTicketsModal] = useState(false);
 
-  return loading || dashboardLoading ? (
-    <FullPageLoading message="Carregando dashboard" />
-  ) : (
+  return (
     <Layout>
       {/* Greeting Card */}
       <section className="mb-8" data-testid="operational-dashboard">
@@ -305,23 +304,53 @@ export const OperationalDashboard = () => {
           <h4 className="text-sm font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
             <Info size={20} />
             Avisos Importantes
+            {unreadNotificationsCount > 0 && (
+              <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold text-white">
+                {unreadNotificationsCount} não lidas
+              </span>
+            )}
           </h4>
           <div className="space-y-4">
             {notifications.map((n, idx) => (
               <div
-                key={idx}
+                key={n.id || idx}
                 className="flex gap-4 p-4 rounded-2xl bg-bg-card border border-border-default shadow-sm"
               >
                 <div className="w-10 h-10 rounded-full bg-bg-default flex items-center justify-center text-primary">
                   <AppIcon icon={Info} size="sm" decorative={true} />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs font-bold text-text-body tracking-tight">
                     {n.title}
                   </p>
                   <p className="text-xs text-text-muted mt-1 leading-relaxed">
                     {n.description}
                   </p>
+                  {n.source === "inbox" && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                          n.isRead
+                            ? "bg-bg-default text-text-muted"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {n.isRead ? "Lida" : "Não lida"}
+                      </span>
+                      {!n.isRead && (
+                        <button
+                          type="button"
+                          onClick={() => void markNotificationAsRead(n.id)}
+                          disabled={markingNotificationId === n.id}
+                          className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-60"
+                        >
+                          {markingNotificationId === n.id
+                            ? "Marcando..."
+                            : "Marcar como lida"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

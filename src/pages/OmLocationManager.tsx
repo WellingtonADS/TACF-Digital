@@ -7,6 +7,7 @@
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import useLocations from "@/hooks/useLocations";
 import {
   Building2,
@@ -50,7 +51,7 @@ function PageHero({
           </div>
           <button
             type="button"
-            onClick={() => onNavigate("/app/om/new")}
+            onClick={() => onNavigate("/app/configuracoes?tab=locations")}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/20 px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-bg-card hover:text-primary"
           >
             <Plus size={16} />
@@ -183,14 +184,20 @@ function LocationCard({
       <div className="flex border-t border-border-default divide-x divide-border-default">
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${loc.id}`)}
+          onClick={() =>
+            onNavigate(`/app/configuracoes?tab=locations&locationId=${loc.id}`)
+          }
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Edit size={13} /> Editar
         </button>
         <button
           type="button"
-          onClick={() => onNavigate(`/app/om/${loc.id}/schedules`)}
+          onClick={() =>
+            onNavigate(
+              `/app/configuracoes?tab=locations&locationId=${loc.id}&view=schedules`,
+            )
+          }
           className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-text-muted hover:text-primary hover:bg-primary/5 transition-colors"
         >
           <Clock size={13} /> Horários
@@ -215,7 +222,7 @@ function EmptyState({
       </p>
       <button
         type="button"
-        onClick={() => onNavigate("/app/om/new")}
+        onClick={() => onNavigate("/app/configuracoes?tab=locations")}
         className="mt-4 text-sm text-primary font-semibold hover:underline"
       >
         Cadastrar primeira OM →
@@ -274,6 +281,7 @@ function PaginationControls({
 
 export default function OmLocationManager() {
   const navigate = useNavigate();
+  const { loading: authLoading } = useAuth();
   const { locations, total, loading, error, fetch } = useLocations();
 
   const [search, setSearch] = useState("");
@@ -283,19 +291,22 @@ export default function OmLocationManager() {
   const pageSize = PAGE_SIZE;
 
   useEffect(() => {
+    if (authLoading) return;
+
     fetch({
       search,
       status: statusFilter === "all" ? undefined : statusFilter,
       page,
       limit: pageSize,
     });
-  }, [search, statusFilter, page, fetch, pageSize]);
+  }, [authLoading, search, statusFilter, page, fetch, pageSize]);
 
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
 
-  const isInitialLoad = loading && (!locations || locations.length === 0);
+  const isInitialLoad =
+    authLoading || (loading && (!locations || locations.length === 0));
 
   if (isInitialLoad) return <FullPageLoading />;
 
@@ -327,7 +338,7 @@ export default function OmLocationManager() {
 
             <button
               type="button"
-              onClick={() => navigate("/app/om/new")}
+              onClick={() => navigate("/app/configuracoes?tab=locations")}
               className="group bg-bg-card rounded-2xl border-2 border-dashed border-border-default hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-2 py-10 transition-all"
             >
               <div className="w-10 h-10 rounded-xl bg-bg-default group-hover:bg-primary/10 flex items-center justify-center text-text-muted group-hover:text-primary transition-colors">

@@ -19,11 +19,6 @@ function shouldPrefetch(): boolean {
 
 function resolveLoader(path: string): PrefetchLoader | null {
   if (routeLoaders[path]) return routeLoaders[path];
-
-  if (path.startsWith("/app/turmas/") && path.endsWith("/agendamentos")) {
-    return () => import("../pages/SessionBookingsManagement");
-  }
-
   return null;
 }
 

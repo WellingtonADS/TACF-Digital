@@ -7,8 +7,8 @@
 import FullPageLoading from "@/components/FullPageLoading";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import useResponsive from "@/hooks/useResponsive";
-import { fetchFullAuditLog } from "@/services/systemSettings";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -24,11 +24,29 @@ import {
   Trash2,
   X,
 } from "@/icons";
+import { fetchFullAuditLog } from "@/services/systemSettings";
 import type { AuditLogRow as DBAuditLogRow } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type AuditLogRow = DBAuditLogRow;
+const AUDIT_REQUEST_TIMEOUT_MS = 8000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Audit request timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -94,6 +112,9 @@ function rowAccent(action: string | null | undefined): string {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AuditLog() {
+  const { profile, loading: authLoading } = useAuth();
+  const canView = profile?.role === "admin";
+
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<AuditLogRow[]>([]);
 
@@ -108,11 +129,20 @@ export default function AuditLog() {
   const isCompactViewport = isMobile || isTablet;
 
   useEffect(() => {
+    if (!canView) {
+      setLoading(false);
+      setRecords([]);
+      return;
+    }
+
     let mounted = true;
     async function load() {
       setLoading(true);
       try {
-        const data = await fetchFullAuditLog(500);
+        const data = await withTimeout(
+          fetchFullAuditLog(500),
+          AUDIT_REQUEST_TIMEOUT_MS,
+        );
         if (mounted) setRecords(data);
       } catch (error) {
         console.error(error);
@@ -126,7 +156,7 @@ export default function AuditLog() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [canView]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
@@ -176,12 +206,33 @@ export default function AuditLog() {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [detailRecord]);
 
-  if (loading) {
+  const pageLoading = authLoading || (canView && loading);
+
+  if (pageLoading) {
     return (
       <FullPageLoading
         message="Carregando logs de auditoria"
         description="Aguarde enquanto carregamos os registros de auditoria."
       />
+    );
+  }
+
+  if (!canView) {
+    return (
+      <Layout>
+        <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-error/30 bg-error/10 p-6 text-error">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5" size={20} />
+            <div>
+              <h1 className="text-lg font-bold">Acesso restrito</h1>
+              <p className="mt-1 text-sm">
+                Esta area de auditoria esta disponivel apenas para
+                administradores.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Layout>
     );
   }
 

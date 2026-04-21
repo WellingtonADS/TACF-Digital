@@ -19,14 +19,16 @@ import {
   TrendingUp,
   Users,
 } from "@/icons";
+import { isAdminLike } from "@/router/routeAccess";
 import {
   fetchAnalyticsData,
   type AnalyticsBookingRow,
   type AnalyticsProfileRow,
 } from "@/services/bookings";
+import { sendPendingRevalidationNotification } from "@/services/notifications";
 import { getBookingResultStatus } from "@/utils/bookingResults";
 import { downloadCSV } from "@/utils/csv";
-import { isAdminLike } from "@/router/routeAccess";
+import { generateAnalyticsReportPdf } from "@/utils/pdf/generateAnalyticsReport";
 import {
   addDays,
   addYears,
@@ -152,6 +154,9 @@ export default function AnalyticsDashboard() {
   const [filterRank, setFilterRank] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [sendingNotificationId, setSendingNotificationId] = useState<
+    string | null
+  >(null);
 
   // Data state
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -215,14 +220,18 @@ export default function AnalyticsDashboard() {
   const kpiApt = useMemo(
     () =>
       activeProfiles.filter(
-        (p) => getBookingResultStatus(latestByUser.get(p.id)?.result_details) === "apto",
+        (p) =>
+          getBookingResultStatus(latestByUser.get(p.id)?.result_details) ===
+          "apto",
       ).length,
     [activeProfiles, latestByUser],
   );
   const kpiInapt = useMemo(
     () =>
       activeProfiles.filter(
-        (p) => getBookingResultStatus(latestByUser.get(p.id)?.result_details) === "inapto",
+        (p) =>
+          getBookingResultStatus(latestByUser.get(p.id)?.result_details) ===
+          "inapto",
       ).length,
     [activeProfiles, latestByUser],
   );
@@ -363,7 +372,9 @@ export default function AnalyticsDashboard() {
           lastResult:
             getBookingResultStatus(latest?.result_details) === "apto" ||
             getBookingResultStatus(latest?.result_details) === "inapto"
-              ? (getBookingResultStatus(latest?.result_details) as "apto" | "inapto")
+              ? (getBookingResultStatus(latest?.result_details) as
+                  | "apto"
+                  | "inapto")
               : null,
         } satisfies PendingRow;
       })
@@ -474,6 +485,81 @@ export default function AnalyticsDashboard() {
     toast.success("Relatorio de unidades exportado.");
   }
 
+  function exportPendingPdf() {
+    generateAnalyticsReportPdf({
+      title: "Relatório de Revalidação Pendente",
+      subtitle: `Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+      headers: [
+        "Prioridade",
+        "Militar",
+        "SARAM",
+        "Unidade",
+        "Validade",
+        "Status",
+      ],
+      rows: pendingRows.map((row) => [
+        row.priority,
+        row.warName ?? row.militaryName,
+        row.identity,
+        row.unit,
+        row.expiration,
+        row.status,
+      ]),
+      filename: `revalidacao_pendente_${format(new Date(), "yyyy-MM-dd")}.pdf`,
+    });
+    toast.success("Relatório PDF gerado.");
+  }
+
+  function exportUnitsPdf() {
+    generateAnalyticsReportPdf({
+      title: "Relatório de Desempenho por Unidade",
+      subtitle: `Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+      headers: [
+        "Unidade",
+        "Total",
+        "Aptos",
+        "Inaptos",
+        "Pendentes",
+        "% Aptidão",
+      ],
+      rows: units.map((unit) => [
+        unit.unit,
+        unit.total,
+        unit.apt,
+        unit.inapt,
+        unit.pending,
+        `${unit.percent.toFixed(1)}%`,
+      ]),
+      filename: `desempenho_por_unidade_${format(new Date(), "yyyy-MM-dd")}.pdf`,
+    });
+    toast.success("Relatório PDF gerado.");
+  }
+
+  async function handleNotifyPendingRow(row: PendingRow) {
+    setSendingNotificationId(row.id);
+    try {
+      await sendPendingRevalidationNotification({
+        userId: row.id,
+        title: "Revalidação TACF pendente",
+        message: `Sua revalidação TACF está ${row.status.toLowerCase()}. Regularize sua situação junto à sua unidade e acompanhe o painel para novos agendamentos.`,
+        level: row.priority === "ALTA" ? "error" : "warning",
+        context: {
+          unit: row.unit,
+          expiration: row.expiration,
+          priority: row.priority,
+          status: row.status,
+          identity: row.identity,
+        },
+      });
+      toast.success("Notificação enviada para a caixa de entrada do militar.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível enviar a notificação.");
+    } finally {
+      setSendingNotificationId(null);
+    }
+  }
+
   function exportFullCSV() {
     const now = new Date();
     const headers = [
@@ -520,7 +606,7 @@ export default function AnalyticsDashboard() {
   }
 
   // move loader after hooks to preserve hook order
-  const pageLoading = authLoading || loading;
+  const pageLoading = authLoading || (canManage && loading);
 
   if (pageLoading) return <FullPageLoading message="Carregando analytics" />;
 
@@ -862,6 +948,14 @@ export default function AnalyticsDashboard() {
                 </button>
                 <button
                   type="button"
+                  onClick={exportPendingPdf}
+                  className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
+                >
+                  <FileText size={12} />
+                  PDF
+                </button>
+                <button
+                  type="button"
                   onClick={exportPendingCSV}
                   className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
                 >
@@ -974,9 +1068,13 @@ export default function AnalyticsDashboard() {
                         )}
                         <button
                           type="button"
-                          className="text-xs font-semibold text-primary hover:underline"
+                          onClick={() => void handleNotifyPendingRow(row)}
+                          disabled={sendingNotificationId === row.id}
+                          className="text-xs font-semibold text-primary hover:underline disabled:opacity-60"
                         >
-                          Notificar
+                          {sendingNotificationId === row.id
+                            ? "Notificando..."
+                            : "Notificar"}
                         </button>
                       </div>
                     </article>
@@ -1079,9 +1177,13 @@ export default function AnalyticsDashboard() {
                           <td className="px-6 py-4 text-right">
                             <button
                               type="button"
-                              className="text-xs font-semibold text-primary hover:underline"
+                              onClick={() => void handleNotifyPendingRow(row)}
+                              disabled={sendingNotificationId === row.id}
+                              className="text-xs font-semibold text-primary hover:underline disabled:opacity-60"
                             >
-                              Notificar
+                              {sendingNotificationId === row.id
+                                ? "Notificando..."
+                                : "Notificar"}
                             </button>
                           </td>
                         </tr>
@@ -1107,6 +1209,14 @@ export default function AnalyticsDashboard() {
                   Desempenho por Unidade
                 </h3>
               </div>
+              <button
+                type="button"
+                onClick={exportUnitsPdf}
+                className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-primary hover:text-primary transition-colors"
+              >
+                <FileText size={12} />
+                PDF
+              </button>
               <button
                 type="button"
                 onClick={exportUnitsCSV}
