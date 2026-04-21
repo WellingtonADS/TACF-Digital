@@ -17,21 +17,23 @@ import {
   ArrowRight,
   Shield,
   ShieldCheck,
-  User,
   type LucideIcon,
 } from "@/icons";
-import type { ProfileRole, Profile as UserProfile } from "@/types";
+import type {
+  AdministrativeProfileRole,
+  Profile as UserProfile,
+} from "@/types";
 import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { getSidebarRoutesForRole } from "@/router/routeRegistry";
 import { sidebarIconMap } from "@/router/sidebarIcons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const ROLE_ORDER: ProfileRole[] = ["admin", "coordinator", "user"];
+const ROLE_ORDER: AdministrativeProfileRole[] = ["admin", "coordinator"];
 const PAGE_SIZE = 10;
 
 const ROLE_META: Record<
-  ProfileRole,
+  AdministrativeProfileRole,
   { label: string; description: string; icon: LucideIcon }
 > = {
   admin: {
@@ -43,11 +45,6 @@ const ROLE_META: Record<
     label: "Coordenador",
     description: "Acesso operacional ampliado para execução e lançamento.",
     icon: ShieldCheck,
-  },
-  user: {
-    label: "Militar",
-    description: "Acesso aos fluxos pessoais e de agendamento.",
-    icon: User,
   },
 };
 
@@ -67,7 +64,7 @@ function PageHero({
         <div className="relative z-10">
           <div>
             <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-              Gestão de Perfis de Acesso
+              Gestão de Acesso Administrativo
             </h1>
             <p className="mt-2 text-sm text-white/85 md:text-base">
               Perfil selecionado: {selectedRole}
@@ -84,7 +81,8 @@ export default function AccessProfilesManagement() {
   const canView = profile?.role === "admin";
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [selectedRole, setSelectedRole] = useState<ProfileRole>("admin");
+  const [selectedRole, setSelectedRole] =
+    useState<AdministrativeProfileRole>("admin");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
@@ -104,7 +102,7 @@ export default function AccessProfilesManagement() {
         return (
           ROLE_ORDER.find((roleOption) =>
             nextProfiles.some((item) => item.role === roleOption),
-          ) || "user"
+          ) || "admin"
         );
       });
     } catch (err: unknown) {
@@ -129,7 +127,10 @@ export default function AccessProfilesManagement() {
     setCurrentPage(1);
   }, [selectedRole]);
 
-  async function updateUserRole(profileId: string, nextRole: ProfileRole) {
+  async function updateUserRole(
+    profileId: string,
+    nextRole: AdministrativeProfileRole,
+  ) {
     setSavingProfileId(profileId);
     try {
       await updateProfile(profileId, { role: nextRole });
@@ -222,10 +223,16 @@ export default function AccessProfilesManagement() {
             <div className="space-y-5 p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
-                  Perfis do Sistema
+                  Acessos Administrativos
                 </h2>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                  {profiles.length} usuários
+                  {
+                    profiles.filter(
+                      (item) =>
+                        item.role === "admin" || item.role === "coordinator",
+                    ).length
+                  }{" "}
+                  usuários
                 </span>
               </div>
 
@@ -385,7 +392,7 @@ export default function AccessProfilesManagement() {
                                     onChange={(event) =>
                                       updateUserRole(
                                         item.id,
-                                        event.target.value as ProfileRole,
+                                        event.target.value as AdministrativeProfileRole,
                                       )
                                     }
                                     className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
@@ -411,7 +418,7 @@ export default function AccessProfilesManagement() {
                           <thead className="bg-bg-default/80">
                             <tr>
                               <th className="min-w-[260px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
-                                Militar
+                                Usuário
                               </th>
                               <th className="min-w-[140px] px-4 py-4 text-xs font-bold uppercase tracking-wide text-text-muted lg:px-6">
                                 Posto
@@ -465,7 +472,7 @@ export default function AccessProfilesManagement() {
                                       onChange={(event) =>
                                         updateUserRole(
                                           item.id,
-                                          event.target.value as ProfileRole,
+                                          event.target.value as AdministrativeProfileRole,
                                         )
                                       }
                                       className="min-w-[190px] rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body focus-ring"

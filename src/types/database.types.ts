@@ -15,6 +15,7 @@ export type BookingStatus = "agendado" | "cancelado" | "remarcado";
 export type SwapStatus = "solicitado" | "aprovado" | "cancelado";
 export type LocationStatus = "active" | "maintenance" | "inactive";
 export type EvaluationIndexCategory = "masculino" | "feminino";
+export type NotificationLevel = "info" | "warning" | "error";
 
 export interface Database {
   public: {
@@ -138,6 +139,48 @@ export interface Database {
           user_name?: string | null;
           details?: string | null;
           created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      user_notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          level: NotificationLevel;
+          context: Json | null;
+          is_read: boolean;
+          read_at?: string | null;
+          created_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          message: string;
+          level?: NotificationLevel;
+          context?: Json | null;
+          is_read?: boolean;
+          read_at?: string | null;
+          created_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          message?: string;
+          level?: NotificationLevel;
+          context?: Json | null;
+          is_read?: boolean;
+          read_at?: string | null;
+          created_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
         };
         Relationships: [];
       };
@@ -522,6 +565,27 @@ export interface Database {
           created_at?: string | null;
         }[];
       };
+      log_audit_event: {
+        Args: {
+          p_action: string;
+          p_entity: string;
+          p_details?: string | null;
+        };
+        Returns: undefined;
+      };
+      send_pending_revalidation_notification: {
+        Args: {
+          p_user_id: string;
+          p_title: string;
+          p_message: string;
+          p_level?: NotificationLevel | null;
+          p_context?: Json | null;
+        };
+        Returns: {
+          notification_id: string;
+          success: boolean;
+        }[];
+      };
       approve_swap: {
         Args: { p_request_id: string; p_admin_id: string };
         Returns: { success: boolean; error: string }[];
@@ -583,3 +647,5 @@ export interface Database {
 export type Location = Database["public"]["Tables"]["locations"]["Row"];
 export type LocationSchedule =
   Database["public"]["Tables"]["location_schedules"]["Row"];
+export type UserNotification =
+  Database["public"]["Tables"]["user_notifications"]["Row"];

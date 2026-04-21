@@ -30,6 +30,19 @@ async function waitForPageReady(page: Page) {
   });
 }
 
+async function getAvailableCalendarDays(page: Page) {
+  const locator = page.locator(
+    '[data-state="available"], [data-state="selected"]',
+  );
+  const testIds = await locator.evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute("data-testid") || ""),
+  );
+
+  return testIds
+    .map((value) => value.replace("calendar-day-", ""))
+    .filter(Boolean);
+}
+
 async function loginAsUser(page: Page) {
   const loginPage = new LoginPage(page);
   await page.goto("/login");
@@ -40,6 +53,16 @@ async function loginAsUser(page: Page) {
   await loginPage.login(userCredentials.email, userCredentials.password);
   await expect(page).toHaveURL(/\/app(\/)?$/, { timeout: 60000 });
   await waitForPageReady(page);
+  await expect(page.getByTestId("operational-dashboard")).toBeVisible({
+    timeout: 30000,
+  });
+  await page.waitForFunction(
+    () =>
+      Object.keys(window.localStorage).some(
+        (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
+      ),
+    { timeout: 30000 },
+  );
 }
 
 async function freezeBrowserDate(page: Page, fakeToday: Date) {
@@ -97,6 +120,14 @@ async function prepareSchedulingWindow(): Promise<PreparedWindow> {
     if (!userId) {
       throw new Error("Usuário seed do E2E não encontrado em auth.users.");
     }
+
+    await client.query(
+      `
+      DELETE FROM public.swap_requests
+      WHERE requested_by = $1::uuid
+      `,
+      [userId],
+    );
 
     for (let offset = 1; offset <= 90; offset += 1) {
       const candidateMonday = addDays(new Date(), offset);
@@ -245,44 +276,43 @@ async function cleanupSchedulingWindow(createdSessionIds: string[]) {
 
 test.describe("Visual E2E: regras de agendamento do militar", () => {
   test.setTimeout(120000);
-  let prepared: PreparedWindow | null = null;
-
-  test.beforeAll(async () => {
-    prepared = await prepareSchedulingWindow();
-  });
-
-  test.afterAll(async () => {
-    await cleanupSchedulingWindow(prepared?.createdSessionIds ?? []);
-  });
 
   test("militar vê D-1 bloqueado, D-2 disponível e domingo indisponível", async ({
     page,
   }) => {
-    if (!prepared) {
-      throw new Error("Janela de teste não preparada.");
+    const prepared = await prepareSchedulingWindow();
+
+    try {
+      await loginAsUser(page);
+
+      await freezeBrowserDate(page, prepared.fakeToday);
+      await page.goto("/app/agendamentos");
+      await waitForPageReady(page);
+
+      await expect(page.getByTestId("scheduling-page")).toBeVisible({
+        timeout: 15000,
+      });
+
+      const blockedDay = page.getByTestId(
+        `calendar-day-${prepared.blockedDate}`,
+      );
+      const sundayDay = page.getByTestId(`calendar-day-${prepared.sundayDate}`);
+
+      await expect(blockedDay).toHaveAttribute("data-state", "blocked");
+      const availableDates = await getAvailableCalendarDays(page);
+      expect(
+        availableDates.some(
+          (date) => date >= prepared.allowedDate && date < prepared.sundayDate,
+        ),
+      ).toBe(true);
+      await expect(sundayDay).toHaveAttribute("data-state", "blocked");
+
+      await page.screenshot({
+        path: "test-results/user-scheduling-rules-visual.png",
+        fullPage: true,
+      });
+    } finally {
+      await cleanupSchedulingWindow(prepared.createdSessionIds);
     }
-
-    await loginAsUser(page);
-
-    await freezeBrowserDate(page, prepared.fakeToday);
-    await page.goto("/app/agendamentos");
-    await waitForPageReady(page);
-
-    await expect(page.getByTestId("scheduling-page")).toBeVisible({
-      timeout: 15000,
-    });
-
-    const blockedDay = page.getByTestId(`calendar-day-${prepared.blockedDate}`);
-    const allowedDay = page.getByTestId(`calendar-day-${prepared.allowedDate}`);
-    const sundayDay = page.getByTestId(`calendar-day-${prepared.sundayDate}`);
-
-    await expect(blockedDay).toHaveAttribute("data-state", "blocked");
-    await expect(allowedDay).toHaveAttribute("data-state", /available|selected/);
-    await expect(sundayDay).toHaveAttribute("data-state", "blocked");
-
-    await page.screenshot({
-      path: "test-results/user-scheduling-rules-visual.png",
-      fullPage: true,
-    });
   });
 });

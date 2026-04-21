@@ -54,14 +54,14 @@ test.describe("Observabilidade: Configurações e Perfis de Acesso", () => {
     const loginPage = new LoginPage(page);
     await loginAsAdmin(loginPage);
 
-    await page.goto("/app/configuracoes/perfis");
+    await page.goto("/app/configuracoes?tab=profiles");
     await waitForPageReady(page);
 
-    await expect(page.getByTestId("access-profiles-page")).toBeVisible({
+    await expect(page.getByTestId("system-settings-page")).toBeVisible({
       timeout: 15000,
     });
     await expect(
-      page.getByRole("heading", { name: /Perfis do Sistema/i }),
+      page.getByRole("button", { name: /Perfis de Acesso/i }),
     ).toBeVisible({ timeout: 10000 });
   });
 });

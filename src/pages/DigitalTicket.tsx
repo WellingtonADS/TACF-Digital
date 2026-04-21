@@ -4,7 +4,7 @@
  * @path src/pages/DigitalTicket.tsx
  */
 
-import RescheduleDialog from "@/components/Booking/RescheduleDialog";
+import RescheduleDialog from "@/components/RescheduleDialog";
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";

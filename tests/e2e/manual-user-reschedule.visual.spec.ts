@@ -1,6 +1,17 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { Client } from "pg";
 import { LoginPage } from "./pages/LoginPage";
+
+const MANUAL_RESCHEDULE_SOURCE = "e2e-manual-user-reschedule";
+const MANUAL_RESCHEDULE_REASON =
+  "Teste E2E visual com usuário real para validar reagendamento.";
+
+type ManualRescheduleSeed = {
+  userId: string;
+  createdBookingIds: string[];
+  createdSessionIds: string[];
+};
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -10,6 +21,58 @@ function requireEnv(name: string) {
 
 function getOptionalEnv(name: string) {
   return process.env[name];
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getCurrentSemester(date: Date) {
+  return date.getMonth() < 6 ? "1" : "2";
+}
+
+async function getNextEligibleDate(
+  client: Client,
+  minOffset: number,
+  blockedDates: Set<string>,
+) {
+  for (let offset = minOffset; offset <= 45; offset += 1) {
+    const candidate = addDays(new Date(), offset);
+    if (candidate.getDay() === 0) continue;
+
+    const key = toDateKey(candidate);
+    if (blockedDates.has(key)) continue;
+
+    const conflictRes = await client.query<{ total: number }>(
+      `
+      SELECT count(*)::int AS total
+      FROM public.sessions
+      WHERE date = $1::date
+        AND period = 'manha'::session_period
+      `,
+      [key],
+    );
+
+    if ((conflictRes.rows[0]?.total ?? 0) > 0) {
+      continue;
+    }
+
+    blockedDates.add(key);
+    return key;
+  }
+
+  throw new Error(
+    "Não foi possível encontrar datas elegíveis para a massa do reagendamento visual.",
+  );
 }
 
 async function waitForPageReady(page: Page) {
@@ -41,6 +104,220 @@ async function getBackendDashboardSummary(email: string, password: string) {
     next_session?: { date?: string | null } | null;
     has_pending_swap?: boolean | null;
   };
+}
+
+async function cleanupManualRescheduleSeed(seed: ManualRescheduleSeed | null) {
+  if (!seed) return;
+
+  const client = new Client({ connectionString: requireEnv("DATABASE_URL") });
+  await client.connect();
+
+  try {
+    await client.query(
+      `
+      DELETE FROM public.swap_requests
+      WHERE requested_by = $1::uuid
+        AND reason = $2
+      `,
+      [seed.userId, MANUAL_RESCHEDULE_REASON],
+    );
+
+    if (seed.createdBookingIds.length > 0) {
+      await client.query(
+        `
+        DELETE FROM public.bookings
+        WHERE id = ANY($1::uuid[])
+        `,
+        [seed.createdBookingIds],
+      );
+    }
+
+    if (seed.createdSessionIds.length > 0) {
+      await client.query(
+        `
+        DELETE FROM public.sessions
+        WHERE id = ANY($1::uuid[])
+        `,
+        [seed.createdSessionIds],
+      );
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+async function prepareManualRescheduleSeed(
+  email: string,
+): Promise<ManualRescheduleSeed> {
+  const client = new Client({ connectionString: requireEnv("DATABASE_URL") });
+  await client.connect();
+
+  try {
+    const userRes = await client.query<{ id: string }>(
+      `
+      SELECT id::text AS id
+      FROM auth.users
+      WHERE email = $1
+      LIMIT 1
+      `,
+      [email],
+    );
+
+    const userId = userRes.rows[0]?.id;
+    if (!userId) {
+      throw new Error("Usuário do teste manual não encontrado em auth.users.");
+    }
+
+    const previousBookingIdsRes = await client.query<{ id: string }>(
+      `
+      SELECT id::text AS id
+      FROM public.bookings
+      WHERE metadata ->> 'source' = $1
+      `,
+      [MANUAL_RESCHEDULE_SOURCE],
+    );
+
+    const previousSessionIdsRes = await client.query<{ id: string }>(
+      `
+      SELECT id::text AS id
+      FROM public.sessions
+      WHERE metadata ->> 'source' = $1
+      `,
+      [MANUAL_RESCHEDULE_SOURCE],
+    );
+
+    const previousBookingIds = previousBookingIdsRes.rows.map(({ id }) => id);
+    const previousSessionIds = previousSessionIdsRes.rows.map(({ id }) => id);
+
+    await client.query(
+      `
+      DELETE FROM public.swap_requests
+      WHERE requested_by = $1::uuid
+        AND reason = $2
+      `,
+      [userId, MANUAL_RESCHEDULE_REASON],
+    );
+
+    if (previousBookingIds.length > 0) {
+      await client.query(
+        `
+        DELETE FROM public.bookings
+        WHERE id = ANY($1::uuid[])
+        `,
+        [previousBookingIds],
+      );
+    }
+
+    if (previousSessionIds.length > 0) {
+      await client.query(
+        `
+        DELETE FROM public.sessions
+        WHERE id = ANY($1::uuid[])
+        `,
+        [previousSessionIds],
+      );
+    }
+
+    const reservedDates = new Set<string>();
+    const bookedDate = await getNextEligibleDate(client, 2, reservedDates);
+    const alternativeDate = await getNextEligibleDate(client, 4, reservedDates);
+    const semester = getCurrentSemester(new Date());
+
+    const bookedSessionRes = await client.query<{ id: string }>(
+      `
+      INSERT INTO public.sessions (
+        date,
+        period,
+        max_capacity,
+        status,
+        applicators,
+        metadata
+      )
+      VALUES (
+        $1::date,
+        'manha'::session_period,
+        21,
+        'open'::session_status,
+        ARRAY[]::text[],
+        jsonb_build_object('source', $2::text)
+      )
+      RETURNING id::text AS id
+      `,
+      [bookedDate, MANUAL_RESCHEDULE_SOURCE],
+    );
+
+    const alternativeSessionRes = await client.query<{ id: string }>(
+      `
+      INSERT INTO public.sessions (
+        date,
+        period,
+        max_capacity,
+        status,
+        applicators,
+        metadata
+      )
+      VALUES (
+        $1::date,
+        'manha'::session_period,
+        21,
+        'open'::session_status,
+        ARRAY[]::text[],
+        jsonb_build_object('source', $2::text)
+      )
+      RETURNING id::text AS id
+      `,
+      [alternativeDate, MANUAL_RESCHEDULE_SOURCE],
+    );
+
+    const bookedSessionId = bookedSessionRes.rows[0]?.id;
+    const alternativeSessionId = alternativeSessionRes.rows[0]?.id;
+
+    if (!bookedSessionId || !alternativeSessionId) {
+      throw new Error(
+        "Falha ao criar as sessões de apoio para o reagendamento visual.",
+      );
+    }
+
+    const bookingRes = await client.query<{ id: string }>(
+      `
+      INSERT INTO public.bookings (
+        session_id,
+        user_id,
+        status,
+        semester,
+        attendance_confirmed,
+        result_details,
+        metadata
+      )
+      VALUES (
+        $1::uuid,
+        $2::uuid,
+        'agendado'::booking_status,
+        $3::semester_type,
+        false,
+        NULL,
+        jsonb_build_object('source', $4::text)
+      )
+      RETURNING id::text AS id
+      `,
+      [bookedSessionId, userId, semester, MANUAL_RESCHEDULE_SOURCE],
+    );
+
+    const bookingId = bookingRes.rows[0]?.id;
+    if (!bookingId) {
+      throw new Error(
+        "Falha ao criar o booking válido para o reagendamento visual.",
+      );
+    }
+
+    return {
+      userId,
+      createdBookingIds: [bookingId],
+      createdSessionIds: [bookedSessionId, alternativeSessionId],
+    };
+  } finally {
+    await client.end();
+  }
 }
 
 async function getAvailableCalendarDays(page: Page) {
@@ -108,8 +385,19 @@ async function waitForToastText(page: Page, patterns: RegExp[]) {
 test.describe("Prático visual: usuário militar solicita reagendamento", () => {
   test.setTimeout(240000);
 
-  const email = getOptionalEnv("E2E_USER_EMAIL");
-  const password = getOptionalEnv("E2E_USER_PASSWORD");
+  const email = getOptionalEnv("E2E_USER_EMAIL") ?? getOptionalEnv("SEED_USER_EMAIL");
+  const password =
+    getOptionalEnv("E2E_USER_PASSWORD") ?? getOptionalEnv("SEED_USER_PASSWORD");
+  let manualSeed: ManualRescheduleSeed | null = null;
+
+  test.beforeAll(async () => {
+    if (!email || !password) return;
+    manualSeed = await prepareManualRescheduleSeed(email);
+  });
+
+  test.afterAll(async () => {
+    await cleanupManualRescheduleSeed(manualSeed);
+  });
 
   test("usuário real abre o agendamento existente e solicita reagendamento", async ({
     page,
@@ -137,6 +425,12 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
       timeout: 30000,
     });
 
+    await page.goto("/app/ticket");
+    await waitForPageReady(page);
+    await expect(page.getByText(/Comprovante de Agendamento/i)).toBeVisible({
+      timeout: 30000,
+    });
+
     const rescheduleButton = page.getByRole("button", {
       name: /Solicitar Reagendamento/i,
     });
@@ -161,7 +455,7 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
 
     const rescheduleDate = await findAlternativeAvailableDate(page, currentDate);
 
-    await page.goto("/app");
+    await page.goto("/app/ticket");
     await waitForPageReady(page);
     await page
       .getByRole("button", { name: /Solicitar Reagendamento/i })
@@ -180,7 +474,7 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
     await page.locator("#session-select").selectOption({ index: 1 });
     await page
       .locator("#reason")
-      .fill("Teste E2E visual com usuário real para validar reagendamento.");
+      .fill(MANUAL_RESCHEDULE_REASON);
 
     await page.screenshot({
       path: "test-results/manual-user-reschedule-filled.png",
@@ -194,9 +488,9 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
       /Já existe uma solicitação pendente/i,
     ]);
 
-    await page.goto("/app");
+    await page.goto("/app/ticket");
     await waitForPageReady(page);
-    await expect(page.getByText(/Reagendamento Pendente/i)).toBeVisible({
+    await expect(page.getByText(/Reagendamento pendente/i)).toBeVisible({
       timeout: 30000,
     });
 

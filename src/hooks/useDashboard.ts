@@ -6,9 +6,14 @@
  */
 
 import { fetchUserDashboardFallbackSummary } from "@/services/bookings";
+import {
+  fetchUserNotifications,
+  markUserNotificationAsRead,
+} from "@/services/notifications";
+import type { NotificationLevel, UserNotification } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { callRpcWithRetry } from "@/utils/rpc";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAuth from "./useAuth";
 
@@ -20,9 +25,13 @@ type SessionInfo = {
 };
 
 type NotificationItem = {
+  id: string;
   title: string;
   description: string;
-  level?: "info" | "warning" | "error";
+  level?: NotificationLevel;
+  isRead?: boolean;
+  createdAt?: string | null;
+  source: "system" | "inbox";
 };
 
 type NextSessionRpc = {
@@ -41,6 +50,24 @@ type DashboardPayload = {
   has_pending_swap?: boolean | null;
 };
 
+const DASHBOARD_REQUEST_TIMEOUT_MS = 10000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Dashboard request timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export default function useDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -55,59 +82,106 @@ export default function useDashboard() {
     null,
   );
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [markingNotificationId, setMarkingNotificationId] = useState<
+    string | null
+  >(null);
   const [refreshTick, setRefreshTick] = useState(0);
 
-  function buildNotifications(payload: {
-    nextSession: SessionInfo | null;
-    bookingsCount: number;
-    latestOrderNumber: string | null;
-  }) {
-    const notes: NotificationItem[] = [];
-    const inspsau = (
-      profile as { inspsau_valid_until?: string | null } | null
-    )?.inspsau_valid_until;
-    if (inspsau) {
-      const d = new Date(typeof inspsau === "string" ? inspsau : inspsau);
-      const now = new Date();
-      const days = Math.ceil(
-        (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      if (days <= 0)
+  const buildNotifications = useCallback(
+    (payload: {
+      nextSession: SessionInfo | null;
+      bookingsCount: number;
+      latestOrderNumber: string | null;
+    }) => {
+      const notes: NotificationItem[] = [];
+      const inspsau = (
+        profile as { inspsau_valid_until?: string | null } | null
+      )?.inspsau_valid_until;
+      if (inspsau) {
+        const d = new Date(typeof inspsau === "string" ? inspsau : inspsau);
+        const now = new Date();
+        const days = Math.ceil(
+          (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (days <= 0)
+          notes.push({
+            id: "inspsau-expirada",
+            title: "Inspeção de Saúde vencida",
+            description:
+              "Sua INSPSAU está vencida — procure a OM para atualizar.",
+            level: "warning",
+            source: "system",
+          });
+        else if (days <= 45)
+          notes.push({
+            id: "inspsau-proxima",
+            title: "Inspeção de Saúde próxima",
+            description: `Sua INSPSAU vence em ${days} dias.`,
+            level: "info",
+            source: "system",
+          });
+      }
+
+      if (payload.nextSession)
         notes.push({
-          title: "Inspeção de Saúde vencida",
-          description:
-            "Sua INSPSAU está vencida — procure a OM para atualizar.",
-          level: "warning",
-        });
-      else if (days <= 45)
-        notes.push({
-          title: "Inspeção de Saúde próxima",
-          description: `Sua INSPSAU vence em ${days} dias.`,
+          id: `next-session-${payload.nextSession.id}`,
+          title: "Próximo Agendamento",
+          description: `Você tem agendamento em ${payload.nextSession.date} (${formatSessionPeriod(payload.nextSession.period)}).`,
           level: "info",
+          source: "system",
         });
-    }
+      else if (payload.bookingsCount === 0)
+        notes.push({
+          id: "no-bookings",
+          title: "Sem agendamentos",
+          description: "Você ainda não tem agendamento confirmado.",
+          level: "info",
+          source: "system",
+        });
 
-    if (payload.nextSession)
-      notes.push({
-        title: "Próximo Agendamento",
-        description: `Você tem agendamento em ${payload.nextSession.date} (${formatSessionPeriod(payload.nextSession.period)}).`,
-        level: "info",
-      });
-    else if (payload.bookingsCount === 0)
-      notes.push({
-        title: "Sem agendamentos",
-        description: "Você ainda não tem agendamento confirmado.",
-        level: "info",
-      });
+      if (payload.latestOrderNumber)
+        notes.unshift({
+          id: `latest-ticket-${payload.latestOrderNumber}`,
+          title: "Bilhete disponível",
+          description: `Código: ${payload.latestOrderNumber}`,
+          source: "system",
+        });
 
-    if (payload.latestOrderNumber)
-      notes.unshift({
-        title: "Bilhete disponível",
-        description: `Código: ${payload.latestOrderNumber}`,
-      });
+      return notes;
+    },
+    [profile],
+  );
 
-    return notes;
-  }
+  const mapUserNotification = useCallback(
+    (item: UserNotification): NotificationItem => ({
+      id: item.id,
+      title: item.title,
+      description: item.message,
+      level: item.level,
+      isRead: item.is_read,
+      createdAt: item.created_at ?? null,
+      source: "inbox",
+    }),
+    [],
+  );
+
+  const sortNotifications = useCallback((items: NotificationItem[]) => {
+    return [...items].sort((a, b) => {
+      const aUnread = a.source === "inbox" && !a.isRead;
+      const bUnread = b.source === "inbox" && !b.isRead;
+      if (aUnread !== bUnread) {
+        return aUnread ? -1 : 1;
+      }
+
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (aTime !== bTime) {
+        return bTime - aTime;
+      }
+
+      return a.title.localeCompare(b.title);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,16 +241,20 @@ export default function useDashboard() {
               );
               if (days <= 0)
                 notes.push({
+                  id: "inspsau-expirada",
                   title: "Inspeção de Saúde vencida",
                   description:
                     "Sua INSPSAU está vencida — procure a OM para atualizar.",
                   level: "warning",
+                  source: "system",
                 });
               else if (days <= 45)
                 notes.push({
+                  id: "inspsau-proxima",
                   title: "Inspeção de Saúde próxima",
                   description: `Sua INSPSAU vence em ${days} dias.`,
                   level: "info",
+                  source: "system",
                 });
             }
             if (cancelled) return;
@@ -201,8 +279,10 @@ export default function useDashboard() {
               !resolvedNextSession
             ) {
               try {
-                const fallback =
-                  await fetchUserDashboardFallbackSummary(user.id);
+                const fallback = await withTimeout(
+                  fetchUserDashboardFallbackSummary(user.id),
+                  DASHBOARD_REQUEST_TIMEOUT_MS,
+                );
 
                 if (fallback.bookingsCount > 0 || fallback.nextSession) {
                   payload = {
@@ -214,7 +294,8 @@ export default function useDashboard() {
                           session_id: fallback.nextSession.sessionId,
                           date: fallback.nextSession.date,
                           period: fallback.nextSession.period,
-                          max_capacity: fallback.nextSession.maxCapacity ?? null,
+                          max_capacity:
+                            fallback.nextSession.maxCapacity ?? null,
                         }
                       : null,
                     next_session_booking_id:
@@ -229,8 +310,7 @@ export default function useDashboard() {
                         id: fallback.nextSession.sessionId,
                         date: fallback.nextSession.date,
                         period: fallback.nextSession.period,
-                        max_capacity:
-                          fallback.nextSession.maxCapacity ?? null,
+                        max_capacity: fallback.nextSession.maxCapacity ?? null,
                       }
                     : null;
                 }
@@ -251,13 +331,33 @@ export default function useDashboard() {
             setHasPendingSwap(Boolean(payload?.has_pending_swap));
 
             setLatestOrderNumber(payload?.latest_order_number ?? null);
+            const [systemNotifications, inboxNotifications] = await Promise.all(
+              [
+                Promise.resolve(
+                  buildNotifications({
+                    nextSession: resolvedNextSession,
+                    bookingsCount: Number(payload?.bookings_count ?? 0),
+                    latestOrderNumber: payload?.latest_order_number ?? null,
+                  }),
+                ),
+                withTimeout(
+                  fetchUserNotifications(),
+                  DASHBOARD_REQUEST_TIMEOUT_MS,
+                )
+                  .then((items) => items.map(mapUserNotification))
+                  .catch((notificationsError) => {
+                    console.error(notificationsError);
+                    return [];
+                  }),
+              ],
+            );
 
+            if (cancelled) return;
             setNotifications(
-              buildNotifications({
-                nextSession: resolvedNextSession,
-                bookingsCount: Number(payload?.bookings_count ?? 0),
-                latestOrderNumber: payload?.latest_order_number ?? null,
-              }),
+              sortNotifications([
+                ...inboxNotifications,
+                ...systemNotifications,
+              ]),
             );
             return;
           }
@@ -276,7 +376,14 @@ export default function useDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user, profile, refreshTick]);
+  }, [
+    user,
+    profile,
+    refreshTick,
+    buildNotifications,
+    mapUserNotification,
+    sortNotifications,
+  ]);
 
   return {
     user,
@@ -289,6 +396,28 @@ export default function useDashboard() {
     hasPendingSwap,
     latestOrderNumber,
     notifications,
+    unreadNotificationsCount: notifications.filter(
+      (item) => item.source === "inbox" && !item.isRead,
+    ).length,
+    markingNotificationId,
+    markNotificationAsRead: async (notificationId: string) => {
+      setMarkingNotificationId(notificationId);
+      try {
+        await markUserNotificationAsRead(notificationId);
+        setNotifications((current) =>
+          sortNotifications(
+            current.map((item) =>
+              item.id === notificationId ? { ...item, isRead: true } : item,
+            ),
+          ),
+        );
+      } catch (error) {
+        console.error(error);
+        toast.error("Nao foi possivel marcar a notificacao como lida.");
+      } finally {
+        setMarkingNotificationId(null);
+      }
+    },
     // Derived status for INSPSAU to avoid duplicating presentation logic in components
     inspsauStatus: (() => {
       const inspsau = (

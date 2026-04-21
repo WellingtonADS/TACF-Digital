@@ -16,21 +16,22 @@ import {
   fetchSessionBookingsWithProfiles,
   fetchSessionById,
   fetchSessionClosureChecklist,
-  type SessionClosureChecklist,
-  type SessionInfo,
   updateBookingAttendance,
   updateBookingResult,
   updateSession,
+  type SessionClosureChecklist,
+  type SessionInfo,
 } from "@/services/sessions";
 import type { BookingRow, Profile } from "@/types";
+import { formatSessionPeriod } from "@/utils/booking";
 import {
   buildBookingResultPayload,
   getBookingResultStatus,
   parseBookingResult,
   type BookingResultStatus,
 } from "@/utils/bookingResults";
-import { formatSessionPeriod } from "@/utils/booking";
 import { generateAttendanceListPdf } from "@/utils/pdf/generateAttendanceList";
+import { generateSessionFinalReportPdf } from "@/utils/pdf/generateSessionFinalReport";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -103,18 +104,27 @@ export default function SessionHubDialog({
   onEditRequested: (sessionId: string) => void;
 }) {
   const { profile } = useAuth();
-  const canManage = profile?.role === "admin" || profile?.role === "coordinator";
+  const canManage =
+    profile?.role === "admin" || profile?.role === "coordinator";
 
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [bookings, setBookings] = useState<BookingWithProfile[]>([]);
-  const [checklist, setChecklist] = useState<SessionClosureChecklist | null>(null);
+  const [checklist, setChecklist] = useState<SessionClosureChecklist | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [savingResult, setSavingResult] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
   const [reopeningSession, setReopeningSession] = useState(false);
-  const [updatingAttendance, setUpdatingAttendance] = useState<string | null>(null);
+  const [updatingAttendance, setUpdatingAttendance] = useState<string | null>(
+    null,
+  );
   const [resultDraft, setResultDraft] = useState<ResultDraft | null>(null);
+  const [currentBookingIndex, setCurrentBookingIndex] = useState<number | null>(
+    null,
+  );
+  const [finalizationDialogOpen, setFinalizationDialogOpen] = useState(false);
 
   const mode: SessionHubMode = session?.status === "open" ? "manage" : "view";
 
@@ -164,6 +174,8 @@ export default function SessionHubDialog({
   useEffect(() => {
     if (!open) {
       setResultDraft(null);
+      setCurrentBookingIndex(null);
+      setFinalizationDialogOpen(false);
       return;
     }
 
@@ -187,6 +199,22 @@ export default function SessionHubDialog({
       { apto: 0, inapto: 0, pendente: 0 },
     );
   }, [activeBookings]);
+
+  const currentResultBooking = useMemo(() => {
+    if (!resultDraft) {
+      return null;
+    }
+
+    return (
+      activeBookings.find((booking) => booking.id === resultDraft.bookingId) ??
+      null
+    );
+  }, [activeBookings, resultDraft]);
+
+  const hasNextBooking =
+    typeof currentBookingIndex === "number" &&
+    currentBookingIndex >= 0 &&
+    currentBookingIndex < activeBookings.length - 1;
 
   async function refreshAll() {
     await loadSession();
@@ -216,25 +244,48 @@ export default function SessionHubDialog({
     }
   }
 
-  async function handleSaveResult() {
+  async function handleSaveResult(andNext = false) {
     if (!resultDraft) {
       return;
     }
 
     setSavingResult(true);
     try {
-      await updateBookingResult(
-        resultDraft.bookingId,
-        buildBookingResultPayload({
-          result_status: resultDraft.resultStatus,
-          corrida: resultDraft.corrida,
-          flexao: resultDraft.flexao,
-          abdominal: resultDraft.abdominal,
-        }),
+      const payload = buildBookingResultPayload({
+        result_status: resultDraft.resultStatus,
+        corrida: resultDraft.corrida,
+        flexao: resultDraft.flexao,
+        abdominal: resultDraft.abdominal,
+      });
+
+      await updateBookingResult(resultDraft.bookingId, payload);
+
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === resultDraft.bookingId
+            ? { ...booking, result_details: payload }
+            : booking,
+        ),
       );
 
       toast.success("Lançamento salvo.");
+
+      if (
+        andNext &&
+        hasNextBooking &&
+        typeof currentBookingIndex === "number"
+      ) {
+        const nextBooking = activeBookings[currentBookingIndex + 1];
+        if (nextBooking) {
+          setCurrentBookingIndex(currentBookingIndex + 1);
+          setResultDraft(buildDraft(nextBooking));
+          await onSessionUpdated();
+          return;
+        }
+      }
+
       setResultDraft(null);
+      setCurrentBookingIndex(null);
       await refreshAll();
     } catch (error) {
       console.error(error);
@@ -251,8 +302,38 @@ export default function SessionHubDialog({
 
     setClosingSession(true);
     try {
-      await closeSessionWithChecklist(sessionId);
+      const closureResult = await closeSessionWithChecklist(sessionId);
+      const nextChecklist = closureResult.checklist;
+      setChecklist(nextChecklist);
+      generateSessionFinalReportPdf({
+        session: session
+          ? {
+              id: session.id,
+              date: session.date,
+              period: session.period,
+              max_capacity: session.max_capacity,
+              capacity: session.capacity,
+              location_id: session.location_id,
+              location_name: session.location_name,
+              coordinator_id: session.coordinator_id,
+              status: closureResult.session_status ?? "completed",
+            }
+          : {
+              id: sessionId,
+              date: new Date().toISOString().slice(0, 10),
+              period: "manha",
+              max_capacity: null,
+              capacity: null,
+              location_id: null,
+              location_name: null,
+              coordinator_id: null,
+              status: closureResult.session_status ?? "completed",
+            },
+        bookings,
+        checklist: nextChecklist,
+      });
       toast.success("Sessao concluida com sucesso.");
+      setFinalizationDialogOpen(false);
       await refreshAll();
     } catch (error) {
       console.error(error);
@@ -307,12 +388,29 @@ export default function SessionHubDialog({
     }
   }
 
+  function handlePrintFinalReport() {
+    if (!session) {
+      return;
+    }
+
+    try {
+      generateSessionFinalReportPdf({
+        session,
+        bookings,
+        checklist,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Nao foi possivel gerar o relatório final.");
+    }
+  }
+
   return (
     <>
       <Dialog
         open={open}
         onClose={onClose}
-        title={mode === "manage" ? "Hub de sessao" : "Consulta de sessao"}
+        title={mode === "manage" ? "Gestão da Turma" : "Consulta da Turma"}
         description={
           mode === "manage"
             ? "Operacao central da sessao. Pendencias sem lancamento serao tratadas como inapto ao concluir."
@@ -447,7 +545,9 @@ export default function SessionHubDialog({
                       <tr key={booking.id}>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-text-body">
-                            {booking.war_name || booking.full_name || "Sem nome"}
+                            {booking.war_name ||
+                              booking.full_name ||
+                              "Sem nome"}
                           </p>
                           <p className="text-xs text-text-muted">
                             {booking.rank ?? "--"} • {booking.saram ?? "--"}
@@ -469,7 +569,8 @@ export default function SessionHubDialog({
                                   handleAttendanceChange(booking.id, true)
                                 }
                                 disabled={
-                                  updatingAttendance === booking.id || !canManage
+                                  updatingAttendance === booking.id ||
+                                  !canManage
                                 }
                                 className={`rounded-md px-2 py-1 text-xs font-semibold ${
                                   booking.attendance_confirmed
@@ -485,7 +586,8 @@ export default function SessionHubDialog({
                                   handleAttendanceChange(booking.id, false)
                                 }
                                 disabled={
-                                  updatingAttendance === booking.id || !canManage
+                                  updatingAttendance === booking.id ||
+                                  !canManage
                                 }
                                 className={`rounded-md px-2 py-1 text-xs font-semibold ${
                                   !booking.attendance_confirmed
@@ -498,7 +600,9 @@ export default function SessionHubDialog({
                             </div>
                           ) : (
                             <span className="text-text-body">
-                              {booking.attendance_confirmed ? "Confirmada" : "Nao confirmada"}
+                              {booking.attendance_confirmed
+                                ? "Confirmada"
+                                : "Nao confirmada"}
                             </span>
                           )}
                         </td>
@@ -512,7 +616,13 @@ export default function SessionHubDialog({
                         <td className="px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => setResultDraft(buildDraft(booking))}
+                            onClick={() => {
+                              const index = activeBookings.findIndex(
+                                (item) => item.id === booking.id,
+                              );
+                              setCurrentBookingIndex(index >= 0 ? index : null);
+                              setResultDraft(buildDraft(booking));
+                            }}
                             className="inline-flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-xs font-semibold text-text-body hover:border-primary/30 hover:text-primary"
                           >
                             <AppIcon
@@ -520,7 +630,9 @@ export default function SessionHubDialog({
                               size="xs"
                               decorative
                             />
-                            {mode === "manage" ? "Lancar resultado" : "Ver resultado"}
+                            {mode === "manage"
+                              ? "Lancar resultado"
+                              : "Ver resultado"}
                           </button>
                         </td>
                       </tr>
@@ -546,19 +658,30 @@ export default function SessionHubDialog({
               </button>
 
               <div className="flex flex-wrap items-center gap-2">
+                {mode === "view" && (
+                  <button
+                    type="button"
+                    onClick={handlePrintFinalReport}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
+                  >
+                    <FileDown size={16} />
+                    Imprimir relatório final
+                  </button>
+                )}
                 {mode === "manage" ? (
                   <>
                     <button
                       type="button"
                       onClick={() => onEditRequested(session.id)}
+                      disabled={!canManage}
                       className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
                     >
                       <Edit2 size={16} />
-                      Editar sessao
+                      Editar dados da sessao
                     </button>
                     <button
                       type="button"
-                      onClick={handleFinalizeSession}
+                      onClick={() => setFinalizationDialogOpen(true)}
                       disabled={closingSession || !canManage}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                     >
@@ -592,12 +715,96 @@ export default function SessionHubDialog({
       </Dialog>
 
       <Dialog
+        open={finalizationDialogOpen}
+        onClose={() => {
+          if (!closingSession) {
+            setFinalizationDialogOpen(false);
+          }
+        }}
+        closeDisabled={closingSession}
+        title="Confirmacao de finalizacao"
+        description="Confirme para concluir a sessao e gerar automaticamente o relatorio final em PDF."
+        widthClassName="max-w-2xl"
+        footer={
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setFinalizationDialogOpen(false)}
+              disabled={closingSession}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFinalizationDialogOpen(false);
+                toast.success(
+                  "Dados preservados. A sessão permanece aberta para novos lançamentos.",
+                );
+              }}
+              disabled={closingSession}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+            >
+              Salvar como rascunho
+            </button>
+            <button
+              type="button"
+              onClick={handleFinalizeSession}
+              disabled={closingSession}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {closingSession ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <FileDown size={16} />
+              )}
+              Finalizar e gerar PDF
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <section className="rounded-xl border border-border-default bg-bg-default p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <p className="text-sm font-semibold text-text-body">
+                Avaliados:{" "}
+                <span className="font-bold">
+                  {summary.apto + summary.inapto}
+                </span>
+              </p>
+              <p className="text-sm font-semibold text-alert">
+                Pendentes:{" "}
+                <span className="font-bold">
+                  {checklist?.results_pending ?? summary.pendente}
+                </span>
+              </p>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-alert/40 bg-alert/10 p-4 text-sm text-text-body">
+            <p className="font-semibold text-alert">
+              Atencao antes de concluir
+            </p>
+            <p className="mt-1 text-text-muted">
+              Avaliações pendentes serão convertidas para "Não Realizado".
+            </p>
+          </section>
+        </div>
+      </Dialog>
+
+      <Dialog
         open={resultDraft !== null}
-        onClose={() => setResultDraft(null)}
-        title={mode === "manage" ? "Lançamento de performance" : "Resultado lançado"}
+        onClose={() => {
+          setResultDraft(null);
+          setCurrentBookingIndex(null);
+        }}
+        title={
+          mode === "manage" ? "Lançamento de Performance" : "Resultado lançado"
+        }
         description={
           mode === "manage"
-            ? "Salve corrida, flexao, abdominal e o resultado final."
+            ? `Avaliado: ${currentResultBooking?.war_name ?? currentResultBooking?.full_name ?? "Não informado"}`
             : "Consulta somente leitura do lançamento realizado."
         }
         widthClassName="max-w-xl"
@@ -606,24 +813,42 @@ export default function SessionHubDialog({
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setResultDraft(null)}
+                onClick={() => {
+                  setResultDraft(null);
+                  setCurrentBookingIndex(null);
+                }}
                 className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={handleSaveResult}
+                onClick={() => void handleSaveResult(false)}
                 disabled={savingResult}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
               >
                 {savingResult ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Save size={16} />
                 )}
-                Salvar lançamento
+                Salvar
               </button>
+              {hasNextBooking ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveResult(true)}
+                  disabled={savingResult}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {savingResult ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  Salvar e Próximo
+                </button>
+              ) : null}
             </div>
           ) : undefined
         }
@@ -687,9 +912,7 @@ export default function SessionHubDialog({
                 onClick={() =>
                   mode === "manage" &&
                   setResultDraft((current) =>
-                    current
-                      ? { ...current, resultStatus: "apto" }
-                      : current,
+                    current ? { ...current, resultStatus: "apto" } : current,
                   )
                 }
                 disabled={mode === "view"}
@@ -707,9 +930,7 @@ export default function SessionHubDialog({
                 onClick={() =>
                   mode === "manage" &&
                   setResultDraft((current) =>
-                    current
-                      ? { ...current, resultStatus: "inapto" }
-                      : current,
+                    current ? { ...current, resultStatus: "inapto" } : current,
                   )
                 }
                 disabled={mode === "view"}
@@ -723,6 +944,28 @@ export default function SessionHubDialog({
                 Inapto
               </button>
             </div>
+
+            {typeof currentBookingIndex === "number" ? (
+              <section className="space-y-2 rounded-xl border border-border-default bg-bg-default p-3">
+                <div className="flex items-center justify-between text-xs font-semibold text-text-muted">
+                  <span>Progresso da avaliação</span>
+                  <span>
+                    Avaliado{" "}
+                    {Math.min(currentBookingIndex + 1, activeBookings.length)}{" "}
+                    de {activeBookings.length}
+                  </span>
+                </div>
+                <progress
+                  className="h-2 w-full rounded-full overflow-hidden accent-primary"
+                  value={Math.min(
+                    currentBookingIndex + 1,
+                    activeBookings.length,
+                  )}
+                  max={Math.max(activeBookings.length, 1)}
+                  aria-label="Progresso de avaliados"
+                />
+              </section>
+            ) : null}
           </div>
         ) : null}
       </Dialog>

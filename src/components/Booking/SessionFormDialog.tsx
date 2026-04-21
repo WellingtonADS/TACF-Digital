@@ -13,8 +13,9 @@ import type { Database, SessionPeriod } from "@/types/database.types";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type SessionFormMode = "create" | "edit";
-type DateMode = "single" | "week" | "month";
+type SessionFormMode = "create" | "edit" | "duplicate";
+type DateMode = "single" | "week" | "fortnight" | "month";
+type EvaluationType = "padrao" | "especializada";
 
 type SessionFormDialogProps = {
   open: boolean;
@@ -28,8 +29,10 @@ type SessionFormState = {
   dateMode: DateMode;
   date: string;
   weekValue: string;
+  fortnightValue: string;
   monthValue: string;
   period: SessionPeriod;
+  evaluation_type: EvaluationType;
   location_id: string;
   coordinator_id: string;
   min_capacity: number;
@@ -52,8 +55,10 @@ const INITIAL_FORM: SessionFormState = {
   dateMode: "single",
   date: "",
   weekValue: "",
+  fortnightValue: "",
   monthValue: "",
   period: "manha",
+  evaluation_type: "padrao",
   location_id: "",
   coordinator_id: "",
   min_capacity: FALLBACK_DEFAULTS.min_capacity,
@@ -110,6 +115,33 @@ function getMonthWeekdays(monthValue: string): string[] {
   return result;
 }
 
+function getFortnightDates(weekValue: string): string[] {
+  const firstWeek = getWeekDates(weekValue);
+  if (firstWeek.length === 0) {
+    return [];
+  }
+
+  const secondWeek = firstWeek.map((dateStr) => {
+    const date = new Date(`${dateStr}T12:00:00`);
+    date.setDate(date.getDate() + 7);
+    return toDateStr(date);
+  });
+
+  return [...firstWeek, ...secondWeek];
+}
+
+function resolveEvaluationType(
+  metadata: Database["public"]["Tables"]["sessions"]["Row"]["metadata"],
+): EvaluationType {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return "padrao";
+  }
+
+  const evaluationType = (metadata as { evaluation_type?: unknown })
+    .evaluation_type;
+  return evaluationType === "especializada" ? "especializada" : "padrao";
+}
+
 function normalizeSessionDefaults(
   settings: Awaited<ReturnType<typeof fetchSystemSettings>>,
 ): SessionDefaults {
@@ -141,12 +173,17 @@ function buildEditForm(
     dateMode: "single",
     date: session.date ?? "",
     weekValue: "",
+    fortnightValue: "",
     monthValue: "",
-    period: (session.period as SessionPeriod | null) ?? defaults.default_periods[0],
+    period:
+      (session.period as SessionPeriod | null) ?? defaults.default_periods[0],
+    evaluation_type: resolveEvaluationType(session.metadata),
     location_id: session.location_id ?? "",
     coordinator_id:
       session.coordinator_id ??
-      (Array.isArray(session.applicators) ? session.applicators[0] ?? "" : ""),
+      (Array.isArray(session.applicators)
+        ? (session.applicators[0] ?? "")
+        : ""),
     min_capacity: session.capacity ?? defaults.min_capacity,
     max_capacity: session.max_capacity ?? defaults.max_capacity,
   };
@@ -156,7 +193,7 @@ function resolveSessionDates(
   mode: SessionFormMode,
   form: SessionFormState,
 ): string[] {
-  if (mode === "edit") {
+  if (mode === "edit" || mode === "duplicate") {
     return form.date ? [form.date] : [];
   }
 
@@ -166,6 +203,10 @@ function resolveSessionDates(
 
   if (form.dateMode === "week") {
     return getWeekDates(form.weekValue);
+  }
+
+  if (form.dateMode === "fortnight") {
+    return getFortnightDates(form.fortnightValue);
   }
 
   return getMonthWeekdays(form.monthValue);
@@ -214,13 +255,17 @@ export default function SessionFormDialog({
         setDefaults(nextDefaults);
         setCoordinators(fetchedCoordinators);
 
-        if (mode === "edit" && sessionId) {
+        if ((mode === "edit" || mode === "duplicate") && sessionId) {
           const { session } = await fetchSessionForEdit(sessionId);
           if (!active) {
             return;
           }
 
-          setForm(buildEditForm(session, nextDefaults));
+          const editForm = buildEditForm(session, nextDefaults);
+          setForm({
+            ...editForm,
+            date: mode === "duplicate" ? "" : editForm.date,
+          });
         } else {
           setForm({
             ...INITIAL_FORM,
@@ -232,7 +277,7 @@ export default function SessionFormDialog({
       } catch (error) {
         console.error(error);
         toast.error(
-          mode === "create"
+          mode === "create" || mode === "duplicate"
             ? "Nao foi possivel carregar o formulario de sessao."
             : "Nao foi possivel carregar os dados da sessao.",
         );
@@ -256,7 +301,8 @@ export default function SessionFormDialog({
   }, [defaults.default_periods]);
 
   const selectedLocation = useMemo(
-    () => locations.find((location) => location.id === form.location_id) ?? null,
+    () =>
+      locations.find((location) => location.id === form.location_id) ?? null,
     [locations, form.location_id],
   );
 
@@ -278,7 +324,9 @@ export default function SessionFormDialog({
     }
 
     if (dates.some(isWeekend)) {
-      toast.error("Sessoes nao podem ser criadas ou editadas aos fins de semana.");
+      toast.error(
+        "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
+      );
       return;
     }
 
@@ -305,13 +353,16 @@ export default function SessionFormDialog({
     setSaving(true);
 
     try {
-      if (mode === "create") {
+      if (mode === "create" || mode === "duplicate") {
         const rows: Database["public"]["Tables"]["sessions"]["Insert"][] =
           dates.map((date) => ({
             date,
             period: form.period,
             capacity: form.min_capacity,
             max_capacity: form.max_capacity,
+            metadata: {
+              evaluation_type: form.evaluation_type,
+            },
             location_id: form.location_id,
             coordinator_id: form.coordinator_id,
             applicators: [form.coordinator_id],
@@ -320,9 +371,11 @@ export default function SessionFormDialog({
 
         await createSessions(rows);
         toast.success(
-          rows.length === 1
-            ? "Sessao criada com sucesso."
-            : `${rows.length} sessoes criadas com sucesso.`,
+          mode === "duplicate"
+            ? "Sessao duplicada com sucesso."
+            : rows.length === 1
+              ? "Sessao criada com sucesso."
+              : `${rows.length} sessoes criadas com sucesso.`,
         );
       } else {
         if (!sessionId) {
@@ -334,6 +387,9 @@ export default function SessionFormDialog({
           period: form.period,
           capacity: form.min_capacity,
           max_capacity: form.max_capacity,
+          metadata: {
+            evaluation_type: form.evaluation_type,
+          },
           location_id: form.location_id,
           coordinator_id: form.coordinator_id,
           applicators: [form.coordinator_id],
@@ -351,7 +407,7 @@ export default function SessionFormDialog({
       } else {
         toast.error(
           err?.message ??
-            (mode === "create"
+            (mode === "create" || mode === "duplicate"
               ? "Nao foi possivel criar a sessao."
               : "Nao foi possivel atualizar a sessao."),
         );
@@ -362,7 +418,7 @@ export default function SessionFormDialog({
   }
 
   const previewDates = useMemo(() => {
-    if (mode === "edit") {
+    if (mode === "edit" || mode === "duplicate") {
       return [];
     }
 
@@ -394,11 +450,19 @@ export default function SessionFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={mode === "create" ? "Nova sessao" : "Editar sessao"}
+      title={
+        mode === "create"
+          ? "Configurar Nova Sessão"
+          : mode === "duplicate"
+            ? "Duplicar Sessão"
+            : "Editar Sessão"
+      }
       description={
         mode === "create"
           ? "Crie novas sessoes sem sair do Hub."
-          : "As alteracoes feitas aqui valem apenas para esta sessao e nao alteram o cadastro global do local."
+          : mode === "duplicate"
+            ? "Crie uma nova sessao reaproveitando a configuracao da turma selecionada."
+            : "As alteracoes feitas aqui valem apenas para esta sessao e nao alteram o cadastro global do local."
       }
       widthClassName="max-w-4xl"
       footer={
@@ -421,7 +485,11 @@ export default function SessionFormDialog({
             ) : (
               <Save size={16} />
             )}
-            {mode === "create" ? "Salvar sessao" : "Salvar alteracoes"}
+            {mode === "create"
+              ? "Gerar Sessões"
+              : mode === "duplicate"
+                ? "Duplicar sessao"
+                : "Salvar alteracoes"}
           </button>
         </div>
       }
@@ -445,9 +513,10 @@ export default function SessionFormDialog({
               <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
                 {(
                   [
-                    { mode: "single" as DateMode, label: "Um dia" },
-                    { mode: "week" as DateMode, label: "Uma semana" },
-                    { mode: "month" as DateMode, label: "Um mes" },
+                    { mode: "single" as DateMode, label: "Dia Único" },
+                    { mode: "week" as DateMode, label: "Semana" },
+                    { mode: "fortnight" as DateMode, label: "Quinzena" },
+                    { mode: "month" as DateMode, label: "Mês" },
                   ] as const
                 ).map((option) => (
                   <button
@@ -479,7 +548,9 @@ export default function SessionFormDialog({
                 className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body"
               >
                 <option value="">
-                  {loadingLocations ? "Carregando locais..." : "Selecione um local"}
+                  {loadingLocations
+                    ? "Carregando locais..."
+                    : "Selecione um local"}
                 </option>
                 {locations.map((location) => (
                   <option key={location.id} value={location.id}>
@@ -490,7 +561,8 @@ export default function SessionFormDialog({
               </select>
               {selectedLocation ? (
                 <span className="block text-xs text-text-muted">
-                  Padrao global atual do local: {selectedLocation.max_capacity} vagas.
+                  Padrao global atual do local: {selectedLocation.max_capacity}{" "}
+                  vagas.
                 </span>
               ) : null}
             </label>
@@ -507,12 +579,15 @@ export default function SessionFormDialog({
                 <option value="">Selecione um coordenador</option>
                 {coordinators.map((coordinator) => (
                   <option key={coordinator.id} value={coordinator.id}>
-                    {coordinator.full_name ?? coordinator.war_name ?? coordinator.id}
+                    {coordinator.full_name ??
+                      coordinator.war_name ??
+                      coordinator.id}
                   </option>
                 ))}
               </select>
               <span className="block text-xs text-text-muted">
-                O coordenador selecionado sera o responsavel pela aplicacao desta sessao no dia.
+                O coordenador selecionado sera o responsavel pela aplicacao
+                desta sessao no dia.
               </span>
             </label>
           </section>
@@ -524,7 +599,21 @@ export default function SessionFormDialog({
                 <input
                   type="week"
                   value={form.weekValue}
-                  onChange={(event) => updateField("weekValue", event.target.value)}
+                  onChange={(event) =>
+                    updateField("weekValue", event.target.value)
+                  }
+                  className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body"
+                />
+              </label>
+            ) : mode === "create" && form.dateMode === "fortnight" ? (
+              <label className="space-y-2 text-sm font-medium text-text-body">
+                <span>Quinzena (início)</span>
+                <input
+                  type="week"
+                  value={form.fortnightValue}
+                  onChange={(event) =>
+                    updateField("fortnightValue", event.target.value)
+                  }
                   className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body"
                 />
               </label>
@@ -554,19 +643,50 @@ export default function SessionFormDialog({
 
             <label className="space-y-2 text-sm font-medium text-text-body">
               <span>Turno</span>
-              <select
-                value={form.period}
-                onChange={(event) =>
-                  updateField("period", event.target.value as SessionPeriod)
-                }
-                className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body"
-              >
+              <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
                 {periodOptions.map((period) => (
-                  <option key={period} value={period}>
-                    {period === "manha" ? "Manha" : "Tarde"}
-                  </option>
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => updateField("period", period)}
+                    className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                      form.period === period
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-text-muted hover:text-text-body"
+                    }`}
+                  >
+                    {period === "manha" ? "Manhã" : "Tarde"}
+                  </button>
                 ))}
-              </select>
+              </div>
+            </label>
+
+            <label className="space-y-2 text-sm font-medium text-text-body">
+              <span>Tipo de avaliação</span>
+              <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
+                {(
+                  [
+                    { value: "padrao" as EvaluationType, label: "Padrão" },
+                    {
+                      value: "especializada" as EvaluationType,
+                      label: "Especializada",
+                    },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateField("evaluation_type", option.value)}
+                    className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                      form.evaluation_type === option.value
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-text-muted hover:text-text-body"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </label>
           </section>
 

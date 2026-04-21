@@ -14,6 +14,7 @@ export type SessionForEdit = {
   period: string | null;
   max_capacity: number | null;
   capacity: number | null;
+  metadata: Database["public"]["Tables"]["sessions"]["Row"]["metadata"];
   location_id: string | null;
   applicators: string[] | null;
   coordinator_id: string | null;
@@ -80,7 +81,7 @@ export async function fetchSessionForEdit(sessionId: string): Promise<{
     supabase
       .from("sessions")
       .select(
-        "id, date, period, max_capacity, capacity, location_id, applicators, coordinator_id, status",
+        "id, date, period, max_capacity, capacity, metadata, location_id, applicators, coordinator_id, status",
       )
       .eq("id", sessionId)
       .single(),
@@ -128,7 +129,10 @@ export async function fetchSessionById(
     location_id?: string | null;
     coordinator_id?: string | null;
     status: Database["public"]["Tables"]["sessions"]["Row"]["status"];
-    location?: { name?: string | null } | Array<{ name?: string | null }> | null;
+    location?:
+      | { name?: string | null }
+      | Array<{ name?: string | null }>
+      | null;
   };
 
   const locationRaw = Array.isArray(sessionData.location)
@@ -310,8 +314,7 @@ export async function updateBookingResult(
       typeof resultDetails === "string"
         ? resultDetails
         : resultDetails.result_status,
-    p_result_payload:
-      typeof resultDetails === "string" ? null : resultDetails,
+    p_result_payload: typeof resultDetails === "string" ? null : resultDetails,
   });
   if (error) throw error;
 }

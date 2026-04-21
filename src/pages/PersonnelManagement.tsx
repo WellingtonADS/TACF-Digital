@@ -8,12 +8,7 @@ import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
-import {
-  fetchPersonnelList,
-  getProfileWithHistory,
-  updateProfile,
-} from "@/services/personnel";
-import { getBookingResultStatus } from "@/utils/bookingResults";
+import useAuth from "@/hooks/useAuth";
 import {
   Award,
   Calendar,
@@ -33,6 +28,12 @@ import {
   X,
   XCircle,
 } from "@/icons";
+import {
+  fetchPersonnelList,
+  getProfileWithHistory,
+  updateProfile,
+} from "@/services/personnel";
+import { getBookingResultStatus } from "@/utils/bookingResults";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,6 +50,24 @@ type PersonnelRow = {
   lastScore: number | null;
   status: "APTO" | "INAPTO" | "VENCIDO";
 };
+
+const PERSONNEL_REQUEST_TIMEOUT_MS = 10000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Personnel request timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 const RANK_OPTIONS = [
   "Todos",
@@ -158,6 +177,7 @@ type UserDetail = {
 };
 
 export default function PersonnelManagement() {
+  const { loading: authLoading } = useAuth();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
@@ -254,8 +274,10 @@ export default function PersonnelManagement() {
   }
 
   useEffect(() => {
+    if (authLoading) return;
+
     setLoading(true);
-    fetchPersonnelList()
+    withTimeout(fetchPersonnelList(), PERSONNEL_REQUEST_TIMEOUT_MS)
       .then(({ profiles, latestBookings }) => {
         const mapped: PersonnelRow[] = profiles.map((profile) => {
           const latest = latestBookings.get(profile.id);
@@ -281,9 +303,12 @@ export default function PersonnelManagement() {
         });
         setRows(mapped);
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error(error);
+        setRows([]);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [authLoading]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -319,7 +344,7 @@ export default function PersonnelManagement() {
     return { apto, vencido, inapto, testsThisMonth, aptoPercent };
   }, [rows]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <FullPageLoading message="Carregando efetivo" />;
   }
 

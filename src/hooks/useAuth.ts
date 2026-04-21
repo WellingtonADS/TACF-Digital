@@ -12,6 +12,40 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
 type Profile = DBProfile | null;
+const AUTH_REQUEST_TIMEOUT_MS = 8000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Auth request timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+function getErrorMessage(err: unknown): string {
+  const errObj = err as Record<string, unknown> | null | undefined;
+  return (
+    (errObj?.message as string) ||
+    (errObj?.error_description as string) ||
+    (err instanceof Error ? err.message : String(err ?? ""))
+  ).toLowerCase();
+}
+
+function isInvalidRefreshTokenError(err: unknown): boolean {
+  const message = getErrorMessage(err);
+  return (
+    message.includes("invalid refresh token") ||
+    message.includes("refresh token not found")
+  );
+}
 
 export default function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,12 +62,49 @@ export default function useAuth() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const clearLocalAuthState = useCallback(async () => {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (_: unknown) {
+      /* local signout may fail if there is no persisted session */
+    }
+
+    setUser(null);
+    setProfile(null);
+
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(SESSION_PROFILE_KEY);
+      }
+    } catch (_: unknown) {
+      /* sessionStorage can throw in restricted contexts */
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData?.user?.id;
+      // getSession() usa armazenamento local e evita bloquear a UI por falhas de rede
+      // durante o bootstrap de autenticação no client.
+      const {
+        data: { session },
+        error: authError,
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_REQUEST_TIMEOUT_MS,
+      );
+
+      if (authError) {
+        if (isInvalidRefreshTokenError(authError)) {
+          await clearLocalAuthState();
+          return;
+        }
+
+        throw authError;
+      }
+
+      const uid = session?.user?.id;
       if (!uid) {
         // no logged user; in development allow a preview profile fallback
         setUser(null);
@@ -59,21 +130,24 @@ export default function useAuth() {
         return;
       }
 
-      setUser(userData?.user ?? null);
+      setUser(session?.user ?? null);
 
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", uid)
-        .maybeSingle();
+      // Se já existe perfil em cache, libera a tela e atualiza silenciosamente em background.
+      if (profile) {
+        setLoading(false);
+      }
+
+      const { data: p } = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+        AUTH_REQUEST_TIMEOUT_MS,
+      );
 
       if (!p && import.meta.env.MODE !== "production") {
         // user has no profile in DB — fallback to first profile in dev for easier testing
-        const { data: fallback } = await supabase
-          .from("profiles")
-          .select("*")
-          .limit(1)
-          .maybeSingle();
+        const { data: fallback } = await withTimeout(
+          supabase.from("profiles").select("*").limit(1).maybeSingle(),
+          AUTH_REQUEST_TIMEOUT_MS,
+        );
 
         const val = (fallback as Profile) ?? null;
         setProfile(val);
@@ -98,7 +172,7 @@ export default function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearLocalAuthState, profile]);
 
   // Carrega o perfil sem chamar getUser() — usado no onAuthStateChange
   // para evitar o loop infinito (getUser() dispara novo evento de auth no Supabase v2)
@@ -119,11 +193,10 @@ export default function useAuth() {
 
       setUser(session!.user as User);
 
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", uid)
-        .maybeSingle();
+      const { data: p } = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+        AUTH_REQUEST_TIMEOUT_MS,
+      );
 
       const val = (p as Profile) ?? null;
       setProfile(val);
@@ -143,7 +216,7 @@ export default function useAuth() {
       (_event, session) => {
         // Usa a sessão do evento diretamente — NÃO chama getUser() aqui para
         // evitar loop infinito: getUser() → dispara novo onAuthStateChange no Supabase v2
-        loadProfileFromSession(session);
+        void loadProfileFromSession(session);
       },
     );
     return () => {
@@ -154,15 +227,8 @@ export default function useAuth() {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    try {
-      if (typeof window !== "undefined")
-        sessionStorage.removeItem(SESSION_PROFILE_KEY);
-    } catch (_: unknown) {
-      /* sessionStorage can throw in restricted contexts */
-    }
-  }, []);
+    await clearLocalAuthState();
+  }, [clearLocalAuthState]);
 
   const updateProfile = useCallback(async (payload: Partial<Profile>) => {
     try {

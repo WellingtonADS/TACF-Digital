@@ -66,6 +66,7 @@ export {
   Plane,
   Plus,
   Printer,
+  RotateCcw,
   Save,
   Search,
   Settings,
