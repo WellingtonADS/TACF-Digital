@@ -218,7 +218,9 @@ export async function fetchCoordinators(): Promise<Coordinator[]> {
 export async function fetchAllProfilesForAccess(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, rank, role, active, updated_at, created_at")
+    .select(
+      "id, full_name, war_name, email, rank, role, active, sector, metadata, updated_at, created_at",
+    )
     .order("role")
     .order("full_name");
   if (error) throw error;

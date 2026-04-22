@@ -17,7 +17,12 @@ export default function AutoRedirect() {
   }
 
   if (user) {
-    return <Navigate to={getDefaultHomeByRole(profile?.role)} replace />;
+    return (
+      <Navigate
+        to={getDefaultHomeByRole(profile?.role, profile?.metadata ?? null)}
+        replace
+      />
+    );
   }
 
   return <Navigate to="/login" replace />;

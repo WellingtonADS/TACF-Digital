@@ -5,8 +5,8 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import { canAccessRoute } from "@/router/routeAccess";
-import { Navigate } from "react-router-dom";
+import { canAccessAdminPath, canAccessRoute } from "@/router/routeAccess";
+import { Navigate, useLocation } from "react-router-dom";
 import ForbiddenState from "./ForbiddenState";
 import FullPageLoading from "./FullPageLoading";
 
@@ -21,6 +21,7 @@ export default function AdminRoute({
   children: JSX.Element | null;
 }) {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
   const hasCachedProfile = Boolean(profile);
 
   if (loading && !hasCachedProfile) {
@@ -31,7 +32,14 @@ export default function AdminRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (canAccessRoute(profile?.role, "admin")) {
+  if (
+    canAccessRoute(profile?.role, "admin") &&
+    canAccessAdminPath(
+      profile?.role,
+      profile?.metadata ?? null,
+      location.pathname,
+    )
+  ) {
     return children;
   }
 

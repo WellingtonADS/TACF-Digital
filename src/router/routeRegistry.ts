@@ -1,5 +1,5 @@
-import type { AppRouteMeta, ProfileRole } from "@/types";
-import { isAdminLike } from "./routeAccess";
+import type { AppRouteMeta, Json, ProfileRole } from "@/types";
+import { getAllowedAdminModulePaths, isAdminLike } from "./routeAccess";
 
 export const appRouteRegistry: AppRouteMeta[] = [
   {
@@ -172,21 +172,14 @@ export const appRouteRegistry: AppRouteMeta[] = [
     sidebarIcon: "shield",
     sidebarOrder: 80,
   },
-  {
-    path: "/app/om-locations",
-    access: "admin",
-    section: "infra",
-    showInSidebar: true,
-    prefetch: true,
-    lazyLoader: () => import("../pages/OmLocationManager"),
-    sidebarLabel: "Locais de Avaliação",
-    sidebarIcon: "map-pin",
-    sidebarOrder: 35,
-  },
 ];
 
-export function getSidebarRoutesForRole(role: ProfileRole | null | undefined) {
+export function getSidebarRoutesForRole(
+  role: ProfileRole | null | undefined,
+  metadata?: Json | null,
+) {
   const access = isAdminLike(role) ? "admin" : "user";
+  const allowedAdminPaths = new Set(getAllowedAdminModulePaths(role, metadata));
 
   return appRouteRegistry
     .filter(
@@ -194,7 +187,10 @@ export function getSidebarRoutesForRole(role: ProfileRole | null | undefined) {
         route.showInSidebar &&
         route.access === access &&
         route.sidebarLabel &&
-        route.sidebarIcon,
+        route.sidebarIcon &&
+        (access !== "admin" ||
+          role !== "coordinator" ||
+          allowedAdminPaths.has(route.path)),
     )
     .sort((a, b) => (a.sidebarOrder ?? 999) - (b.sidebarOrder ?? 999));
 }

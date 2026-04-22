@@ -132,11 +132,6 @@ export default function useAuth() {
 
       setUser(session?.user ?? null);
 
-      // Se já existe perfil em cache, libera a tela e atualiza silenciosamente em background.
-      if (profile) {
-        setLoading(false);
-      }
-
       const { data: p } = await withTimeout(
         supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
         AUTH_REQUEST_TIMEOUT_MS,
@@ -172,39 +167,43 @@ export default function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, [clearLocalAuthState, profile]);
+  }, [clearLocalAuthState]);
 
   // Carrega o perfil sem chamar getUser() — usado no onAuthStateChange
   // para evitar o loop infinito (getUser() dispara novo evento de auth no Supabase v2)
   const loadProfileFromSession = useCallback(
     async (session: Session | null) => {
-      const uid = session?.user?.id;
-      if (!uid) {
-        setUser(null);
-        setProfile(null);
+      try {
+        const uid = session?.user?.id;
+        if (!uid) {
+          setUser(null);
+          setProfile(null);
+          try {
+            if (typeof window !== "undefined")
+              sessionStorage.removeItem(SESSION_PROFILE_KEY);
+          } catch (_: unknown) {
+            /* sessionStorage can throw in restricted contexts */
+          }
+          return;
+        }
+
+        setUser(session.user as User);
+
+        const { data: p } = await withTimeout(
+          supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+          AUTH_REQUEST_TIMEOUT_MS,
+        );
+
+        const val = (p as Profile) ?? null;
+        setProfile(val);
         try {
           if (typeof window !== "undefined")
-            sessionStorage.removeItem(SESSION_PROFILE_KEY);
+            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
         } catch (_: unknown) {
           /* sessionStorage can throw in restricted contexts */
         }
-        return;
-      }
-
-      setUser(session!.user as User);
-
-      const { data: p } = await withTimeout(
-        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-        AUTH_REQUEST_TIMEOUT_MS,
-      );
-
-      const val = (p as Profile) ?? null;
-      setProfile(val);
-      try {
-        if (typeof window !== "undefined")
-          sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-      } catch (_: unknown) {
-        /* sessionStorage can throw in restricted contexts */
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
       }
     },
     [],

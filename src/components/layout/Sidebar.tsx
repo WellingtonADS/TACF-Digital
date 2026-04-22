@@ -27,7 +27,10 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const location = useLocation();
   const { profile } = useAuth();
-  const navItems = getSidebarRoutesForRole(profile?.role).map((route) => ({
+  const navItems = getSidebarRoutesForRole(
+    profile?.role,
+    profile?.metadata ?? null,
+  ).map((route) => ({
     icon: sidebarIconMap[route.sidebarIcon!],
     label: route.sidebarLabel!,
     path: route.path,

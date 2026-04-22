@@ -31,7 +31,12 @@ export default function UserRoute({
   }
 
   if (!canAccessRoute(profile?.role, "user")) {
-    return <Navigate to={getDefaultHomeByRole(profile?.role)} replace />;
+    return (
+      <Navigate
+        to={getDefaultHomeByRole(profile?.role, profile?.metadata ?? null)}
+        replace
+      />
+    );
   }
 
   return children;

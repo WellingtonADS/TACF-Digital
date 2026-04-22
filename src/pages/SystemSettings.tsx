@@ -17,12 +17,15 @@ import {
   MapPin,
   Plus,
   Save,
+  Search,
   Settings,
   ShieldCheck,
   Trash2,
-  UserCircle2,
   type LucideIcon,
 } from "@/icons";
+import { ADMIN_MODULE_DEFINITIONS } from "@/router/adminModules";
+import { getProfileAccessModules } from "@/router/routeAccess";
+import { sidebarIconMap } from "@/router/sidebarIcons";
 import {
   fetchEvaluationIndexRows,
   removeEvaluationIndexRow,
@@ -37,9 +40,10 @@ import {
   saveSystemSettings,
 } from "@/services/systemSettings";
 import type {
-  AdministrativeProfileRole,
   AuditLogRow as DBAuditLogRow,
   SystemSettingsRow as DBSystemSettingsRow,
+  Json,
+  ProfileRole,
   Profile as UserProfile,
 } from "@/types";
 import type { Location } from "@/types/database.types";
@@ -53,6 +57,7 @@ import { toast } from "sonner";
 type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
 const SETTINGS_REQUEST_TIMEOUT_MS = 8000;
+const DEFAULT_COORDINATOR_MODULES = ["/app/admin", "/app/turmas"];
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -80,14 +85,47 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 type TabItem = { key: TabKey; label: string; icon: LucideIcon };
-const ACCESS_ROLE_OPTIONS: AdministrativeProfileRole[] = [
-  "admin",
-  "coordinator",
-];
-const ACCESS_ROLE_LABEL: Record<AdministrativeProfileRole, string> = {
+const ACCESS_ROLE_OPTIONS: ProfileRole[] = ["user", "coordinator", "admin"];
+const ACCESS_ROLE_LABEL: Record<ProfileRole, string> = {
+  user: "Usuario",
   admin: "Administrador",
   coordinator: "Coordenador",
 };
+
+function isJsonRecord(
+  value: Json | null | undefined,
+): value is Record<string, Json> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function buildAccessMetadata(
+  currentMetadata: Json | null | undefined,
+  role: ProfileRole,
+  modules: string[],
+): Json | null {
+  const nextMetadata = isJsonRecord(currentMetadata)
+    ? { ...currentMetadata }
+    : {};
+
+  if (role === "coordinator") {
+    nextMetadata.access_modules = modules;
+  } else {
+    delete nextMetadata.access_modules;
+  }
+
+  return Object.keys(nextMetadata).length > 0 ? nextMetadata : null;
+}
+
+function getProfileDisplayName(profile: UserProfile): string {
+  return profile.full_name ?? profile.war_name ?? profile.email ?? profile.id;
+}
+
+function getNameInitials(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "--";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
 
 function isTabKey(value: string | null): value is TabKey {
   if (!value) return false;
@@ -96,7 +134,7 @@ function isTabKey(value: string | null): value is TabKey {
 
 export default function SystemSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const canView = profile?.role === "admin";
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
     const tab = searchParams.get("tab");
@@ -131,6 +169,15 @@ export default function SystemSettings() {
   const [savingAccessProfileId, setSavingAccessProfileId] = useState<
     string | null
   >(null);
+  const [accessProfileQuery, setAccessProfileQuery] = useState("");
+  const [accessRoleFilter, setAccessRoleFilter] = useState<"all" | ProfileRole>(
+    "all",
+  );
+  const [editingProfile, setEditingProfile] = useState<UserProfile | null>(
+    null,
+  );
+  const [editRoleDraft, setEditRoleDraft] = useState<ProfileRole>("user");
+  const [editModulesDraft, setEditModulesDraft] = useState<string[]>([]);
 
   const [editingStandardId, setEditingStandardId] = useState<string | null>(
     null,
@@ -440,14 +487,39 @@ export default function SystemSettings() {
 
   async function handleUpdateAdministrativeRole(
     profileId: string,
-    role: AdministrativeProfileRole,
+    role: ProfileRole,
+    modules?: string[],
   ) {
     setSavingAccessProfileId(profileId);
     try {
-      await updateProfile(profileId, { role });
+      const currentProfile =
+        accessProfiles.find((item) => item.id === profileId) ?? null;
+      const currentModules = getProfileAccessModules(currentProfile?.metadata);
+      const nextModules =
+        role === "coordinator"
+          ? modules && modules.length > 0
+            ? modules
+            : currentModules.length > 0
+              ? currentModules
+              : DEFAULT_COORDINATOR_MODULES
+          : [];
+      const metadata = buildAccessMetadata(
+        currentProfile?.metadata,
+        role,
+        nextModules,
+      );
+
+      await updateProfile(profileId, { role, metadata });
       setAccessProfiles((current) =>
         current.map((item) =>
-          item.id === profileId ? { ...item, role } : item,
+          item.id === profileId
+            ? {
+                ...item,
+                role,
+                metadata,
+                updated_at: new Date().toISOString(),
+              }
+            : item,
         ),
       );
       toast.success("Perfil administrativo atualizado.");
@@ -461,6 +533,32 @@ export default function SystemSettings() {
     } finally {
       setSavingAccessProfileId(null);
     }
+  }
+
+  const ROLE_TIER_STYLES: Record<
+    ProfileRole,
+    { pill: string; avatar: string }
+  > = {
+    user: {
+      pill: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+      avatar:
+        "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+    },
+    coordinator: {
+      pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+      avatar:
+        "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    },
+    admin: {
+      pill: "bg-primary/10 text-primary",
+      avatar: "bg-primary/10 text-primary",
+    },
+  };
+
+  function openProfileEdit(profileItem: UserProfile) {
+    setEditRoleDraft(profileItem.role ?? "user");
+    setEditModulesDraft(getProfileAccessModules(profileItem.metadata));
+    setEditingProfile(profileItem);
   }
 
   function renderContent() {
@@ -824,108 +922,220 @@ export default function SystemSettings() {
           </div>
         );
       case "profiles": {
-        const administrativeProfiles = accessProfiles.filter(
-          (item) => item.role === "admin" || item.role === "coordinator",
-        );
-        const adminCount = administrativeProfiles.filter(
+        const allProfiles = accessProfiles;
+        const adminCount = allProfiles.filter(
           (item) => item.role === "admin",
         ).length;
-        const coordinatorCount = administrativeProfiles.filter(
+        const coordinatorCount = allProfiles.filter(
           (item) => item.role === "coordinator",
         ).length;
+        const userCount = allProfiles.filter(
+          (item) => item.role === "user",
+        ).length;
+        const normalizedProfileQuery = accessProfileQuery.trim().toLowerCase();
+        const filteredProfiles = allProfiles.filter((item) => {
+          const matchesRole =
+            accessRoleFilter === "all" || item.role === accessRoleFilter;
+          const displayName = getProfileDisplayName(item).toLowerCase();
+          const matchesQuery =
+            normalizedProfileQuery.length === 0 ||
+            displayName.includes(normalizedProfileQuery) ||
+            (item.email ?? "").toLowerCase().includes(normalizedProfileQuery) ||
+            (item.rank ?? "").toLowerCase().includes(normalizedProfileQuery) ||
+            (item.sector ?? "").toLowerCase().includes(normalizedProfileQuery);
+
+          return matchesRole && matchesQuery;
+        });
+        const roleFilters: Array<{
+          key: "all" | ProfileRole;
+          label: string;
+          count: number;
+        }> = [
+          {
+            key: "all",
+            label: "Todos",
+            count: allProfiles.length,
+          },
+          {
+            key: "user",
+            label: "Usuarios",
+            count: userCount,
+          },
+          {
+            key: "coordinator",
+            label: "Coordenadores",
+            count: coordinatorCount,
+          },
+          {
+            key: "admin",
+            label: "Administradores",
+            count: adminCount,
+          },
+        ];
 
         return (
           <div className="space-y-6">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Administradores
+            <section className="rounded-3xl border border-border-default bg-bg-card shadow-sm">
+              <div className="border-b border-border-default px-5 py-5 sm:px-6">
+                <h2 className="text-lg font-bold text-text-body sm:text-xl">
+                  Gerenciamento de perfis de acesso
+                </h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Ajuste niveis de acesso e modulos de coordenadores pelo modal
+                  de edicao.
                 </p>
-                <p className="mt-1 text-lg font-bold text-text-body">
-                  {adminCount}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Coordenadores
-                </p>
-                <p className="mt-1 text-lg font-bold text-text-body">
-                  {coordinatorCount}
-                </p>
-              </article>
-            </div>
+              </div>
+
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex flex-wrap gap-2">
+                  {roleFilters.map((filterItem) => {
+                    const active = accessRoleFilter === filterItem.key;
+
+                    return (
+                      <button
+                        key={filterItem.key}
+                        type="button"
+                        onClick={() => setAccessRoleFilter(filterItem.key)}
+                        className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                          active
+                            ? "border-primary bg-primary/5"
+                            : "border-border-default bg-bg-default hover:border-primary/30"
+                        }`}
+                      >
+                        {filterItem.label}
+                        <span className="ml-2 rounded-full bg-bg-card px-2 py-0.5 text-xs font-bold text-text-body">
+                          {filterItem.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                  <label className="relative block">
+                    <span className="sr-only">
+                      Buscar perfil por nome ou e-mail
+                    </span>
+                    <AppIcon
+                      icon={Search}
+                      size="sm"
+                      decorative
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+                    />
+                    <input
+                      type="text"
+                      value={accessProfileQuery}
+                      onChange={(event) =>
+                        setAccessProfileQuery(event.target.value)
+                      }
+                      placeholder="Buscar por nome, e-mail, posto ou setor"
+                      className="h-11 w-full rounded-xl border border-border-default bg-bg-default pl-11 pr-4 text-sm text-text-body placeholder:text-text-muted focus-ring"
+                    />
+                  </label>
+
+                  <div className="flex items-center rounded-xl border border-border-default bg-bg-default px-4 py-3 text-sm text-text-body">
+                    <p className="text-sm font-semibold text-text-body">
+                      {filteredProfiles.length} de {allProfiles.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {accessProfilesLoading ? (
-              <div className="rounded-xl border border-border-default bg-bg-default p-6 text-sm text-text-muted">
-                Carregando perfis administrativos...
+              <div className="space-y-3 rounded-3xl border border-border-default bg-bg-card p-5">
+                <div className="h-5 w-48 animate-pulse rounded bg-border-default" />
+                <div className="h-24 w-full animate-pulse rounded-2xl bg-border-default" />
+                <div className="h-24 w-full animate-pulse rounded-2xl bg-border-default" />
               </div>
-            ) : administrativeProfiles.length === 0 ? (
-              <div className="rounded-xl border border-border-default bg-bg-default p-6 text-sm text-text-muted">
-                Nenhum usuário administrativo encontrado.
+            ) : allProfiles.length === 0 ? (
+              <div className="rounded-3xl border border-border-default bg-bg-card p-6 text-sm text-text-muted">
+                Nenhum perfil encontrado.
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-border-default">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-bg-default">
-                    <tr>
-                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                        Usuário
-                      </th>
-                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                        Situação
-                      </th>
-                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                        Perfil
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-default">
-                    {administrativeProfiles.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-text-body">
-                            {item.full_name ?? item.email ?? item.id}
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            {item.email ?? "Sem e-mail"}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
+              <div className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+                <div className="flex flex-col gap-3 border-b border-border-default px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-text-body">
+                      Perfis cadastrados
+                    </h3>
+                  </div>
+                </div>
+
+                {filteredProfiles.length === 0 ? (
+                  <div className="px-5 py-10 text-sm text-text-muted">
+                    Nenhum perfil encontrado com os filtros atuais.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border-default">
+                    {filteredProfiles.map((item) => {
+                      const name = getProfileDisplayName(item);
+                      const initials = getNameInitials(name);
+                      const role: ProfileRole = item.role ?? "user";
+                      const tierStyle =
+                        ROLE_TIER_STYLES[role] ?? ROLE_TIER_STYLES.user;
+                      const isCurrentUser = item.id === user?.id;
+                      const isSaving = savingAccessProfileId === item.id;
+                      const isActive = item.active !== false;
+
+                      return (
+                        <article
+                          key={item.id}
+                          className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-bg-default/60"
+                        >
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xs font-bold ${tierStyle.avatar}`}
+                          >
+                            {initials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold leading-tight text-text-body">
+                              {name}
+                              {isCurrentUser && (
+                                <span className="ml-1.5 text-xs font-normal text-text-muted">
+                                  (voce)
+                                </span>
+                              )}
+                            </p>
+                            <p className="truncate text-xs leading-tight text-text-muted">
+                              {item.email ?? "Sem e-mail"}
+                            </p>
+                          </div>
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                              item.active
-                                ? "bg-success/10 text-success"
-                                : "bg-error/10 text-error"
-                            }`}
+                            className={`hidden shrink-0 rounded-lg px-2.5 py-0.5 text-xs font-bold sm:inline-block ${tierStyle.pill}`}
                           >
-                            {item.active ? "Ativo" : "Inativo"}
+                            {ACCESS_ROLE_LABEL[role]}
                           </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={
-                              item.role === "admin" ? "admin" : "coordinator"
+                          <span
+                            className={`h-2 w-2 shrink-0 rounded-full ${
+                              isActive
+                                ? "bg-emerald-400"
+                                : "bg-slate-300 dark:bg-slate-600"
+                            }`}
+                            title={isActive ? "Ativo" : "Inativo"}
+                          />
+                          <button
+                            type="button"
+                            disabled={isCurrentUser || isSaving}
+                            onClick={() => openProfileEdit(item)}
+                            className="shrink-0 rounded-xl p-1.5 text-text-muted transition-colors hover:bg-bg-card hover:text-text-body disabled:opacity-30"
+                            title={
+                              isCurrentUser
+                                ? "Nao e possivel editar o proprio perfil"
+                                : "Editar perfil"
                             }
-                            onChange={(event) =>
-                              void handleUpdateAdministrativeRole(
-                                item.id,
-                                event.target.value as AdministrativeProfileRole,
-                              )
-                            }
-                            disabled={savingAccessProfileId === item.id}
-                            className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
                           >
-                            {ACCESS_ROLE_OPTIONS.map((roleOption) => (
-                              <option key={roleOption} value={roleOption}>
-                                {ACCESS_ROLE_LABEL[roleOption]}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            {isSaving ? (
+                              <span className="block h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-transparent" />
+                            ) : (
+                              <AppIcon icon={Edit2} size="sm" decorative />
+                            )}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1037,76 +1247,46 @@ export default function SystemSettings() {
         <section className="mb-8">
           <div className="relative overflow-hidden rounded-3xl bg-primary p-5 text-white shadow-2xl shadow-primary/20 md:p-8 lg:p-10">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
-                  Configurações do Sistema
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm font-normal text-white/80 md:text-base">
-                  Ajuste parâmetros globais, perfis de acesso e auditoria em um
-                  único painel administrativo.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:flex flex-col text-right">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
-                    Perfil Atual
-                  </span>
-                  <span className="text-sm font-bold text-white">
-                    {profile?.full_name ?? "Administrador"}
-                  </span>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white">
-                  <AppIcon icon={UserCircle2} size="md" decorative />
-                </div>
-              </div>
+            <div className="relative z-10 max-w-3xl">
+              <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+                Configurações do Sistema
+              </h1>
+              <p className="mt-2 text-sm font-normal text-white/80 md:text-base">
+                Ajuste parâmetros globais, perfis de acesso e auditoria em um
+                único painel administrativo.
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="relative isolate min-h-[640px] overflow-hidden rounded-3xl border border-border-default/60">
-          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]" />
+        <section className="space-y-4">
+          <nav className="rounded-2xl border border-border-default bg-bg-card p-3 shadow-sm sm:p-4">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {(TABS as ReadonlyArray<TabItem>).map((tab) => {
+                const active = tab.key === activeTab;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => handleSelectTab(tab.key)}
+                    aria-current={active ? "page" : undefined}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-ring ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                        : "border-border-default bg-bg-default text-text-muted hover:text-text-body"
+                    }`}
+                  >
+                    <AppIcon icon={tab.icon} size="sm" decorative />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
 
-          <div className="relative z-10 flex min-h-[640px] items-center justify-center p-4 sm:p-6 md:p-8">
-            <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-border-default bg-bg-card shadow-2xl shadow-slate-900/20">
-              <header className="bg-primary px-5 py-4 text-primary-foreground sm:px-7 sm:py-5">
-                <p className="text-lg font-bold tracking-tight sm:text-xl">
-                  Configurações do Sistema
-                </p>
-                <p className="mt-1 text-xs font-medium text-primary-foreground/80 sm:text-sm">
-                  Governança administrativa centralizada com comportamento
-                  modal.
-                </p>
-              </header>
-
-              <nav className="border-b border-border-default bg-bg-card px-3 py-3 sm:px-5">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {(TABS as ReadonlyArray<TabItem>).map((tab) => {
-                    const active = tab.key === activeTab;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => handleSelectTab(tab.key)}
-                        aria-current={active ? "page" : undefined}
-                        className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-ring ${
-                          active
-                            ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                            : "border-transparent bg-bg-default text-text-muted hover:border-border-default hover:text-text-body"
-                        }`}
-                      >
-                        <AppIcon icon={tab.icon} size="sm" decorative />
-                        <span>{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </nav>
-
-              <div className="max-h-[70vh] min-h-[480px] overflow-y-auto p-4 sm:p-6 lg:p-8">
-                {renderContent()}
-              </div>
+          <div className="rounded-2xl border border-border-default bg-bg-card shadow-sm">
+            <div className="min-h-[480px] p-4 sm:p-6 lg:p-8">
+              {renderContent()}
             </div>
           </div>
         </section>
@@ -1323,6 +1503,134 @@ export default function SystemSettings() {
                 </select>
               </label>
             </div>
+          </div>
+        </Dialog>
+
+        <Dialog
+          open={editingProfile !== null}
+          onClose={() => setEditingProfile(null)}
+          title="Editar perfil de acesso"
+          widthClassName="max-w-md"
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingProfile(null)}
+                className="rounded-xl border border-border-default px-4 py-2 text-sm font-medium text-text-body transition-colors hover:bg-bg-default"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={savingAccessProfileId === editingProfile?.id}
+                onClick={() => {
+                  if (!editingProfile) return;
+                  void handleUpdateAdministrativeRole(
+                    editingProfile.id,
+                    editRoleDraft,
+                    editModulesDraft,
+                  ).then(() => setEditingProfile(null));
+                }}
+                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <AppIcon icon={Save} size="sm" decorative />
+                Salvar alteracoes
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-5">
+            {editingProfile &&
+              (() => {
+                const name = getProfileDisplayName(editingProfile);
+                const initials = getNameInitials(name);
+                const tier: ProfileRole = editingProfile.role ?? "user";
+                const tierStyle =
+                  ROLE_TIER_STYLES[tier] ?? ROLE_TIER_STYLES.user;
+
+                return (
+                  <div className="flex items-center gap-3 rounded-2xl border border-border-default bg-bg-default px-4 py-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ${tierStyle.avatar}`}
+                    >
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-text-body">
+                        {name}
+                      </p>
+                      <p className="truncate text-xs text-text-muted">
+                        {editingProfile.email ?? "Sem e-mail"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            <label className="text-sm font-medium text-text-body">
+              Nivel de acesso
+              <select
+                value={editRoleDraft}
+                onChange={(event) => {
+                  const role = event.target.value as ProfileRole;
+                  setEditRoleDraft(role);
+                  if (role !== "coordinator") {
+                    setEditModulesDraft([]);
+                  }
+                }}
+                className="mt-2 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm"
+              >
+                {ACCESS_ROLE_OPTIONS.map((roleOption) => (
+                  <option key={roleOption} value={roleOption}>
+                    {ACCESS_ROLE_LABEL[roleOption]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {editRoleDraft === "coordinator" && (
+              <div className="rounded-2xl border border-border-default bg-bg-default/60 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-text-muted">
+                  Modulos liberados
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ADMIN_MODULE_DEFINITIONS.map((module) => {
+                    const Icon = sidebarIconMap[module.sidebarIcon];
+                    const checked = editModulesDraft.includes(module.path);
+
+                    return (
+                      <label
+                        key={module.path}
+                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium transition-colors ${
+                          checked
+                            ? "border-primary/40 bg-primary/5 text-text-body"
+                            : "border-border-default bg-bg-default text-text-muted hover:bg-bg-card"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setEditModulesDraft((previous) =>
+                              checked
+                                ? previous.filter(
+                                    (path) => path !== module.path,
+                                  )
+                                : [...previous, module.path],
+                            )
+                          }
+                          className="accent-primary"
+                        />
+                        {Icon ? (
+                          <AppIcon icon={Icon} size="sm" decorative />
+                        ) : null}
+                        {module.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </Dialog>
       </div>
