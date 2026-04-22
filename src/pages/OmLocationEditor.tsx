@@ -258,13 +258,13 @@ export default function OmLocationEditor() {
         const loc = await create(data);
         if (loc) {
           toast.success("Unidade criada com sucesso");
-          navigate("/app/om-locations");
+          navigate("/app/configuracoes?tab=locations");
         }
       } else if (id) {
         const loc = await update(id, data);
         if (loc) {
           toast.success("Unidade atualizada com sucesso");
-          navigate("/app/om-locations");
+          navigate("/app/configuracoes?tab=locations");
         }
       }
     } catch {
@@ -289,7 +289,7 @@ export default function OmLocationEditor() {
               ? "Preencha os dados para cadastrar uma nova OM."
               : `Editando: ${existing?.name ?? "..."}`
           }
-          onBack={() => navigate("/app/om-locations")}
+          onBack={() => navigate("/app/configuracoes?tab=locations")}
         />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
@@ -474,7 +474,7 @@ export default function OmLocationEditor() {
               <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-8 py-6 md:flex-row md:px-12">
                 <button
                   type="button"
-                  onClick={() => navigate("/app/om-locations")}
+                  onClick={() => navigate("/app/configuracoes?tab=locations")}
                   className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
                 >
                   Cancelar

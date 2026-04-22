@@ -401,7 +401,7 @@ export default function OmScheduleEditor() {
         <PageHero
           locationName={location?.name ?? "OM não encontrada"}
           activeCount={activeCount}
-          onBack={() => navigate("/app/om-locations")}
+          onBack={() => navigate("/app/configuracoes?tab=locations")}
         />
 
         <Toolbar
@@ -537,7 +537,7 @@ export default function OmScheduleEditor() {
             <div className="flex flex-col-reverse items-center justify-end gap-4 border-t border-border-default bg-bg-default px-8 py-6 md:flex-row md:px-10">
               <button
                 type="button"
-                onClick={() => navigate("/app/om-locations")}
+                onClick={() => navigate("/app/configuracoes?tab=locations")}
                 className="w-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-text-muted transition-colors hover:text-text-body md:w-auto"
               >
                 Cancelar
