@@ -316,14 +316,14 @@ export default function SessionFormDialog({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const dates = resolveSessionDates(mode, form);
+    const dates = mode === "edit" ? [] : resolveSessionDates(mode, form);
 
-    if (dates.length === 0) {
+    if (mode !== "edit" && dates.length === 0) {
       toast.error("Selecione ao menos uma data valida para a sessao.");
       return;
     }
 
-    if (dates.some(isWeekend)) {
+    if (mode !== "edit" && dates.some(isWeekend)) {
       toast.error(
         "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
       );
@@ -383,13 +383,9 @@ export default function SessionFormDialog({
         }
 
         await updateSession(sessionId, {
-          date: dates[0],
           period: form.period,
           capacity: form.min_capacity,
           max_capacity: form.max_capacity,
-          metadata: {
-            evaluation_type: form.evaluation_type,
-          },
           location_id: form.location_id,
           coordinator_id: form.coordinator_id,
           applicators: [form.coordinator_id],
@@ -629,6 +625,13 @@ export default function SessionFormDialog({
                   className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body"
                 />
               </label>
+            ) : mode === "edit" ? (
+              <label className="space-y-2 text-sm font-medium text-text-body">
+                <span>Data</span>
+                <div className="w-full rounded-lg border border-border-default bg-bg-default px-4 py-3 text-text-body">
+                  {form.date || "Não informada"}
+                </div>
+              </label>
             ) : (
               <label className="space-y-2 text-sm font-medium text-text-body">
                 <span>Data</span>
@@ -661,33 +664,37 @@ export default function SessionFormDialog({
               </div>
             </label>
 
-            <label className="space-y-2 text-sm font-medium text-text-body">
-              <span>Tipo de avaliação</span>
-              <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
-                {(
-                  [
-                    { value: "padrao" as EvaluationType, label: "Padrão" },
-                    {
-                      value: "especializada" as EvaluationType,
-                      label: "Especializada",
-                    },
-                  ] as const
-                ).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => updateField("evaluation_type", option.value)}
-                    className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-                      form.evaluation_type === option.value
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-text-muted hover:text-text-body"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </label>
+            {mode !== "edit" ? (
+              <label className="space-y-2 text-sm font-medium text-text-body">
+                <span>Tipo de avaliação</span>
+                <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
+                  {(
+                    [
+                      { value: "padrao" as EvaluationType, label: "Padrão" },
+                      {
+                        value: "especializada" as EvaluationType,
+                        label: "Especializada",
+                      },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        updateField("evaluation_type", option.value)
+                      }
+                      className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                        form.evaluation_type === option.value
+                          ? "bg-primary text-white shadow-sm"
+                          : "text-text-muted hover:text-text-body"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </label>
+            ) : null}
           </section>
 
           {datePreview}

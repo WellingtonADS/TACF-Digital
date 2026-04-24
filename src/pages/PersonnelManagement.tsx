@@ -6,6 +6,7 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
+import Dialog from "@/components/Dialog";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
@@ -627,308 +628,286 @@ export default function PersonnelManagement() {
         </section>
       </div>
 
-      {/* ── Drawer de perfil ───────────────────────────────────────── */}
-      {selectedUser && (
-        <>
-          {/* Overlay — acima da sidebar (z-50) */}
-          <div
-            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-            onClick={closeDrawer}
-          />
-
-          {/* Painel */}
-          <aside className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col bg-bg-card shadow-2xl">
-            {/* Header do drawer */}
-            <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                  {initialsFromName(selectedUser.fullName)}
-                </div>
-                <div>
-                  <p className="font-bold text-text-body">
-                    {selectedUser.fullName}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    {selectedUser.rank ?? "Sem posto"} ·{" "}
-                    {selectedUser.warName ?? "--"}
-                  </p>
-                </div>
+      <Dialog
+        open={Boolean(selectedUser)}
+        onClose={closeDrawer}
+        title={selectedUser?.fullName ?? "Perfil do militar"}
+        description={
+          selectedUser
+            ? `${selectedUser.rank ?? "Sem posto"} · ${selectedUser.warName ?? "--"}`
+            : undefined
+        }
+        widthClassName="max-w-3xl"
+      >
+        {selectedUser && userDetail ? (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-default p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {initialsFromName(selectedUser.fullName)}
               </div>
-              <button
-                type="button"
-                onClick={closeDrawer}
-                className="rounded-lg p-2 text-text-muted hover:bg-bg-default hover:text-text-body"
-              >
-                <AppIcon icon={X} size="sm" decorative />
-              </button>
+              <div>
+                <p className="font-bold text-text-body">
+                  {selectedUser.fullName}
+                </p>
+                <p className="text-xs text-text-muted">
+                  {selectedUser.rank ?? "Sem posto"} ·{" "}
+                  {selectedUser.warName ?? "--"}
+                </p>
+              </div>
             </div>
 
-            {/* Conteúdo */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {userDetail ? (
-                <div className="space-y-6">
-                  {/* Status badge + toggle ativo/inativo */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {(
-                        Object.keys(
-                          DETAIL_STATUS_BADGE_CLASS,
-                        ) as PersonnelRow["status"][]
-                      ).map((s) =>
-                        userDetail.status === s ? (
-                          <span
-                            key={s}
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${DETAIL_STATUS_BADGE_CLASS[s]}`}
-                          >
-                            {s}
-                          </span>
-                        ) : null,
-                      )}
-                    </div>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  Object.keys(
+                    DETAIL_STATUS_BADGE_CLASS,
+                  ) as PersonnelRow["status"][]
+                ).map((s) =>
+                  userDetail.status === s ? (
+                    <span
+                      key={s}
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${DETAIL_STATUS_BADGE_CLASS[s]}`}
+                    >
+                      {s}
+                    </span>
+                  ) : null,
+                )}
+              </div>
 
-                    {/* Toggle conta ativa/inativa */}
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={savingActive || userDetail.active}
-                        onClick={() => handleToggleActive(true)}
-                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
-                          userDetail.active
-                            ? "border-success bg-success/10 text-success"
-                            : "border-border-default text-text-muted hover:border-success/40 disabled:opacity-100"
-                        }`}
-                      >
-                        {savingActive && !userDetail.active ? (
-                          <AppIcon
-                            icon={Loader2}
-                            size="xs"
-                            decorative
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <AppIcon icon={UserCheck} size="xs" decorative />
-                        )}
-                        Ativo
-                      </button>
-                      <button
-                        type="button"
-                        disabled={savingActive || !userDetail.active}
-                        onClick={() => handleToggleActive(false)}
-                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
-                          !userDetail.active
-                            ? "border-error bg-error/10 text-error"
-                            : "border-border-default text-text-muted hover:border-error/40 disabled:opacity-100"
-                        }`}
-                      >
-                        {savingActive && userDetail.active ? (
-                          <AppIcon
-                            icon={Loader2}
-                            size="xs"
-                            decorative
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <AppIcon icon={UserX} size="xs" decorative />
-                        )}
-                        Inativo
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Dados pessoais */}
-                  <section className="space-y-3 rounded-xl border border-border-default p-4">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
-                      <AppIcon icon={Shield} size="xs" decorative />{" "}
-                      Identificação
-                    </h3>
-                    <dl className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">SARAM</dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.saram ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Posto/Graduação</dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.rank ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Nome de Guerra</dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.war_name ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Setor</dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.sector ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Grupo Físico</dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.physical_group ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Data de Nascimento</dt>
-                        <dd className="font-semibold text-text-body">
-                          {dateLabel(userDetail.birth_date)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  {/* Contacto */}
-                  <section className="space-y-3 rounded-xl border border-border-default p-4">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
-                      <AppIcon icon={Mail} size="xs" decorative /> Contato
-                    </h3>
-                    <dl className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <dt className="flex items-center gap-1.5 text-text-muted">
-                          <AppIcon icon={Mail} size="xs" decorative /> E-mail
-                        </dt>
-                        <dd className="truncate font-semibold text-text-body">
-                          {userDetail.email ?? "--"}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="flex items-center gap-1.5 text-text-muted">
-                          <AppIcon icon={Phone} size="xs" decorative /> Telefone
-                        </dt>
-                        <dd className="font-semibold text-text-body">
-                          {userDetail.phone_number ?? "--"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  {/* INSPSAU */}
-                  <section className="space-y-3 rounded-xl border border-border-default p-4">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
-                      <AppIcon icon={Award} size="xs" decorative /> Inspeção de
-                      Saúde (INSPSAU)
-                    </h3>
-                    <dl className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Última Inspeção</dt>
-                        <dd className="font-semibold text-text-body">
-                          {dateLabel(userDetail.inspsau_last_inspection)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-text-muted">Válida até</dt>
-                        <dd className="font-semibold text-text-body">
-                          {dateLabel(userDetail.inspsau_valid_until)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  {/* Histórico de testes TACF */}
-                  <section className="space-y-3 rounded-xl border border-border-default p-4">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
-                      <AppIcon icon={ClipboardList} size="xs" decorative />{" "}
-                      Histórico TACF
-                    </h3>
-
-                    {userDetail.testHistory.length === 0 ? (
-                      <p className="text-xs text-text-muted py-1">
-                        Nenhum teste registrado.
-                      </p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {userDetail.testHistory.map((t, idx) => {
-                          const isFirst = idx === 0;
-                          const hasScore = t.score !== null;
-                          const scoreColor =
-                            t.score !== null && t.score >= 70
-                              ? "text-success"
-                              : t.score !== null
-                                ? "text-error"
-                                : "text-text-muted";
-                          return (
-                            <li
-                              key={t.id}
-                              className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-                                isFirst
-                                  ? "bg-primary/5 border border-primary/20"
-                                  : "bg-bg-default"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {hasScore ? (
-                                  t.score! >= 70 ? (
-                                    <AppIcon
-                                      icon={CheckCircle2}
-                                      size="xs"
-                                      decorative
-                                      className="shrink-0 text-success"
-                                    />
-                                  ) : (
-                                    <AppIcon
-                                      icon={XCircle}
-                                      size="xs"
-                                      decorative
-                                      className="shrink-0 text-error"
-                                    />
-                                  )
-                                ) : (
-                                  <AppIcon
-                                    icon={FileText}
-                                    size="xs"
-                                    decorative
-                                    className="shrink-0 text-text-muted"
-                                  />
-                                )}
-                                <span className="text-text-muted">
-                                  {dateLabel(t.date)}
-                                </span>
-                                {isFirst && (
-                                  <span className="text-[10px] font-bold text-primary uppercase">
-                                    Último
-                                  </span>
-                                )}
-                              </div>
-                              <span
-                                className={`font-bold tabular-nums ${scoreColor}`}
-                              >
-                                {t.score !== null ? t.score : "—"}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </section>
-
-                  {/* Cadastro */}
-                  <p className="flex items-center gap-1.5 text-xs text-text-muted">
-                    <AppIcon icon={Calendar} size="xs" decorative />
-                    Cadastrado em {dateLabel(userDetail.created_at)}
-                  </p>
-
-                  {/* Indicador de carregamento de dados extras */}
-                  {loadingDetail && (
-                    <div className="flex items-center gap-2 text-xs text-text-muted pt-1">
-                      <AppIcon
-                        icon={Loader2}
-                        size="xs"
-                        decorative
-                        className="animate-spin"
-                      />
-                      Carregando informações adicionais...
-                    </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={savingActive || userDetail.active}
+                  onClick={() => handleToggleActive(true)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
+                    userDetail.active
+                      ? "border-success bg-success/10 text-success"
+                      : "border-border-default text-text-muted hover:border-success/40 disabled:opacity-100"
+                  }`}
+                >
+                  {savingActive && !userDetail.active ? (
+                    <AppIcon
+                      icon={Loader2}
+                      size="xs"
+                      decorative
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <AppIcon icon={UserCheck} size="xs" decorative />
                   )}
-                </div>
-              ) : null}
+                  Ativo
+                </button>
+                <button
+                  type="button"
+                  disabled={savingActive || !userDetail.active}
+                  onClick={() => handleToggleActive(false)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
+                    !userDetail.active
+                      ? "border-error bg-error/10 text-error"
+                      : "border-border-default text-text-muted hover:border-error/40 disabled:opacity-100"
+                  }`}
+                >
+                  {savingActive && userDetail.active ? (
+                    <AppIcon
+                      icon={Loader2}
+                      size="xs"
+                      decorative
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <AppIcon icon={UserX} size="xs" decorative />
+                  )}
+                  Inativo
+                </button>
+              </div>
             </div>
-          </aside>
-        </>
-      )}
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <section className="space-y-3 rounded-xl border border-border-default p-4">
+                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  <AppIcon icon={Shield} size="xs" decorative /> Identificação
+                </h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">SARAM</dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.saram ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Posto/Graduação</dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.rank ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Nome de Guerra</dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.war_name ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Setor</dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.sector ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Grupo Físico</dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.physical_group ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Data de Nascimento</dt>
+                    <dd className="font-semibold text-text-body">
+                      {dateLabel(userDetail.birth_date)}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="space-y-3 rounded-xl border border-border-default p-4">
+                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  <AppIcon icon={Mail} size="xs" decorative /> Contato
+                </h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="flex items-center gap-1.5 text-text-muted">
+                      <AppIcon icon={Mail} size="xs" decorative /> E-mail
+                    </dt>
+                    <dd className="truncate font-semibold text-text-body">
+                      {userDetail.email ?? "--"}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="flex items-center gap-1.5 text-text-muted">
+                      <AppIcon icon={Phone} size="xs" decorative /> Telefone
+                    </dt>
+                    <dd className="font-semibold text-text-body">
+                      {userDetail.phone_number ?? "--"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="space-y-3 rounded-xl border border-border-default p-4">
+                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  <AppIcon icon={Award} size="xs" decorative /> Inspeção de
+                  Saúde (INSPSAU)
+                </h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Última Inspeção</dt>
+                    <dd className="font-semibold text-text-body">
+                      {dateLabel(userDetail.inspsau_last_inspection)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Válida até</dt>
+                    <dd className="font-semibold text-text-body">
+                      {dateLabel(userDetail.inspsau_valid_until)}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="space-y-3 rounded-xl border border-border-default p-4 lg:col-span-2">
+                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  <AppIcon icon={ClipboardList} size="xs" decorative />{" "}
+                  Histórico TACF
+                </h3>
+
+                {userDetail.testHistory.length === 0 ? (
+                  <p className="py-1 text-xs text-text-muted">
+                    Nenhum teste registrado.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {userDetail.testHistory.map((t, idx) => {
+                      const isFirst = idx === 0;
+                      const hasScore = t.score !== null;
+                      const scoreColor =
+                        t.score !== null && t.score >= 70
+                          ? "text-success"
+                          : t.score !== null
+                            ? "text-error"
+                            : "text-text-muted";
+                      return (
+                        <li
+                          key={t.id}
+                          className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+                            isFirst
+                              ? "border border-primary/20 bg-primary/5"
+                              : "bg-bg-default"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {hasScore ? (
+                              t.score! >= 70 ? (
+                                <AppIcon
+                                  icon={CheckCircle2}
+                                  size="xs"
+                                  decorative
+                                  className="shrink-0 text-success"
+                                />
+                              ) : (
+                                <AppIcon
+                                  icon={XCircle}
+                                  size="xs"
+                                  decorative
+                                  className="shrink-0 text-error"
+                                />
+                              )
+                            ) : (
+                              <AppIcon
+                                icon={FileText}
+                                size="xs"
+                                decorative
+                                className="shrink-0 text-text-muted"
+                              />
+                            )}
+                            <span className="text-text-muted">
+                              {dateLabel(t.date)}
+                            </span>
+                            {isFirst && (
+                              <span className="text-[10px] font-bold uppercase text-primary">
+                                Último
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`font-bold tabular-nums ${scoreColor}`}
+                          >
+                            {t.score !== null ? t.score : "—"}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            </div>
+
+            <p className="flex items-center gap-1.5 text-xs text-text-muted">
+              <AppIcon icon={Calendar} size="xs" decorative />
+              Cadastrado em {dateLabel(userDetail.created_at)}
+            </p>
+
+            {loadingDetail && (
+              <div className="flex items-center gap-2 pt-1 text-xs text-text-muted">
+                <AppIcon
+                  icon={Loader2}
+                  size="xs"
+                  decorative
+                  className="animate-spin"
+                />
+                Carregando informações adicionais...
+              </div>
+            )}
+          </div>
+        ) : null}
+      </Dialog>
     </Layout>
   );
 }

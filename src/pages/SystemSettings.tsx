@@ -136,10 +136,8 @@ export default function SystemSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, loading: authLoading } = useAuth();
   const canView = profile?.role === "admin";
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    const tab = searchParams.get("tab");
-    return isTabKey(tab) ? tab : "evaluation";
-  });
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabKey = isTabKey(tabParam) ? tabParam : "evaluation";
   const [settings, setSettings] = useState<SystemSettingsRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -207,19 +205,19 @@ export default function SystemSettings() {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (isTabKey(tab) && tab !== activeTab) {
-      setActiveTab(tab);
+    if (tab === null || isTabKey(tab)) {
+      return;
     }
-  }, [activeTab, searchParams]);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("tab");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   function handleSelectTab(tab: TabKey) {
-    setActiveTab(tab);
-    const nextParams = new URLSearchParams(searchParams);
-    if (tab === "evaluation") {
-      nextParams.delete("tab");
-    } else {
-      nextParams.set("tab", tab);
-    }
+    // Mantém o estado da aba determinístico e evita lixo de querystring entre módulos.
+    const nextParams = new URLSearchParams();
+    nextParams.set("tab", tab);
     setSearchParams(nextParams, { replace: true });
   }
 
@@ -1260,8 +1258,8 @@ export default function SystemSettings() {
         </section>
 
         <section className="space-y-4">
-          <nav className="rounded-2xl border border-border-default bg-bg-card p-3 shadow-sm sm:p-4">
-            <div className="flex gap-2 overflow-x-auto pb-1">
+          <nav className="overflow-visible rounded-2xl border border-border-default bg-bg-card p-3 shadow-sm sm:p-4">
+            <div className="flex gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {(TABS as ReadonlyArray<TabItem>).map((tab) => {
                 const active = tab.key === activeTab;
                 return (
@@ -1270,10 +1268,10 @@ export default function SystemSettings() {
                     type="button"
                     onClick={() => handleSelectTab(tab.key)}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-ring ${
+                    className={`relative inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-ring ${
                       active
-                        ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                        : "border-border-default bg-bg-default text-text-muted hover:text-text-body"
+                        ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary/20 ring-offset-1 ring-offset-bg-card"
+                        : "border-border-default bg-bg-default text-text-muted hover:border-primary/30 hover:text-text-body"
                     }`}
                   >
                     <AppIcon icon={tab.icon} size="sm" decorative />

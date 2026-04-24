@@ -2,10 +2,13 @@ import Dialog from "@/components/Dialog";
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
 import {
+  Calendar,
   CheckCircle2,
+  Clock3,
   Edit2,
   FileDown,
   Loader2,
+  MapPin,
   RotateCcw,
   Save,
   UserCheck,
@@ -16,7 +19,6 @@ import {
   fetchSessionBookingsWithProfiles,
   fetchSessionById,
   fetchSessionClosureChecklist,
-  updateBookingAttendance,
   updateBookingResult,
   updateSession,
   type SessionClosureChecklist,
@@ -117,9 +119,6 @@ export default function SessionHubDialog({
   const [savingResult, setSavingResult] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
   const [reopeningSession, setReopeningSession] = useState(false);
-  const [updatingAttendance, setUpdatingAttendance] = useState<string | null>(
-    null,
-  );
   const [resultDraft, setResultDraft] = useState<ResultDraft | null>(null);
   const [currentBookingIndex, setCurrentBookingIndex] = useState<number | null>(
     null,
@@ -219,29 +218,6 @@ export default function SessionHubDialog({
   async function refreshAll() {
     await loadSession();
     await onSessionUpdated();
-  }
-
-  async function handleAttendanceChange(bookingId: string, next: boolean) {
-    if (!canManage || mode !== "manage") {
-      return;
-    }
-
-    setUpdatingAttendance(bookingId);
-    try {
-      await updateBookingAttendance(bookingId, next);
-      setBookings((current) =>
-        current.map((booking) =>
-          booking.id === bookingId
-            ? { ...booking, attendance_confirmed: next }
-            : booking,
-        ),
-      );
-    } catch (error) {
-      console.error(error);
-      toast.error("Nao foi possivel atualizar a presenca.");
-    } finally {
-      setUpdatingAttendance(null);
-    }
   }
 
   async function handleSaveResult(andNext = false) {
@@ -413,8 +389,8 @@ export default function SessionHubDialog({
         title={mode === "manage" ? "Gestão da Turma" : "Consulta da Turma"}
         description={
           mode === "manage"
-            ? "Operacao central da sessao. Pendencias sem lancamento serao tratadas como inapto ao concluir."
-            : "Consulta somente leitura para sessoes fechadas ou concluidas."
+            ? "Centro operacional para chamada, lançamento de resultados e finalização."
+            : "Consulta somente leitura para sessões fechadas ou concluídas."
         }
         widthClassName="max-w-6xl"
       >
@@ -424,54 +400,82 @@ export default function SessionHubDialog({
             Carregando sessao...
           </div>
         ) : (
-          <div className="space-y-6">
-            <section className="grid gap-3 md:grid-cols-5">
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Data
-                </p>
-                <p className="mt-1 text-sm font-semibold text-text-body">
-                  {format(parseISO(session.date), "dd/MM/yyyy", {
-                    locale: ptBR,
-                  })}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Turno
-                </p>
-                <p className="mt-1 text-sm font-semibold text-text-body">
-                  {formatSessionPeriod(session.period)}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Status
-                </p>
-                <p className="mt-1 text-sm font-semibold text-text-body">
-                  {session.status === "open"
-                    ? "Aberta"
-                    : session.status === "closed"
-                      ? "Fechada"
-                      : "Concluida"}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Local
-                </p>
-                <p className="mt-1 text-sm font-semibold text-text-body">
-                  {session.location_name ?? "Nao informado"}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Capacidades
-                </p>
-                <p className="mt-1 text-sm font-semibold text-text-body">
-                  {session.capacity ?? 0} min / {session.max_capacity ?? 0} max
-                </p>
-              </article>
+          <div className="space-y-5">
+            <section className="rounded-xl border border-border-default bg-bg-default p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
+                    <AppIcon
+                      icon={MapPin}
+                      size="sm"
+                      className="text-text-muted"
+                      decorative
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-text-muted">
+                        Local:
+                      </p>
+                      <p className="text-sm font-bold text-text-body">
+                        {session.location_name ?? "Nao informado"}
+                      </p>
+                    </div>
+                  </article>
+
+                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
+                    <AppIcon
+                      icon={Calendar}
+                      size="sm"
+                      className="text-text-muted"
+                      decorative
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-text-muted">
+                        Data:
+                      </p>
+                      <p className="text-sm font-bold text-text-body">
+                        {format(
+                          parseISO(session.date),
+                          "dd 'de' MMMM 'de' yyyy",
+                          {
+                            locale: ptBR,
+                          },
+                        )}
+                      </p>
+                    </div>
+                  </article>
+
+                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
+                    <AppIcon
+                      icon={Clock3}
+                      size="sm"
+                      className="text-text-muted"
+                      decorative
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-text-muted">
+                        Turno:
+                      </p>
+                      <p className="text-sm font-bold text-text-body">
+                        {formatSessionPeriod(session.period)}
+                      </p>
+                    </div>
+                  </article>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePrintList}
+                  disabled={printing}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary disabled:opacity-60"
+                >
+                  {printing ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <FileDown size={16} />
+                  )}
+                  Gerar PDF de Chamada
+                </button>
+              </div>
             </section>
 
             <section className="grid gap-3 md:grid-cols-3">
@@ -519,19 +523,19 @@ export default function SessionHubDialog({
                 <thead className="bg-bg-default">
                   <tr>
                     <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                      Militar
+                      Posto
                     </th>
                     <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                      Agendamento
+                      Nome
                     </th>
                     <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                      Presenca
+                      SARAM
                     </th>
                     <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-                      Resultado
+                      Status
                     </th>
                     <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted text-right">
-                      Acao
+                      Ações
                     </th>
                   </tr>
                 </thead>
@@ -544,67 +548,19 @@ export default function SessionHubDialog({
                     return (
                       <tr key={booking.id}>
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-text-body">
+                          <span className="font-semibold text-text-body">
+                            {booking.rank ?? "--"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-text-body">
                             {booking.war_name ||
                               booking.full_name ||
                               "Sem nome"}
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            {booking.rank ?? "--"} • {booking.saram ?? "--"}
-                          </p>
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-text-body">
-                          {booking.status === "agendado"
-                            ? "Agendado"
-                            : booking.status === "remarcado"
-                              ? "Reagendado"
-                              : "Cancelado"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {mode === "manage" ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleAttendanceChange(booking.id, true)
-                                }
-                                disabled={
-                                  updatingAttendance === booking.id ||
-                                  !canManage
-                                }
-                                className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                                  booking.attendance_confirmed
-                                    ? "bg-primary text-white"
-                                    : "bg-bg-default text-text-muted"
-                                }`}
-                              >
-                                Sim
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleAttendanceChange(booking.id, false)
-                                }
-                                disabled={
-                                  updatingAttendance === booking.id ||
-                                  !canManage
-                                }
-                                className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                                  !booking.attendance_confirmed
-                                    ? "bg-primary text-white"
-                                    : "bg-bg-default text-text-muted"
-                                }`}
-                              >
-                                Nao
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-text-body">
-                              {booking.attendance_confirmed
-                                ? "Confirmada"
-                                : "Nao confirmada"}
-                            </span>
-                          )}
+                          {booking.saram ?? "--"}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -642,23 +598,35 @@ export default function SessionHubDialog({
               </table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handlePrintList}
-                disabled={printing}
-                className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
-              >
-                {printing ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <FileDown size={16} />
-                )}
-                Imprimir lista
-              </button>
+            <div className="space-y-3">
+              {mode === "manage" ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEditRequested(session.id)}
+                    disabled={!canManage}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
+                  >
+                    <Edit2 size={16} />
+                    Editar dados da sessão
+                  </button>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {mode === "view" && (
+                  <button
+                    type="button"
+                    onClick={() => setFinalizationDialogOpen(true)}
+                    disabled={closingSession || !canManage}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {closingSession ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Save size={16} />
+                    )}
+                    Finalizar Sessão
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={handlePrintFinalReport}
@@ -667,48 +635,23 @@ export default function SessionHubDialog({
                     <FileDown size={16} />
                     Imprimir relatório final
                   </button>
-                )}
-                {mode === "manage" ? (
-                  <>
+                  {session.status === "closed" ? (
                     <button
                       type="button"
-                      onClick={() => onEditRequested(session.id)}
-                      disabled={!canManage}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
-                    >
-                      <Edit2 size={16} />
-                      Editar dados da sessao
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFinalizationDialogOpen(true)}
-                      disabled={closingSession || !canManage}
+                      onClick={handleReopenSession}
+                      disabled={reopeningSession || !canManage}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                     >
-                      {closingSession ? (
+                      {reopeningSession ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        <Save size={16} />
+                        <RotateCcw size={16} />
                       )}
-                      Concluir sessao
+                      Reabrir sessão
                     </button>
-                  </>
-                ) : session.status === "closed" ? (
-                  <button
-                    type="button"
-                    onClick={handleReopenSession}
-                    disabled={reopeningSession || !canManage}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  >
-                    {reopeningSession ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <RotateCcw size={16} />
-                    )}
-                    Reabrir sessao
-                  </button>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -722,58 +665,70 @@ export default function SessionHubDialog({
           }
         }}
         closeDisabled={closingSession}
-        title="Confirmacao de finalizacao"
+        title="Confirmação de Finalização"
         description="Confirme para concluir a sessao e gerar automaticamente o relatorio final em PDF."
         widthClassName="max-w-2xl"
         footer={
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <button
               type="button"
               onClick={() => setFinalizationDialogOpen(false)}
               disabled={closingSession}
-              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+              className="rounded-lg px-1 py-2 text-sm font-semibold text-text-muted disabled:opacity-60"
             >
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFinalizationDialogOpen(false);
-                toast.success(
-                  "Dados preservados. A sessão permanece aberta para novos lançamentos.",
-                );
-              }}
-              disabled={closingSession}
-              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
-            >
-              Salvar como rascunho
-            </button>
-            <button
-              type="button"
-              onClick={handleFinalizeSession}
-              disabled={closingSession}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {closingSession ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <FileDown size={16} />
-              )}
-              Finalizar e gerar PDF
-            </button>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setFinalizationDialogOpen(false);
+                  toast.success(
+                    "Dados preservados. A sessão permanece aberta para novos lançamentos.",
+                  );
+                }}
+                disabled={closingSession}
+                className="rounded-lg border border-primary/40 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+              >
+                Salvar como Rascunho
+              </button>
+
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={handleFinalizeSession}
+                  disabled={closingSession}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {closingSession ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <FileDown size={16} />
+                  )}
+                  Finalizar e Gerar PDF
+                </button>
+                <p className="text-center text-xs text-text-muted">
+                  Atenção: avaliações pendentes serão convertidas para “Não
+                  Realizado”.
+                </p>
+              </div>
+            </div>
           </div>
         }
       >
         <div className="space-y-4">
           <section className="rounded-xl border border-border-default bg-bg-default p-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <p className="text-sm font-semibold text-text-body">
+              <p className="flex items-center gap-2 text-xl font-semibold text-text-body">
+                <CheckCircle2 size={18} className="text-success" />
                 Avaliados:{" "}
                 <span className="font-bold">
                   {summary.apto + summary.inapto}
                 </span>
               </p>
-              <p className="text-sm font-semibold text-alert">
+              <p className="flex items-center gap-2 text-xl font-semibold text-alert">
+                <Clock3 size={18} className="text-alert" />
                 Pendentes:{" "}
                 <span className="font-bold">
                   {checklist?.results_pending ?? summary.pendente}
@@ -782,12 +737,10 @@ export default function SessionHubDialog({
             </div>
           </section>
 
-          <section className="rounded-xl border border-alert/40 bg-alert/10 p-4 text-sm text-text-body">
-            <p className="font-semibold text-alert">
-              Atencao antes de concluir
-            </p>
-            <p className="mt-1 text-text-muted">
-              Avaliações pendentes serão convertidas para "Não Realizado".
+          <section className="rounded-xl border border-border-default bg-bg-default p-4 text-sm text-text-body">
+            <p className="text-base text-text-body">
+              Você está prestes a finalizar a sessão. Os dados dos avaliados
+              serão processados.
             </p>
           </section>
         </div>
@@ -800,7 +753,9 @@ export default function SessionHubDialog({
           setCurrentBookingIndex(null);
         }}
         title={
-          mode === "manage" ? "Lançamento de Performance" : "Resultado lançado"
+          mode === "manage"
+            ? "Lançamento de Performance Modal"
+            : "Resultado lançado"
         }
         description={
           mode === "manage"
@@ -823,32 +778,17 @@ export default function SessionHubDialog({
               </button>
               <button
                 type="button"
-                onClick={() => void handleSaveResult(false)}
+                onClick={() => void handleSaveResult(hasNextBooking)}
                 disabled={savingResult}
-                className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {savingResult ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Save size={16} />
                 )}
-                Salvar
+                {hasNextBooking ? "Salvar e Próximo" : "Salvar"}
               </button>
-              {hasNextBooking ? (
-                <button
-                  type="button"
-                  onClick={() => void handleSaveResult(true)}
-                  disabled={savingResult}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {savingResult ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Save size={16} />
-                  )}
-                  Salvar e Próximo
-                </button>
-              ) : null}
             </div>
           ) : undefined
         }
@@ -858,51 +798,63 @@ export default function SessionHubDialog({
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="space-y-2 text-sm font-medium text-text-body">
                 <span>Corrida</span>
-                <input
-                  type="text"
-                  value={resultDraft.corrida}
-                  onChange={(event) =>
-                    setResultDraft((current) =>
-                      current
-                        ? { ...current, corrida: event.target.value }
-                        : current,
-                    )
-                  }
-                  disabled={mode === "view"}
-                  className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
-                />
+                <div className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-default px-3 py-1">
+                  <span className="text-base text-text-muted">[</span>
+                  <input
+                    type="text"
+                    value={resultDraft.corrida}
+                    onChange={(event) =>
+                      setResultDraft((current) =>
+                        current
+                          ? { ...current, corrida: event.target.value }
+                          : current,
+                      )
+                    }
+                    disabled={mode === "view"}
+                    className="w-full border-none bg-transparent px-1 py-1 text-sm text-text-body focus:outline-none"
+                  />
+                  <span className="text-base text-text-muted">]</span>
+                </div>
               </label>
               <label className="space-y-2 text-sm font-medium text-text-body">
                 <span>Flexao</span>
-                <input
-                  type="text"
-                  value={resultDraft.flexao}
-                  onChange={(event) =>
-                    setResultDraft((current) =>
-                      current
-                        ? { ...current, flexao: event.target.value }
-                        : current,
-                    )
-                  }
-                  disabled={mode === "view"}
-                  className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
-                />
+                <div className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-default px-3 py-1">
+                  <span className="text-base text-text-muted">[</span>
+                  <input
+                    type="text"
+                    value={resultDraft.flexao}
+                    onChange={(event) =>
+                      setResultDraft((current) =>
+                        current
+                          ? { ...current, flexao: event.target.value }
+                          : current,
+                      )
+                    }
+                    disabled={mode === "view"}
+                    className="w-full border-none bg-transparent px-1 py-1 text-sm text-text-body focus:outline-none"
+                  />
+                  <span className="text-base text-text-muted">]</span>
+                </div>
               </label>
               <label className="space-y-2 text-sm font-medium text-text-body">
                 <span>Abdominal</span>
-                <input
-                  type="text"
-                  value={resultDraft.abdominal}
-                  onChange={(event) =>
-                    setResultDraft((current) =>
-                      current
-                        ? { ...current, abdominal: event.target.value }
-                        : current,
-                    )
-                  }
-                  disabled={mode === "view"}
-                  className="w-full rounded-lg border border-border-default bg-bg-default px-3 py-2 text-sm text-text-body"
-                />
+                <div className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-default px-3 py-1">
+                  <span className="text-base text-text-muted">[</span>
+                  <input
+                    type="text"
+                    value={resultDraft.abdominal}
+                    onChange={(event) =>
+                      setResultDraft((current) =>
+                        current
+                          ? { ...current, abdominal: event.target.value }
+                          : current,
+                      )
+                    }
+                    disabled={mode === "view"}
+                    className="w-full border-none bg-transparent px-1 py-1 text-sm text-text-body focus:outline-none"
+                  />
+                  <span className="text-base text-text-muted">]</span>
+                </div>
               </label>
             </div>
 
@@ -950,7 +902,7 @@ export default function SessionHubDialog({
                 <div className="flex items-center justify-between text-xs font-semibold text-text-muted">
                   <span>Progresso da avaliação</span>
                   <span>
-                    Avaliado{" "}
+                    Variante{" "}
                     {Math.min(currentBookingIndex + 1, activeBookings.length)}{" "}
                     de {activeBookings.length}
                   </span>

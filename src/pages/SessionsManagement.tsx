@@ -11,6 +11,7 @@ import SessionFormDialog from "@/components/Booking/SessionFormDialog";
 import SessionHubDialog from "@/components/Booking/SessionHubDialog";
 import Dialog from "@/components/Dialog";
 import Layout from "@/components/layout/Layout";
+import useAuth from "@/hooks/useAuth";
 import { useResponsive } from "@/hooks/useResponsive";
 import useSessions, { type SessionAvailability } from "@/hooks/useSessions";
 import {
@@ -25,16 +26,17 @@ import {
   GitMerge,
   LayoutGrid,
   LayoutList,
+  Loader2,
   Plus,
   Search,
-  XCircle,
+  Trash2,
 } from "@/icons";
 import { updateSession } from "@/services/sessions";
 import type { SessionStatus } from "@/types/database.types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -57,6 +59,7 @@ const ADMIN_END_STR = ADMIN_END.toISOString().split("T")[0];
 
 export const SessionsManagement = () => {
   const { isMobile, isTablet } = useResponsive();
+  const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { sessions, loading, error, refresh } = useSessions(
     ADMIN_START_STR,
@@ -66,6 +69,11 @@ export const SessionsManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const isCompactViewport = isMobile || isTablet;
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
+  const isNarrowDesktop = viewportWidth >= 1024 && viewportWidth < 1280;
+  const forceCardsViewport = isCompactViewport || isNarrowDesktop;
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     isCompactViewport ? "cards" : "table",
   );
@@ -74,16 +82,22 @@ export const SessionsManagement = () => {
   const editRequested = searchParams.get("edit") === "1";
   const [standaloneFormState, setStandaloneFormState] =
     useState<SessionFormState | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<SessionAvailability | null>(
-    null,
-  );
-  const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(
-    null,
-  );
+  const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
+  const [sessionPendingCancel, setSessionPendingCancel] =
+    useState<SessionAvailability | null>(null);
+  const [cancellingSession, setCancellingSession] = useState(false);
   const pageSize = 10;
-  const activeViewMode: ViewMode = isCompactViewport ? "cards" : viewMode;
+  const activeViewMode: ViewMode = forceCardsViewport ? "cards" : viewMode;
   const activeTab: HubTab =
     searchParams.get("tab") === "reagendamentos" ? "reagendamentos" : "sessoes";
+  const canManage =
+    profile?.role === "admin" || profile?.role === "coordinator";
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const setActiveTab = useCallback(
     (tab: HubTab) => {
@@ -119,6 +133,21 @@ export const SessionsManagement = () => {
       if (!reopenHubOnSave) {
         setStandaloneFormState(null);
       }
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const openEditStandalone = useCallback(
+    (sessionId: string) => {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("sessionId");
+      nextParams.delete("edit");
+      setSearchParams(nextParams, { replace: true });
+      setStandaloneFormState({
+        mode: "edit",
+        sessionId,
+        reopenHubOnSave: false,
+      });
     },
     [searchParams, setSearchParams],
   );
@@ -199,6 +228,27 @@ export const SessionsManagement = () => {
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const handleConfirmCancelSession = useCallback(async () => {
+    if (!sessionPendingCancel) {
+      return;
+    }
+
+    setCancellingSession(true);
+    try {
+      await updateSession(sessionPendingCancel.session_id, {
+        status: "closed",
+      });
+      toast.success("Sessão cancelada com sucesso.");
+      setSessionPendingCancel(null);
+      await refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível cancelar a sessão.");
+    } finally {
+      setCancellingSession(false);
+    }
+  }, [refresh, sessionPendingCancel]);
+
   const sessionFormState =
     standaloneFormState ??
     (editRequested && selectedSessionId
@@ -250,108 +300,34 @@ export const SessionsManagement = () => {
     (s) => getSessionStatus(s) === "completed",
   ).length;
 
-  const updateHubSessionQuery = useCallback(
-    (sessionId: string | null, options?: { edit?: boolean }) => {
-      const nextParams = new URLSearchParams(searchParams);
-      if (sessionId) {
-        nextParams.set("sessionId", sessionId);
-      } else {
-        nextParams.delete("sessionId");
-      }
-
-      if (options?.edit && sessionId) {
-        nextParams.set("edit", "1");
-      } else {
-        nextParams.delete("edit");
-      }
-
-      setSearchParams(nextParams, { replace: true });
-    },
-    [searchParams, setSearchParams],
-  );
-
-  const handleRequestCancel = useCallback((session: SessionAvailability) => {
-    setCancelTarget(session);
-  }, []);
-
-  const handleConfirmCancel = useCallback(async () => {
-    if (!cancelTarget) {
-      return;
-    }
-
-    setCancellingSessionId(cancelTarget.session_id);
-    try {
-      await updateSession(cancelTarget.session_id, { status: "closed" });
-      toast.success("Sessão fechada com sucesso.");
-      setCancelTarget(null);
-      await refresh();
-
-      if (selectedSessionId === cancelTarget.session_id) {
-        updateHubSessionQuery(cancelTarget.session_id);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível fechar a sessão.");
-    } finally {
-      setCancellingSessionId(null);
-    }
-  }, [cancelTarget, refresh, selectedSessionId, updateHubSessionQuery]);
-
-  const renderOccupancyBar = (session: SessionAvailability) => {
-    const occupied = session.occupied_count;
-    const max = session.max_capacity;
-    const percent = max ? Math.round((occupied / max) * 100) : 0;
-    const barColor =
-      percent >= 95
-        ? "accent-text-muted"
-        : percent >= 50
-          ? "accent-primary"
-          : "accent-primary";
-    const textColor =
-      percent >= 95
-        ? "text-error"
-        : percent >= 50
-          ? "text-primary"
-          : "text-primary";
-    return (
-      <div className="w-40 sm:w-48">
-        <div
-          className={`flex justify-between text-[10px] mb-1 font-bold ${textColor}`}
-        >
-          <span>
-            {occupied}/{max}
-          </span>
-          <span>{percent}%</span>
-        </div>
-        <progress
-          value={occupied}
-          max={max || 1}
-          aria-label="Ocupação"
-          className={`h-2 w-full rounded-full overflow-hidden ${barColor}`}
-        />
-      </div>
-    );
-  };
+  const statusFilterLabel =
+    statusFilter === "all"
+      ? "Todas"
+      : statusFilter === "open"
+        ? "Abertas"
+        : statusFilter === "closed"
+          ? "Fechadas"
+          : "Concluídas";
 
   return (
     <Layout>
       <div
-        className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 space-y-6"
+        className="mx-auto w-full max-w-screen-2xl space-y-4 px-4 py-4 sm:px-6 lg:px-0"
         data-testid="sessions-management-page"
       >
         {/* hero */}
         <section>
-          <div className="relative overflow-hidden rounded-3xl bg-primary px-5 py-6 text-white shadow-2xl shadow-primary/20 md:px-8 md:py-8 lg:px-10 lg:py-10">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary px-4 py-4 text-white md:px-6 md:py-5 lg:px-8 lg:py-6">
             <div className="pointer-events-none absolute inset-0 opacity-10 dashboard-hero-texture" />
-            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2
-                  className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl"
+                  className="text-lg font-bold tracking-tight md:text-xl lg:text-2xl"
                   data-testid="sessions-management-title"
                 >
                   Hub de Sessões
                 </h2>
-                <p className="mt-2 text-sm text-white/85 md:text-base">
+                <p className="mt-1 text-xs text-white/85 md:text-sm">
                   Centro operacional para criação, acompanhamento,
                   reagendamentos e execução das sessões de avaliação física.
                 </p>
@@ -361,12 +337,12 @@ export const SessionsManagement = () => {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border-default bg-bg-card p-2 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
+        <section className="inline-flex max-w-full rounded-xl border border-border-default bg-bg-card p-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setActiveTab("sessoes")}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
                 activeTab === "sessoes"
                   ? "bg-primary text-white shadow-sm"
                   : "text-text-muted hover:bg-bg-default hover:text-text-body"
@@ -378,7 +354,7 @@ export const SessionsManagement = () => {
             <button
               type="button"
               onClick={() => setActiveTab("reagendamentos")}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
                 activeTab === "reagendamentos"
                   ? "bg-primary text-white shadow-sm"
                   : "text-text-muted hover:bg-bg-default hover:text-text-body"
@@ -394,7 +370,7 @@ export const SessionsManagement = () => {
           <ReschedulingPanel />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard title="Total" value={sessions.length} icon={Calendar} />
               <StatCard
                 title="Abertas"
@@ -422,9 +398,9 @@ export const SessionsManagement = () => {
               />
             </div>
 
-            <div className="bg-bg-card rounded-2xl shadow-sm border border-border-default overflow-hidden">
-              <div className="p-3 md:p-5 border-b border-border-default flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                <div className="relative w-full sm:flex-1 sm:min-w-0">
+            <div className="overflow-hidden rounded-xl border border-border-default bg-bg-card">
+              <div className="space-y-2 border-b border-border-default p-3 md:p-4">
+                <div className="relative w-full">
                   <input
                     className="pl-10 pr-4 py-2 bg-bg-default border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 w-full"
                     placeholder="Buscar sessão, data, turno ou local..."
@@ -443,81 +419,40 @@ export const SessionsManagement = () => {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={openCreateDialog}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
-                  >
-                    <AppIcon icon={Plus} size="sm" decorative />
-                    Nova sessão
-                  </button>
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
+                    <button
+                      type="button"
+                      onClick={openCreateDialog}
+                      className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 sm:flex-none"
+                    >
+                      <AppIcon icon={Plus} size="sm" decorative />
+                      Nova sessão
+                    </button>
 
-                  <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1 overflow-x-auto no-scrollbar">
-                    {(["all", "open", "closed", "completed"] as const).map(
-                      (f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter(f);
-                            setPage(1);
-                          }}
-                          className={`px-2 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                            statusFilter === f
-                              ? "bg-primary/10 text-primary shadow-sm"
-                              : "text-text-muted hover:text-text-body"
-                          }`}
-                        >
-                          {f === "all"
-                            ? "Todas"
-                            : f === "open"
-                              ? "Abertas"
-                              : f === "closed"
-                                ? "Fechadas"
-                                : "Concluídas"}
-                        </button>
-                      ),
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsFiltersDialogOpen(true)}
+                      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-bg-default px-3 py-2 text-text-body transition-colors hover:bg-bg-card/20"
+                      title="Filtros avançados"
+                      aria-label="Filtros avançados"
+                    >
+                      <AppIcon icon={Filter} size="sm" decorative />
+                      Filtros
+                    </button>
                   </div>
 
-                  {!isCompactViewport && (
-                    <div className="flex items-center gap-1 bg-bg-default rounded-xl p-1">
-                      <button
-                        type="button"
-                        onClick={() => setViewMode("table")}
-                        aria-label="Modo tabela"
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          viewMode === "table"
-                            ? "bg-bg-card text-primary shadow-sm"
-                            : "text-text-muted hover:text-text-body"
-                        }`}
-                      >
-                        <AppIcon icon={LayoutList} size="sm" decorative />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setViewMode("cards")}
-                        aria-label="Modo cards"
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          viewMode === "cards"
-                            ? "bg-bg-card text-primary shadow-sm"
-                            : "text-text-muted hover:text-text-body"
-                        }`}
-                      >
-                        <AppIcon icon={LayoutGrid} size="sm" decorative />
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="p-2 bg-bg-default rounded-xl text-text-muted hover:bg-bg-card/20 transition-colors"
-                    title="Filtros avançados"
-                    aria-label="Filtros avançados"
-                  >
-                    <AppIcon icon={Filter} size="sm" decorative />
-                  </button>
+                  <div className="flex w-full items-center justify-end gap-2 lg:w-auto">
+                    <span className="inline-flex items-center rounded-full bg-bg-default px-3 py-1 text-xs font-semibold text-text-muted">
+                      Status: {statusFilterLabel}
+                    </span>
+                    {!forceCardsViewport && (
+                      <span className="inline-flex items-center rounded-full bg-bg-default px-3 py-1 text-xs font-semibold text-text-muted">
+                        Visualização:{" "}
+                        {viewMode === "table" ? "Tabela" : "Cards"}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -546,29 +481,30 @@ export const SessionsManagement = () => {
                 </p>
               </div>
             ) : activeViewMode === "table" ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left">
+              <div className="overflow-x-auto pr-2">
+                <table className="w-full min-w-[700px] table-fixed text-left">
+                  <colgroup>
+                    <col className="w-[20%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[26%]" />
+                  </colgroup>
                   <thead className="bg-bg-default">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
                         Turma
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
                         Data
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
                         Turno
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                        Local
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
-                        Ocupação
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider">
+                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider text-right">
+                      <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-text-muted">
                         Ações
                       </th>
                     </tr>
@@ -578,46 +514,34 @@ export const SessionsManagement = () => {
                       const status = getSessionStatus(s);
                       const isOpen = status === "open";
                       const isCompleted = status === "completed";
-                      const canEdit = isOpen;
-                      const canCancel = isOpen;
                       return (
                         <tr
                           key={s.session_id}
                           className="hover:bg-bg-card/20 transition-colors"
                         >
-                          <td className="px-6 py-5">
-                            <div className="font-bold text-text-body font-mono text-sm">
+                          <td className="px-4 py-4 align-middle">
+                            <div className="font-mono text-sm font-bold text-text-body">
                               {s.session_id.slice(0, 12).toUpperCase()}
                             </div>
                           </td>
-                          <td className="px-6 py-5">
-                            <div className="text-sm font-semibold text-text-body capitalize">
-                              {format(parseISO(s.date), "EEEE", {
+                          <td className="px-4 py-4 align-middle">
+                            <div className="text-sm font-semibold capitalize text-text-body">
+                              {format(parseISO(s.date), "EEE", {
                                 locale: ptBR,
                               })}
                             </div>
                             <div className="mt-0.5 text-xs text-text-muted">
-                              {format(
-                                parseISO(s.date),
-                                "dd 'de' MMMM 'de' yyyy",
-                                {
-                                  locale: ptBR,
-                                },
-                              )}
+                              {format(parseISO(s.date), "dd/MM/yy", {
+                                locale: ptBR,
+                              })}
                             </div>
                           </td>
-                          <td className="px-6 py-5">
-                            <span className="text-sm font-semibold text-text-body capitalize">
+                          <td className="px-4 py-4 align-middle">
+                            <span className="text-sm font-semibold capitalize text-text-body">
                               {formatSessionPeriod(s.period)}
                             </span>
                           </td>
-                          <td className="px-6 py-5">
-                            <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
-                              {s.location_name ?? "Sem local"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">{renderOccupancyBar(s)}</td>
-                          <td className="px-6 py-5">
+                          <td className="px-4 py-4 align-middle">
                             <span
                               className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
                                 isOpen
@@ -634,21 +558,17 @@ export const SessionsManagement = () => {
                                   : "FECHADA"}
                             </span>
                           </td>
-                          <td className="px-6 py-5 text-right">
-                            <div className="flex justify-end gap-1">
+                          <td className="px-4 py-4 text-right align-middle">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5 whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openHubDialog(s.session_id)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                                className="inline-flex h-8 w-[120px] items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                                 title={
-                                  status === "open"
-                                    ? "Gerir sessão"
-                                    : "Visualizar sessão"
+                                  isOpen ? "Gerir sessão" : "Visualizar sessão"
                                 }
                                 aria-label={
-                                  status === "open"
-                                    ? "Gerir sessão"
-                                    : "Visualizar sessão"
+                                  isOpen ? "Gerir sessão" : "Visualizar sessão"
                                 }
                               >
                                 <AppIcon
@@ -656,61 +576,59 @@ export const SessionsManagement = () => {
                                   size="sm"
                                   decorative
                                 />
-                                {status === "open" ? "Gerir" : "Visualizar"}
+                                {isOpen ? "Gerir" : "Visualizar"}
                               </button>
+
                               <button
                                 type="button"
-                                onClick={() => openEditDialog(s.session_id)}
-                                disabled={!canEdit}
-                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
-                                title={
-                                  canEdit
-                                    ? "Editar sessão"
-                                    : "Somente sessoes abertas podem ser editadas"
-                                }
+                                onClick={() => openEditStandalone(s.session_id)}
+                                disabled={!canManage || !isOpen}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Editar sessão"
                                 aria-label="Editar sessão"
                               >
                                 <AppIcon icon={Edit2} size="sm" decorative />
                               </button>
+
                               <button
                                 type="button"
                                 onClick={() =>
                                   openDuplicateDialog(s.session_id)
                                 }
-                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                                disabled={!canManage || !isOpen}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 title="Duplicar sessão"
                                 aria-label="Duplicar sessão"
                               >
                                 <AppIcon icon={Copy} size="sm" decorative />
                               </button>
+
                               <button
                                 type="button"
-                                onClick={() =>
-                                  status === "completed"
-                                    ? openHubDialog(s.session_id)
-                                    : handleRequestCancel(s)
-                                }
-                                disabled={!canCancel && !isCompleted}
-                                className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                title={
-                                  isCompleted
-                                    ? "Imprimir relatório final"
-                                    : canCancel
-                                      ? "Cancelar sessão"
-                                      : "Somente sessões abertas podem ser canceladas"
-                                }
-                                aria-label={
-                                  isCompleted
-                                    ? "Imprimir relatório final"
-                                    : "Cancelar sessão"
-                                }
+                                onClick={() => setSessionPendingCancel(s)}
+                                disabled={!canManage || !isOpen}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Cancelar sessão"
+                                aria-label="Cancelar sessão"
                               >
-                                <AppIcon
-                                  icon={isCompleted ? FileDown : XCircle}
-                                  size="sm"
-                                  decorative
-                                />
+                                <AppIcon icon={Trash2} size="sm" decorative />
                               </button>
+
+                              {isCompleted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openHubDialog(s.session_id)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary"
+                                  title="Imprimir relatório final"
+                                  aria-label="Imprimir relatório final"
+                                >
+                                  <AppIcon
+                                    icon={FileDown}
+                                    size="sm"
+                                    decorative
+                                  />
+                                </button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -721,20 +639,18 @@ export const SessionsManagement = () => {
               </div>
             ) : (
               /* cards view */
-              <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 md:gap-3 md:p-4 lg:grid-cols-3">
                 {paginatedSessions.map((s) => {
                   const status = getSessionStatus(s);
                   const isOpen = status === "open";
                   const isCompleted = status === "completed";
-                  const canEdit = isOpen;
-                  const canCancel = isOpen;
                   const occupied = s.occupied_count;
                   const max = s.max_capacity;
                   const percent = max ? Math.round((occupied / max) * 100) : 0;
                   return (
                     <div
                       key={s.session_id}
-                      className={`bg-bg-default rounded-xl p-5 border border-border-default border-l-4 ${
+                      className={`rounded-xl border border-border-default border-l-4 bg-bg-default p-4 ${
                         isOpen
                           ? "border-l-primary"
                           : isCompleted
@@ -806,49 +722,50 @@ export const SessionsManagement = () => {
                           className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors"
                         >
                           <AppIcon icon={ClipboardList} size="sm" decorative />
-                          {status === "open"
-                            ? "Gerir Sessão"
-                            : "Visualizar Sessão"}
+                          {isOpen ? "Gerir Sessão" : "Visualizar Sessão"}
                         </button>
-                        <div className="flex gap-2">
+
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
-                            onClick={() => openEditDialog(s.session_id)}
-                            disabled={!canEdit}
-                            title={
-                              canEdit
-                                ? "Editar sessão"
-                                : "Somente sessoes abertas podem ser editadas"
-                            }
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-text-body disabled:hover:border-border-default"
+                            onClick={() => openEditStandalone(s.session_id)}
+                            disabled={!canManage || !isOpen}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <AppIcon icon={Edit2} size="sm" decorative /> Editar
+                            <AppIcon icon={Edit2} size="xs" decorative />
+                            Editar
                           </button>
+
                           <button
                             type="button"
                             onClick={() => openDuplicateDialog(s.session_id)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors"
+                            disabled={!canManage || !isOpen}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <AppIcon icon={Copy} size="sm" decorative />{" "}
+                            <AppIcon icon={Copy} size="xs" decorative />
                             Duplicar
                           </button>
+
                           <button
                             type="button"
-                            onClick={() =>
-                              status === "completed"
-                                ? openHubDialog(s.session_id)
-                                : handleRequestCancel(s)
-                            }
-                            disabled={!canCancel && !isCompleted}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold text-text-body hover:text-primary bg-bg-card rounded-lg border border-border-default hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setSessionPendingCancel(s)}
+                            disabled={!canManage || !isOpen}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <AppIcon
-                              icon={isCompleted ? FileDown : XCircle}
-                              size="sm"
-                              decorative
-                            />
-                            {isCompleted ? "Relatório" : "Cancelar"}
+                            <AppIcon icon={Trash2} size="xs" decorative />
+                            Cancelar
                           </button>
+
+                          {isCompleted ? (
+                            <button
+                              type="button"
+                              onClick={() => openHubDialog(s.session_id)}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary"
+                            >
+                              <AppIcon icon={FileDown} size="xs" decorative />
+                              Imprimir
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -858,11 +775,11 @@ export const SessionsManagement = () => {
             )}
 
             {!loading && !error && filteredSessions.length > pageSize && (
-              <div className="px-6 py-4 bg-bg-default border-t border-border-default flex justify-between items-center text-sm">
-                <p className="text-text-muted text-xs">
+              <div className="flex items-center justify-between border-t border-border-default bg-bg-default px-4 py-3 text-sm sm:px-6 sm:py-4">
+                <p className="text-xs text-text-muted">
                   {paginatedSessions.length} de {filteredSessions.length} turmas
                 </p>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     disabled={page <= 1}
@@ -876,21 +793,27 @@ export const SessionsManagement = () => {
                   >
                     <AppIcon icon={ChevronLeft} size="sm" decorative />
                   </button>
-                  {Array.from({ length: pageCount }, (_, i) => i + 1).map(
-                    (v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setPage(v)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
-                          v === page
-                            ? "bg-primary text-white border-primary"
-                            : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    ),
+                  {forceCardsViewport ? (
+                    <span className="px-2 text-xs font-semibold text-text-body">
+                      {page}/{pageCount}
+                    </span>
+                  ) : (
+                    Array.from({ length: pageCount }, (_, i) => i + 1).map(
+                      (v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setPage(v)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-semibold ${
+                            v === page
+                              ? "bg-primary text-white border-primary"
+                              : "bg-bg-card text-text-body border-border-default hover:bg-bg-default"
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ),
+                    )
                   )}
                   <button
                     type="button"
@@ -926,54 +849,159 @@ export const SessionsManagement = () => {
         onSaved={handleSessionFormSaved}
       />
       <Dialog
-        open={cancelTarget !== null}
+        open={sessionPendingCancel !== null}
         onClose={() => {
-          if (!cancellingSessionId) {
-            setCancelTarget(null);
+          if (!cancellingSession) {
+            setSessionPendingCancel(null);
           }
         }}
-        title="Confirmar fechamento da sessão"
-        description="A sessão ficará indisponível para operação direta no hub e passará para modo somente leitura."
-        widthClassName="max-w-xl"
+        closeDisabled={cancellingSession}
+        title="Cancelar sessão"
+        description="Esta ação faz a exclusão lógica da turma e impede novos lançamentos operacionais."
+        widthClassName="max-w-lg"
         footer={
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setCancelTarget(null)}
-              disabled={cancellingSessionId !== null}
-              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body"
+              onClick={() => setSessionPendingCancel(null)}
+              disabled={cancellingSession}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
             >
               Voltar
             </button>
             <button
               type="button"
-              onClick={() => void handleConfirmCancel()}
-              disabled={cancellingSessionId !== null}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              onClick={() => void handleConfirmCancelSession()}
+              disabled={cancellingSession}
+              className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {cancellingSessionId ? "Fechando..." : "Fechar sessão"}
+              {cancellingSession ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Confirmar cancelamento"
+              )}
             </button>
           </div>
         }
       >
-        {cancelTarget && (
-          <div className="space-y-4 text-sm text-text-body">
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <p className="font-semibold text-primary">
-                {cancelTarget.location_name ?? "Sessão sem local"} •{" "}
-                {format(parseISO(cancelTarget.date), "dd/MM/yyyy", {
-                  locale: ptBR,
-                })}{" "}
-                • {formatSessionPeriod(cancelTarget.period)}
-              </p>
-            </div>
-            <p>
-              Esta turma possui <strong>{cancelTarget.occupied_count}</strong>{" "}
-              militar(es) agendado(s). O fechamento impede a gestão operacional
-              direta e pode exigir tratamento manual dos reagendamentos.
+        <div className="space-y-3 text-sm text-text-body">
+          <p>
+            A turma{" "}
+            <strong>
+              {sessionPendingCancel?.session_id.slice(0, 12).toUpperCase()}
+            </strong>{" "}
+            será marcada como fechada para bloquear novas operações.
+          </p>
+          {sessionPendingCancel && sessionPendingCancel.occupied_count > 0 ? (
+            <p className="rounded-lg border border-alert/40 bg-alert/10 px-3 py-2 text-alert">
+              Atenção: existem {sessionPendingCancel.occupied_count} militar(es)
+              agendado(s). Garanta o tratamento de reagendamentos antes de
+              concluir o processo.
             </p>
+          ) : null}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={isFiltersDialogOpen}
+        onClose={() => setIsFiltersDialogOpen(false)}
+        title="Filtros de exibição"
+        description="Ajuste status e modo de visualização sem poluir a barra principal."
+        widthClassName="max-w-lg"
+        footer={
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("all");
+                if (!forceCardsViewport) {
+                  setViewMode("table");
+                }
+                setPage(1);
+              }}
+              className="rounded-lg border border-border-default px-3 py-2 text-sm font-semibold text-text-body"
+            >
+              Limpar
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFiltersDialogOpen(false)}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+            >
+              Aplicar
+            </button>
           </div>
-        )}
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+              Status
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["all", "open", "closed", "completed"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(f);
+                    setPage(1);
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    statusFilter === f
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border-default bg-bg-card text-text-body hover:bg-bg-default"
+                  }`}
+                >
+                  {f === "all"
+                    ? "Todas"
+                    : f === "open"
+                      ? "Abertas"
+                      : f === "closed"
+                        ? "Fechadas"
+                        : "Concluídas"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!forceCardsViewport && (
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                Visualização
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    viewMode === "table"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border-default bg-bg-card text-text-body hover:bg-bg-default"
+                  }`}
+                >
+                  <AppIcon icon={LayoutList} size="sm" decorative />
+                  Tabela
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    viewMode === "cards"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border-default bg-bg-card text-text-body hover:bg-bg-default"
+                  }`}
+                >
+                  <AppIcon icon={LayoutGrid} size="sm" decorative />
+                  Cards
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </Dialog>
     </Layout>
   );

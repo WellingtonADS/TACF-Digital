@@ -47,7 +47,8 @@ async function getNextEligibleDate(
 ) {
   for (let offset = minOffset; offset <= 45; offset += 1) {
     const candidate = addDays(new Date(), offset);
-    if (candidate.getDay() === 0) continue;
+    // Domínio impede sessões em fins de semana, então o seed deve pular sábado e domingo.
+    if (candidate.getDay() === 0 || candidate.getDay() === 6) continue;
 
     const key = toDateKey(candidate);
     if (blockedDates.has(key)) continue;
@@ -385,7 +386,8 @@ async function waitForToastText(page: Page, patterns: RegExp[]) {
 test.describe("Prático visual: usuário militar solicita reagendamento", () => {
   test.setTimeout(240000);
 
-  const email = getOptionalEnv("E2E_USER_EMAIL") ?? getOptionalEnv("SEED_USER_EMAIL");
+  const email =
+    getOptionalEnv("E2E_USER_EMAIL") ?? getOptionalEnv("SEED_USER_EMAIL");
   const password =
     getOptionalEnv("E2E_USER_PASSWORD") ?? getOptionalEnv("SEED_USER_PASSWORD");
   let manualSeed: ManualRescheduleSeed | null = null;
@@ -453,7 +455,10 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
       timeout: 30000,
     });
 
-    const rescheduleDate = await findAlternativeAvailableDate(page, currentDate);
+    const rescheduleDate = await findAlternativeAvailableDate(
+      page,
+      currentDate,
+    );
 
     await page.goto("/app/ticket");
     await waitForPageReady(page);
@@ -472,9 +477,7 @@ test.describe("Prático visual: usuário militar solicita reagendamento", () => 
       })
       .toBeGreaterThan(1);
     await page.locator("#session-select").selectOption({ index: 1 });
-    await page
-      .locator("#reason")
-      .fill(MANUAL_RESCHEDULE_REASON);
+    await page.locator("#reason").fill(MANUAL_RESCHEDULE_REASON);
 
     await page.screenshot({
       path: "test-results/manual-user-reschedule-filled.png",
