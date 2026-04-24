@@ -4,8 +4,6 @@
  * @path src/components/layout/Layout.tsx
  */
 
-
-
 // original implementation moved from src/layout/Layout.tsx
 import { useResponsive } from "@/hooks/useResponsive";
 import type { ReactNode } from "react";
@@ -42,12 +40,10 @@ export const Layout = ({ children }: Props) => {
       />
 
       <div
-        className={`flex flex-col flex-1 min-h-screen ${isDesktop ? "md:ml-64 lg:ml-72" : ""}`}
+        className={`flex min-h-screen w-full flex-1 flex-col ${isDesktop ? "md:pl-64 lg:pl-72" : ""}`}
       >
         <Topbar
-          onToggleSidebar={() =>
-            setBarraLateralAberta((aberta) => !aberta)
-          }
+          onToggleSidebar={() => setBarraLateralAberta((aberta) => !aberta)}
         />
         <main className="flex-1 p-4 sm:p-6 lg:p-10 bg-[#F4F7F9]">
           {children}

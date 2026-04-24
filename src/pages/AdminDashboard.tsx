@@ -5,22 +5,17 @@
  */
 
 import AppIcon from "@/components/atomic/AppIcon";
-import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
 import StatCard from "@/components/atomic/StatCard";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
 import useSessions from "@/hooks/useSessions";
-import type { LucideIcon } from "@/icons";
 import {
   AlertTriangle,
   BarChart2,
   Bell,
   CheckCircle,
   ClipboardList,
-  FileBarChart2,
   GitMerge,
-  LayoutGrid,
-  Settings,
   Shield,
   Users,
 } from "@/icons";
@@ -54,43 +49,6 @@ const AdminDashboard = () => {
 
   // sessions (somente para capacidade restante e próximas turmas)
   const { sessions, loading: sessionsLoading } = useSessions();
-
-  type LocalAction = {
-    icon: LucideIcon;
-    label: string;
-    description: string;
-    path: string;
-    accent?: string;
-  };
-
-  function QuickActionButton({ action }: { action: LocalAction }) {
-    const actionTestId = `admin-quick-action-${
-      action.path.replace(/^\/app\/?/, "").replace(/[:/]+/g, "-") || "dashboard"
-    }`;
-
-    return (
-      <button
-        type="button"
-        onClick={() => navigate(action.path)}
-        data-testid={actionTestId}
-        className={`${CARD_INTERACTIVE_CLASS} group flex h-full min-h-[156px] w-full flex-col items-start justify-start gap-3 rounded-2xl p-4 text-left md:min-h-[168px] md:p-5`}
-      >
-        <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.accent}`}
-        >
-          <AppIcon icon={action.icon} size="sm" ariaLabel={action.label} />
-        </div>
-        <div className="flex w-full flex-1 flex-col text-left">
-          <p className="text-left text-base font-semibold leading-tight text-text-body line-clamp-2">
-            {action.label}
-          </p>
-          <p className="mt-1 text-left text-xs leading-snug text-text-muted line-clamp-2">
-            {action.description}
-          </p>
-        </div>
-      </button>
-    );
-  }
 
   useEffect(() => {
     async function loadMetrics() {
@@ -163,44 +121,6 @@ const AdminDashboard = () => {
       )
       .slice(0, 3);
   }, [sessions]);
-
-  const quickActions = [
-    {
-      icon: LayoutGrid,
-      label: "Gerenciar Turmas",
-      description: "Listar, criar e controlar sessões de avaliação",
-      path: "/app/turmas",
-      accent: "bg-primary/5 text-primary",
-    },
-    {
-      icon: Users,
-      label: "Efetivo",
-      description: "Buscar e monitorar militares",
-      path: "/app/efetivo",
-      accent: "bg-primary/5 text-primary",
-    },
-    {
-      icon: FileBarChart2,
-      label: "Relatórios",
-      description: "Analytics e exportação de dados",
-      path: "/app/analytics",
-      accent: "bg-primary/5 text-primary",
-    },
-    {
-      icon: GitMerge,
-      label: "Reagendamentos",
-      description: "Deferir ou indeferir solicitações",
-      path: "/app/turmas?tab=reagendamentos",
-      accent: "bg-primary/5 text-primary",
-    },
-    {
-      icon: Settings,
-      label: "Configurações",
-      description: "Parâmetros globais e segurança",
-      path: "/app/configuracoes",
-      accent: "bg-bg-default text-text-muted",
-    },
-  ];
 
   const sessionCardBaseClass =
     "h-full rounded-2xl border border-border-default bg-bg-card p-5";
@@ -354,18 +274,6 @@ const AdminDashboard = () => {
             {metricsError}
           </div>
         )}
-
-        {/* quick action cards */}
-        <section className="mb-10">
-          <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 px-1">
-            Acesso Rápido
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
-            {quickActions.map((action) => (
-              <QuickActionButton key={action.path} action={action} />
-            ))}
-          </div>
-        </section>
 
         {/* upcoming sessions strip */}
         <section>

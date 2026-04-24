@@ -4,8 +4,6 @@
  * @path src/components/atomic/StatCard.tsx
  */
 
-
-
 import type { LucideIcon } from "@/icons";
 import AppIcon from "./AppIcon";
 
@@ -32,7 +30,7 @@ export default function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className={`rounded-3xl border border-border-default bg-bg-card p-4 md:p-6 ${className}`}
+      className={`min-w-0 rounded-3xl border border-border-default bg-bg-card p-4 md:p-6 ${className}`}
     >
       <div className="grid grid-cols-[auto,1fr] items-center gap-3 md:gap-4">
         <div
