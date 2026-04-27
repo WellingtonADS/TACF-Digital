@@ -293,8 +293,8 @@ export default function SessionFormDialog({
         console.error(error);
         toast.error(
           mode === "create" || mode === "duplicate"
-            ? "Nao foi possivel carregar o formulario de sessao."
-            : "Nao foi possivel carregar os dados da sessao.",
+            ? "Não foi possível carregar o formulário de sessão."
+            : "Não foi possível carregar os dados da sessão.",
         );
       } finally {
         if (active) {
@@ -314,6 +314,19 @@ export default function SessionFormDialog({
     const unique = Array.from(new Set(defaults.default_periods));
     return unique.length > 0 ? unique : FALLBACK_DEFAULTS.default_periods;
   }, [defaults.default_periods]);
+
+  const capacityBounds = useMemo(() => {
+    const min = Math.max(
+      1,
+      defaults.min_capacity || FALLBACK_DEFAULTS.min_capacity,
+    );
+    const max = Math.max(
+      min,
+      defaults.max_capacity || FALLBACK_DEFAULTS.max_capacity,
+    );
+
+    return { min, max };
+  }, [defaults.max_capacity, defaults.min_capacity]);
 
   const selectedLocation = useMemo(
     () =>
@@ -346,7 +359,7 @@ export default function SessionFormDialog({
     }
 
     if (!form.location_id) {
-      toast.error("Selecione o local de aplicacao.");
+      toast.error("Selecione o local de aplicação.");
       return;
     }
 
@@ -356,12 +369,32 @@ export default function SessionFormDialog({
     }
 
     if (form.min_capacity < 1) {
-      toast.error("A capacidade minima precisa ser maior que zero.");
+      toast.error("A capacidade mínima precisa ser maior que zero.");
+      return;
+    }
+
+    if (
+      form.min_capacity < capacityBounds.min ||
+      form.min_capacity > capacityBounds.max
+    ) {
+      toast.error(
+        `A capacidade mínima deve ficar entre ${capacityBounds.min} e ${capacityBounds.max}.`,
+      );
+      return;
+    }
+
+    if (
+      form.max_capacity < capacityBounds.min ||
+      form.max_capacity > capacityBounds.max
+    ) {
+      toast.error(
+        `A capacidade máxima deve ficar entre ${capacityBounds.min} e ${capacityBounds.max}.`,
+      );
       return;
     }
 
     if (form.max_capacity < form.min_capacity) {
-      toast.error("A capacidade maxima nao pode ser menor que a minima.");
+      toast.error("A capacidade máxima não pode ser menor que a mínima.");
       return;
     }
 
@@ -390,14 +423,14 @@ export default function SessionFormDialog({
         );
         toast.success(
           mode === "duplicate"
-            ? "Sessao duplicada com sucesso."
+            ? "Sessão duplicada com sucesso."
             : rows.length === 1
-              ? "Sessao criada com sucesso."
-              : `${rows.length} sessoes criadas com sucesso.`,
+              ? "Sessão criada com sucesso."
+              : `${rows.length} sessões criadas com sucesso.`,
         );
       } else {
         if (!sessionId) {
-          throw new Error("Sessao nao informada para edicao.");
+          throw new Error("Sessão não informada para edição.");
         }
 
         await updateOpenSessionOperational({
@@ -408,7 +441,7 @@ export default function SessionFormDialog({
           locationId: form.location_id,
           coordinatorId: form.coordinator_id,
         });
-        toast.success("Sessao atualizada com sucesso.");
+        toast.success("Sessão atualizada com sucesso.");
       }
 
       await onSaved();
@@ -417,13 +450,13 @@ export default function SessionFormDialog({
       const err = error as { code?: string; message?: string } | null;
       console.error(error);
       if (err?.code === "23505") {
-        toast.error("Ja existe sessao no mesmo dia e turno.");
+        toast.error("Já existe sessão no mesmo dia e turno.");
       } else {
         toast.error(
           err?.message ??
             (mode === "create" || mode === "duplicate"
-              ? "Nao foi possivel criar a sessao."
-              : "Nao foi possivel atualizar a sessao."),
+              ? "Não foi possível criar a sessão."
+              : "Não foi possível atualizar a sessão."),
         );
       }
     } finally {
@@ -450,8 +483,8 @@ export default function SessionFormDialog({
 
     const label =
       previewDates.length === 1
-        ? "1 sessao sera criada."
-        : `${previewDates.length} sessoes serao criadas.`;
+        ? "1 sessão será criada."
+        : `${previewDates.length} sessões serão criadas.`;
 
     return (
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-text-body">
@@ -473,10 +506,10 @@ export default function SessionFormDialog({
       }
       description={
         mode === "create"
-          ? "Crie novas sessoes sem sair do Hub."
+          ? "Crie novas sessões sem sair do Hub."
           : mode === "duplicate"
-            ? "Crie uma nova sessao reaproveitando a configuracao da turma selecionada."
-            : "As alteracoes feitas aqui valem apenas para esta sessao e nao alteram o cadastro global do local."
+            ? "Crie uma nova sessão reaproveitando a configuração da turma selecionada."
+            : "As alterações feitas aqui valem apenas para esta sessão e não alteram o cadastro global do local."
       }
       widthClassName="max-w-4xl"
       footer={
@@ -511,18 +544,19 @@ export default function SessionFormDialog({
       {loading ? (
         <div className="flex items-center justify-center gap-3 py-12 text-sm text-text-muted">
           <Loader2 size={18} className="animate-spin" />
-          Carregando formulario...
+          Carregando formulário...
         </div>
       ) : (
         <form
           id="session-form-dialog"
           className="space-y-6"
+          noValidate
           onSubmit={handleSubmit}
         >
           {mode === "create" ? (
             <section className="space-y-3">
               <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted">
-                Modo de criacao
+                Modo de criação
               </label>
               <div className="inline-flex rounded-xl border border-border-default bg-bg-default p-1">
                 {(
@@ -552,7 +586,7 @@ export default function SessionFormDialog({
 
           <section className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-sm font-medium text-text-body">
-              <span>Local de aplicacao</span>
+              <span>Local de aplicação</span>
               <select
                 value={form.location_id}
                 onChange={(event) =>
@@ -575,7 +609,7 @@ export default function SessionFormDialog({
               </select>
               {selectedLocation ? (
                 <span className="block text-xs text-text-muted">
-                  Padrao global atual do local: {selectedLocation.max_capacity}{" "}
+                  Padrão global atual do local: {selectedLocation.max_capacity}{" "}
                   vagas.
                 </span>
               ) : null}
@@ -600,8 +634,8 @@ export default function SessionFormDialog({
                 ))}
               </select>
               <span className="block text-xs text-text-muted">
-                O coordenador selecionado sera o responsavel pela aplicacao
-                desta sessao no dia.
+                O coordenador selecionado será o responsável pela aplicação
+                desta sessão no dia.
               </span>
             </label>
           </section>
@@ -633,7 +667,7 @@ export default function SessionFormDialog({
               </label>
             ) : mode === "create" && form.dateMode === "month" ? (
               <label className="space-y-2 text-sm font-medium text-text-body">
-                <span>Mes</span>
+                <span>Mês</span>
                 <input
                   type="month"
                   value={form.monthValue}
@@ -722,7 +756,8 @@ export default function SessionFormDialog({
               <span>Capacidade minima da sessao</span>
               <input
                 type="number"
-                min={1}
+                min={capacityBounds.min}
+                max={capacityBounds.max}
                 value={form.min_capacity}
                 onChange={(event) =>
                   updateField("min_capacity", Number(event.target.value || 0))
@@ -735,7 +770,8 @@ export default function SessionFormDialog({
               <span>Capacidade maxima da sessao</span>
               <input
                 type="number"
-                min={1}
+                min={capacityBounds.min}
+                max={capacityBounds.max}
                 value={form.max_capacity}
                 onChange={(event) =>
                   updateField("max_capacity", Number(event.target.value || 0))

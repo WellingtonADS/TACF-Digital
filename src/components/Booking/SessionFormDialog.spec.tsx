@@ -195,9 +195,43 @@ describe("SessionFormDialog", () => {
       "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
     );
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
-      "Sessao atualizada com sucesso.",
+      "Sessão atualizada com sucesso.",
     );
     expect(onSaved).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("bloqueia envio quando a capacidade máxima sai do intervalo permitido", async () => {
+    renderDialog();
+
+    const maxCapacityInput = await screen.findByLabelText(
+      /Capacidade maxima da sessao/i,
+    );
+
+    expect(maxCapacityInput).toHaveAttribute("min", "8");
+    expect(maxCapacityInput).toHaveAttribute("max", "21");
+
+    fireEvent.change(await screen.findByLabelText(/^Data$/i), {
+      target: { value: "2026-04-27" },
+    });
+    fireEvent.change(screen.getByLabelText(/Local de aplicação/i), {
+      target: { value: "loc-1" },
+    });
+    fireEvent.change(screen.getByLabelText(/Coordenador aplicador/i), {
+      target: { value: "coord-1" },
+    });
+    fireEvent.change(maxCapacityInput, { target: { value: "30" } });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Gerar Sessões/i }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "A capacidade máxima deve ficar entre 8 e 21.",
+      );
+    });
+
+    expect(mocks.createSessions).not.toHaveBeenCalled();
   });
 });

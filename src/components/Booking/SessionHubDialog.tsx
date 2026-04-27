@@ -105,7 +105,8 @@ export default function SessionHubDialog({
   onSessionUpdated: () => Promise<void> | void;
 }) {
   const { profile } = useAuth();
-  const canManage = profile?.role === "admin" || profile?.role === "coordinator";
+  const canManage =
+    profile?.role === "admin" || profile?.role === "coordinator";
 
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [bookings, setBookings] = useState<BookingWithProfile[]>([]);
@@ -411,9 +412,9 @@ export default function SessionHubDialog({
                     </p>
                     <p
                       className="truncate pt-1 text-base font-semibold leading-tight text-text-body"
-                      title={session.location_name ?? "Nao informado"}
+                      title={session.location_name ?? "Não informado"}
                     >
-                      {session.location_name ?? "Nao informado"}
+                      {session.location_name ?? "Não informado"}
                     </p>
                   </div>
                 </article>
@@ -427,9 +428,13 @@ export default function SessionHubDialog({
                       Data:
                     </p>
                     <p className="truncate pt-1 text-base font-semibold leading-tight text-text-body">
-                      {format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
-                        locale: ptBR,
-                      })}
+                      {format(
+                        parseISO(session.date),
+                        "dd 'de' MMMM 'de' yyyy",
+                        {
+                          locale: ptBR,
+                        },
+                      )}
                     </p>
                   </div>
                 </article>
@@ -678,9 +683,9 @@ export default function SessionHubDialog({
                   decorative
                 />
                 <span>
-                  <span className="font-semibold">Atenção operacional:</span>{" "}
-                  ao finalizar, toda avaliação pendente será marcada como
-                  "Não Realizado". Use "Salvar como Rascunho" se ainda houver
+                  <span className="font-semibold">Atenção operacional:</span> ao
+                  finalizar, toda avaliação pendente será marcada como "Não
+                  Realizado". Use "Salvar como Rascunho" se ainda houver
                   lançamentos.
                 </span>
               </p>
