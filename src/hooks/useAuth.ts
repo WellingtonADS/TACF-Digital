@@ -13,6 +13,47 @@ import { useCallback, useEffect, useState } from "react";
 
 type Profile = DBProfile | null;
 const AUTH_REQUEST_TIMEOUT_MS = 8000;
+const profileRequestCache = new Map<string, Promise<Profile>>();
+
+function readCachedProfile(): Profile {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = sessionStorage.getItem(SESSION_PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as Profile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistCachedProfile(profile: Profile) {
+  try {
+    if (typeof window === "undefined") return;
+    if (profile) {
+      sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(profile));
+    } else {
+      sessionStorage.removeItem(SESSION_PROFILE_KEY);
+    }
+  } catch (_: unknown) {
+    /* sessionStorage can throw in restricted contexts */
+  }
+}
+
+async function getProfileById(uid: string): Promise<Profile> {
+  const cachedRequest = profileRequestCache.get(uid);
+  if (cachedRequest) return cachedRequest;
+
+  const request = withTimeout(
+    supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+    AUTH_REQUEST_TIMEOUT_MS,
+  )
+    .then(({ data }) => (data as Profile) ?? null)
+    .finally(() => {
+      profileRequestCache.delete(uid);
+    });
+
+  profileRequestCache.set(uid, request);
+  return request;
+}
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -50,15 +91,7 @@ function isInvalidRefreshTokenError(err: unknown): boolean {
 export default function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   // hydrate profile from sessionStorage to reduce UI flicker on navigation
-  const [profile, setProfile] = useState<Profile>(() => {
-    try {
-      if (typeof window === "undefined") return null;
-      const raw = sessionStorage.getItem(SESSION_PROFILE_KEY);
-      return raw ? (JSON.parse(raw) as Profile) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [profile, setProfile] = useState<Profile>(() => readCachedProfile());
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,14 +104,7 @@ export default function useAuth() {
 
     setUser(null);
     setProfile(null);
-
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(SESSION_PROFILE_KEY);
-      }
-    } catch (_: unknown) {
-      /* sessionStorage can throw in restricted contexts */
-    }
+    persistCachedProfile(null);
   }, []);
 
   const load = useCallback(async () => {
@@ -117,25 +143,34 @@ export default function useAuth() {
 
           const val = (p as Profile) ?? null;
           setProfile(val);
-          try {
-            if (typeof window !== "undefined")
-              sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-          } catch (_: unknown) {
-            /* sessionStorage can throw in restricted contexts */
-          }
+          persistCachedProfile(val);
           return;
         }
 
         setProfile(null);
+        persistCachedProfile(null);
         return;
       }
 
       setUser(session?.user ?? null);
 
-      const { data: p } = await withTimeout(
-        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-        AUTH_REQUEST_TIMEOUT_MS,
-      );
+      const cachedProfile = readCachedProfile();
+      if (cachedProfile?.id === uid) {
+        setProfile(cachedProfile);
+        // mantém a UI responsiva e atualiza em segundo plano
+        void getProfileById(uid)
+          .then((freshProfile) => {
+            if (!freshProfile) return;
+            setProfile(freshProfile);
+            persistCachedProfile(freshProfile);
+          })
+          .catch(() => {
+            /* best-effort refresh */
+          });
+        return;
+      }
+
+      const p = await getProfileById(uid);
 
       if (!p && import.meta.env.MODE !== "production") {
         // user has no profile in DB — fallback to first profile in dev for easier testing
@@ -146,24 +181,17 @@ export default function useAuth() {
 
         const val = (fallback as Profile) ?? null;
         setProfile(val);
-        try {
-          if (typeof window !== "undefined")
-            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-        } catch (_: unknown) {
-          /* sessionStorage can throw in restricted contexts */
-        }
+        persistCachedProfile(val);
       } else {
-        const val = (p as Profile) ?? null;
+        const val = p ?? null;
         setProfile(val);
-        try {
-          if (typeof window !== "undefined")
-            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-        } catch (_: unknown) {
-          /* sessionStorage can throw in restricted contexts */
-        }
+        persistCachedProfile(val);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      setUser(null);
+      setProfile(null);
+      persistCachedProfile(null);
     } finally {
       setLoading(false);
     }
@@ -178,32 +206,22 @@ export default function useAuth() {
         if (!uid) {
           setUser(null);
           setProfile(null);
-          try {
-            if (typeof window !== "undefined")
-              sessionStorage.removeItem(SESSION_PROFILE_KEY);
-          } catch (_: unknown) {
-            /* sessionStorage can throw in restricted contexts */
-          }
+          persistCachedProfile(null);
           return;
         }
 
         setUser(session.user as User);
 
-        const { data: p } = await withTimeout(
-          supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-          AUTH_REQUEST_TIMEOUT_MS,
-        );
+        const p = await getProfileById(uid);
 
-        const val = (p as Profile) ?? null;
+        const val = p ?? null;
         setProfile(val);
-        try {
-          if (typeof window !== "undefined")
-            sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-        } catch (_: unknown) {
-          /* sessionStorage can throw in restricted contexts */
-        }
+        persistCachedProfile(val);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
+        setUser(null);
+        setProfile(null);
+        persistCachedProfile(null);
       }
     },
     [],
@@ -235,11 +253,14 @@ export default function useAuth() {
         payload as unknown as Database["public"]["Tables"]["profiles"]["Insert"],
       );
       try {
-        const val = up?.data ?? null;
-        if (typeof window !== "undefined")
-          sessionStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(val));
-      } catch (_: unknown) {
-        /* sessionStorage can throw in restricted contexts */
+        const raw = up?.data ?? null;
+        const val = (Array.isArray(raw) ? raw[0] : raw) as Profile | null;
+        if (val) {
+          setProfile(val);
+        }
+        persistCachedProfile(val);
+      } catch {
+        /* noop */
       }
       return up;
     } catch {

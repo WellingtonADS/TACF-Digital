@@ -15,10 +15,12 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Edit2,
   FileText,
   Loader2,
   Mail,
   Phone,
+  Save,
   Search,
   Shield,
   TrendingUp,
@@ -32,11 +34,19 @@ import {
 import {
   fetchPersonnelList,
   getProfileWithHistory,
+  updateBookingEvaluation,
   updateProfile,
+  type ProfileWithHistory,
 } from "@/services/personnel";
-import { getBookingResultStatus } from "@/utils/bookingResults";
+import {
+  buildBookingResultPayload,
+  getBookingResultStatus,
+  parseBookingResult,
+  type BookingResultStatus,
+} from "@/utils/bookingResults";
+import { getAuthorizationErrorMessage } from "@/utils/getAuthorizationErrorMessage";
 import { format } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type PersonnelRow = {
@@ -48,7 +58,7 @@ type PersonnelRow = {
   saram: string | null;
   active: boolean;
   lastTestDate: string | null;
-  lastScore: number | null;
+  lastScore: string | null;
   status: "APTO" | "INAPTO" | "VENCIDO";
 };
 
@@ -104,7 +114,7 @@ const DETAIL_STATUS_BADGE_CLASS: Record<PersonnelRow["status"], string> = {
 function deriveStatus(
   active: boolean,
   lastTestDate: string | null,
-  lastScore: number | null,
+  lastScore: string | null,
   resultDetails: unknown,
 ): PersonnelRow["status"] {
   if (!active) return "INAPTO";
@@ -151,8 +161,20 @@ function dateLabel(value: string | null) {
 type TestRecord = {
   id: string;
   date: string | null;
-  score: number | null;
+  score: string | null;
   status: string;
+  resultDetails: unknown;
+};
+
+type TAFEditDraft = {
+  bookingId: string;
+  testDate: string;
+  score: string;
+  corrida: string;
+  flexao: string;
+  abdominal: string;
+  notes: string;
+  resultStatus: BookingResultStatus;
 };
 
 type UserDetail = {
@@ -172,13 +194,65 @@ type UserDetail = {
   inspsau_last_inspection: string | null;
   created_at: string | null;
   lastTestDate: string | null;
-  lastScore: number | null;
+  lastScore: string | null;
   status: PersonnelRow["status"];
   testHistory: TestRecord[];
 };
 
+function buildUserDetail(
+  row: PersonnelRow,
+  detail?: ProfileWithHistory | null,
+): UserDetail {
+  const latestHistory = detail?.testHistory[0];
+  const lastTestDate = latestHistory?.date ?? row.lastTestDate;
+  const lastScore = latestHistory?.score ?? row.lastScore;
+  const active = detail != null ? detail.active : row.active;
+
+  return {
+    id: row.id,
+    full_name: detail?.full_name ?? row.fullName,
+    war_name: detail?.war_name ?? row.warName,
+    rank: detail?.rank ?? row.rank,
+    sector: detail?.sector ?? row.sector,
+    saram: detail?.saram ?? row.saram,
+    email: detail?.email ?? null,
+    phone_number: detail?.phone_number ?? null,
+    role: detail?.role ?? null,
+    active,
+    birth_date: detail?.birth_date ?? null,
+    physical_group: detail?.physical_group ?? null,
+    inspsau_valid_until: detail?.inspsau_valid_until ?? null,
+    inspsau_last_inspection: detail?.inspsau_last_inspection ?? null,
+    created_at: detail?.created_at ?? null,
+    lastTestDate,
+    lastScore,
+    status: deriveStatus(
+      active,
+      lastTestDate,
+      lastScore,
+      latestHistory?.resultDetails ?? null,
+    ),
+    testHistory: detail?.testHistory ?? [],
+  };
+}
+
+function buildTafEditDraft(record: TestRecord): TAFEditDraft {
+  const parsed = parseBookingResult(record.resultDetails);
+
+  return {
+    bookingId: record.id,
+    testDate: record.date ? record.date.slice(0, 10) : "",
+    score: record.score ?? "",
+    corrida: parsed?.corrida ?? "",
+    flexao: parsed?.flexao ?? "",
+    abdominal: parsed?.abdominal ?? "",
+    notes: parsed?.notes ?? "",
+    resultStatus: parsed?.result_status ?? "apto",
+  };
+}
+
 export default function PersonnelManagement() {
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, profile: authProfile } = useAuth();
   const [rows, setRows] = useState<PersonnelRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
@@ -192,9 +266,59 @@ export default function PersonnelManagement() {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [savingActive, setSavingActive] = useState(false);
+  const [tafDraft, setTafDraft] = useState<TAFEditDraft | null>(null);
+  const [savingTaf, setSavingTaf] = useState(false);
+  const canEditPersonnel = authProfile?.role === "admin";
+
+  const loadPersonnelRows = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { profiles, latestBookings } = await withTimeout(
+        fetchPersonnelList(),
+        PERSONNEL_REQUEST_TIMEOUT_MS,
+      );
+
+      const mapped: PersonnelRow[] = profiles.map((profile) => {
+        const latest = latestBookings.get(profile.id);
+        const lastDate = latest?.test_date ?? latest?.created_at ?? null;
+        const status = deriveStatus(
+          Boolean(profile.active),
+          lastDate,
+          latest?.score ?? null,
+          latest?.result_details ?? null,
+        );
+
+        return {
+          id: profile.id,
+          fullName: profile.full_name ?? "Sem nome",
+          warName: profile.war_name ?? null,
+          rank: profile.rank ?? null,
+          sector: profile.sector ?? null,
+          saram: profile.saram ?? null,
+          active: Boolean(profile.active),
+          lastTestDate: lastDate,
+          lastScore: latest?.score ?? null,
+          status,
+        };
+      });
+
+      setRows(mapped);
+    } catch (error) {
+      console.error(error);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   async function handleToggleActive(newActive: boolean) {
     if (!userDetail || !selectedUser) return;
+    if (!canEditPersonnel) {
+      toast.error(
+        "Apenas administradores podem alterar o status operacional do efetivo.",
+      );
+      return;
+    }
     setSavingActive(true);
     try {
       await updateProfile(selectedUser.id, { active: newActive });
@@ -215,53 +339,13 @@ export default function PersonnelManagement() {
 
   async function openProfile(row: PersonnelRow) {
     setSelectedUser(row);
+    setTafDraft(null);
     // Popula imediatamente com os dados que já temos; o drawer não fica vazio
-    setUserDetail({
-      id: row.id,
-      full_name: row.fullName,
-      war_name: row.warName,
-      rank: row.rank,
-      sector: row.sector,
-      saram: row.saram,
-      email: null,
-      phone_number: null,
-      role: null,
-      active: row.active,
-      birth_date: null,
-      physical_group: null,
-      inspsau_valid_until: null,
-      inspsau_last_inspection: null,
-      created_at: null,
-      lastTestDate: row.lastTestDate,
-      lastScore: row.lastScore,
-      status: row.status,
-      testHistory: [],
-    });
+    setUserDetail(buildUserDetail(row));
     setLoadingDetail(true);
     try {
       const detail = await getProfileWithHistory(row.id);
-      setUserDetail((prev) => ({
-        ...(prev ?? {}),
-        id: row.id,
-        full_name: detail?.full_name ?? row.fullName,
-        war_name: detail?.war_name ?? row.warName,
-        rank: detail?.rank ?? row.rank,
-        sector: detail?.sector ?? row.sector,
-        saram: detail?.saram ?? row.saram,
-        email: detail?.email ?? null,
-        phone_number: detail?.phone_number ?? null,
-        role: detail?.role ?? null,
-        active: detail != null ? detail.active : row.active,
-        birth_date: detail?.birth_date ?? null,
-        physical_group: detail?.physical_group ?? null,
-        inspsau_valid_until: detail?.inspsau_valid_until ?? null,
-        inspsau_last_inspection: detail?.inspsau_last_inspection ?? null,
-        created_at: detail?.created_at ?? null,
-        lastTestDate: row.lastTestDate,
-        lastScore: row.lastScore,
-        status: row.status,
-        testHistory: detail?.testHistory ?? [],
-      }));
+      setUserDetail(buildUserDetail(row, detail));
     } catch (err) {
       console.error("[openProfile] unexpected error:", err);
     } finally {
@@ -272,44 +356,70 @@ export default function PersonnelManagement() {
   function closeDrawer() {
     setSelectedUser(null);
     setUserDetail(null);
+    setTafDraft(null);
+  }
+
+  function startTafEdit(record: TestRecord) {
+    if (!canEditPersonnel) {
+      toast.error(
+        "Apenas administradores podem editar dados operacionais do TACF.",
+      );
+      return;
+    }
+
+    setTafDraft(buildTafEditDraft(record));
+  }
+
+  function cancelTafEdit() {
+    setTafDraft(null);
+  }
+
+  async function handleSaveTaf() {
+    if (!tafDraft || !selectedUser) return;
+    if (!canEditPersonnel) {
+      toast.error(
+        "Apenas administradores podem editar dados operacionais do TACF.",
+      );
+      return;
+    }
+
+    setSavingTaf(true);
+    try {
+      const resultDetails = buildBookingResultPayload({
+        result_status: tafDraft.resultStatus,
+        corrida: tafDraft.corrida,
+        flexao: tafDraft.flexao,
+        abdominal: tafDraft.abdominal,
+        notes: tafDraft.notes,
+      });
+
+      await updateBookingEvaluation(tafDraft.bookingId, {
+        test_date: tafDraft.testDate.trim() || null,
+        score: tafDraft.score.trim() || null,
+        result_details: resultDetails,
+      });
+
+      const updatedDetail = await getProfileWithHistory(selectedUser.id);
+      setUserDetail(buildUserDetail(selectedUser, updatedDetail));
+      await loadPersonnelRows();
+      setTafDraft(null);
+      toast.success("Lançamento TACF atualizado.");
+    } catch (err: unknown) {
+      const authMessage = getAuthorizationErrorMessage(
+        err,
+        "editar dados operacionais do TACF",
+      );
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(authMessage ?? `Erro ao salvar lançamento TACF: ${msg}`);
+    } finally {
+      setSavingTaf(false);
+    }
   }
 
   useEffect(() => {
     if (authLoading) return;
-
-    setLoading(true);
-    withTimeout(fetchPersonnelList(), PERSONNEL_REQUEST_TIMEOUT_MS)
-      .then(({ profiles, latestBookings }) => {
-        const mapped: PersonnelRow[] = profiles.map((profile) => {
-          const latest = latestBookings.get(profile.id);
-          const lastDate = latest?.test_date ?? latest?.created_at ?? null;
-          const status = deriveStatus(
-            Boolean(profile.active),
-            lastDate,
-            latest?.score ?? null,
-            latest?.result_details ?? null,
-          );
-          return {
-            id: profile.id,
-            fullName: profile.full_name ?? "Sem nome",
-            warName: profile.war_name ?? null,
-            rank: profile.rank ?? null,
-            sector: profile.sector ?? null,
-            saram: profile.saram ?? null,
-            active: Boolean(profile.active),
-            lastTestDate: lastDate,
-            lastScore: latest?.score ?? null,
-            status,
-          };
-        });
-        setRows(mapped);
-      })
-      .catch((error) => {
-        console.error(error);
-        setRows([]);
-      })
-      .finally(() => setLoading(false));
-  }, [authLoading]);
+    void loadPersonnelRows();
+  }, [authLoading, loadPersonnelRows]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -372,74 +482,7 @@ export default function PersonnelManagement() {
           </div>
         </section>
 
-        <div className="mb-6 rounded-3xl border border-border-default bg-bg-card p-3 shadow-sm sm:p-4">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px] lg:items-center">
-            <div className="relative min-w-0">
-              <AppIcon
-                icon={Search}
-                size="sm"
-                decorative
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
-              />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-12 w-full rounded-2xl border border-border-default bg-bg-default pl-11 pr-11 text-sm text-text-body placeholder:text-text-muted focus-ring"
-                placeholder="Buscar por nome, nome de guerra ou SARAM"
-                type="text"
-              />
-              {query.trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-body"
-                  title="Limpar busca"
-                  aria-label="Limpar busca"
-                >
-                  <AppIcon icon={X} size="xs" decorative />
-                </button>
-              )}
-            </div>
-
-            <select
-              value={rankFilter}
-              onChange={(event) =>
-                setRankFilter(
-                  event.target.value as (typeof RANK_OPTIONS)[number],
-                )
-              }
-              className="h-12 w-full rounded-2xl border border-border-default bg-bg-default px-4 text-sm font-medium text-text-muted focus-ring"
-              aria-label="Filtrar por posto ou graduação"
-            >
-              <option value="Todos">Posto/Graduação</option>
-              {RANK_OPTIONS.filter((item) => item !== "Todos").map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value as (typeof STATUS_OPTIONS)[number],
-                )
-              }
-              className="h-12 w-full rounded-2xl border border-border-default bg-bg-default px-4 text-sm font-medium text-text-muted focus-ring"
-              aria-label="Filtrar por status de aptidão"
-            >
-              <option value="Todos">Status de Aptidão</option>
-              {STATUS_OPTIONS.filter((item) => item !== "Todos").map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Aptidão Geral"
             value={`${summary.aptoPercent}%`}
@@ -465,6 +508,75 @@ export default function PersonnelManagement() {
         </section>
 
         <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
+          <div className="border-b border-border-default p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px] lg:items-center">
+              <div className="relative min-w-0">
+                <AppIcon
+                  icon={Search}
+                  size="sm"
+                  decorative
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+                />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="h-12 w-full rounded-2xl border border-border-default bg-bg-default pl-11 pr-11 text-sm text-text-body placeholder:text-text-muted focus-ring"
+                  placeholder="Buscar por nome, nome de guerra ou SARAM"
+                  type="text"
+                />
+                {query.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-body"
+                    title="Limpar busca"
+                    aria-label="Limpar busca"
+                  >
+                    <AppIcon icon={X} size="xs" decorative />
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={rankFilter}
+                onChange={(event) =>
+                  setRankFilter(
+                    event.target.value as (typeof RANK_OPTIONS)[number],
+                  )
+                }
+                className="h-12 w-full rounded-2xl border border-border-default bg-bg-default px-4 text-sm font-medium text-text-muted focus-ring"
+                aria-label="Filtrar por posto ou graduação"
+              >
+                <option value="Todos">Posto/Graduação</option>
+                {RANK_OPTIONS.filter((item) => item !== "Todos").map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value as (typeof STATUS_OPTIONS)[number],
+                  )
+                }
+                className="h-12 w-full rounded-2xl border border-border-default bg-bg-default px-4 text-sm font-medium text-text-muted focus-ring"
+                aria-label="Filtrar por status de aptidão"
+              >
+                <option value="Todos">Status de Aptidão</option>
+                {STATUS_OPTIONS.filter((item) => item !== "Todos").map(
+                  (item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          </div>
+
           <div className="space-y-2 p-3 md:hidden">
             {filteredRows.length === 0 ? (
               <p className="px-3 py-6 text-sm text-text-muted">
@@ -522,10 +634,10 @@ export default function PersonnelManagement() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[760px] border-collapse text-left">
+            <table className="w-full min-w-[760px] border-collapse text-center">
               <thead className="bg-bg-default/60">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-text-muted">
                     Militar
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
@@ -537,7 +649,7 @@ export default function PersonnelManagement() {
                   <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-text-muted">
                     Ações
                   </th>
                 </tr>
@@ -547,7 +659,7 @@ export default function PersonnelManagement() {
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
-                      className="px-6 py-8 text-sm text-text-muted"
+                      className="px-6 py-8 text-center text-sm text-text-muted"
                       colSpan={5}
                     >
                       Nenhum militar encontrado para os filtros selecionados.
@@ -562,12 +674,12 @@ export default function PersonnelManagement() {
                         key={row.id}
                         className="transition-colors hover:bg-bg-default/70"
                       >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
+                        <td className="px-6 py-4 text-left">
+                          <div className="flex items-center justify-start gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                               {initialsFromName(row.warName || row.fullName)}
                             </div>
-                            <div>
+                            <div className="text-left">
                               <div className="font-bold text-text-body">
                                 {row.rank
                                   ? `${row.rank} ${row.warName || row.fullName}`
@@ -597,7 +709,7 @@ export default function PersonnelManagement() {
                           </span>
                         </td>
 
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-center">
                           <button
                             type="button"
                             onClick={() => openProfile(row)}
@@ -677,12 +789,14 @@ export default function PersonnelManagement() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  disabled={savingActive || userDetail.active}
+                  disabled={
+                    savingActive || userDetail.active || !canEditPersonnel
+                  }
                   onClick={() => handleToggleActive(true)}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
                     userDetail.active
                       ? "border-success bg-success/10 text-success"
-                      : "border-border-default text-text-muted hover:border-success/40 disabled:opacity-100"
+                      : "border-border-default text-text-muted hover:border-success/40"
                   }`}
                 >
                   {savingActive && !userDetail.active ? (
@@ -699,12 +813,14 @@ export default function PersonnelManagement() {
                 </button>
                 <button
                   type="button"
-                  disabled={savingActive || !userDetail.active}
+                  disabled={
+                    savingActive || !userDetail.active || !canEditPersonnel
+                  }
                   onClick={() => handleToggleActive(false)}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-bold transition-all ${
                     !userDetail.active
                       ? "border-error bg-error/10 text-error"
-                      : "border-border-default text-text-muted hover:border-error/40 disabled:opacity-100"
+                      : "border-border-default text-text-muted hover:border-error/40"
                   }`}
                 >
                   {savingActive && userDetail.active ? (
@@ -813,10 +929,17 @@ export default function PersonnelManagement() {
               </section>
 
               <section className="space-y-3 rounded-xl border border-border-default p-4 lg:col-span-2">
-                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
-                  <AppIcon icon={ClipboardList} size="xs" decorative />{" "}
-                  Histórico TACF
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+                    <AppIcon icon={ClipboardList} size="xs" decorative />{" "}
+                    Histórico TACF
+                  </h3>
+                  <span className="text-[11px] text-text-muted">
+                    {canEditPersonnel
+                      ? "Apenas dados operacionais do TACF podem ser editados aqui."
+                      : "Consulta somente para perfis sem administração plena."}
+                  </span>
+                </div>
 
                 {userDetail.testHistory.length === 0 ? (
                   <p className="py-1 text-xs text-text-muted">
@@ -826,13 +949,30 @@ export default function PersonnelManagement() {
                   <ul className="space-y-2">
                     {userDetail.testHistory.map((t, idx) => {
                       const isFirst = idx === 0;
-                      const hasScore = t.score !== null;
-                      const scoreColor =
-                        t.score !== null && t.score >= 70
-                          ? "text-success"
-                          : t.score !== null
-                            ? "text-error"
-                            : "text-text-muted";
+                      const parsedResult = parseBookingResult(t.resultDetails);
+                      const explicitStatus =
+                        parsedResult?.result_status ?? null;
+                      const numericScore =
+                        t.score !== null && t.score.trim()
+                          ? Number(t.score)
+                          : null;
+                      const hasNumericScore =
+                        numericScore !== null && !Number.isNaN(numericScore);
+                      const isApto =
+                        explicitStatus === "apto" ||
+                        (explicitStatus == null &&
+                          hasNumericScore &&
+                          numericScore >= 70);
+                      const isInapto =
+                        explicitStatus === "inapto" ||
+                        (explicitStatus == null &&
+                          hasNumericScore &&
+                          numericScore < 70);
+                      const scoreColor = isApto
+                        ? "text-success"
+                        : isInapto
+                          ? "text-error"
+                          : "text-text-muted";
                       return (
                         <li
                           key={t.id}
@@ -843,22 +983,20 @@ export default function PersonnelManagement() {
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            {hasScore ? (
-                              t.score! >= 70 ? (
-                                <AppIcon
-                                  icon={CheckCircle2}
-                                  size="xs"
-                                  decorative
-                                  className="shrink-0 text-success"
-                                />
-                              ) : (
-                                <AppIcon
-                                  icon={XCircle}
-                                  size="xs"
-                                  decorative
-                                  className="shrink-0 text-error"
-                                />
-                              )
+                            {isApto ? (
+                              <AppIcon
+                                icon={CheckCircle2}
+                                size="xs"
+                                decorative
+                                className="shrink-0 text-success"
+                              />
+                            ) : isInapto ? (
+                              <AppIcon
+                                icon={XCircle}
+                                size="xs"
+                                decorative
+                                className="shrink-0 text-error"
+                              />
                             ) : (
                               <AppIcon
                                 icon={FileText}
@@ -875,16 +1013,211 @@ export default function PersonnelManagement() {
                                 Último
                               </span>
                             )}
+                            {explicitStatus && (
+                              <span className="rounded-full bg-bg-card px-2 py-0.5 text-[10px] font-bold uppercase text-text-muted">
+                                {explicitStatus}
+                              </span>
+                            )}
                           </div>
-                          <span
-                            className={`font-bold tabular-nums ${scoreColor}`}
-                          >
-                            {t.score !== null ? t.score : "—"}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-bold tabular-nums ${scoreColor}`}
+                            >
+                              {t.score !== null ? t.score : "—"}
+                            </span>
+                            {canEditPersonnel && (
+                              <button
+                                type="button"
+                                onClick={() => startTafEdit(t)}
+                                className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-bg-card hover:text-primary"
+                                title="Editar lançamento TACF"
+                              >
+                                <AppIcon icon={Edit2} size="xs" decorative />
+                              </button>
+                            )}
+                          </div>
                         </li>
                       );
                     })}
                   </ul>
+                )}
+
+                {tafDraft && (
+                  <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                          Editar lançamento TACF
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          Ajuste somente resultado, data, média e índices do
+                          teste.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={cancelTafEdit}
+                        className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-bg-card hover:text-text-body"
+                        title="Cancelar edição"
+                      >
+                        <AppIcon icon={X} size="xs" decorative />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Data do teste</span>
+                        <input
+                          type="date"
+                          value={tafDraft.testDate}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    testDate: event.target.value,
+                                  }
+                                : current,
+                            )
+                          }
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Média</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={tafDraft.score}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? { ...current, score: event.target.value }
+                                : current,
+                            )
+                          }
+                          placeholder="Ex: 72"
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Corrida</span>
+                        <input
+                          type="text"
+                          value={tafDraft.corrida}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? { ...current, corrida: event.target.value }
+                                : current,
+                            )
+                          }
+                          placeholder="Ex: 3200m"
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Flexão</span>
+                        <input
+                          type="text"
+                          value={tafDraft.flexao}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? { ...current, flexao: event.target.value }
+                                : current,
+                            )
+                          }
+                          placeholder="Ex: 38"
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Abdominal</span>
+                        <input
+                          type="text"
+                          value={tafDraft.abdominal}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? { ...current, abdominal: event.target.value }
+                                : current,
+                            )
+                          }
+                          placeholder="Ex: 42"
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                        <span>Resultado final</span>
+                        <select
+                          value={tafDraft.resultStatus}
+                          onChange={(event) =>
+                            setTafDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    resultStatus: event.target
+                                      .value as BookingResultStatus,
+                                  }
+                                : current,
+                            )
+                          }
+                          className="h-11 w-full rounded-xl border border-border-default bg-bg-card px-3 text-sm font-medium text-text-body focus-ring"
+                        >
+                          <option value="apto">Apto</option>
+                          <option value="inapto">Inapto</option>
+                          <option value="pendente">Pendente</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <label className="space-y-1 text-xs font-bold uppercase tracking-widest text-text-muted">
+                      <span>Observações operacionais</span>
+                      <textarea
+                        value={tafDraft.notes}
+                        onChange={(event) =>
+                          setTafDraft((current) =>
+                            current
+                              ? { ...current, notes: event.target.value }
+                              : current,
+                          )
+                        }
+                        rows={3}
+                        placeholder="Registro administrativo do lançamento TACF."
+                        className="w-full rounded-xl border border-border-default bg-bg-card px-3 py-2 text-sm text-text-body focus-ring"
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={cancelTafEdit}
+                        className="rounded-xl border border-border-default px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:bg-bg-card"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingTaf}
+                        onClick={() => void handleSaveTaf()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        <AppIcon
+                          icon={savingTaf ? Loader2 : Save}
+                          size="xs"
+                          decorative
+                          className={savingTaf ? "animate-spin" : undefined}
+                        />
+                        Salvar dados TACF
+                      </button>
+                    </div>
+                  </div>
                 )}
               </section>
             </div>

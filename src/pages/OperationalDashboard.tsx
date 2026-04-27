@@ -6,6 +6,7 @@
 
 import AppIcon from "@/components/atomic/AppIcon";
 import { CARD_INTERACTIVE_CLASS } from "@/components/atomic/Card";
+import Dialog from "@/components/Dialog";
 import Layout from "@/components/layout/Layout";
 import RescheduleDialog from "@/components/RescheduleDialog";
 import TicketsListModal from "@/components/TicketsListModal";
@@ -16,15 +17,20 @@ import {
   ClipboardList,
   FileText,
   Info,
+  Loader2,
   MoreHorizontal,
+  XCircle,
 } from "@/icons";
 import { prefetchRoute } from "@/router/prefetchRoutes";
+import { cancelMyBooking } from "@/services/bookings";
 import type { Profile as DBProfile } from "@/types";
 import { formatSessionPeriod } from "@/utils/booking";
+import { getCalendarDayDiff } from "@/utils/date";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export const OperationalDashboard = () => {
   const {
@@ -54,6 +60,8 @@ export const OperationalDashboard = () => {
     "Usuário";
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
 
   const navigate = useNavigate();
 
@@ -64,6 +72,33 @@ export const OperationalDashboard = () => {
 
   const nextSessionDetails =
     nextSession as NextSessionWithOptionalDetails | null;
+  const nextSessionDayDiff = nextSession?.date
+    ? getCalendarDayDiff(nextSession.date)
+    : null;
+  const canSelfManageNextBooking =
+    Boolean(nextSessionBookingId) &&
+    nextSessionDayDiff !== null &&
+    nextSessionDayDiff >= 2;
+
+  async function confirmCancelBooking() {
+    if (!nextSessionBookingId) return;
+
+    setCancellingBooking(true);
+    try {
+      await cancelMyBooking(nextSessionBookingId);
+      toast.success("Agendamento cancelado com sucesso.");
+      setCancelDialogOpen(false);
+      await refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível cancelar o agendamento.",
+      );
+    } finally {
+      setCancellingBooking(false);
+    }
+  }
 
   const actionCards = [
     {
@@ -185,6 +220,48 @@ export const OperationalDashboard = () => {
         onSuccess={() => void refresh()}
       />
 
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={() => {
+          if (!cancellingBooking) setCancelDialogOpen(false);
+        }}
+        closeDisabled={cancellingBooking}
+        title="Cancelar agendamento"
+        description="Esta ação cancela sua reserva atual. Você poderá escolher outra sessão disponível respeitando o prazo mínimo de 2 dias."
+        widthClassName="max-w-lg"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={cancellingBooking}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmCancelBooking()}
+              disabled={cancellingBooking}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {cancellingBooking ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Confirmar cancelamento"
+              )}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-text-body">
+          O cancelamento fica disponível até 2 dias antes da sessão.
+        </p>
+      </Dialog>
+
       {/* Bottom Section: Status & Notifications */}
       <section className="flex flex-col xl:flex-row gap-6">
         {/* Status Card */}
@@ -265,9 +342,22 @@ export const OperationalDashboard = () => {
                       {nextSessionBookingId && (
                         <button
                           onClick={() => setDialogOpen(true)}
+                          disabled={!canSelfManageNextBooking || hasPendingSwap}
                           className="inline-flex items-center rounded-lg border border-primary bg-primary/5 px-4 py-2 font-semibold text-primary transition-colors hover:bg-primary/10"
                         >
                           Solicitar Reagendamento
+                        </button>
+                      )}
+
+                      {nextSessionBookingId && (
+                        <button
+                          type="button"
+                          onClick={() => setCancelDialogOpen(true)}
+                          disabled={!canSelfManageNextBooking}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/10 px-4 py-2 font-semibold text-error transition-colors hover:bg-error/15 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <XCircle size={16} />
+                          Cancelar
                         </button>
                       )}
 

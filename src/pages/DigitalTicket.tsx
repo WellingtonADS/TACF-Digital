@@ -5,6 +5,7 @@
  */
 
 import RescheduleDialog from "@/components/RescheduleDialog";
+import Dialog from "@/components/Dialog";
 import Layout from "@/components/layout/Layout";
 import type { TicketData } from "@/hooks/useTicket";
 import useTicket from "@/hooks/useTicket";
@@ -15,11 +16,15 @@ import {
   Copy,
   Download,
   Info,
+  Loader2,
   MapPin,
   Printer,
   ShieldCheck,
+  XCircle,
 } from "@/icons";
 import { prefetchRoute } from "@/router/prefetchRoutes";
+import { cancelMyBooking } from "@/services/bookings";
+import { getCalendarDayDiff } from "@/utils/date";
 import { isAfter, parseISO } from "date-fns";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
@@ -37,6 +42,8 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [codigoCopiado, setCodigoCopiado] = useState(false);
   const [reagendamentoAberto, setReagendamentoAberto] = useState(false);
+  const [cancelamentoAberto, setCancelamentoAberto] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
   // centralizamos o carregamento em um hook reaproveitável
   const {
@@ -45,17 +52,47 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
     bookingId,
     sessionDateIso,
     hasPendingSwap,
+    refresh,
   } = useTicket(ticket);
 
-  const reagendamentoDisponivel = useMemo(() => {
+  const diasParaSessao = useMemo(() => {
+    if (!sessionDateIso) return null;
+    return getCalendarDayDiff(sessionDateIso);
+  }, [sessionDateIso]);
+
+  const autoatendimentoDisponivel = useMemo(() => {
     if (!bookingId || !sessionDateIso || !ticketData?.confirmed) return false;
 
     try {
-      return isAfter(parseISO(sessionDateIso), new Date());
+      return isAfter(parseISO(sessionDateIso), new Date()) &&
+        diasParaSessao !== null
+        ? diasParaSessao >= 2
+        : false;
     } catch {
       return false;
     }
-  }, [bookingId, sessionDateIso, ticketData?.confirmed]);
+  }, [bookingId, diasParaSessao, sessionDateIso, ticketData?.confirmed]);
+
+  async function confirmarCancelamento() {
+    if (!bookingId) return;
+
+    setCancelando(true);
+    try {
+      await cancelMyBooking(bookingId);
+      toast.success("Agendamento cancelado com sucesso.");
+      setCancelamentoAberto(false);
+      refresh();
+      navigate("/app/agendamentos");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível cancelar o agendamento.";
+      toast.error(message);
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   const gerarPdf = useCallback(async () => {
     if (!ticketData) return;
@@ -360,18 +397,20 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
           </button>
         </div>
 
-        {reagendamentoDisponivel && (
+        {ticketData.confirmed && sessionDateIso ? (
           <div className="mt-4 rounded-2xl border border-primary/15 bg-primary/5 p-4 print:hidden">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-bold text-text-body">
-                  Precisa mudar sua sessão?
+                  Precisa mudar ou cancelar sua sessão?
                 </p>
                 <p className="text-xs text-text-muted">
-                  Abra a janela de reagendamento e solicite uma nova sessão disponível.
+                  {autoatendimentoDisponivel
+                    ? "Você pode solicitar reagendamento ou cancelar até 2 dias antes da sessão."
+                    : "O prazo para alterar este agendamento encerrou 2 dias antes da sessão."}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {hasPendingSwap && (
                   <span className="inline-flex items-center rounded-full bg-error/10 px-3 py-1 text-[11px] font-semibold text-error">
                     Reagendamento pendente
@@ -379,14 +418,23 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
                 )}
                 <button
                   onClick={() => setReagendamentoAberto(true)}
+                  disabled={!autoatendimentoDisponivel || hasPendingSwap}
                   className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary/90"
                 >
                   Solicitar reagendamento
                 </button>
+                <button
+                  onClick={() => setCancelamentoAberto(true)}
+                  disabled={!autoatendimentoDisponivel || cancelando}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-error/30 bg-error/10 px-4 py-2 text-sm font-bold text-error transition hover:bg-error/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <XCircle size={16} />
+                  Cancelar agendamento
+                </button>
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="mt-5 text-center text-sm text-text-muted print:hidden">
           Dúvidas sobre o agendamento?{" "}
@@ -406,8 +454,61 @@ export default function DigitalTicket({ ticket }: { ticket?: TicketData }) {
         bookingId={bookingId ?? ""}
         currentDate={sessionDateIso ?? ""}
         onClose={() => setReagendamentoAberto(false)}
-        onSuccess={() => setReagendamentoAberto(false)}
+        onSuccess={() => {
+          setReagendamentoAberto(false);
+          refresh();
+        }}
       />
+
+      <Dialog
+        open={cancelamentoAberto}
+        onClose={() => {
+          if (!cancelando) setCancelamentoAberto(false);
+        }}
+        closeDisabled={cancelando}
+        title="Cancelar agendamento"
+        description="Esta ação cancela sua reserva atual. Você poderá escolher outra sessão disponível respeitando o prazo mínimo de 2 dias."
+        widthClassName="max-w-lg"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setCancelamentoAberto(false)}
+              disabled={cancelando}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmarCancelamento()}
+              disabled={cancelando}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {cancelando ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Confirmar cancelamento"
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm text-text-body">
+          <p>
+            Confirme apenas se você realmente não puder comparecer à sessão.
+          </p>
+          {diasParaSessao !== null ? (
+            <p className="rounded-lg border border-alert/40 bg-alert/10 px-3 py-2 text-alert">
+              Faltam {diasParaSessao} dia(s) para a sessão. O cancelamento é
+              permitido até 2 dias antes.
+            </p>
+          ) : null}
+        </div>
+      </Dialog>
     </Layout>
   );
 }

@@ -107,6 +107,46 @@ export async function updateSession(
   if (error) throw error;
 }
 
+export async function updateOpenSessionOperational(payload: {
+  sessionId: string;
+  period: Database["public"]["Enums"]["session_period"];
+  capacity: number;
+  maxCapacity: number;
+  locationId: string;
+  coordinatorId: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc("update_open_session_operational", {
+    p_session_id: payload.sessionId,
+    p_period: payload.period,
+    p_capacity: payload.capacity,
+    p_max_capacity: payload.maxCapacity,
+    p_location_id: payload.locationId,
+    p_coordinator_id: payload.coordinatorId,
+  });
+
+  if (error) throw error;
+}
+
+export async function deleteSessionPermanently(
+  sessionId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_session_permanently", {
+    p_session_id: sessionId,
+  });
+
+  if (error) throw error;
+}
+
+export async function cancelSessionWithPermission(
+  sessionId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("cancel_session_with_permission", {
+    p_session_id: sessionId,
+  });
+
+  if (error) throw error;
+}
+
 export async function fetchSessionById(
   sessionId: string,
 ): Promise<SessionInfo | null> {

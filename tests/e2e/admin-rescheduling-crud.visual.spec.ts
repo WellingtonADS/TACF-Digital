@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { Client } from "pg";
 import { adminCredentials } from "./fixtures/auth";
@@ -546,39 +546,39 @@ async function filterRequestList(page: Page, searchTerm: string) {
   await searchInput.blur();
 }
 
-async function expectRequestVisible(page: Page, _searchTerm: string) {
-  await expect(
-    page.getByRole("button", { name: /ver justificativa/i }).first(),
-  ).toBeVisible({
-    timeout: 10000,
-  });
-}
-
-async function openReasonDetails(page: Page, reasonText: string) {
-  const reasonButton = page
-    .getByRole("button", { name: /ver justificativa/i })
+async function expectRequestVisible(
+  page: Page,
+  searchTerm: string,
+): Promise<Locator> {
+  const requestRow = page
+    .getByTestId("rescheduling-request-row")
+    .filter({ hasText: searchTerm })
     .first();
 
-  await expect(reasonButton).toBeVisible({ timeout: 10000 });
-  await reasonButton.click();
+  await expect(requestRow).toBeVisible({ timeout: 10000 });
+  return requestRow;
+}
 
-  const drawerHeader = page
-    .locator("div")
-    .filter({ hasText: /^Justificativa Selecionada$/ })
-    .last();
+async function openReasonDetails(
+  page: Page,
+  requestRow: Locator,
+  reasonText: string,
+) {
+  await requestRow.click();
 
-  await expect(drawerHeader).toBeVisible({ timeout: 10000 });
+  const dialog = page.getByRole("dialog", {
+    name: /Solicitação de Reagendamento/i,
+  });
 
-  const drawer = drawerHeader.locator("..");
-  await expect(drawer.getByText(reasonText)).toBeVisible({ timeout: 10000 });
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await expect(dialog.getByText(reasonText)).toBeVisible({ timeout: 10000 });
 
   await page.screenshot({
     path: "test-results/admin-rescheduling-reason-open.png",
     fullPage: true,
   });
 
-  await drawerHeader.getByRole("button").click();
-  await expect(drawerHeader).toHaveCount(0, { timeout: 10000 });
+  return dialog;
 }
 
 async function clickStatusFilter(page: Page, name: RegExp) {
@@ -600,10 +600,10 @@ async function performRequestDecision(
   },
 ) {
   await filterRequestList(page, options.searchTerm);
-  await expectRequestVisible(page, options.searchTerm);
-  await openReasonDetails(page, options.reasonText);
+  const requestRow = await expectRequestVisible(page, options.searchTerm);
+  const dialog = await openReasonDetails(page, requestRow, options.reasonText);
 
-  const actionButton = page
+  const actionButton = dialog
     .getByRole("button", {
       name: options.action === "approve" ? /^Deferir$/i : /^Indeferir$/i,
     })
@@ -618,6 +618,9 @@ async function performRequestDecision(
     fullPage: true,
   });
   await actionButton.click();
+
+  await dialog.getByRole("button", { name: /fechar/i }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 10000 });
 }
 
 test.describe("CRUD visual: admin gerencia reagendamentos no hub", () => {

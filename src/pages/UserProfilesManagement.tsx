@@ -8,6 +8,7 @@ import PasswordInput from "@/components/atomic/PasswordInput";
 import FullPageLoading from "@/components/FullPageLoading";
 import Layout from "@/components/layout/Layout";
 import useAuth from "@/hooks/useAuth";
+import { isMilitaryProfileComplete } from "@/router/routeAccess";
 import { getProfileById } from "@/services/personnel";
 import { Award, Calendar, CheckCircle, Key, ShieldCheck, User } from "@/icons";
 import type { Profile } from "@/types";
@@ -17,7 +18,7 @@ import { differenceInYears, isAfter, parseISO } from "date-fns";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase, upsertProfile } from "../services/supabase";
+import { supabase } from "../services/supabase";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
@@ -41,7 +42,12 @@ type UserProfileView = Profile & {
 };
 
 export default function UserProfilesManagement() {
-  const { user, profile: authProfile, loading: authLoading } = useAuth();
+  const {
+    user,
+    profile: authProfile,
+    loading: authLoading,
+    updateProfile,
+  } = useAuth();
   const [profile, setProfile] = useState<UserProfileView | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,7 +133,7 @@ export default function UserProfilesManagement() {
 
     setSaving(true);
     try {
-      const { data, error } = await upsertProfile({
+      const payload = {
         id: user.id,
         full_name: profile.full_name?.trim(),
         email,
@@ -136,7 +142,15 @@ export default function UserProfilesManagement() {
         war_name: nomeGuerra,
         phone_number: phone,
         sector: setor,
-      });
+      };
+      const result = await updateProfile(payload);
+      if (!result) {
+        toast.error("Erro ao salvar o perfil.");
+        return;
+      }
+
+      const data = result?.data;
+      const error = result?.error;
 
       if (error) {
         toast.error("Erro ao salvar: " + error.message);
@@ -202,6 +216,7 @@ export default function UserProfilesManagement() {
   const lastAccess = user?.last_sign_in_at
     ? formatDateTimePtBr(user.last_sign_in_at)
     : "--";
+  const profileComplete = isMilitaryProfileComplete(profile);
 
   // avoid flicker: if we already have a profile to show, render it
   if ((authLoading || loading) && !profile) {
@@ -223,6 +238,21 @@ export default function UserProfilesManagement() {
         <div className="w-full text-xs sm:text-sm text-text-muted bg-bg-card px-4 py-2 rounded-lg border border-border-default mb-6">
           Último acesso: {lastAccess}
         </div>
+
+        {!profileComplete ? (
+          <div
+            className="mb-6 rounded-2xl border border-alert/40 bg-alert/10 px-4 py-3 text-alert"
+            data-testid="profile-completion-alert"
+          >
+            <p className="text-sm font-bold">
+              Complete seu cadastro militar para usar agendamentos e resultados.
+            </p>
+            <p className="mt-1 text-xs leading-relaxed">
+              Informe nome completo, e-mail, nome de guerra, SARAM com 7
+              números, posto/graduação e setor.
+            </p>
+          </div>
+        ) : null}
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left column: profile summary */}

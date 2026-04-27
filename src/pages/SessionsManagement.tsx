@@ -30,8 +30,13 @@ import {
   Plus,
   Search,
   Trash2,
+  XCircle,
 } from "@/icons";
-import { updateSession } from "@/services/sessions";
+import { canUseSessionPermission } from "@/router/routeAccess";
+import {
+  cancelSessionWithPermission,
+  deleteSessionPermanently,
+} from "@/services/sessions";
 import type { SessionStatus } from "@/types/database.types";
 import { formatSessionPeriod } from "@/utils/booking";
 import { format, parseISO } from "date-fns";
@@ -86,12 +91,33 @@ export const SessionsManagement = () => {
   const [sessionPendingCancel, setSessionPendingCancel] =
     useState<SessionAvailability | null>(null);
   const [cancellingSession, setCancellingSession] = useState(false);
+  const [sessionPendingDelete, setSessionPendingDelete] =
+    useState<SessionAvailability | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
   const pageSize = 10;
   const activeViewMode: ViewMode = forceCardsViewport ? "cards" : viewMode;
   const activeTab: HubTab =
     searchParams.get("tab") === "reagendamentos" ? "reagendamentos" : "sessoes";
-  const canManage =
-    profile?.role === "admin" || profile?.role === "coordinator";
+  const isAdmin = profile?.role === "admin";
+  const isCoordinator = profile?.role === "coordinator";
+  const canManage = isAdmin || isCoordinator;
+  const canCreateSession = canUseSessionPermission(
+    profile?.role,
+    profile?.metadata,
+    "create_session",
+  );
+  const canEditOpenSession = canManage;
+  const canDuplicateSession = canUseSessionPermission(
+    profile?.role,
+    profile?.metadata,
+    "duplicate_session",
+  );
+  const canCancelSession = canUseSessionPermission(
+    profile?.role,
+    profile?.metadata,
+    "cancel_session",
+  );
+  const canDeleteSession = isAdmin;
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -113,6 +139,9 @@ export const SessionsManagement = () => {
   );
 
   const openCreateDialog = useCallback(() => {
+    if (!canCreateSession) {
+      return;
+    }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("sessionId");
     nextParams.delete("edit");
@@ -122,23 +151,13 @@ export const SessionsManagement = () => {
       sessionId: null,
       reopenHubOnSave: false,
     });
-  }, [searchParams, setSearchParams]);
-
-  const openEditDialog = useCallback(
-    (sessionId: string, reopenHubOnSave = false) => {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("sessionId", sessionId);
-      nextParams.set("edit", "1");
-      setSearchParams(nextParams, { replace: true });
-      if (!reopenHubOnSave) {
-        setStandaloneFormState(null);
-      }
-    },
-    [searchParams, setSearchParams],
-  );
+  }, [canCreateSession, searchParams, setSearchParams]);
 
   const openEditStandalone = useCallback(
     (sessionId: string) => {
+      if (!canEditOpenSession) {
+        return;
+      }
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("sessionId");
       nextParams.delete("edit");
@@ -149,11 +168,14 @@ export const SessionsManagement = () => {
         reopenHubOnSave: false,
       });
     },
-    [searchParams, setSearchParams],
+    [canEditOpenSession, searchParams, setSearchParams],
   );
 
   const openDuplicateDialog = useCallback(
     (sessionId: string) => {
+      if (!canDuplicateSession) {
+        return;
+      }
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("sessionId");
       nextParams.delete("edit");
@@ -164,7 +186,7 @@ export const SessionsManagement = () => {
         reopenHubOnSave: false,
       });
     },
-    [searchParams, setSearchParams],
+    [canDuplicateSession, searchParams, setSearchParams],
   );
 
   const openHubDialog = useCallback(
@@ -229,15 +251,13 @@ export const SessionsManagement = () => {
   }, [searchParams, setSearchParams]);
 
   const handleConfirmCancelSession = useCallback(async () => {
-    if (!sessionPendingCancel) {
+    if (!canCancelSession || !sessionPendingCancel) {
       return;
     }
 
     setCancellingSession(true);
     try {
-      await updateSession(sessionPendingCancel.session_id, {
-        status: "closed",
-      });
+      await cancelSessionWithPermission(sessionPendingCancel.session_id);
       toast.success("Sessão cancelada com sucesso.");
       setSessionPendingCancel(null);
       await refresh();
@@ -247,7 +267,30 @@ export const SessionsManagement = () => {
     } finally {
       setCancellingSession(false);
     }
-  }, [refresh, sessionPendingCancel]);
+  }, [canCancelSession, refresh, sessionPendingCancel]);
+
+  const handleConfirmDeleteSession = useCallback(async () => {
+    if (!isAdmin || !sessionPendingDelete) {
+      return;
+    }
+
+    setDeletingSession(true);
+    try {
+      await deleteSessionPermanently(sessionPendingDelete.session_id);
+      toast.success("Sessão excluída definitivamente.");
+      setSessionPendingDelete(null);
+      await refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir a sessão definitivamente.",
+      );
+    } finally {
+      setDeletingSession(false);
+    }
+  }, [isAdmin, refresh, sessionPendingDelete]);
 
   const sessionFormState =
     standaloneFormState ??
@@ -308,6 +351,11 @@ export const SessionsManagement = () => {
         : statusFilter === "closed"
           ? "Fechadas"
           : "Concluídas";
+
+  const tableCellClass =
+    "border-y border-border-default/70 bg-bg-card/95 py-4 align-middle first:rounded-l-2xl first:border-l first:pl-5 last:rounded-r-2xl last:border-r last:pr-5";
+  const tableActionIconClass =
+    "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border-default bg-bg-card text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <Layout>
@@ -421,14 +469,16 @@ export const SessionsManagement = () => {
 
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
-                    <button
-                      type="button"
-                      onClick={openCreateDialog}
-                      className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 sm:flex-none"
-                    >
-                      <AppIcon icon={Plus} size="sm" decorative />
-                      Nova sessão
-                    </button>
+                    {canCreateSession ? (
+                      <button
+                        type="button"
+                        onClick={openCreateDialog}
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 sm:flex-none"
+                      >
+                        <AppIcon icon={Plus} size="sm" decorative />
+                        Nova sessão
+                      </button>
+                    ) : null}
 
                     <button
                       type="button"
@@ -481,74 +531,80 @@ export const SessionsManagement = () => {
                 </p>
               </div>
             ) : activeViewMode === "table" ? (
-              <div className="overflow-x-auto pr-2">
-                <table className="w-full min-w-[700px] table-fixed text-left">
+              <div className="overflow-x-auto px-2 pb-2">
+                <table className="w-full min-w-[760px] table-fixed border-separate [border-spacing:0_10px] text-center">
                   <colgroup>
-                    <col className="w-[20%]" />
-                    <col className="w-[24%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[12%]" />
                     <col className="w-[14%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[26%]" />
+                    <col className="w-[34%]" />
                   </colgroup>
-                  <thead className="bg-bg-default">
+                  <thead>
                     <tr>
-                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
+                      <th className="whitespace-nowrap px-4 pb-2 pt-1 text-left text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
                         Turma
                       </th>
-                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
+                      <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
                         Data
                       </th>
-                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
+                      <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
                         Turno
                       </th>
-                      <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-text-muted">
+                      <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
                         Status
                       </th>
-                      <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-text-muted">
+                      <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
                         Ações
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-default">
+                  <tbody>
                     {paginatedSessions.map((s) => {
                       const status = getSessionStatus(s);
                       const isOpen = status === "open";
                       const isCompleted = status === "completed";
+                      const canDeletePermanently =
+                        canDeleteSession &&
+                        !isCompleted &&
+                        s.occupied_count === 0;
                       return (
-                        <tr
-                          key={s.session_id}
-                          className="hover:bg-bg-card/20 transition-colors"
-                        >
-                          <td className="px-4 py-4 align-middle">
-                            <div className="font-mono text-sm font-bold text-text-body">
-                              {s.session_id.slice(0, 12).toUpperCase()}
+                        <tr key={s.session_id} className="group">
+                          <td className={`${tableCellClass} px-4 text-left`}>
+                            <div className="flex flex-col items-start space-y-1">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-text-muted">
+                                turma operacional
+                              </p>
+                              <div className="font-mono text-sm font-bold tracking-[0.08em] text-text-body">
+                                {s.session_id.slice(0, 12).toUpperCase()}
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className={`${tableCellClass} px-4 text-center`}>
                             <div className="text-sm font-semibold capitalize text-text-body">
-                              {format(parseISO(s.date), "EEE", {
+                              {format(parseISO(s.date), "EEEE", {
                                 locale: ptBR,
                               })}
                             </div>
-                            <div className="mt-0.5 text-xs text-text-muted">
+                            <div className="mt-0.5 text-xs font-medium text-text-muted">
                               {format(parseISO(s.date), "dd/MM/yy", {
                                 locale: ptBR,
                               })}
                             </div>
                           </td>
-                          <td className="px-4 py-4 align-middle">
-                            <span className="text-sm font-semibold capitalize text-text-body">
+                          <td className={`${tableCellClass} px-4 text-center`}>
+                            <span className="inline-flex rounded-full border border-border-default bg-bg-default px-3 py-1 text-sm font-semibold capitalize text-text-body shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
                               {formatSessionPeriod(s.period)}
                             </span>
                           </td>
-                          <td className="px-4 py-4 align-middle">
+                          <td className={`${tableCellClass} px-4 text-center`}>
                             <span
-                              className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold tracking-[0.14em] ${
                                 isOpen
-                                  ? "bg-primary/10 text-primary border-primary/30"
+                                  ? "border-primary/30 bg-primary/10 text-primary"
                                   : isCompleted
-                                    ? "bg-success/10 text-success border-success/30"
-                                    : "bg-error/10 text-error border-error/30"
+                                    ? "border-success/30 bg-success/10 text-success"
+                                    : "border-error/30 bg-error/10 text-error"
                               }`}
                             >
                               {isOpen
@@ -558,12 +614,12 @@ export const SessionsManagement = () => {
                                   : "FECHADA"}
                             </span>
                           </td>
-                          <td className="px-4 py-4 text-right align-middle">
-                            <div className="flex flex-wrap items-center justify-end gap-1.5 whitespace-nowrap">
+                          <td className={`${tableCellClass} px-4 text-center`}>
+                            <div className="mx-auto grid w-full max-w-[308px] grid-cols-[minmax(124px,1fr)_auto] items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => openHubDialog(s.session_id)}
-                                className="inline-flex h-8 w-[120px] items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                                className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary/25 bg-primary/10 px-3 text-xs font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-sm"
                                 title={
                                   isOpen ? "Gerir sessão" : "Visualizar sessão"
                                 }
@@ -579,56 +635,85 @@ export const SessionsManagement = () => {
                                 {isOpen ? "Gerir" : "Visualizar"}
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => openEditStandalone(s.session_id)}
-                                disabled={!canManage || !isOpen}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                                title="Editar sessão"
-                                aria-label="Editar sessão"
-                              >
-                                <AppIcon icon={Edit2} size="sm" decorative />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openDuplicateDialog(s.session_id)
-                                }
-                                disabled={!canManage || !isOpen}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                                title="Duplicar sessão"
-                                aria-label="Duplicar sessão"
-                              >
-                                <AppIcon icon={Copy} size="sm" decorative />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setSessionPendingCancel(s)}
-                                disabled={!canManage || !isOpen}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
-                                title="Cancelar sessão"
-                                aria-label="Cancelar sessão"
-                              >
-                                <AppIcon icon={Trash2} size="sm" decorative />
-                              </button>
-
-                              {isCompleted ? (
+                              <div className="inline-flex items-center justify-center gap-1 rounded-xl border border-border-default/80 bg-bg-default/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                                 <button
                                   type="button"
-                                  onClick={() => openHubDialog(s.session_id)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-default text-text-body transition-colors hover:border-primary/30 hover:text-primary"
-                                  title="Imprimir relatório final"
-                                  aria-label="Imprimir relatório final"
+                                  onClick={() =>
+                                    openEditStandalone(s.session_id)
+                                  }
+                                  disabled={!canEditOpenSession || !isOpen}
+                                  className={tableActionIconClass}
+                                  title="Editar sessão"
+                                  aria-label="Editar sessão"
                                 >
-                                  <AppIcon
-                                    icon={FileDown}
-                                    size="sm"
-                                    decorative
-                                  />
+                                  <AppIcon icon={Edit2} size="sm" decorative />
                                 </button>
-                              ) : null}
+
+                                {canDuplicateSession ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openDuplicateDialog(s.session_id)
+                                    }
+                                    disabled={!isOpen}
+                                    className={tableActionIconClass}
+                                    title="Duplicar sessão"
+                                    aria-label="Duplicar sessão"
+                                  >
+                                    <AppIcon icon={Copy} size="sm" decorative />
+                                  </button>
+                                ) : null}
+
+                                {canCancelSession ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSessionPendingCancel(s)}
+                                    disabled={!isOpen}
+                                    className={`${tableActionIconClass} hover:border-error/40 hover:text-error`}
+                                    title="Cancelar sessão"
+                                    aria-label="Cancelar sessão"
+                                  >
+                                    <AppIcon
+                                      icon={Trash2}
+                                      size="sm"
+                                      decorative
+                                    />
+                                  </button>
+                                ) : null}
+
+                                {canDeleteSession ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSessionPendingDelete(s)}
+                                    disabled={!canDeletePermanently}
+                                    className={`${tableActionIconClass} hover:border-error/40 hover:text-error`}
+                                    title="Excluir sessão definitivamente"
+                                    aria-label="Excluir sessão definitivamente"
+                                  >
+                                    <AppIcon
+                                      icon={XCircle}
+                                      size="sm"
+                                      decorative
+                                    />
+                                  </button>
+                                ) : null}
+
+                                {isCompleted ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openHubDialog(s.session_id)}
+                                    className={tableActionIconClass}
+                                    title="Imprimir relatório final"
+                                    aria-label="Imprimir relatório final"
+                                  >
+                                    <AppIcon
+                                      icon={FileDown}
+                                      size="sm"
+                                      decorative
+                                    />
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -644,6 +729,8 @@ export const SessionsManagement = () => {
                   const status = getSessionStatus(s);
                   const isOpen = status === "open";
                   const isCompleted = status === "completed";
+                  const canDeletePermanently =
+                    canDeleteSession && !isCompleted && s.occupied_count === 0;
                   const occupied = s.occupied_count;
                   const max = s.max_capacity;
                   const percent = max ? Math.round((occupied / max) * 100) : 0;
@@ -729,32 +816,48 @@ export const SessionsManagement = () => {
                           <button
                             type="button"
                             onClick={() => openEditStandalone(s.session_id)}
-                            disabled={!canManage || !isOpen}
+                            disabled={!canEditOpenSession || !isOpen}
                             className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <AppIcon icon={Edit2} size="xs" decorative />
                             Editar
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => openDuplicateDialog(s.session_id)}
-                            disabled={!canManage || !isOpen}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <AppIcon icon={Copy} size="xs" decorative />
-                            Duplicar
-                          </button>
+                          {canDuplicateSession ? (
+                            <button
+                              type="button"
+                              onClick={() => openDuplicateDialog(s.session_id)}
+                              disabled={!isOpen}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <AppIcon icon={Copy} size="xs" decorative />
+                              Duplicar
+                            </button>
+                          ) : null}
 
-                          <button
-                            type="button"
-                            onClick={() => setSessionPendingCancel(s)}
-                            disabled={!canManage || !isOpen}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <AppIcon icon={Trash2} size="xs" decorative />
-                            Cancelar
-                          </button>
+                          {canCancelSession ? (
+                            <button
+                              type="button"
+                              onClick={() => setSessionPendingCancel(s)}
+                              disabled={!isOpen}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <AppIcon icon={Trash2} size="xs" decorative />
+                              Cancelar
+                            </button>
+                          ) : null}
+
+                          {canDeleteSession ? (
+                            <button
+                              type="button"
+                              onClick={() => setSessionPendingDelete(s)}
+                              disabled={!canDeletePermanently}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-default px-2 py-2 text-xs font-semibold text-text-body transition-colors hover:border-error/40 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <AppIcon icon={XCircle} size="xs" decorative />
+                              Excluir
+                            </button>
+                          ) : null}
 
                           {isCompleted ? (
                             <button
@@ -839,7 +942,6 @@ export const SessionsManagement = () => {
         sessionId={selectedSessionId}
         onClose={closeHubDialog}
         onSessionUpdated={refresh}
-        onEditRequested={(sessionId) => openEditDialog(sessionId, true)}
       />
       <SessionFormDialog
         open={sessionFormState !== null}
@@ -902,6 +1004,60 @@ export const SessionsManagement = () => {
               concluir o processo.
             </p>
           ) : null}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={sessionPendingDelete !== null}
+        onClose={() => {
+          if (!deletingSession) {
+            setSessionPendingDelete(null);
+          }
+        }}
+        closeDisabled={deletingSession}
+        title="Excluir sessão definitivamente"
+        description="A exclusão definitiva é restrita ao administrador e só é liberada para sessões sem agendamentos."
+        widthClassName="max-w-lg"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setSessionPendingDelete(null)}
+              disabled={deletingSession}
+              className="rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body disabled:opacity-60"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmDeleteSession()}
+              disabled={deletingSession}
+              className="inline-flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {deletingSession ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                "Excluir definitivamente"
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm text-text-body">
+          <p>
+            A turma{" "}
+            <strong>
+              {sessionPendingDelete?.session_id.slice(0, 12).toUpperCase()}
+            </strong>{" "}
+            será removida em definitivo.
+          </p>
+          <p className="rounded-lg border border-alert/40 bg-alert/10 px-3 py-2 text-alert">
+            Regra de segurança: apenas sessões sem agendamentos e ainda não
+            concluídas podem ser excluídas definitivamente.
+          </p>
         </div>
       </Dialog>
 

@@ -5,7 +5,7 @@ import { createSessions } from "@/services/bookings";
 import { fetchCoordinators, type Coordinator } from "@/services/personnel";
 import {
   fetchSessionForEdit,
-  updateSession,
+  updateOpenSessionOperational,
   type SessionForEdit,
 } from "@/services/sessions";
 import { fetchSystemSettings } from "@/services/systemSettings";
@@ -241,8 +241,7 @@ export default function SessionFormDialog({
       setLoading(true);
 
       try {
-        const [settings, fetchedCoordinators] = await Promise.all([
-          fetchSystemSettings(),
+        const [fetchedCoordinators] = await Promise.all([
           fetchCoordinators(),
           fetchLocations({ status: "active", limit: 100 }),
         ]);
@@ -251,7 +250,23 @@ export default function SessionFormDialog({
           return;
         }
 
-        const nextDefaults = normalizeSessionDefaults(settings);
+        let nextDefaults = FALLBACK_DEFAULTS;
+
+        if (mode !== "edit") {
+          try {
+            const settings = await fetchSystemSettings();
+            if (!active) {
+              return;
+            }
+            nextDefaults = normalizeSessionDefaults(settings);
+          } catch (error) {
+            console.warn(
+              "[SessionFormDialog] fallback para defaults locais:",
+              error,
+            );
+          }
+        }
+
         setDefaults(nextDefaults);
         setCoordinators(fetchedCoordinators);
 
@@ -369,7 +384,10 @@ export default function SessionFormDialog({
             status: "open",
           }));
 
-        await createSessions(rows);
+        await createSessions(
+          rows,
+          mode === "duplicate" ? "duplicate_session" : "create_session",
+        );
         toast.success(
           mode === "duplicate"
             ? "Sessao duplicada com sucesso."
@@ -382,13 +400,13 @@ export default function SessionFormDialog({
           throw new Error("Sessao nao informada para edicao.");
         }
 
-        await updateSession(sessionId, {
+        await updateOpenSessionOperational({
+          sessionId,
           period: form.period,
           capacity: form.min_capacity,
-          max_capacity: form.max_capacity,
-          location_id: form.location_id,
-          coordinator_id: form.coordinator_id,
-          applicators: [form.coordinator_id],
+          maxCapacity: form.max_capacity,
+          locationId: form.location_id,
+          coordinatorId: form.coordinator_id,
         });
         toast.success("Sessao atualizada com sucesso.");
       }

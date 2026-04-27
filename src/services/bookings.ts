@@ -3,6 +3,7 @@ import supabase from "./supabase";
 
 export async function createSessions(
   rows: Database["public"]["Tables"]["sessions"]["Insert"][],
+  requiredPermission: "create_session" | "duplicate_session" = "create_session",
 ): Promise<void> {
   rows.forEach((row) => {
     if (!row.location_id) {
@@ -16,7 +17,10 @@ export async function createSessions(
     }
   });
 
-  const { error } = await supabase.from("sessions").insert(rows);
+  const { error } = await supabase.rpc("create_sessions_with_permission", {
+    p_sessions: rows,
+    p_required_permission: requiredPermission,
+  });
   if (error) throw error;
 }
 
@@ -53,6 +57,23 @@ export async function updateSwapRequestStatus(
   return data;
 }
 
+export async function approveSwapRequest(
+  requestId: string,
+  adminId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("approve_swap", {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+  });
+
+  if (error) throw error;
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result?.success) {
+    throw new Error(result?.error ?? "Falha ao aprovar reagendamento.");
+  }
+}
+
 export async function updateBookingStatus(
   bookingId: string,
   status: Database["public"]["Tables"]["bookings"]["Update"]["status"],
@@ -63,6 +84,14 @@ export async function updateBookingStatus(
     .eq("id", bookingId);
   if (error) throw error;
   return data;
+}
+
+export async function cancelMyBooking(bookingId: string): Promise<void> {
+  const { error } = await supabase.rpc("cancel_my_booking", {
+    p_booking_id: bookingId,
+  });
+
+  if (error) throw error;
 }
 
 interface SwapRequestParams {

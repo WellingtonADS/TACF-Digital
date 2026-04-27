@@ -1,6 +1,9 @@
+import Dialog from "@/components/Dialog";
+import AppIcon from "@/components/atomic/AppIcon";
 import StatCard from "@/components/atomic/StatCard";
 import useAuth from "@/hooks/useAuth";
 import useReschedulingManagement, {
+  type RequestRow,
   type SwapStatus,
 } from "@/hooks/useReschedulingManagement";
 import {
@@ -8,13 +11,15 @@ import {
   Calendar,
   CalendarClock,
   CheckCircle,
-  Eye,
+  ClipboardList,
   GitMerge,
   Search,
-  X,
   XCircle,
 } from "@/icons";
 import { toast } from "sonner";
+
+const TABLE_CELL_CLASS =
+  "border-y border-border-default/70 bg-bg-card/95 py-4 align-middle first:rounded-l-2xl first:border-l first:pl-5 last:rounded-r-2xl last:border-r last:pr-5";
 
 const STATUS_META: Record<SwapStatus, { label: string; badgeClass: string }> = {
   solicitado: {
@@ -96,15 +101,82 @@ function StatusBadge({ status }: { status: SwapStatus }) {
   );
 }
 
-function ReasonButton({ onClick }: { onClick: () => void }) {
+function RequestListItem({
+  row,
+  onOpen,
+}: {
+  row: RequestRow;
+  onOpen: () => void;
+}) {
+  const displayName = row.warName || row.fullName || "Sem identificação";
+  const hasFullName =
+    Boolean(row.fullName) &&
+    row.fullName.toLowerCase() !== displayName.toLowerCase();
+
   return (
     <button
       type="button"
-      onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold uppercase tracking-tight text-primary hover:underline"
+      onClick={onOpen}
+      data-testid="rescheduling-request-row"
+      className="w-full px-4 py-3 text-left transition-colors hover:bg-bg-default/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 md:hidden"
     >
-      <Eye size={12} />
-      Ver justificativa
+      <div className="grid grid-cols-1 gap-2">
+        <div className="min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            Militar
+          </span>
+          <p className="truncate pt-0.5 text-sm font-bold uppercase tracking-[0.12em] text-text-body">
+            {displayName}
+          </p>
+          {hasFullName ? (
+            <p className="mt-0.5 truncate text-xs text-text-muted">
+              {row.fullName}
+            </p>
+          ) : null}
+          <p className="mt-1 font-mono text-xs font-semibold text-text-muted">
+            {row.saram || "--"}
+          </p>
+        </div>
+
+        <div className="min-w-0 text-sm">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            Data Anterior
+          </span>
+          <p className="flex items-center gap-2 font-semibold text-text-body">
+            <Calendar size={12} className="text-text-muted" />
+            {row.originalDate ?? "--"}
+          </p>
+        </div>
+
+        <div className="min-w-0 text-sm">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            Nova Data
+          </span>
+          <p className="flex items-center gap-2 font-semibold text-primary">
+            <CalendarClock size={12} className="text-text-muted" />
+            {row.newDate ?? "--"}
+          </p>
+        </div>
+
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            Status
+          </span>
+          <div className="pt-1">
+            <StatusBadge status={row.status} />
+          </div>
+        </div>
+
+        <div className="text-left">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            Ações
+          </span>
+          <span className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+            <AppIcon icon={ClipboardList} size="sm" decorative />
+            Visualizar
+          </span>
+        </div>
+      </div>
     </button>
   );
 }
@@ -127,36 +199,25 @@ function ActionButtons({
   canMutate,
   onApprove,
   onReject,
-  orientation = "stacked",
 }: {
   canAct: boolean;
   canMutate: boolean;
   onApprove: () => void;
   onReject: () => void;
-  orientation?: "stacked" | "inline";
 }) {
-  const isInline = orientation === "inline";
   const isDisabled = !canAct || !canMutate;
   const title = canMutate
     ? undefined
     : "Perfil coordenador em modo leitura: ação indisponível.";
 
   return (
-    <div
-      className={
-        isInline
-          ? "flex items-center justify-end gap-3"
-          : "grid grid-cols-1 gap-2 sm:grid-cols-2"
-      }
-    >
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <button
         type="button"
         onClick={onApprove}
         disabled={isDisabled}
         title={title}
-        className={`flex items-center justify-center gap-1 rounded-lg bg-success text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${
-          isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
-        }`}
+        className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-success px-3 py-2 text-[10px] font-bold text-success-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <CheckCircle size={12} />
         Deferir
@@ -166,9 +227,7 @@ function ActionButtons({
         onClick={onReject}
         disabled={isDisabled}
         title={title}
-        className={`flex items-center justify-center gap-1 rounded-lg border border-error text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50 ${
-          isInline ? "px-4 py-1.5" : "min-h-9 px-3 py-2"
-        }`}
+        className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-error px-3 py-2 text-[10px] font-bold text-error transition-all hover:bg-error hover:text-error-foreground disabled:cursor-not-allowed disabled:opacity-50"
       >
         <XCircle size={12} />
         Indeferir
@@ -262,206 +321,245 @@ export default function ReschedulingPanel() {
       )}
 
       <section className="overflow-hidden rounded-3xl border border-border-default bg-bg-card shadow-sm">
-        <div className="space-y-3 p-4 md:hidden">
-          {visibleRows.length === 0 ? (
+        {visibleRows.length === 0 ? (
+          <div className="p-4">
             <EmptyRequestsState />
-          ) : (
-            visibleRows.map((row) => (
-              <article
-                key={row.id}
-                className="rounded-xl border border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-default/40"
-              >
-                <p className="text-[13px] font-bold uppercase text-text-body">
-                  {row.fullName || "(desconhecido)"}
-                </p>
-                <p className="mt-1 font-mono text-[11px] font-semibold text-text-muted">
-                  SARAM: {row.saram || "----"}
-                </p>
-                <div className="mt-3 grid grid-cols-1 gap-1.5 text-xs">
-                  <p className="flex items-center gap-2 text-text-muted">
-                    <Calendar size={12} />
-                    Data original: {row.originalDate ?? "--"}
-                  </p>
-                  <p className="flex items-center gap-2 text-primary">
-                    <CalendarClock size={12} />
-                    Nova data: {row.newDate ?? "--"}
-                  </p>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <StatusBadge status={row.status} />
-                  <ReasonButton onClick={() => setSelected(row)} />
-                </div>
-                <div className="mt-3">
-                  <ActionButtons
-                    canAct={row.status === "solicitado"}
-                    canMutate={canMutate}
-                    onApprove={() => {
-                      if (!canMutate) {
-                        handleUnauthorizedAction("aprovar");
-                        return;
-                      }
-                      void changeStatus(row.id, row.bookingId, "aprovado");
-                    }}
-                    onReject={() => {
-                      if (!canMutate) {
-                        handleUnauthorizedAction("indeferir");
-                        return;
-                      }
-                      void changeStatus(row.id, row.bookingId, "cancelado");
-                    }}
-                  />
-                </div>
-              </article>
-            ))
-          )}
-        </div>
+          </div>
+        ) : (
+          <div>
+            <div className="divide-y divide-border-default md:hidden">
+              {visibleRows.map((row) => (
+                <RequestListItem
+                  key={row.id}
+                  row={row}
+                  onOpen={() => setSelected(row)}
+                />
+              ))}
+            </div>
 
-        <div className="hidden w-full overflow-x-auto lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead className="border-b border-border-default bg-bg-default/60">
-              <tr>
-                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Militar
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  SARAM
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Data Original
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Nova Data
-                </th>
-                <th className="px-6 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Motivo
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Status
-                </th>
-                <th className="px-6 py-4 pr-12 text-right text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-default">
-              {visibleRows.length === 0 ? (
-                <tr>
-                  <td className="px-6 py-8" colSpan={7}>
-                    <EmptyRequestsState />
-                  </td>
-                </tr>
-              ) : (
-                visibleRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="group transition-colors hover:bg-bg-default/70"
-                  >
-                    <td className="px-6 py-5">
-                      <span className="text-sm font-bold uppercase text-text-body">
-                        {row.fullName || "(desconhecido)"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <span className="font-mono text-xs font-semibold text-text-muted">
-                        {row.saram || "----"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
-                        <Calendar size={14} />
-                        {row.originalDate ?? "--"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                        <CalendarClock size={14} />
-                        {row.newDate ?? "--"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <ReasonButton onClick={() => setSelected(row)} />
-                    </td>
-                    <td className="px-6 py-5">
-                      <StatusBadge status={row.status} />
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <ActionButtons
-                        orientation="inline"
-                        canAct={row.status === "solicitado"}
-                        canMutate={canMutate}
-                        onApprove={() => {
-                          if (!canMutate) {
-                            handleUnauthorizedAction("aprovar");
-                            return;
-                          }
-                          void changeStatus(row.id, row.bookingId, "aprovado");
-                        }}
-                        onReject={() => {
-                          if (!canMutate) {
-                            handleUnauthorizedAction("indeferir");
-                            return;
-                          }
-                          void changeStatus(row.id, row.bookingId, "cancelado");
-                        }}
-                      />
-                    </td>
+            <div className="hidden overflow-x-auto px-2 pb-2 md:block">
+              <table className="w-full min-w-[760px] table-fixed border-separate [border-spacing:0_10px] text-center">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th className="whitespace-nowrap px-4 pb-2 pt-1 text-left text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+                      Militar
+                    </th>
+                    <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+                      Data Anterior
+                    </th>
+                    <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+                      Nova Data
+                    </th>
+                    <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+                      Status
+                    </th>
+                    <th className="whitespace-nowrap px-4 pb-2 pt-1 text-center text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+                      Ações
+                    </th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {visibleRows.map((row) => {
+                    const displayName =
+                      row.warName || row.fullName || "Sem identificação";
+                    const hasFullName =
+                      Boolean(row.fullName) &&
+                      row.fullName.toLowerCase() !== displayName.toLowerCase();
+
+                    return (
+                      <tr
+                        key={row.id}
+                        data-testid="rescheduling-request-row"
+                        className="group cursor-pointer"
+                        onClick={() => setSelected(row)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelected(row);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Visualizar solicitação de ${displayName}`}
+                      >
+                        <td className={`${TABLE_CELL_CLASS} px-4 text-left`}>
+                          <div className="flex flex-col items-start space-y-1">
+                            <p className="truncate text-left text-sm font-bold uppercase tracking-[0.1em] text-text-body">
+                              {displayName}
+                            </p>
+                            {hasFullName ? (
+                              <p className="truncate text-left text-xs text-text-muted">
+                                {row.fullName}
+                              </p>
+                            ) : null}
+                            <p className="font-mono text-xs font-semibold text-text-muted">
+                              {row.saram || "--"}
+                            </p>
+                          </div>
+                        </td>
+
+                        <td className={`${TABLE_CELL_CLASS} px-4`}>
+                          <p className="flex items-center justify-center gap-2 text-sm font-semibold tabular-nums text-text-body">
+                            <Calendar size={12} className="text-text-muted" />
+                            {row.originalDate ?? "--"}
+                          </p>
+                        </td>
+
+                        <td className={`${TABLE_CELL_CLASS} px-4`}>
+                          <p className="flex items-center justify-center gap-2 text-sm font-semibold tabular-nums text-text-body">
+                            <CalendarClock
+                              size={12}
+                              className="text-text-muted"
+                            />
+                            {row.newDate ?? "--"}
+                          </p>
+                        </td>
+
+                        <td className={`${TABLE_CELL_CLASS} px-4 text-center`}>
+                          <div className="flex justify-center">
+                            <StatusBadge status={row.status} />
+                          </div>
+                        </td>
+
+                        <td className={`${TABLE_CELL_CLASS} px-4 text-center`}>
+                          <div className="mx-auto w-full max-w-[160px]">
+                            <span className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary/25 bg-primary/10 px-3 text-xs font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all group-hover:-translate-y-0.5 group-hover:bg-primary/15 group-hover:shadow-sm">
+                              <AppIcon
+                                icon={ClipboardList}
+                                size="sm"
+                                decorative
+                              />
+                              Visualizar
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
-      {selected && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 fixed bottom-4 left-4 right-4 z-40 rounded-xl border-2 border-primary bg-bg-card p-5 shadow-2xl ring-4 ring-primary/5 sm:bottom-8 sm:left-auto sm:right-8 sm:w-80">
-          <div className="mb-3 flex items-center justify-between border-b border-border-default pb-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-              Justificativa Selecionada
-            </span>
-            <button
-              type="button"
-              className="text-text-muted transition-colors hover:text-text-body"
-              onClick={() => setSelected(null)}
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="space-y-3">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                Militar
-              </span>
-              <span className="text-xs font-bold uppercase text-text-body">
-                {selected.fullName || "(desconhecido)"}
-              </span>
+      <Dialog
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title="Solicitação de Reagendamento"
+        description="Visualize os detalhes da solicitação e, quando aplicável, realize a decisão administrativa."
+        widthClassName="max-w-xl"
+      >
+        {selected ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
+              <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  Militar
+                </span>
+                <span className="mt-1 block text-sm font-bold uppercase text-text-body">
+                  {selected.fullName || "(desconhecido)"}
+                </span>
+              </div>
+              <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  SARAM
+                </span>
+                <span className="mt-1 block font-mono text-sm font-semibold text-text-body">
+                  {selected.saram || "----"}
+                </span>
+              </div>
+              <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  Data Original
+                </span>
+                <span className="mt-1 flex items-center gap-2 text-sm font-semibold text-text-body">
+                  <Calendar size={14} />
+                  {selected.originalDate ?? "--"}
+                </span>
+              </div>
+              <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  Nova Data
+                </span>
+                <span className="mt-1 flex items-center gap-2 text-sm font-semibold text-primary">
+                  <CalendarClock size={14} />
+                  {selected.newDate ?? "--"}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+
+            <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Status
+              </span>
+              <div className="mt-2">
+                <StatusBadge status={selected.status} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border-default bg-bg-default/50 p-3">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
                 Motivo
               </span>
-              <span className="text-xs italic font-semibold text-text-body">
+              <p className="mt-2 text-sm font-semibold italic text-text-body">
                 {selected.reasonText}
-              </span>
-            </div>
-            {selected.attachmentUrl && (
-              <div className="pt-2">
-                <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                  Anexo
-                </span>
+              </p>
+              {selected.attachmentUrl ? (
                 <a
-                  className="text-xs font-semibold text-primary hover:underline"
+                  className="mt-3 inline-flex text-xs font-semibold text-primary hover:underline"
                   href={selected.attachmentUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
                   Abrir comprovativo
                 </a>
-              </div>
+              ) : null}
+            </div>
+
+            {selected.status === "solicitado" ? (
+              <ActionButtons
+                canAct
+                canMutate={canMutate}
+                onApprove={() => {
+                  if (!canMutate) {
+                    handleUnauthorizedAction("aprovar");
+                    return;
+                  }
+                  void changeStatus(
+                    selected.id,
+                    selected.bookingId,
+                    "aprovado",
+                  );
+                }}
+                onReject={() => {
+                  if (!canMutate) {
+                    handleUnauthorizedAction("indeferir");
+                    return;
+                  }
+                  void changeStatus(
+                    selected.id,
+                    selected.bookingId,
+                    "cancelado",
+                  );
+                }}
+              />
+            ) : (
+              <p className="text-xs font-semibold text-text-muted">
+                Solicitação já{" "}
+                {STATUS_META[selected.status].label.toLowerCase()}.
+              </p>
             )}
           </div>
-        </div>
-      )}
+        ) : null}
+      </Dialog>
     </div>
   );
 }

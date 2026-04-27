@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   createSessions: vi.fn(),
   fetchCoordinators: vi.fn(),
   fetchSessionForEdit: vi.fn(),
-  updateSession: vi.fn(),
+  updateOpenSessionOperational: vi.fn(),
   fetchSystemSettings: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock("@/services/personnel", () => ({
 
 vi.mock("@/services/sessions", () => ({
   fetchSessionForEdit: mocks.fetchSessionForEdit,
-  updateSession: mocks.updateSession,
+  updateOpenSessionOperational: mocks.updateOpenSessionOperational,
 }));
 
 vi.mock("@/services/systemSettings", () => ({
@@ -124,7 +124,7 @@ describe("SessionFormDialog", () => {
     ]);
 
     mocks.createSessions.mockResolvedValue(undefined);
-    mocks.updateSession.mockResolvedValue(undefined);
+    mocks.updateOpenSessionOperational.mockResolvedValue(undefined);
     mocks.fetchSessionForEdit.mockResolvedValue({
       session: {
         id: "session-1",
@@ -181,13 +181,13 @@ describe("SessionFormDialog", () => {
     );
 
     await waitFor(() => {
-      expect(mocks.updateSession).toHaveBeenCalledWith("session-1", {
+      expect(mocks.updateOpenSessionOperational).toHaveBeenCalledWith({
+        sessionId: "session-1",
         period: "tarde",
         capacity: 10,
-        max_capacity: 20,
-        location_id: "loc-1",
-        coordinator_id: "coord-1",
-        applicators: ["coord-1"],
+        maxCapacity: 20,
+        locationId: "loc-1",
+        coordinatorId: "coord-1",
       });
     });
 
