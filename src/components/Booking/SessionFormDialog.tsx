@@ -315,7 +315,7 @@ export default function SessionFormDialog({
     return unique.length > 0 ? unique : FALLBACK_DEFAULTS.default_periods;
   }, [defaults.default_periods]);
 
-  const capacityBounds = useMemo(() => {
+  const createCapacityBounds = useMemo(() => {
     const min = Math.max(
       1,
       defaults.min_capacity || FALLBACK_DEFAULTS.min_capacity,
@@ -374,21 +374,23 @@ export default function SessionFormDialog({
     }
 
     if (
-      form.min_capacity < capacityBounds.min ||
-      form.min_capacity > capacityBounds.max
+      mode !== "edit" &&
+      (form.min_capacity < createCapacityBounds.min ||
+        form.min_capacity > createCapacityBounds.max)
     ) {
       toast.error(
-        `A capacidade mínima deve ficar entre ${capacityBounds.min} e ${capacityBounds.max}.`,
+        `A capacidade mínima deve ficar entre ${createCapacityBounds.min} e ${createCapacityBounds.max}.`,
       );
       return;
     }
 
     if (
-      form.max_capacity < capacityBounds.min ||
-      form.max_capacity > capacityBounds.max
+      mode !== "edit" &&
+      (form.max_capacity < createCapacityBounds.min ||
+        form.max_capacity > createCapacityBounds.max)
     ) {
       toast.error(
-        `A capacidade máxima deve ficar entre ${capacityBounds.min} e ${capacityBounds.max}.`,
+        `A capacidade máxima deve ficar entre ${createCapacityBounds.min} e ${createCapacityBounds.max}.`,
       );
       return;
     }
@@ -756,8 +758,8 @@ export default function SessionFormDialog({
               <span>Capacidade minima da sessao</span>
               <input
                 type="number"
-                min={capacityBounds.min}
-                max={capacityBounds.max}
+                min={1}
+                max={mode === "edit" ? undefined : createCapacityBounds.max}
                 value={form.min_capacity}
                 onChange={(event) =>
                   updateField("min_capacity", Number(event.target.value || 0))
@@ -770,8 +772,8 @@ export default function SessionFormDialog({
               <span>Capacidade maxima da sessao</span>
               <input
                 type="number"
-                min={capacityBounds.min}
-                max={capacityBounds.max}
+                min={Math.max(1, form.min_capacity)}
+                max={mode === "edit" ? undefined : createCapacityBounds.max}
                 value={form.max_capacity}
                 onChange={(event) =>
                   updateField("max_capacity", Number(event.target.value || 0))
