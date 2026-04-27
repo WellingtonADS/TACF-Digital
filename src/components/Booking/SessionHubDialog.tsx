@@ -2,6 +2,7 @@ import Dialog from "@/components/Dialog";
 import AppIcon from "@/components/atomic/AppIcon";
 import useAuth from "@/hooks/useAuth";
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   Clock3,
@@ -82,14 +83,14 @@ function resultLabel(status: BookingResultStatus | null): string {
 
 function resultBadgeClass(status: BookingResultStatus | null): string {
   if (status === "apto") {
-    return "bg-success/10 text-success";
+    return "border border-success/35 bg-success/15 text-success";
   }
 
   if (status === "inapto") {
-    return "bg-error/10 text-error";
+    return "border border-error/35 bg-error/15 text-error";
   }
 
-  return "bg-alert/10 text-alert";
+  return "border border-alert/40 bg-alert/18 text-alert";
 }
 
 export default function SessionHubDialog({
@@ -97,17 +98,14 @@ export default function SessionHubDialog({
   sessionId,
   onClose,
   onSessionUpdated,
-  onEditRequested,
 }: {
   open: boolean;
   sessionId: string | null;
   onClose: () => void;
   onSessionUpdated: () => Promise<void> | void;
-  onEditRequested: (sessionId: string) => void;
 }) {
   const { profile } = useAuth();
-  const canManage =
-    profile?.role === "admin" || profile?.role === "coordinator";
+  const canManage = profile?.role === "admin" || profile?.role === "coordinator";
 
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [bookings, setBookings] = useState<BookingWithProfile[]>([]);
@@ -389,10 +387,10 @@ export default function SessionHubDialog({
         title={mode === "manage" ? "Gestão da Turma" : "Consulta da Turma"}
         description={
           mode === "manage"
-            ? "Centro operacional para chamada, lançamento de resultados e finalização."
+            ? undefined
             : "Consulta somente leitura para sessões fechadas ou concluídas."
         }
-        widthClassName="max-w-6xl"
+        widthClassName="max-w-[860px]"
       >
         {loading || !session ? (
           <div className="flex items-center justify-center gap-3 py-12 text-sm text-text-muted">
@@ -400,73 +398,61 @@ export default function SessionHubDialog({
             Carregando sessao...
           </div>
         ) : (
-          <div className="space-y-5">
-            <section className="rounded-xl border border-border-default bg-bg-default p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
-                    <AppIcon
-                      icon={MapPin}
-                      size="sm"
-                      className="text-text-muted"
-                      decorative
-                    />
-                    <div>
-                      <p className="text-[11px] font-semibold text-text-muted">
-                        Local:
-                      </p>
-                      <p className="text-sm font-bold text-text-body">
-                        {session.location_name ?? "Nao informado"}
-                      </p>
-                    </div>
-                  </article>
+          <div className="space-y-4">
+            <section className="rounded-xl border border-border-default bg-bg-default px-3 py-2.5">
+              <div className="grid gap-2 lg:grid-cols-[1.25fr_1.05fr_0.75fr_auto] lg:items-center">
+                <article className="flex min-w-0 items-center gap-2.5 px-2 py-1.5">
+                  <span className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-bg-card text-text-muted">
+                    <AppIcon icon={MapPin} size="sm" decorative />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] leading-none text-text-muted">
+                      Local:
+                    </p>
+                    <p
+                      className="truncate pt-1 text-base font-semibold leading-tight text-text-body"
+                      title={session.location_name ?? "Nao informado"}
+                    >
+                      {session.location_name ?? "Nao informado"}
+                    </p>
+                  </div>
+                </article>
 
-                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
-                    <AppIcon
-                      icon={Calendar}
-                      size="sm"
-                      className="text-text-muted"
-                      decorative
-                    />
-                    <div>
-                      <p className="text-[11px] font-semibold text-text-muted">
-                        Data:
-                      </p>
-                      <p className="text-sm font-bold text-text-body">
-                        {format(
-                          parseISO(session.date),
-                          "dd 'de' MMMM 'de' yyyy",
-                          {
-                            locale: ptBR,
-                          },
-                        )}
-                      </p>
-                    </div>
-                  </article>
+                <article className="flex min-w-0 items-center gap-2.5 px-2 py-1.5 lg:border-l lg:border-border-default/70">
+                  <span className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-bg-card text-text-muted">
+                    <AppIcon icon={Calendar} size="sm" decorative />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] leading-none text-text-muted">
+                      Data:
+                    </p>
+                    <p className="truncate pt-1 text-base font-semibold leading-tight text-text-body">
+                      {format(parseISO(session.date), "dd 'de' MMMM 'de' yyyy", {
+                        locale: ptBR,
+                      })}
+                    </p>
+                  </div>
+                </article>
 
-                  <article className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-card px-3 py-2">
-                    <AppIcon
-                      icon={Clock3}
-                      size="sm"
-                      className="text-text-muted"
-                      decorative
-                    />
-                    <div>
-                      <p className="text-[11px] font-semibold text-text-muted">
-                        Turno:
-                      </p>
-                      <p className="text-sm font-bold text-text-body">
-                        {formatSessionPeriod(session.period)}
-                      </p>
-                    </div>
-                  </article>
-                </div>
+                <article className="flex min-w-0 items-center gap-2.5 px-2 py-1.5 lg:border-l lg:border-border-default/70">
+                  <span className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-bg-card text-text-muted">
+                    <AppIcon icon={Clock3} size="sm" decorative />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] leading-none text-text-muted">
+                      Turno:
+                    </p>
+                    <p className="truncate pt-1 text-base font-semibold leading-tight text-text-body">
+                      {formatSessionPeriod(session.period)}
+                    </p>
+                  </div>
+                </article>
 
                 <button
                   type="button"
                   onClick={handlePrintList}
                   disabled={printing}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 self-center rounded-lg border border-border-default bg-bg-card px-4 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary disabled:opacity-60"
                 >
                   {printing ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -478,75 +464,47 @@ export default function SessionHubDialog({
               </div>
             </section>
 
-            <section className="grid gap-3 md:grid-cols-3">
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Apto
-                </p>
-                <p className="mt-1 text-lg font-bold text-success">
-                  {summary.apto}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Inapto
-                </p>
-                <p className="mt-1 text-lg font-bold text-error">
-                  {summary.inapto}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-default bg-bg-default p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  Pendentes
-                </p>
-                <p className="mt-1 text-lg font-bold text-alert">
-                  {summary.pendente}
-                </p>
-              </article>
-            </section>
-
-            {mode === "manage" && checklist ? (
-              <section className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-text-body">
-                <p className="font-semibold text-primary">
-                  Conclusao operacional
-                </p>
-                <p className="mt-1 text-text-muted">
-                  {checklist.results_pending} pendencia(s) sem lancamento serao
-                  convertidas para inapto ao concluir. Reagendamentos pendentes
-                  continuam bloqueando a conclusao.
-                </p>
-              </section>
-            ) : null}
-
             <div className="overflow-hidden rounded-xl border border-border-default">
               <table className="w-full text-left text-sm">
                 <thead className="bg-bg-default">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <th className="px-4 py-3 text-sm font-semibold text-text-muted">
                       Posto
                     </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <th className="px-4 py-3 text-sm font-semibold text-text-muted">
                       Nome
                     </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <th className="px-4 py-3 text-sm font-semibold text-text-muted">
                       SARAM
                     </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <th className="px-4 py-3 text-sm font-semibold text-text-muted">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted text-right">
+                    <th className="px-4 py-3 text-sm font-semibold text-text-muted text-right">
                       Ações
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
+                  {bookings.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-6 text-center text-sm text-text-muted"
+                      >
+                        Nenhum militar inscrito nesta turma.
+                      </td>
+                    </tr>
+                  ) : null}
                   {bookings.map((booking) => {
                     const resultStatus = getBookingResultStatus(
                       booking.result_details,
                     );
+                    const showPrimaryAction =
+                      mode === "manage" && resultStatus === null;
 
                     return (
-                      <tr key={booking.id}>
+                      <tr key={booking.id} className="bg-bg-card">
                         <td className="px-4 py-3">
                           <span className="font-semibold text-text-body">
                             {booking.rank ?? "--"}
@@ -564,7 +522,7 @@ export default function SessionHubDialog({
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${resultBadgeClass(resultStatus)}`}
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${resultBadgeClass(resultStatus)}`}
                           >
                             {resultLabel(resultStatus)}
                           </span>
@@ -579,16 +537,28 @@ export default function SessionHubDialog({
                               setCurrentBookingIndex(index >= 0 ? index : null);
                               setResultDraft(buildDraft(booking));
                             }}
-                            className="inline-flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-xs font-semibold text-text-body hover:border-primary/30 hover:text-primary"
+                            className={
+                              showPrimaryAction
+                                ? "inline-flex h-9 items-center gap-2 rounded-xl border border-border-default bg-bg-default px-3 py-1.5 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
+                                : "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border-default bg-bg-default text-text-body hover:border-primary/30 hover:text-primary"
+                            }
+                            title={
+                              mode === "manage"
+                                ? "Lancar resultado"
+                                : "Ver resultado"
+                            }
+                            aria-label={
+                              mode === "manage"
+                                ? "Lancar resultado"
+                                : "Ver resultado"
+                            }
                           >
                             <AppIcon
                               icon={mode === "manage" ? Edit2 : UserCheck}
                               size="xs"
                               decorative
                             />
-                            {mode === "manage"
-                              ? "Lancar resultado"
-                              : "Ver resultado"}
+                            {showPrimaryAction ? "Lançar Resultado" : null}
                           </button>
                         </td>
                       </tr>
@@ -598,30 +568,18 @@ export default function SessionHubDialog({
               </table>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 border-t border-border-default pt-3">
               {mode === "manage" ? (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onEditRequested(session.id)}
-                    disabled={!canManage}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-semibold text-text-body hover:border-primary/30 hover:text-primary"
-                  >
-                    <Edit2 size={16} />
-                    Editar dados da sessão
-                  </button>
-
+                <div>
                   <button
                     type="button"
                     onClick={() => setFinalizationDialogOpen(true)}
                     disabled={closingSession || !canManage}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-gradient-to-r from-primary/95 via-primary to-primary/90 px-4 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {closingSession ? (
                       <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Save size={16} />
-                    )}
+                    ) : null}
                     Finalizar Sessão
                   </button>
                 </div>
@@ -666,40 +624,17 @@ export default function SessionHubDialog({
         }}
         closeDisabled={closingSession}
         title="Confirmação de Finalização"
-        description="Confirme para concluir a sessao e gerar automaticamente o relatorio final em PDF."
+        description="Confirme para concluir a sessão e gerar automaticamente o relatório final em PDF."
         widthClassName="max-w-2xl"
         footer={
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setFinalizationDialogOpen(false)}
-              disabled={closingSession}
-              className="rounded-lg px-1 py-2 text-sm font-semibold text-text-muted disabled:opacity-60"
-            >
-              Cancelar
-            </button>
-
-            <div className="flex flex-wrap items-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setFinalizationDialogOpen(false);
-                  toast.success(
-                    "Dados preservados. A sessão permanece aberta para novos lançamentos.",
-                  );
-                }}
-                disabled={closingSession}
-                className="rounded-lg border border-primary/40 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
-              >
-                Salvar como Rascunho
-              </button>
-
-              <div className="space-y-1">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleFinalizeSession}
                   disabled={closingSession}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary/95 via-primary to-primary/90 px-4 py-2 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] disabled:opacity-60"
                 >
                   {closingSession ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -708,26 +643,62 @@ export default function SessionHubDialog({
                   )}
                   Finalizar e Gerar PDF
                 </button>
-                <p className="text-center text-xs text-text-muted">
-                  Atenção: avaliações pendentes serão convertidas para “Não
-                  Realizado”.
-                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFinalizationDialogOpen(false);
+                    toast.success(
+                      "Dados preservados. A sessão permanece aberta para novos lançamentos.",
+                    );
+                  }}
+                  disabled={closingSession}
+                  className="rounded-lg border border-primary/40 bg-bg-card px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-60"
+                >
+                  Salvar como Rascunho
+                </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setFinalizationDialogOpen(false)}
+                disabled={closingSession}
+                className="rounded-lg px-2 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-text-body disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+            </div>
+
+            <div className="mx-auto max-w-[560px] rounded-lg border border-alert/25 bg-alert/5 px-3 py-2">
+              <p className="flex items-start justify-center gap-2 text-center text-xs leading-relaxed text-text-body">
+                <AppIcon
+                  icon={AlertTriangle}
+                  size="xs"
+                  className="mt-0.5 text-alert"
+                  decorative
+                />
+                <span>
+                  <span className="font-semibold">Atenção operacional:</span>{" "}
+                  ao finalizar, toda avaliação pendente será marcada como
+                  "Não Realizado". Use "Salvar como Rascunho" se ainda houver
+                  lançamentos.
+                </span>
+              </p>
             </div>
           </div>
         }
       >
         <div className="space-y-4">
           <section className="rounded-xl border border-border-default bg-bg-default p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <p className="flex items-center gap-2 text-xl font-semibold text-text-body">
+            <div className="grid gap-2 sm:grid-cols-2 sm:divide-x sm:divide-border-default">
+              <p className="flex items-center gap-2 text-base font-semibold text-text-body sm:pr-4">
                 <CheckCircle2 size={18} className="text-success" />
                 Avaliados:{" "}
-                <span className="font-bold">
+                <span className="font-bold text-text-body">
                   {summary.apto + summary.inapto}
                 </span>
               </p>
-              <p className="flex items-center gap-2 text-xl font-semibold text-alert">
+              <p className="flex items-center gap-2 text-base font-semibold text-alert sm:pl-4">
                 <Clock3 size={18} className="text-alert" />
                 Pendentes:{" "}
                 <span className="font-bold">

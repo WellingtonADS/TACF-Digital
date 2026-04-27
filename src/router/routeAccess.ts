@@ -7,6 +7,32 @@ export const ADMIN_ROLES: ReadonlySet<ProfileRole> = new Set([
 ]);
 
 const PROFILE_ACCESS_MODULES_KEY = "access_modules";
+const PROFILE_SESSION_PERMISSIONS_KEY = "session_permissions";
+
+export const SESSION_PERMISSION_KEYS = [
+  "create_session",
+  "duplicate_session",
+  "cancel_session",
+] as const;
+
+export type SessionPermissionKey = (typeof SESSION_PERMISSION_KEYS)[number];
+
+export type SessionPermissions = Record<SessionPermissionKey, boolean>;
+
+export const EMPTY_SESSION_PERMISSIONS: SessionPermissions = {
+  create_session: false,
+  duplicate_session: false,
+  cancel_session: false,
+};
+
+export type MilitaryProfileCompletionFields = {
+  full_name?: string | null;
+  email?: string | null;
+  war_name?: string | null;
+  saram?: string | null;
+  rank?: string | null;
+  sector?: string | null;
+};
 
 function isJsonObject(
   value: Json | null | undefined,
@@ -67,8 +93,63 @@ export function getAllowedAdminModulePaths(
     return [];
   }
 
-  const modules = getProfileAccessModules(metadata);
-  return modules.length > 0 ? modules : [...ADMIN_MODULE_PATHS];
+  return getProfileAccessModules(metadata);
+}
+
+export function getProfileSessionPermissions(
+  metadata: Json | null | undefined,
+): SessionPermissions {
+  if (!isJsonObject(metadata)) {
+    return { ...EMPTY_SESSION_PERMISSIONS };
+  }
+
+  const raw = metadata[PROFILE_SESSION_PERMISSIONS_KEY];
+  if (!isJsonObject(raw)) {
+    return { ...EMPTY_SESSION_PERMISSIONS };
+  }
+
+  return SESSION_PERMISSION_KEYS.reduce<SessionPermissions>(
+    (permissions, key) => ({
+      ...permissions,
+      [key]: raw[key] === true,
+    }),
+    { ...EMPTY_SESSION_PERMISSIONS },
+  );
+}
+
+export function canUseSessionPermission(
+  role: ProfileRole | null | undefined,
+  metadata: Json | null | undefined,
+  permission: SessionPermissionKey,
+): boolean {
+  if (role === "admin") {
+    return true;
+  }
+
+  if (role !== "coordinator") {
+    return false;
+  }
+
+  return getProfileSessionPermissions(metadata)[permission];
+}
+
+export function isMilitaryProfileComplete(
+  profile: MilitaryProfileCompletionFields | null | undefined,
+): boolean {
+  if (!profile) {
+    return false;
+  }
+
+  const saram = (profile.saram ?? "").replace(/\D/g, "");
+
+  return Boolean(
+    profile.full_name?.trim() &&
+    profile.email?.trim() &&
+    profile.war_name?.trim() &&
+    saram.length === 7 &&
+    profile.rank?.trim() &&
+    profile.sector?.trim(),
+  );
 }
 
 export function canAccessAdminPath(
@@ -102,7 +183,7 @@ export function getDefaultHomeByRole(
   }
 
   const modules = getAllowedAdminModulePaths(role, metadata);
-  return modules[0] ?? "/app/admin";
+  return modules[0] ?? "/app";
 }
 
 export function canAccessRoute(

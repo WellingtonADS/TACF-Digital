@@ -1,6 +1,6 @@
 import {
+  approveSwapRequest,
   fetchSwapRequests,
-  updateBookingStatus,
   updateSwapRequestStatus,
 } from "@/services/bookings";
 import supabase from "@/services/supabase";
@@ -206,17 +206,20 @@ export default function useReschedulingManagement() {
   const changeStatus = useCallback(
     async (
       requestId: string,
-      bookingId: string,
+      _bookingId: string,
       status: Extract<SwapStatus, "aprovado" | "cancelado">,
     ) => {
       try {
         const { data } = await supabase.auth.getUser();
         const adminId = data.user?.id;
 
-        await updateSwapRequestStatus(requestId, status, adminId);
-
         if (status === "aprovado") {
-          await updateBookingStatus(bookingId, "remarcado");
+          if (!adminId) {
+            throw new Error("Usuário não autenticado.");
+          }
+          await approveSwapRequest(requestId, adminId);
+        } else {
+          await updateSwapRequestStatus(requestId, status, adminId);
         }
 
         toast.success("Registro atualizado");

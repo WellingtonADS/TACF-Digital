@@ -22,13 +22,12 @@ export default function AdminRoute({
 }) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
-  const hasCachedProfile = Boolean(profile);
 
-  if (loading && !hasCachedProfile) {
+  if (loading) {
     return <FullPageLoading />;
   }
 
-  if (!user && !hasCachedProfile) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

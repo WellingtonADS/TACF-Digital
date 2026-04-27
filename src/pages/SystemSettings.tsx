@@ -24,7 +24,14 @@ import {
   type LucideIcon,
 } from "@/icons";
 import { ADMIN_MODULE_DEFINITIONS } from "@/router/adminModules";
-import { getProfileAccessModules } from "@/router/routeAccess";
+import {
+  EMPTY_SESSION_PERMISSIONS,
+  getProfileAccessModules,
+  getProfileSessionPermissions,
+  SESSION_PERMISSION_KEYS,
+  type SessionPermissionKey,
+  type SessionPermissions,
+} from "@/router/routeAccess";
 import { sidebarIconMap } from "@/router/sidebarIcons";
 import {
   fetchEvaluationIndexRows,
@@ -58,6 +65,23 @@ type SystemSettingsRow = DBSystemSettingsRow;
 type AuditLogRow = DBAuditLogRow;
 const SETTINGS_REQUEST_TIMEOUT_MS = 8000;
 const DEFAULT_COORDINATOR_MODULES = ["/app/admin", "/app/turmas"];
+const SESSION_PERMISSION_LABELS: Record<
+  SessionPermissionKey,
+  { label: string; description: string }
+> = {
+  create_session: {
+    label: "Criar nova sessão",
+    description: "Permite abrir turmas operacionais no Hub de Sessões.",
+  },
+  duplicate_session: {
+    label: "Duplicar sessão",
+    description: "Permite clonar uma sessão aberta para reaproveitar dados.",
+  },
+  cancel_session: {
+    label: "Cancelar sessão",
+    description: "Permite encerrar uma sessão aberta sem exclusão definitiva.",
+  },
+};
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -102,6 +126,7 @@ function buildAccessMetadata(
   currentMetadata: Json | null | undefined,
   role: ProfileRole,
   modules: string[],
+  sessionPermissions: SessionPermissions,
 ): Json | null {
   const nextMetadata = isJsonRecord(currentMetadata)
     ? { ...currentMetadata }
@@ -109,8 +134,10 @@ function buildAccessMetadata(
 
   if (role === "coordinator") {
     nextMetadata.access_modules = modules;
+    nextMetadata.session_permissions = sessionPermissions;
   } else {
     delete nextMetadata.access_modules;
+    delete nextMetadata.session_permissions;
   }
 
   return Object.keys(nextMetadata).length > 0 ? nextMetadata : null;
@@ -176,6 +203,8 @@ export default function SystemSettings() {
   );
   const [editRoleDraft, setEditRoleDraft] = useState<ProfileRole>("user");
   const [editModulesDraft, setEditModulesDraft] = useState<string[]>([]);
+  const [editSessionPermissionsDraft, setEditSessionPermissionsDraft] =
+    useState<SessionPermissions>({ ...EMPTY_SESSION_PERMISSIONS });
 
   const [editingStandardId, setEditingStandardId] = useState<string | null>(
     null,
@@ -487,6 +516,7 @@ export default function SystemSettings() {
     profileId: string,
     role: ProfileRole,
     modules?: string[],
+    sessionPermissions: SessionPermissions = { ...EMPTY_SESSION_PERMISSIONS },
   ) {
     setSavingAccessProfileId(profileId);
     try {
@@ -505,6 +535,9 @@ export default function SystemSettings() {
         currentProfile?.metadata,
         role,
         nextModules,
+        role === "coordinator"
+          ? sessionPermissions
+          : { ...EMPTY_SESSION_PERMISSIONS },
       );
 
       await updateProfile(profileId, { role, metadata });
@@ -556,6 +589,9 @@ export default function SystemSettings() {
   function openProfileEdit(profileItem: UserProfile) {
     setEditRoleDraft(profileItem.role ?? "user");
     setEditModulesDraft(getProfileAccessModules(profileItem.metadata));
+    setEditSessionPermissionsDraft(
+      getProfileSessionPermissions(profileItem.metadata),
+    );
     setEditingProfile(profileItem);
   }
 
@@ -1527,6 +1563,7 @@ export default function SystemSettings() {
                     editingProfile.id,
                     editRoleDraft,
                     editModulesDraft,
+                    editSessionPermissionsDraft,
                   ).then(() => setEditingProfile(null));
                 }}
                 className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
@@ -1574,6 +1611,9 @@ export default function SystemSettings() {
                   setEditRoleDraft(role);
                   if (role !== "coordinator") {
                     setEditModulesDraft([]);
+                    setEditSessionPermissionsDraft({
+                      ...EMPTY_SESSION_PERMISSIONS,
+                    });
                   }
                 }}
                 className="mt-2 w-full rounded-xl border border-border-default bg-bg-default px-3 py-2 text-sm"
@@ -1587,45 +1627,90 @@ export default function SystemSettings() {
             </label>
 
             {editRoleDraft === "coordinator" && (
-              <div className="rounded-2xl border border-border-default bg-bg-default/60 p-4">
-                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-text-muted">
-                  Modulos liberados
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {ADMIN_MODULE_DEFINITIONS.map((module) => {
-                    const Icon = sidebarIconMap[module.sidebarIcon];
-                    const checked = editModulesDraft.includes(module.path);
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border-default bg-bg-default/60 p-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-text-muted">
+                    Modulos liberados
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {ADMIN_MODULE_DEFINITIONS.map((module) => {
+                      const Icon = sidebarIconMap[module.sidebarIcon];
+                      const checked = editModulesDraft.includes(module.path);
 
-                    return (
-                      <label
-                        key={module.path}
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium transition-colors ${
-                          checked
-                            ? "border-primary/40 bg-primary/5 text-text-body"
-                            : "border-border-default bg-bg-default text-text-muted hover:bg-bg-card"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            setEditModulesDraft((previous) =>
-                              checked
-                                ? previous.filter(
-                                    (path) => path !== module.path,
-                                  )
-                                : [...previous, module.path],
-                            )
-                          }
-                          className="accent-primary"
-                        />
-                        {Icon ? (
-                          <AppIcon icon={Icon} size="sm" decorative />
-                        ) : null}
-                        {module.label}
-                      </label>
-                    );
-                  })}
+                      return (
+                        <label
+                          key={module.path}
+                          className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium transition-colors ${
+                            checked
+                              ? "border-primary/40 bg-primary/5 text-text-body"
+                              : "border-border-default bg-bg-default text-text-muted hover:bg-bg-card"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setEditModulesDraft((previous) =>
+                                checked
+                                  ? previous.filter(
+                                      (path) => path !== module.path,
+                                    )
+                                  : [...previous, module.path],
+                              )
+                            }
+                            className="accent-primary"
+                          />
+                          {Icon ? (
+                            <AppIcon icon={Icon} size="sm" decorative />
+                          ) : null}
+                          {module.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border-default bg-bg-default/60 p-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-text-muted">
+                    Permissoes de sessão
+                  </p>
+                  <div className="grid gap-2">
+                    {SESSION_PERMISSION_KEYS.map((permission) => {
+                      const checked = editSessionPermissionsDraft[permission];
+                      const meta = SESSION_PERMISSION_LABELS[permission];
+
+                      return (
+                        <label
+                          key={permission}
+                          className={`flex cursor-pointer gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                            checked
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-border-default bg-bg-default hover:bg-bg-card"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setEditSessionPermissionsDraft((previous) => ({
+                                ...previous,
+                                [permission]: !previous[permission],
+                              }))
+                            }
+                            className="mt-1 accent-primary"
+                          />
+                          <span>
+                            <span className="block text-xs font-bold text-text-body">
+                              {meta.label}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-text-muted">
+                              {meta.description}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

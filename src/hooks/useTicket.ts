@@ -8,7 +8,7 @@
 import supabase from "@/services/supabase";
 import { formatSessionPeriod } from "@/utils/booking";
 import { formatDateTicket } from "@/utils/date";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import useAuth from "./useAuth";
 
@@ -51,13 +51,19 @@ export default function useTicket(initial?: TicketData) {
   );
   const [sessionDateIso, setSessionDateIso] = useState<string | null>(null);
   const [hasPendingSwap, setHasPendingSwap] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const refresh = useCallback(() => {
+    setReloadKey((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
-      try {
+        setLoading(true);
+        setHasPendingSwap(false);
+        try {
         const bookingId = routeState?.bookingId;
 
         // caso não haja bookingId e exista ticket inicial, usamos ele
@@ -82,11 +88,18 @@ export default function useTicket(initial?: TicketData) {
             .from("bookings")
             .select("id, order_number")
             .eq("user_id", uid)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase enum inference is wider here.
+            .in("status", ["agendado", "remarcado"] as any)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (!latestBooking) return;
+          if (!latestBooking) {
+            setTicket(null);
+            setBookingId(null);
+            setSessionDateIso(null);
+            return;
+          }
           resolvedBookingId = latestBooking.id;
         }
 
@@ -172,7 +185,13 @@ export default function useTicket(initial?: TicketData) {
     return () => {
       cancelled = true;
     };
-  }, [routeState?.bookingId, routeState?.orderNumber, initial, user?.id]);
+  }, [
+    routeState?.bookingId,
+    routeState?.orderNumber,
+    initial,
+    user?.id,
+    reloadKey,
+  ]);
 
   return {
     ticket,
@@ -180,5 +199,6 @@ export default function useTicket(initial?: TicketData) {
     bookingId,
     sessionDateIso,
     hasPendingSwap,
+    refresh,
   } as const;
 }

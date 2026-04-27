@@ -47,6 +47,6 @@ export function prefetchCriticalRoutes() {
   if (typeof win.requestIdleCallback === "function") {
     win.requestIdleCallback(run, { timeout: 1000 });
   } else {
-    setTimeout(run, 400);
+    setTimeout(run, 0);
   }
 }

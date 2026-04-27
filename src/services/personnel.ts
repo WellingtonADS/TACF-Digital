@@ -5,7 +5,7 @@
  */
 
 import supabase from "@/services/supabase";
-import type { Profile } from "@/types";
+import type { BookingRow, Profile } from "@/types";
 
 export async function getProfileById(id: string) {
   const { data, error } = await supabase
@@ -37,9 +37,10 @@ export type PersonnelListProfile = {
 };
 
 export type PersonnelLatestBooking = {
+  id: string;
   user_id: string;
   test_date: string | null;
-  score: number | null;
+  score: string | null;
   result_details: unknown;
   created_at: string | null;
 };
@@ -63,7 +64,7 @@ export async function fetchPersonnelList(): Promise<{
       .select("id, full_name, war_name, rank, sector, saram, active"),
     supabase
       .from("bookings")
-      .select("user_id, test_date, score, result_details, created_at")
+      .select("id, user_id, test_date, score, result_details, created_at")
       .order("test_date", { ascending: false, nullsFirst: false }),
   ]);
 
@@ -87,6 +88,7 @@ export async function fetchPersonnelList(): Promise<{
       (bookingDate && (!currentDate || bookingDate > currentDate))
     ) {
       latestBookings.set(booking.user_id, {
+        id: booking.id,
         test_date: booking.test_date,
         score: booking.score,
         result_details: booking.result_details,
@@ -120,8 +122,9 @@ export type ProfileWithHistory = {
   testHistory: Array<{
     id: string;
     date: string | null;
-    score: number | null;
+    score: string | null;
     status: string;
+    resultDetails: BookingRow["result_details"];
   }>;
 };
 
@@ -133,7 +136,7 @@ export async function getProfileWithHistory(
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase
         .from("bookings")
-        .select("id, test_date, score, status, created_at")
+        .select("id, test_date, score, status, result_details, created_at")
         .eq("user_id", userId)
         .neq("status", "cancelado")
         .order("test_date", { ascending: false, nullsFirst: false })
@@ -166,8 +169,9 @@ export async function getProfileWithHistory(
     (bookings ?? []) as {
       id: string;
       test_date?: string | null;
-      score?: number | null;
+      score?: string | null;
       status: string;
+      result_details?: BookingRow["result_details"];
       created_at?: string | null;
     }[]
   ).map((b) => ({
@@ -175,6 +179,7 @@ export async function getProfileWithHistory(
     date: b.test_date ?? b.created_at ?? null,
     score: b.score ?? null,
     status: b.status,
+    resultDetails: b.result_details ?? null,
   }));
 
   return {
@@ -225,4 +230,26 @@ export async function fetchAllProfilesForAccess(): Promise<Profile[]> {
     .order("full_name");
   if (error) throw error;
   return (data ?? []) as Profile[];
+}
+
+export type BookingEvaluationUpdateInput = Pick<
+  BookingRow,
+  "test_date" | "score" | "result_details"
+>;
+
+export async function updateBookingEvaluation(
+  bookingId: string,
+  payload: BookingEvaluationUpdateInput,
+) {
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      test_date: payload.test_date,
+      score: payload.score,
+      result_details: payload.result_details,
+    })
+    .eq("id", bookingId);
+
+  if (error) throw error;
+  return true;
 }

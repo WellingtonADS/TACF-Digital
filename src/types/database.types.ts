@@ -488,6 +488,17 @@ export interface Database {
         };
         Returns: Database["public"]["Tables"]["locations"]["Row"];
       };
+      create_sessions_with_permission: {
+        Args: {
+          p_sessions: Json;
+          p_required_permission: string;
+        };
+        Returns: string[];
+      };
+      cancel_session_with_permission: {
+        Args: { p_session_id: string };
+        Returns: undefined;
+      };
       update_location: {
         Args: {
           p_id: string;
@@ -609,6 +620,10 @@ export interface Database {
           p_attachment_url?: string | null;
         };
         Returns: string;
+      };
+      cancel_my_booking: {
+        Args: { p_booking_id: string };
+        Returns: undefined;
       };
       get_results_history: {
         Args: {

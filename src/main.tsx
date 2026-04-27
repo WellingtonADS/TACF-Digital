@@ -15,6 +15,7 @@ import FullPageLoading from "./components/FullPageLoading";
 import ProtectedRoute from "./components/ProtectedRoute";
 import UserRoute from "./components/UserRoute";
 import "./index.css";
+import AppNotFound from "./pages/AppNotFound";
 import Login from "./pages/Login";
 import { prefetchCriticalRoutes } from "./router/prefetchRoutes";
 import { getRoutableAppRoutes } from "./router/routeRegistry";
@@ -22,9 +23,6 @@ import type { RouteAccess } from "./types";
 const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
 const ResetPasswordPage = React.lazy(() => import("./pages/ResetPassword"));
 const RegisterPage = React.lazy(() => import("./pages/Register"));
-const OperationalDashboard = React.lazy(
-  () => import("./pages/OperationalDashboard"),
-);
 
 const routeFallback = <FullPageLoading message="Carregando modulo" />;
 
@@ -109,11 +107,9 @@ createRoot(document.getElementById("root")!).render(
         <Route
           path="/app/*"
           element={
-            <UserRoute>
-              <Suspense fallback={routeFallback}>
-                <OperationalDashboard />
-              </Suspense>
-            </UserRoute>
+            <ProtectedRoute>
+              <AppNotFound />
+            </ProtectedRoute>
           }
         />
       </Routes>

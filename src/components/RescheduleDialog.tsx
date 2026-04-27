@@ -24,6 +24,15 @@ function getSwapErrorMessage(error: unknown): string {
   if (message.includes("ja existe solicitacao pendente")) {
     return "Já existe uma solicitação pendente para este agendamento.";
   }
+  if (message.includes("reagendamento disponivel ate 2 dias antes")) {
+    return "Reagendamento disponível até 2 dias antes da sessão.";
+  }
+  if (message.includes("nova sessao exige antecedencia minima de 2 dias")) {
+    return "A nova sessão também precisa respeitar antecedência mínima de 2 dias.";
+  }
+  if (message.includes("nova sessao sem vagas")) {
+    return "A nova sessão não possui vagas disponíveis.";
+  }
   if (
     message.includes("reagendamento disponivel apenas para inapto ou falta")
   ) {

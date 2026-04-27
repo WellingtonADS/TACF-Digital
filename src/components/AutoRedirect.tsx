@@ -11,8 +11,9 @@ import FullPageLoading from "./FullPageLoading";
 
 export default function AutoRedirect() {
   const { user, profile, loading } = useAuth();
+  const hasCachedProfile = Boolean(profile);
 
-  if (loading) {
+  if (loading && !hasCachedProfile) {
     return <FullPageLoading />;
   }
 

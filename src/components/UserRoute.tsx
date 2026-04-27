@@ -5,9 +5,22 @@
  */
 
 import useAuth from "@/hooks/useAuth";
-import { canAccessRoute, getDefaultHomeByRole } from "@/router/routeAccess";
-import { Navigate } from "react-router-dom";
+import {
+  canAccessRoute,
+  getDefaultHomeByRole,
+  isMilitaryProfileComplete,
+} from "@/router/routeAccess";
+import { Navigate, useLocation } from "react-router-dom";
 import FullPageLoading from "./FullPageLoading";
+
+const INCOMPLETE_PROFILE_ALLOWED_PATHS = ["/app/perfil", "/app/documentos"];
+
+function canAccessWithIncompleteProfile(pathname: string) {
+  return INCOMPLETE_PROFILE_ALLOWED_PATHS.some(
+    (allowedPath) =>
+      pathname === allowedPath || pathname.startsWith(`${allowedPath}/`),
+  );
+}
 
 /**
  * Protege rotas exclusivas do usuário comum (militar).
@@ -20,13 +33,13 @@ export default function UserRoute({
   children: JSX.Element | null;
 }) {
   const { user, profile, loading } = useAuth();
-  const hasCachedProfile = Boolean(profile);
+  const location = useLocation();
 
-  if (loading && !hasCachedProfile) {
+  if (loading) {
     return <FullPageLoading />;
   }
 
-  if (!user && !hasCachedProfile) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -37,6 +50,13 @@ export default function UserRoute({
         replace
       />
     );
+  }
+
+  if (
+    !isMilitaryProfileComplete(profile) &&
+    !canAccessWithIncompleteProfile(location.pathname)
+  ) {
+    return <Navigate to="/app/perfil" replace state={{ from: location }} />;
   }
 
   return children;
