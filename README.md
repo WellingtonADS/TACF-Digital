@@ -28,14 +28,13 @@ O TACF-Digital apoia a operacao administrativa e a execucao do TACF com padroniz
 ## Estrutura Principal
 
 - `src/components/`: componentes reutilizaveis e por dominio.
-- `src/containers/`: composicao de fluxos e telas.
 - `src/hooks/`: hooks de estado e integracao.
-- `src/layout/`: estrutura visual e navegacao.
+- `src/router/`: registro de rotas e controle de acesso.
 - `src/pages/`: paginas e rotas.
 - `src/services/`: integracoes com API/Supabase.
 - `src/utils/`: utilitarios (ex.: PDF).
 - `supabase/`: migrations, policies e RPCs.
-- `scripts/db/`: scripts operacionais de banco.
+- `scripts/`: automacoes e utilitarios de suporte.
 - `docs/`: documentacao funcional e operacional.
 
 ## Comandos
@@ -54,7 +53,6 @@ yarn preview
 ```bash
 yarn db:apply
 yarn db:seed
-yarn db:check
 ```
 
 ## Testes
