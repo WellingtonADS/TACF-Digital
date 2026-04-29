@@ -156,7 +156,7 @@ export async function fetchSessionById(
       "id,date,period,max_capacity,capacity,location_id,coordinator_id,status,location:locations(name)",
     )
     .eq("id", sessionId)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   if (!data) return null;
 
