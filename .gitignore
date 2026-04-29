@@ -128,3 +128,6 @@ NOTES.local.md
 /playwright/.cache/
 /playwright/.auth/
 chat-export-2026-04-11.md
+
+.vercel
+.env*.local

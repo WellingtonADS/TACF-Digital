@@ -115,14 +115,14 @@ export async function updateOpenSessionOperational(payload: {
   locationId: string;
   coordinatorId: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc("update_open_session_operational", {
+  const { error } = await supabase.rpc("update_open_session_operational" as never, {
     p_session_id: payload.sessionId,
     p_period: payload.period,
     p_capacity: payload.capacity,
     p_max_capacity: payload.maxCapacity,
     p_location_id: payload.locationId,
     p_coordinator_id: payload.coordinatorId,
-  });
+  } as never);
 
   if (error) throw error;
 }
@@ -130,9 +130,9 @@ export async function updateOpenSessionOperational(payload: {
 export async function deleteSessionPermanently(
   sessionId: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc("delete_session_permanently", {
+  const { error } = await supabase.rpc("delete_session_permanently" as never, {
     p_session_id: sessionId,
-  });
+  } as never);
 
   if (error) throw error;
 }

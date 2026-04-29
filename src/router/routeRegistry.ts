@@ -215,6 +215,8 @@ export function getCriticalPrefetchPaths() {
 
 export function getRoutableAppRoutes() {
   return appRouteRegistry.filter(
-    (route) => route.path.startsWith("/app/") && route.lazyLoader,
+    (route) =>
+      (route.path === "/app" || route.path.startsWith("/app/")) &&
+      route.lazyLoader,
   );
 }

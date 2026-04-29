@@ -61,8 +61,6 @@ yarn db:check
 
 ```bash
 yarn test:integration
-yarn test:e2e
-yarn test:e2e:headed
 ```
 
 ## Licenca

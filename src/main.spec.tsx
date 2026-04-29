@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom";
 import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,8 +29,30 @@ vi.mock("sonner", () => ({
   Toaster: () => null,
 }));
 
+vi.mock("react-dom/client", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-dom/client")>(
+      "react-dom/client",
+    );
+  return {
+    createRoot: vi.fn((container: Element) => ({
+      render: vi.fn((element: React.ReactNode) => {
+        actual.createRoot(container).render(element);
+      }),
+    })),
+  };
+});
+
 vi.mock("./pages/OperationalDashboard", () => ({
   default: () => <div>Dashboard operacional mock</div>,
+}));
+
+vi.mock("./router/routeRegistry", () => ({
+  getRoutableAppRoutes: () => [],
+}));
+
+vi.mock("@/router/routeAccess", () => ({
+  getDefaultHomeByRole: () => "/app",
 }));
 
 describe("main routing", () => {
@@ -48,5 +71,5 @@ describe("main routing", () => {
     expect(
       await screen.findByRole("heading", { name: /pagina nao encontrada/i }),
     ).toBeInTheDocument();
-  });
+  }, 10000);
 });

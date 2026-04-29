@@ -117,7 +117,7 @@ function RequestListItem({
     <button
       type="button"
       onClick={onOpen}
-      data-testid="rescheduling-request-row"
+      data-testid="rescheduling-request-row-mobile"
       className="w-full px-4 py-3 text-left transition-colors hover:bg-bg-default/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 md:hidden"
     >
       <div className="grid grid-cols-1 gap-2">
