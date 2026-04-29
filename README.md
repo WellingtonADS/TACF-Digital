@@ -58,6 +58,10 @@ yarn preview
 - Verificacao estrutural SQL: `yarn db:check`
 - Aplicacao de migrations e seed: indisponivel nesta branch (script `scripts/db/applyMigrations.cjs` ausente no workspace atual).
 
+## Documentacao Tecnica
+
+- Documento tecnico consolidado: `docs/documentacao-tecnica.md`
+
 ## Testes
 
 ```bash
