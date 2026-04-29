@@ -50,10 +50,8 @@ yarn preview
 
 ## Banco de Dados
 
-```bash
-yarn db:apply
-yarn db:seed
-```
+- Verificacao estrutural SQL: `yarn db:check`
+- Aplicacao de migrations e seed: indisponivel nesta branch (script `scripts/db/applyMigrations.cjs` ausente no workspace atual).
 
 ## Testes
 

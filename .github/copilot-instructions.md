@@ -58,9 +58,9 @@ alterar arquivos:
 - Rodar dev: `yarn dev`
 - Build: `yarn build`
 - Lint: `yarn lint`
-- Unit tests: `yarn test` (Vitest)
+- Unit tests: `yarn test:integration` (Vitest)
 - E2E: indisponível nesta branch; a cobertura automatizada fica restrita a lint, typecheck e Vitest até a reintrodução da suíte browser
-- DB scripts: `yarn db:apply`
+- DB scripts: `yarn db:check` (verificação estrutural). `db:apply` e `db:seed` exigem `scripts/db/applyMigrations.cjs`, ausente nesta branch.
 
 > Observação: ao desenvolver localmente, garanta que o frontend aponte para o Supabase correto e que as variáveis de ambiente estejam configuradas para usar dados reais quando necessário.
 

@@ -40,7 +40,7 @@ Para evitar dispersão de código, siga a hierarquia abaixo sempre que adicionar
 - Lint: `yarn lint`
 - Preview: `yarn preview`
 - Verificação de tipos: `npx tsc --noEmit`
-- Banco: `yarn db:apply`, `yarn db:seed`, `yarn db:check`
+- Banco: `yarn db:check` (verificação estrutural SQL). `db:apply` e `db:seed` dependem de `scripts/db/applyMigrations.cjs`, ausente nesta branch.
 - Integração: `yarn test:integration`
 
 ## Project Conventions
@@ -54,7 +54,7 @@ Para evitar dispersão de código, siga a hierarquia abaixo sempre que adicionar
 
 - Cliente e helpers Supabase: `src/services/supabase.ts`.
 - Fluxos de agendamento e sessões usam chamadas RPC (ex.: `book_session`, `confirmar_agendamento`).
-- Scripts operacionais de banco em `scripts/db/`.
+- Comandos de banco definidos em `package.json` (nesta branch, `scripts/db/` não está versionado).
 - Geração de PDF em `src/utils/pdf/generateCallList.ts`.
 
 ## Security
