@@ -162,7 +162,7 @@ export default function SessionHubDialog({
       setChecklist(checklistData);
     } catch (error) {
       console.error(error);
-      toast.error("Nao foi possivel carregar a sessao selecionada.");
+      toast.error("Não foi possível carregar a sessão selecionada.");
       onClose();
     } finally {
       setLoading(false);
@@ -264,7 +264,7 @@ export default function SessionHubDialog({
       await refreshAll();
     } catch (error) {
       console.error(error);
-      toast.error("Nao foi possivel salvar o lancamento.");
+      toast.error("Não foi possível salvar o lançamento.");
     } finally {
       setSavingResult(false);
     }
@@ -307,7 +307,7 @@ export default function SessionHubDialog({
         bookings,
         checklist: nextChecklist,
       });
-      toast.success("Sessao concluida com sucesso.");
+      toast.success("Sessão concluída com sucesso.");
       setFinalizationDialogOpen(false);
       await refreshAll();
     } catch (error) {
@@ -315,7 +315,7 @@ export default function SessionHubDialog({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel concluir a sessao.",
+          : "Não foi possível concluir a sessão.",
       );
     } finally {
       setClosingSession(false);
@@ -330,11 +330,11 @@ export default function SessionHubDialog({
     setReopeningSession(true);
     try {
       await updateSession(sessionId, { status: "open" });
-      toast.success("Sessao reaberta.");
+      toast.success("Sessão reaberta.");
       await refreshAll();
     } catch (error) {
       console.error(error);
-      toast.error("Nao foi possivel reabrir a sessao.");
+      toast.error("Não foi possível reabrir a sessão.");
     } finally {
       setReopeningSession(false);
     }
@@ -357,7 +357,7 @@ export default function SessionHubDialog({
       });
     } catch (error) {
       console.error(error);
-      toast.error("Nao foi possivel gerar o PDF.");
+      toast.error("Não foi possível gerar o PDF.");
     } finally {
       setPrinting(false);
     }
@@ -376,7 +376,7 @@ export default function SessionHubDialog({
       });
     } catch (error) {
       console.error(error);
-      toast.error("Nao foi possivel gerar o relatório final.");
+      toast.error("Não foi possível gerar o relatório final.");
     }
   }
 
@@ -396,7 +396,7 @@ export default function SessionHubDialog({
         {loading || !session ? (
           <div className="flex items-center justify-center gap-3 py-12 text-sm text-text-muted">
             <Loader2 size={18} className="animate-spin" />
-            Carregando sessao...
+            Carregando sessão...
           </div>
         ) : (
           <div className="space-y-4">

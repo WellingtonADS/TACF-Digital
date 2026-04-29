@@ -347,13 +347,13 @@ export default function SessionFormDialog({
     const dates = mode === "edit" ? [] : resolveSessionDates(mode, form);
 
     if (mode !== "edit" && dates.length === 0) {
-      toast.error("Selecione ao menos uma data valida para a sessao.");
+      toast.error("Selecione ao menos uma data válida para a sessão.");
       return;
     }
 
     if (mode !== "edit" && dates.some(isWeekend)) {
       toast.error(
-        "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
+        "Sessões não podem ser criadas ou editadas aos fins de semana.",
       );
       return;
     }
@@ -374,9 +374,8 @@ export default function SessionFormDialog({
     }
 
     if (
-      mode !== "edit" &&
-      (form.min_capacity < createCapacityBounds.min ||
-        form.min_capacity > createCapacityBounds.max)
+      form.min_capacity < createCapacityBounds.min ||
+      form.min_capacity > createCapacityBounds.max
     ) {
       toast.error(
         `A capacidade mínima deve ficar entre ${createCapacityBounds.min} e ${createCapacityBounds.max}.`,
@@ -385,9 +384,8 @@ export default function SessionFormDialog({
     }
 
     if (
-      mode !== "edit" &&
-      (form.max_capacity < createCapacityBounds.min ||
-        form.max_capacity > createCapacityBounds.max)
+      form.max_capacity < createCapacityBounds.min ||
+      form.max_capacity > createCapacityBounds.max
     ) {
       toast.error(
         `A capacidade máxima deve ficar entre ${createCapacityBounds.min} e ${createCapacityBounds.max}.`,
@@ -537,8 +535,8 @@ export default function SessionFormDialog({
             {mode === "create"
               ? "Gerar Sessões"
               : mode === "duplicate"
-                ? "Duplicar sessao"
-                : "Salvar alteracoes"}
+                ? "Duplicar sessão"
+                : "Salvar alterações"}
           </button>
         </div>
       }
@@ -755,11 +753,11 @@ export default function SessionFormDialog({
 
           <section className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-sm font-medium text-text-body">
-              <span>Capacidade minima da sessao</span>
+              <span>Capacidade mínima da sessão</span>
               <input
                 type="number"
-                min={1}
-                max={mode === "edit" ? undefined : createCapacityBounds.max}
+                min={createCapacityBounds.min}
+                max={createCapacityBounds.max}
                 value={form.min_capacity}
                 onChange={(event) =>
                   updateField("min_capacity", Number(event.target.value || 0))
@@ -769,11 +767,11 @@ export default function SessionFormDialog({
             </label>
 
             <label className="space-y-2 text-sm font-medium text-text-body">
-              <span>Capacidade maxima da sessao</span>
+              <span>Capacidade máxima da sessão</span>
               <input
                 type="number"
-                min={Math.max(1, form.min_capacity)}
-                max={mode === "edit" ? undefined : createCapacityBounds.max}
+                min={Math.max(createCapacityBounds.min, form.min_capacity)}
+                max={createCapacityBounds.max}
                 value={form.max_capacity}
                 onChange={(event) =>
                   updateField("max_capacity", Number(event.target.value || 0))
