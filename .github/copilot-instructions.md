@@ -59,8 +59,7 @@ alterar arquivos:
 - Build: `yarn build`
 - Lint: `yarn lint`
 - Unit tests: `yarn test` (Vitest)
-- E2E: `yarn test:e2e` (Playwright)
-- E2E: Playwright removed in this branch; reintroduce via PR if needed
+- E2E: indisponível nesta branch; a cobertura automatizada fica restrita a lint, typecheck e Vitest até a reintrodução da suíte browser
 - DB scripts: `yarn db:apply`
 
 > Observação: ao desenvolver localmente, garanta que o frontend aponte para o Supabase correto e que as variáveis de ambiente estejam configuradas para usar dados reais quando necessário.
@@ -105,7 +104,7 @@ alterar arquivos:
 - `react-patterns` / `frontend-developer`: revisão e implementação de componentes React/TS (src/).
 - `lint-and-validate`: checagem obrigatória após alterações (`yarn lint`, `npx tsc --noEmit`).
 - `testing-patterns` + `unit-testing-test-generate`: escrever/atualizar testes unitários (Vitest).
-- `e2e-testing-patterns`: criar/manter testes E2E com Playwright (`yarn test:e2e`).
+- `e2e-testing-patterns`: usar apenas quando a suíte Playwright for reintroduzida em outra PR.
 - `database-migrations-sql-migrations` / `postgres-best-practices`: revisar migrations, RPCs e RLS (supabase/).
 - `pdf-official`: manter geração/extração de PDFs (`src/utils/pdf/`).
 
