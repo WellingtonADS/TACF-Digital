@@ -55,7 +55,10 @@ async function getProfileById(uid: string): Promise<Profile> {
   return request;
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+async function withTimeout<T>(
+  promiseLike: PromiseLike<T>,
+  timeoutMs: number,
+): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -65,7 +68,10 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   });
 
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race<T>([
+      Promise.resolve(promiseLike),
+      timeoutPromise,
+    ]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }

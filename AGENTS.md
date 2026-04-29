@@ -41,7 +41,6 @@ Para evitar dispersão de código, siga a hierarquia abaixo sempre que adicionar
 - Preview: `yarn preview`
 - Verificação de tipos: `npx tsc --noEmit`
 - Banco: `yarn db:apply`, `yarn db:seed`, `yarn db:check`
-- E2E: `yarn test:e2e` ou `yarn test:e2e:headed`
 - Integração: `yarn test:integration`
 
 ## Project Conventions

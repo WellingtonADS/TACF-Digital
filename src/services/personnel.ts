@@ -51,7 +51,7 @@ export async function fetchPersonnelList(): Promise<{
     string,
     Pick<
       PersonnelLatestBooking,
-      "test_date" | "score" | "result_details" | "created_at"
+      "id" | "test_date" | "score" | "result_details" | "created_at"
     >
   >;
 }> {
@@ -75,7 +75,7 @@ export async function fetchPersonnelList(): Promise<{
     string,
     Pick<
       PersonnelLatestBooking,
-      "test_date" | "score" | "result_details" | "created_at"
+      "id" | "test_date" | "score" | "result_details" | "created_at"
     >
   >();
 
