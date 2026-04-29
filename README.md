@@ -34,8 +34,13 @@ O TACF-Digital apoia a operacao administrativa e a execucao do TACF com padroniz
 - `src/services/`: integracoes com API/Supabase.
 - `src/utils/`: utilitarios (ex.: PDF).
 - `supabase/`: migrations, policies e RPCs.
-- `scripts/`: automacoes e utilitarios de suporte.
-- `docs/`: documentacao funcional e operacional.
+- `docs/`: documentacao e materiais de referencia.
+
+## Documentacao
+
+- Guia para agentes e padroes do workspace: `AGENTS.md`
+- Instrucoes para agentes em automacoes do repositorio: `.github/copilot-instructions.md`
+- Materiais arquivados: `docs/`
 
 ## Comandos
 
