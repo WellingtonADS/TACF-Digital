@@ -61,6 +61,7 @@ yarn preview
 ## Documentacao Tecnica
 
 - Documento tecnico consolidado: `docs/documentacao-tecnica.md`
+- Wiki tecnica (versionada no repositorio): `docs/wiki/Home.md`
 
 ## Testes
 
