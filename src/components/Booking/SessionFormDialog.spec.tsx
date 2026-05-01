@@ -154,7 +154,7 @@ describe("SessionFormDialog", () => {
 
     await waitFor(() => {
       expect(mocks.toastError).toHaveBeenCalledWith(
-        "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
+        "Sessões não podem ser criadas ou editadas aos fins de semana.",
       );
     });
 
@@ -177,7 +177,7 @@ describe("SessionFormDialog", () => {
     expect(screen.getByText("2026-04-25")).toBeInTheDocument();
 
     await userEvent.click(
-      screen.getByRole("button", { name: /Salvar alteracoes/i }),
+      screen.getByRole("button", { name: /Salvar alterações/i }),
     );
 
     await waitFor(() => {
@@ -192,7 +192,7 @@ describe("SessionFormDialog", () => {
     });
 
     expect(mocks.toastError).not.toHaveBeenCalledWith(
-      "Sessoes nao podem ser criadas ou editadas aos fins de semana.",
+      "Sessões não podem ser criadas ou editadas aos fins de semana.",
     );
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       "Sessão atualizada com sucesso.",
@@ -210,16 +210,16 @@ describe("SessionFormDialog", () => {
     await screen.findByRole("heading", { name: /Editar Sessão/i });
 
     const maxCapacityInput = await screen.findByLabelText(
-      /Capacidade maxima da sessao/i,
+      /Capacidade máxima da sessão/i,
     );
 
     expect(maxCapacityInput).toHaveAttribute("min", "10");
-    expect(maxCapacityInput).not.toHaveAttribute("max");
+    expect(maxCapacityInput).toHaveAttribute("max", "21");
 
     fireEvent.change(maxCapacityInput, { target: { value: "30" } });
 
     await userEvent.click(
-      screen.getByRole("button", { name: /Salvar alteracoes/i }),
+      screen.getByRole("button", { name: /Salvar alterações/i }),
     );
 
     await waitFor(() => {
@@ -242,7 +242,7 @@ describe("SessionFormDialog", () => {
     renderDialog();
 
     const maxCapacityInput = await screen.findByLabelText(
-      /Capacidade maxima da sessao/i,
+      /Capacidade máxima da sessão/i,
     );
 
     expect(maxCapacityInput).toHaveAttribute("min", "8");

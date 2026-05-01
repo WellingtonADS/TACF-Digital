@@ -13,6 +13,8 @@ export default defineConfig([
     "public",
     "build",
     "scripts/**",
+    "tests/e2e/**",
+    "playwright.config.ts",
   ]),
   {
     files: ["**/*.{ts,tsx}"],
