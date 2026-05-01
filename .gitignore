@@ -78,6 +78,10 @@ lista_chamada_*.pdf
 
 # Supabase local development & test data
 supabase/
+
+# Evidence prints and local-only E2E specs
+evidence/
+tests/e2e/evidence-full-flows.spec.ts
 !supabase/
 supabase/*
 !supabase/rpc/

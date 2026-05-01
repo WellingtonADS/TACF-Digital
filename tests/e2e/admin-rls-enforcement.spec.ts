@@ -2,7 +2,7 @@
  * RLS enforcement spec — verifies that a regular (non-admin) user cannot
  * access admin-only routes and receives the expected denied/forbidden state.
  */
-import { expect, test } from "../fixtures/auth";
+import { expect, test } from "./fixtures/auth";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
 

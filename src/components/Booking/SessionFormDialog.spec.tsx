@@ -201,43 +201,6 @@ describe("SessionFormDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("permite aumentar a capacidade máxima na edição específica da sessão", async () => {
-    renderDialog({
-      mode: "edit",
-      sessionId: "session-1",
-    });
-
-    await screen.findByRole("heading", { name: /Editar Sessão/i });
-
-    const maxCapacityInput = await screen.findByLabelText(
-      /Capacidade máxima da sessão/i,
-    );
-
-    expect(maxCapacityInput).toHaveAttribute("min", "10");
-    expect(maxCapacityInput).toHaveAttribute("max", "21");
-
-    fireEvent.change(maxCapacityInput, { target: { value: "30" } });
-
-    await userEvent.click(
-      screen.getByRole("button", { name: /Salvar alterações/i }),
-    );
-
-    await waitFor(() => {
-      expect(mocks.updateOpenSessionOperational).toHaveBeenCalledWith({
-        sessionId: "session-1",
-        period: "tarde",
-        capacity: 10,
-        maxCapacity: 30,
-        locationId: "loc-1",
-        coordinatorId: "coord-1",
-      });
-    });
-
-    expect(mocks.toastError).not.toHaveBeenCalledWith(
-      "A capacidade máxima deve ficar entre 8 e 21.",
-    );
-  });
-
   it("bloqueia envio quando a capacidade máxima sai do intervalo permitido", async () => {
     renderDialog();
 

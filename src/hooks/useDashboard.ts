@@ -388,7 +388,7 @@ export default function useDashboard() {
   return {
     user,
     profile,
-    loading: loading || authLoading,
+    loading: loading || Boolean(authLoading),
     bookingsCount,
     resultsCount,
     nextSession,

@@ -89,6 +89,7 @@ export const formatDateTicket = (dateStr: string) => {
 export const getSemesterFromDate = (dateStr: string) => {
   try {
     const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
     const month = d.getMonth() + 1;
     return month <= 6 ? "1" : "2";
   } catch {
